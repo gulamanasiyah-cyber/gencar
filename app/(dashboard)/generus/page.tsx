@@ -609,15 +609,24 @@ export default function GenerusPage() {
                     <th>No. Unik</th>
                     <th>Nama</th>
                     <th>JK</th>
+                    <th>Umur</th>
                     <th>Kategori</th>
                     <th>Desa</th>
                     <th>Kelompok</th>
+                    <th>Alamat</th>
                     <th>Status</th>
                     <th>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.map((item) => (
+                  {data.map((item) => {
+                    let umur = "-";
+                    if (item.tanggalLahir) {
+                      const diff = Date.now() - new Date(item.tanggalLahir).getTime();
+                      const age = Math.abs(new Date(diff).getUTCFullYear() - 1970);
+                      if (age >= 0) umur = `${age} Thn`;
+                    }
+                    return (
                     <tr key={item.id}>
                       <td>
                         <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#f1f5f9", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>
@@ -633,6 +642,7 @@ export default function GenerusPage() {
                       </td>
                       <td style={{ fontWeight: 500 }}>{item.nama}</td>
                       <td>{item.jenisKelamin === "L" ? "Laki-laki" : "Perempuan"}</td>
+                      <td>{umur}</td>
                       <td>
                         <span className={`badge ${kategoriColor[item.kategoriUsia] || "badge-gray"}`}>
                           {item.kategoriUsia}
@@ -640,6 +650,9 @@ export default function GenerusPage() {
                       </td>
                       <td>{item.desaNama || "-"}</td>
                       <td>{item.kelompokNama || "-"}</td>
+                      <td style={{ maxWidth: "150px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.alamat || "-"}>
+                        {item.alamat || "-"}
+                      </td>
                       <td>
                         <span className={`badge ${item.statusNikah === "Menikah" ? "badge-green" : "badge-gray"}`}>
                           {item.statusNikah || "Belum Menikah"}
@@ -663,7 +676,8 @@ export default function GenerusPage() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  );
+                })}
                 </tbody>
               </table>
             )}
