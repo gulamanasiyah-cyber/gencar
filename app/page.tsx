@@ -15,6 +15,7 @@ import MaintenanceView from "@/components/MaintenanceView";
 
 import { settings } from "@/lib/schema";
 import { checkMaintenance } from "@/lib/maintenance";
+import JadwalSholat from "@/components/JadwalSholat";
 
 async function getSiteSettings() {
   try {
@@ -1140,7 +1141,6 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                       )}
                     </div>
 
-                    {/* Embedded Map */}
                     <div style={{ 
                       width: "100%", 
                       height: "350px", 
@@ -1293,6 +1293,17 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                 ))}
               </div>
             </div>
+          </section>
+
+          {/* ═══ JADWAL SHOLAT SECTION ═══ */}
+          <section id="jadwal-sholat" className="sect-wrap" style={{
+            marginTop: 28,
+            background: '#fff',
+            padding: '30px 16px',
+            borderRadius: '16px',
+            border: '1px solid var(--border)'
+          }}>
+            <JadwalSholat />
           </section>
 
         </div>
