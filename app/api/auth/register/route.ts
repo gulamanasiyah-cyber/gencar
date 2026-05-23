@@ -7,9 +7,9 @@ import { v4 as uuidv4 } from "uuid";
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, password, desaId, kelompokId, dapukan, jenisKelamin } = await request.json();
+    const { name, email, password, desaId, kelompokId, dapukan, jenisKelamin, kategoriUsia } = await request.json();
 
-    if (!name || !email || !password || !desaId || !kelompokId || !dapukan || !jenisKelamin) {
+    if (!name || !email || !password || !desaId || !kelompokId || !dapukan || !jenisKelamin || !kategoriUsia) {
       return NextResponse.json({ error: "Semua field wajib diisi" }, { status: 400 });
     }
 
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       nomorUnik,
       nama: name,
       jenisKelamin: jenisKelamin === "P" ? "P" : "L",
-      kategoriUsia: "SMA", // default
+      kategoriUsia: kategoriUsia,
       desaId: Number(desaId),
       kelompokId: Number(kelompokId),
       isGenerus: 1, // Ensure it appears in Data Generus

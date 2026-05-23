@@ -27,6 +27,7 @@ export default function RegisterPage() {
     kelompokId: "",
     dapukan: "",
     jenisKelamin: "",
+    kategoriUsia: "",
   });
   const [desaList, setDesaList] = useState<Desa[]>([]);
   const [kelompokList, setKelompokList] = useState<Kelompok[]>([]);
@@ -100,6 +101,7 @@ export default function RegisterPage() {
           kelompokId: form.kelompokId,
           dapukan: form.dapukan,
           jenisKelamin: form.jenisKelamin,
+          kategoriUsia: form.kategoriUsia,
         }),
       });
 
@@ -234,6 +236,27 @@ export default function RegisterPage() {
               <option value="P">Perempuan</option>
             </select>
           </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="kategoriUsia">
+              Pekerjaan / Pendidikan <span className="required">*</span>
+            </label>
+            <select
+              id="kategoriUsia"
+              name="kategoriUsia"
+              className="form-control"
+              value={form.kategoriUsia}
+              onChange={handleChange}
+              required
+            >
+              <option value="">-- Pilih --</option>
+              <option value="Bekerja">Bekerja</option>
+              <option value="SMA">SMA</option>
+              <option value="SMK">SMK</option>
+              <option value="Kuliah">Kuliah</option>
+            </select>
+          </div>
+
           <div className="form-group">
             <label className="form-label" htmlFor="name">
               Nama Lengkap <span className="required">*</span>

@@ -419,6 +419,10 @@ function AdminDashboard({ role, stats, cities, villages }: { role: string; stats
             <StatCard icon="users" color="blue" label="Total Generus" value={stats?.generus ?? 0} href="/generus" gradient="linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)" />
             <StatCard icon="heart" color="red" label="Sudah Menikah" value={stats?.married ?? 0} href="/generus" />
             <StatCard icon="heart-off" color="orange" label="Belum Menikah" value={stats?.notMarried ?? 0} href="/generus" />
+            <StatCard icon="briefcase" color="emerald" label="Total Bekerja" value={stats?.bekerja ?? 0} href="/generus" />
+            <StatCard icon="school" color="pink" label="SMA" value={stats?.sma ?? 0} href="/generus" />
+            <StatCard icon="school" color="indigo" label="SMK" value={stats?.smk ?? 0} href="/generus" />
+            <StatCard icon="graduation-cap" color="blue" label="Kuliah" value={stats?.kuliah ?? 0} href="/generus" />
           </>
         )}
       </div>
