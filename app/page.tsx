@@ -145,11 +145,52 @@ function timeAgo(dateStr: string | null) {
   return formatDateShort(dateStr);
 }
 
+function getEmbedUrl(mapsLink: string, placeName: string) {
+  if (!mapsLink) {
+    if (placeName) {
+      return `https://maps.google.com/maps?q=${encodeURIComponent(placeName)}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+    }
+    return "";
+  }
+  
+  // If it's already an iframe source or output=embed
+  if (mapsLink.includes("output=embed") || mapsLink.includes("google.com/maps/embed")) {
+    return mapsLink;
+  }
+
+  // Check if it has coordinates (@lat,lng)
+  const coordRegex = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
+  const match = mapsLink.match(coordRegex);
+  if (match) {
+    const lat = match[1];
+    const lng = match[2];
+    return `https://maps.google.com/maps?q=${lat},${lng}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+  }
+
+  // Check if it's a search link with q=
+  if (mapsLink.includes("q=")) {
+    try {
+      const urlObj = new URL(mapsLink);
+      const q = urlObj.searchParams.get("q");
+      if (q) {
+        return `https://maps.google.com/maps?q=${encodeURIComponent(q)}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+      }
+    } catch (e) {
+      // Ignore URL parsing errors
+    }
+  }
+
+  // Fallback to place name or encode the whole link as query
+  const query = placeName || mapsLink;
+  return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+}
+
 export default async function LandingPage({ searchParams }: { searchParams: { q?: string } }) {
   const query = searchParams.q;
   const siteSettings = await getSiteSettings();
   const siteLogo = siteSettings.site_logo;
-
+  const lokasiNama = siteSettings.lokasi_nama || "";
+  const lokasiGmaps = siteSettings.lokasi_gmaps || "";
   const session = await getSession();
 
   // Mode Maintenance Check
@@ -1044,6 +1085,88 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
               <div style={{ marginBottom: 40 }}>
                 <FeaturedArticleSlider articles={articles.slice(0, 5)} />
               </div>
+
+              {/* Lokasi Kami */}
+              {lokasiNama && (
+                <div style={{ marginTop: 32 }}>
+                  <div className="sect-hd">
+                    <span className="sect-hd-title">Lokasi Kami</span>
+                  </div>
+                  <div style={{
+                    background: "white",
+                    border: "1px solid var(--border)",
+                    borderRadius: "16px",
+                    padding: "20px",
+                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
+                    marginBottom: 40
+                  }}>
+                    <div style={{ 
+                      display: "flex", 
+                      justifyContent: "space-between", 
+                      alignItems: "center", 
+                      marginBottom: "16px",
+                      flexWrap: "wrap",
+                      gap: "12px"
+                    }}>
+                      <div>
+                        <h3 style={{ fontSize: "18px", fontWeight: 700, color: "var(--navy)" }}>{lokasiNama}</h3>
+                        <p style={{ fontSize: "13px", color: "var(--gray)", marginTop: "2px" }}>Petunjuk arah dan lokasi sekretariat kami.</p>
+                      </div>
+                      {lokasiGmaps && (
+                        <a 
+                          href={lokasiGmaps} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="btn btn-primary"
+                          style={{ 
+                            display: "inline-flex", 
+                            alignItems: "center", 
+                            gap: "6px", 
+                            padding: "8px 16px", 
+                            borderRadius: "8px",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            backgroundColor: "var(--primary)",
+                            color: "white",
+                          }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: "4px" }}>
+                            <path d="M15 3h6v6" />
+                            <path d="M10 14 21 3" />
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                          </svg>
+                          Buka di Google Maps
+                        </a>
+                      )}
+                    </div>
+
+                    {/* Embedded Map */}
+                    <div style={{ 
+                      width: "100%", 
+                      height: "350px", 
+                      borderRadius: "12px", 
+                      overflow: "hidden", 
+                      border: "1px solid var(--border)",
+                    }}>
+                      {getEmbedUrl(lokasiGmaps, lokasiNama) ? (
+                        <iframe
+                          src={getEmbedUrl(lokasiGmaps, lokasiNama)}
+                          width="100%"
+                          height="100%"
+                          style={{ border: 0 }}
+                          allowFullScreen={true}
+                          loading="lazy"
+                          referrerPolicy="no-referrer-when-downgrade"
+                        />
+                      ) : (
+                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--gray)" }}>
+                          Peta tidak dapat ditampilkan.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
