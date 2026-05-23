@@ -58,7 +58,7 @@ export default function HomeHeader({ session }: { session: any }) {
                 <div className="masthead-logo">J</div>
               )}
               <div className="masthead-text">
-                <div className="masthead-title">JB2.ID</div>
+                <div className="masthead-title">GENERASI PENERUS PC LDII JAKARTA BARAT 2</div>
                 <div className="masthead-sub">Berita & Informasi Generasi Penerus</div>
               </div>
             </div>
@@ -122,11 +122,12 @@ export default function HomeHeader({ session }: { session: any }) {
           font-size: 24px;
         }
         .masthead-title {
-          font-family: var(--serif);
-          font-size: 32px;
-          font-weight: 900;
+          font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          font-size: 24px;
+          font-weight: 700;
+          letter-spacing: -0.5px;
           color: var(--navy);
-          line-height: 1;
+          line-height: 1.2;
         }
         .masthead-sub {
           font-size: 11px;
@@ -154,7 +155,7 @@ export default function HomeHeader({ session }: { session: any }) {
           .masthead-brand { gap: 12px; }
           .masthead-logo-img, .masthead-logo { width: 44px; height: 44px; }
           .masthead-logo { font-size: 20px; }
-          .masthead-title { font-size: 24px; }
+          .masthead-title { font-size: 16px; line-height: 1.3; }
           .masthead-sub { font-size: 9px; }
         }
       `}</style>

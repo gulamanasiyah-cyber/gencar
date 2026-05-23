@@ -11,11 +11,16 @@ interface Timings {
 }
 
 export default function JadwalSholat() {
+  const [mounted, setMounted] = useState(false);
   const [timings, setTimings] = useState<Timings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [time, setTime] = useState("");
   const [dateStr, setDateStr] = useState("");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     // Clock tick
@@ -112,6 +117,34 @@ export default function JadwalSholat() {
       { id: "Isya", label: "Isya", val: timings.Isha },
     ];
   };
+
+  if (!mounted) {
+    return (
+      <div
+        style={{
+          background: "#f8fafc",
+          border: "1px solid var(--border)",
+          borderRadius: "12px",
+          padding: "16px",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "300px"
+        }}
+      >
+        <div style={{ width: "24px", height: "24px", border: "3px solid var(--border)", borderTopColor: "var(--primary)", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+        <span style={{ fontSize: "11px", color: "var(--gray)", marginTop: "8px" }}>Memuat jadwal sholat...</span>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   return (
     <div

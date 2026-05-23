@@ -153,7 +153,7 @@ function getEmbedUrl(mapsLink: string, placeName: string) {
     }
     return "";
   }
-  
+
   // If it's already an iframe source or output=embed
   if (mapsLink.includes("output=embed") || mapsLink.includes("google.com/maps/embed")) {
     return mapsLink;
@@ -1101,10 +1101,10 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                     boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
                     marginBottom: 40
                   }}>
-                    <div style={{ 
-                      display: "flex", 
-                      justifyContent: "space-between", 
-                      alignItems: "center", 
+                    <div style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
                       marginBottom: "16px",
                       flexWrap: "wrap",
                       gap: "12px"
@@ -1114,16 +1114,16 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                         <p style={{ fontSize: "13px", color: "var(--gray)", marginTop: "2px" }}>Petunjuk arah dan lokasi sekretariat kami.</p>
                       </div>
                       {lokasiGmaps && (
-                        <a 
-                          href={lokasiGmaps} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
+                        <a
+                          href={lokasiGmaps}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="btn btn-primary"
-                          style={{ 
-                            display: "inline-flex", 
-                            alignItems: "center", 
-                            gap: "6px", 
-                            padding: "8px 16px", 
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "8px 16px",
                             borderRadius: "8px",
                             fontSize: "13px",
                             fontWeight: 600,
@@ -1141,11 +1141,11 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                       )}
                     </div>
 
-                    <div style={{ 
-                      width: "100%", 
-                      height: "350px", 
-                      borderRadius: "12px", 
-                      overflow: "hidden", 
+                    <div style={{
+                      width: "100%",
+                      height: "350px",
+                      borderRadius: "12px",
+                      overflow: "hidden",
                       border: "1px solid var(--border)",
                     }}>
                       {getEmbedUrl(lokasiGmaps, lokasiNama) ? (
@@ -1322,7 +1322,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                 {siteLogo && (
                   <img src={siteLogo} alt="Logo" style={{ width: "32px", height: "32px", objectFit: "contain" }} />
                 )}
-                <span className="footer-logo-name">JB2.ID</span>
+                <span className="footer-logo-name">GENERASI PENERUS PC LDII JAKARTA BARAT 2</span>
               </div>
               <p className="footer-desc">
                 Portal berita dan sistem manajemen digital resmi Generasi Penerus PC LDII Jakarta Barat 2.
@@ -1347,7 +1347,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
           </div>
           <hr className="footer-sep" />
           <div className="footer-bottom" suppressHydrationWarning>
-            <span className="footer-copy" suppressHydrationWarning>© 2026 JB2.ID — Hak Cipta Dilindungi</span>
+            <span className="footer-copy" suppressHydrationWarning>© 2026 GENERASI PENERUS PC LDII JAKARTA BARAT 2 — Hak Cipta Dilindungi</span>
             <div className="footer-bottom-right">
               <span className="footer-bottom-link">Kebijakan Privasi</span>
               <span className="footer-bottom-link">Syarat & Ketentuan</span>
