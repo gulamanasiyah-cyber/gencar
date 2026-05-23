@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, desa, kelompok, usersOld, mandiri, mandiriDesa, mandiriKelompok, settings, formPanitiaDanPengurus, mandiriKegiatan, mandiriAbsensi } from "@/lib/schema";
+import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, settings, formPanitiaDanPengurus, mandiriKegiatan, mandiriAbsensi } from "@/lib/schema";
 import { eq, and, or, like, sql, isNull, isNotNull, desc } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
@@ -82,14 +82,14 @@ export async function GET(request: NextRequest) {
     if (status === "panitia") {
       conditions.push(
         or(
-          and(sql`${usersOld.role} IS NOT NULL`, sql`${usersOld.role} != 'generus'`),
+          and(sql`${users.role} IS NOT NULL`, sql`${users.role} != 'generus'`),
           isNotNull(formPanitiaDanPengurus.id)
         )
       );
     } else if (status === "peserta") {
       conditions.push(
         and(
-          or(eq(usersOld.role, "generus"), isNull(usersOld.role)),
+          or(eq(users.role, "generus"), isNull(users.role)),
           isNull(formPanitiaDanPengurus.id)
         )
       );
@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
         makananMinumanFavorit: generus.makananMinumanFavorit,
         instagram: generus.instagram,
         alamat: generus.alamat,
-        role: usersOld.role,
+        role: users.role,
         nomorUrut: mandiri.nomorUrut,
         panitiaStatus: formPanitiaDanPengurus.dapukan,
         selectedCount: sql<number>`(
@@ -169,7 +169,7 @@ export async function GET(request: NextRequest) {
       .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
       .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id))
-      .leftJoin(usersOld, eq(generus.id, usersOld.generusId))
+      .leftJoin(users, eq(generus.id, users.generusId))
       .leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId));
 
     // Count Query - only join mandiri (required)
@@ -181,7 +181,7 @@ export async function GET(request: NextRequest) {
 
     // Dynamic joins for count query if filters are present
     if (search || status !== "all") {
-        countQuery.leftJoin(usersOld, eq(generus.id, usersOld.generusId));
+        countQuery.leftJoin(users, eq(generus.id, users.generusId));
         countQuery.leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId));
     }
     if (search || mandiriDesaId !== "all" || kota !== "all") {

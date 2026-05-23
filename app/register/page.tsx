@@ -23,8 +23,13 @@ export default function RegisterPage() {
     email: "",
     password: "",
     confirmPassword: "",
-    nomorUnik: "",
+    desaId: "",
+    kelompokId: "",
+    dapukan: "",
+    jenisKelamin: "",
   });
+  const [desaList, setDesaList] = useState<Desa[]>([]);
+  const [kelompokList, setKelompokList] = useState<Kelompok[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -41,6 +46,27 @@ export default function RegisterPage() {
       return () => window.removeEventListener('site-logo-updated', handleLogoUpdate);
     }
   }, []);
+
+  useEffect(() => {
+    fetch("/api/public/generus/desa")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setDesaList(data);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (form.desaId) {
+      fetch(`/api/public/generus/kelompok?desaId=${form.desaId}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (Array.isArray(data)) setKelompokList(data);
+        });
+    } else {
+      setKelompokList([]);
+    }
+    setForm(prev => ({ ...prev, kelompokId: "" }));
+  }, [form.desaId]);
 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -70,7 +96,10 @@ export default function RegisterPage() {
           name: form.name,
           email: form.email,
           password: form.password,
-          nomorUnik: form.nomorUnik,
+          desaId: form.desaId,
+          kelompokId: form.kelompokId,
+          dapukan: form.dapukan,
+          jenisKelamin: form.jenisKelamin,
         }),
       });
 
@@ -120,7 +149,6 @@ export default function RegisterPage() {
         </div>
 
         <h2 className="auth-title">Buat Akun Baru</h2>
-        <p className="auth-subtitle">Registrasi hanya untuk yang sudah mendaftar Mandiri</p>
 
         {error && (
           <div className="alert alert-error">
@@ -134,24 +162,77 @@ export default function RegisterPage() {
         )}
 
         <form onSubmit={handleSubmit}>
-          <div className="form-group" style={{ background: "#f0f9ff", padding: "12px", borderRadius: "10px", border: "1px solid #bae6fd", marginBottom: "20px" }}>
-            <label className="form-label" htmlFor="nomorUnik" style={{ color: "#0369a1", fontWeight: "700" }}>
-              Nomor Unik Mandiri <span className="required">*</span>
+          <div className="form-group">
+            <label className="form-label" htmlFor="desaId">
+              Desa <span className="required">*</span>
             </label>
-            <input
-              id="nomorUnik"
-              name="nomorUnik"
-              type="text"
+            <select
+              id="desaId"
+              name="desaId"
               className="form-control"
-              placeholder="Contoh: MND123456"
-              value={form.nomorUnik}
+              value={form.desaId}
               onChange={handleChange}
               required
-              style={{ border: "1px solid #7dd3fc" }}
-            />
-            <p style={{ fontSize: "11px", color: "#0ea5e9", marginTop: "5px" }}>
-              Dapatkan nomor unik Anda di link registrasi mandiri.
-            </p>
+            >
+              <option value="">-- Pilih Desa --</option>
+              {desaList.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="kelompokId">
+              Kelompok <span className="required">*</span>
+            </label>
+            <select
+              id="kelompokId"
+              name="kelompokId"
+              className="form-control"
+              value={form.kelompokId}
+              onChange={handleChange}
+              required
+              disabled={!form.desaId}
+            >
+              <option value="">-- Pilih Kelompok --</option>
+              {kelompokList.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="dapukan">
+              Dapukan <span className="required">*</span>
+            </label>
+            <select
+              id="dapukan"
+              name="dapukan"
+              className="form-control"
+              value={form.dapukan}
+              onChange={handleChange}
+              required
+            >
+              <option value="">-- Pilih Dapukan --</option>
+              <option value="generus">Generus</option>
+              <option value="kelompok">Pengurus Kelompok</option>
+              <option value="desa">Pengurus Desa</option>
+              <option value="pengurus_daerah">Pengurus Daerah</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="jenisKelamin">
+              Jenis Kelamin <span className="required">*</span>
+            </label>
+            <select
+              id="jenisKelamin"
+              name="jenisKelamin"
+              className="form-control"
+              value={form.jenisKelamin}
+              onChange={handleChange}
+              required
+            >
+              <option value="">-- Pilih Jenis Kelamin --</option>
+              <option value="L">Laki-laki</option>
+              <option value="P">Perempuan</option>
+            </select>
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="name">

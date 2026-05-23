@@ -1118,7 +1118,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
             border: '1px solid var(--border)'
           }}>
             <div className="sect-hd">
-              <span className="sect-hd-title">Kegiatan Terbaru</span>
+              <span className="sect-hd-title">Kegiatan</span>
             </div>
             {recentKegiatan.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

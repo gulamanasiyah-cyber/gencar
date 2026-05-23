@@ -442,7 +442,7 @@ export default function GenerusPage() {
             <h2>Data Generus</h2>
             <p>Total {total} generus terdaftar</p>
           </div>
-          <div style={{ display: "flex", gap: "10px" }}>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", width: "100%", justifyContent: "flex-end" }}>
             {["admin", "pengurus_daerah", "kmm_daerah"].includes(userRole) && (
               <>
                 <button
@@ -509,7 +509,7 @@ export default function GenerusPage() {
               >
                 Semua Kategori
               </button>
-              {Object.keys(kategoriColor).map((cat) => (
+              {["SMA", "SMK", "Kuliah", "Bekerja"].map((cat) => (
                 <button
                   key={cat}
                   className={`btn btn-sm ${kategoriFilter === cat ? "btn-primary" : "btn-secondary"}`}
@@ -535,10 +535,10 @@ export default function GenerusPage() {
                 />
               </div>
 
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", width: "100%" }}>
                 <select 
                   className="form-control" 
-                  style={{ width: "auto" }}
+                  style={{ flex: "1 1 140px" }}
                   value={statusNikahFilter}
                   onChange={(e) => { setStatusNikahFilter(e.target.value); setPage(1); }}
                 >
@@ -551,7 +551,7 @@ export default function GenerusPage() {
                   <>
                     <select 
                       className="form-control" 
-                      style={{ width: "auto" }}
+                      style={{ flex: "1 1 140px" }}
                       value={desaFilter}
                       onChange={(e) => { setDesaFilter(e.target.value); setPage(1); setKelompokFilter(""); }}
                     >
@@ -561,7 +561,7 @@ export default function GenerusPage() {
 
                     <select 
                       className="form-control" 
-                      style={{ width: "auto" }}
+                      style={{ flex: "1 1 140px" }}
                       value={kelompokFilter}
                       onChange={(e) => { setKelompokFilter(e.target.value); setPage(1); }}
                     >
@@ -612,7 +612,6 @@ export default function GenerusPage() {
                     <th>Kategori</th>
                     <th>Desa</th>
                     <th>Kelompok</th>
-                    <th>Suku</th>
                     <th>Status</th>
                     <th>Aksi</th>
                   </tr>
@@ -641,7 +640,6 @@ export default function GenerusPage() {
                       </td>
                       <td>{item.desaNama || "-"}</td>
                       <td>{item.kelompokNama || "-"}</td>
-                      <td>{item.suku || "-"}</td>
                       <td>
                         <span className={`badge ${item.statusNikah === "Menikah" ? "badge-green" : "badge-gray"}`}>
                           {item.statusNikah || "Belum Menikah"}

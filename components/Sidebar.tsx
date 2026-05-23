@@ -59,7 +59,6 @@ const navItems = [
       { href: "/admin/katalog", label: "Katalog Peserta", icon: "katalog" },
       { href: "/mandiri/romantic-room", label: "Romantic Room", icon: "romantic" },
       { href: "/mandiri/desa", label: "Kelola Daerah / Desa", icon: "desa" },
-      { href: "/rab?type=mandiri", label: "RAB Kegiatan Mandiri", icon: "money", roles: ["admin_keuangan"] },
     ],
   },
   {
@@ -71,7 +70,6 @@ const navItems = [
       { href: "/rundown", label: "Rundown Acara", icon: "list", roles: ["admin_kegiatan"] },
       { href: "/artikel", label: "Artikel", icon: "book-open" },
       { href: "/berita", label: "Berita", icon: "file-text" },
-      { href: "/rab?type=kegiatan", label: "RAB Kegiatan", icon: "dollar-sign", roles: ["admin", "pengurus_daerah", "admin_keuangan"] },
     ],
   },
   {
@@ -189,8 +187,6 @@ const userNavs: Record<string, any[]> = {
       section: "Data & Konten",
       items: [
         { href: "/kegiatan", label: "Kegiatan", icon: "calendar" },
-        { href: "/rab?type=kegiatan", label: "RAB Kegiatan", icon: "dollar-sign" },
-        { href: "/rab?type=mandiri", label: "RAB Kegiatan Mandiri", icon: "dollar-sign" },
         { href: "/generus", label: "Data Generus", icon: "users" },
       ],
     },

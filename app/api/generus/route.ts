@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, desa, kelompok, usersOld, mandiri, mandiriDesa, mandiriKelompok, formPanitiaDanPengurus } from "@/lib/schema";
+import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, formPanitiaDanPengurus } from "@/lib/schema";
 import { eq, and, or, like, sql, not, isNull, isNotNull, ne, inArray, notInArray } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
@@ -115,14 +115,14 @@ function buildWhereClause(
   if (status === "panitia") {
     conditions.push(
       or(
-        not(or(isNull(usersOld.role), eq(usersOld.role, "generus"))!),
+        not(or(isNull(users.role), eq(users.role, "generus"))!),
         isNotNull(formPanitiaDanPengurus.id)
       )
     );
   } else if (status === "peserta") {
     conditions.push(
       and(
-        or(isNull(usersOld.role), eq(usersOld.role, "generus")),
+        or(isNull(users.role), eq(users.role, "generus")),
         isNull(formPanitiaDanPengurus.id)
       )
     );
@@ -178,8 +178,8 @@ export async function GET(request: NextRequest) {
         id: generus.id,
         nomorUnik: generus.nomorUnik,
         nama: generus.nama,
-        email: usersOld.email,
-        role: usersOld.role,
+        email: users.email,
+        role: users.role,
         desaNama: desa.nama,
         kelompokNama: kelompok.nama,
         foto: generus.foto,
@@ -217,7 +217,7 @@ export async function GET(request: NextRequest) {
       let query = db
         .select(commonSelect)
         .from(generus)
-        .leftJoin(usersOld, eq(generus.id, usersOld.generusId))
+        .leftJoin(users, eq(generus.id, users.generusId))
         .leftJoin(desa, eq(generus.desaId, desa.id))
         .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
         .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
@@ -243,7 +243,7 @@ export async function GET(request: NextRequest) {
       .from(generus)
       .leftJoin(desa, eq(generus.desaId, desa.id))
       .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
-      .leftJoin(usersOld, eq(generus.id, usersOld.generusId))
+      .leftJoin(users, eq(generus.id, users.generusId))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
       .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id))
       .leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId));
@@ -259,9 +259,9 @@ export async function GET(request: NextRequest) {
       .select({ count: sql<number>`count(*)` })
       .from(generus);
 
-    // Only join usersOld if status filtering is happening and it's not simply 'all'
+    // Only join users if status filtering is happening and it's not simply 'all'
     if (status !== "all" || search) {
-      countQuery.leftJoin(usersOld, eq(generus.id, usersOld.generusId));
+      countQuery.leftJoin(users, eq(generus.id, users.generusId));
     }
 
     if (search) {
@@ -376,13 +376,13 @@ export async function POST(request: NextRequest) {
       isGenerus: 1,
     });
 
-    // AUTO-CREATE USER ACCOUNT for Generus role (in usersOld)
+    // AUTO-CREATE USER ACCOUNT for Generus role (in users)
     const { email: customEmail, password: customPassword } = body;
     let finalEmail = customEmail ? customEmail.toLowerCase() : `${nomorUnik.toLowerCase()}@jb2.id`;
     const finalPassword = customPassword || nomorUnik;
     
-    // Check email uniqueness in usersOld
-    const existingEmail = await db.query.usersOld.findFirst({ where: eq(usersOld.email, finalEmail) });
+    // Check email uniqueness in users
+    const existingEmail = await db.query.users.findFirst({ where: eq(users.email, finalEmail) });
     if (existingEmail) {
         finalEmail = `${uuidv4().substring(0, 4)}_${finalEmail}`;
     }
@@ -390,7 +390,7 @@ export async function POST(request: NextRequest) {
     const bcrypt = await import("bcryptjs");
     const passwordHash = await bcrypt.hash(finalPassword, 10);
 
-    await db.insert(usersOld).values({
+    await db.insert(users).values({
         id: uuidv4(),
         name: nama,
         email: finalEmail,

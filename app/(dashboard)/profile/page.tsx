@@ -276,26 +276,7 @@ export default function ProfilePage() {
                     <label>Nomor Telepon</label>
                     <div>{data.noTelp || "-"}</div>
                   </div>
-                  <div className="data-item">
-                    <label>Pendidikan Terakhir</label>
-                    <div>{data.pendidikan || "-"}</div>
-                  </div>
-                  <div className="data-item">
-                    <label>Pekerjaan</label>
-                    <div>{data.pekerjaan || "-"}</div>
-                  </div>
-                  <div className="data-item">
-                    <label>Status Pernikahan</label>
-                    <div>{data.statusNikah || "Belum Menikah"}</div>
-                  </div>
-                  <div className="data-item">
-                    <label>Hobi</label>
-                    <div>{data.hobi || "-"}</div>
-                  </div>
-                  <div className="data-item">
-                    <label>Suku</label>
-                    <div>{data.suku || "-"}</div>
-                  </div>
+
                 </div>
               </div>
             </div>
@@ -494,11 +475,8 @@ export default function ProfilePage() {
                         value={editForm.kategoriUsia}
                         onChange={(e) => setEditForm({ ...editForm, kategoriUsia: e.target.value })}
                       >
-                        <option value="PAUD">PAUD</option>
-                        <option value="TK">TK</option>
-                        <option value="SD">SD</option>
-                        <option value="SMP">SMP</option>
                         <option value="SMA">SMA</option>
+                        <option value="SMK">SMK</option>
                         <option value="Kuliah">Kuliah</option>
                         <option value="Bekerja">Bekerja</option>
                       </select>
@@ -531,77 +509,7 @@ export default function ProfilePage() {
                   <label className="floating-label">Nomor Telepon (WhatsApp)</label>
                 </div>
 
-                <div className="form-row">
-                  <div className="form-group floating-group">
-                    <input
-                      type="text"
-                      className="form-control premium-input"
-                      value={editForm.pendidikan}
-                      placeholder=" "
-                      onChange={(e) => setEditForm({ ...editForm, pendidikan: e.target.value })}
-                    />
-                    <label className="floating-label">Pendidikan Terakhir</label>
-                  </div>
-                  <div className="form-group floating-group">
-                    <input
-                      type="text"
-                      className="form-control premium-input"
-                      value={editForm.pekerjaan}
-                      placeholder=" "
-                      onChange={(e) => setEditForm({ ...editForm, pekerjaan: e.target.value })}
-                    />
-                    <label className="floating-label">Pekerjaan Saat Ini</label>
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="form-label text-sm text-muted mb-2">Status Pernikahan</label>
-                  <div className="custom-select-wrapper">
-                    <select
-                      className="form-control premium-input custom-select"
-                      value={editForm.statusNikah}
-                      onChange={(e) => setEditForm({ ...editForm, statusNikah: e.target.value })}
-                    >
-                      <option value="Belum Menikah">Belum Menikah</option>
-                      <option value="Menikah">Menikah</option>
-                    </select>
-                    <svg className="select-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                  </div>
-                </div>
 
-                <div className="form-group floating-group">
-                  <input
-                    type="text"
-                    className="form-control premium-input"
-                    value={editForm.hobi}
-                    placeholder=" "
-                    onChange={(e) => setEditForm({ ...editForm, hobi: e.target.value })}
-                  />
-                  <label className="floating-label">Hobi</label>
-                </div>
-
-                <div className="form-group floating-group">
-                  <input
-                    type="text"
-                    className="form-control premium-input"
-                    value={editForm.makananMinumanFavorit}
-                    placeholder=" "
-                    onChange={(e) => setEditForm({ ...editForm, makananMinumanFavorit: e.target.value })}
-                  />
-                  <label className="floating-label">Makanan & Minuman Favorit</label>
-                </div>
-
-                <div className="form-group floating-group">
-                  <input
-                    type="text"
-                    className="form-control premium-input"
-                    value={editForm.suku}
-                    placeholder=" "
-                    onChange={(e) => setEditForm({ ...editForm, suku: e.target.value })}
-                  />
-                  <label className="floating-label">Suku</label>
-                </div>
               </div>
               <div className="modal-footer premium-footer">
                 <button type="button" className="btn btn-ghost" onClick={() => setShowEditModal(false)}>Batal</button>

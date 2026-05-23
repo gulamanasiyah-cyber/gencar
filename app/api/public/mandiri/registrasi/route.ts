@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, mandiri, settings, desa, kelompok, users, usersOld } from "@/lib/schema";
+import { generus, mandiri, settings, desa, kelompok, users } from "@/lib/schema";
 import { eq, desc, and, or, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 
@@ -73,8 +73,8 @@ export async function POST(request: NextRequest) {
             updatedAt: new Date().toISOString()
         }).where(eq(generus.id, duplicate.id));
 
-        // Hapus akun generus lama (usersOld) agar tidak duplikat role
-        await db.delete(usersOld).where(eq(usersOld.generusId, duplicate.id));
+        // Hapus akun generus lama (users) agar tidak duplikat role
+        await db.delete(users).where(eq(users.generusId, duplicate.id));
 
         // Calculate next nomorUrut based on gender
         // Laki-laki: 1-199, Perempuan: 200+

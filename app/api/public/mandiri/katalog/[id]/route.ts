@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, desa, kelompok, usersOld, mandiri, mandiriDesa, mandiriKelompok, settings, mandiriKegiatan, mandiriAbsensi } from "@/lib/schema";
+import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, settings, mandiriKegiatan, mandiriAbsensi } from "@/lib/schema";
 import { eq, sql, and, desc } from "drizzle-orm";
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         pekerjaan: generus.pekerjaan,
         hobi: generus.hobi,
         makananMinumanFavorit: generus.makananMinumanFavorit,
-        role: usersOld.role,
+        role: users.role,
         nomorUrut: mandiri.nomorUrut,
         noTelp: sql<string>`NULL`,
         alamat: generus.alamat,
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
       .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id))
-      .leftJoin(usersOld, eq(generus.id, usersOld.generusId))
+      .leftJoin(users, eq(generus.id, users.generusId))
       .where(and(
         eq(generus.id, id),
         eq(mandiriAbsensi.kegiatanId, kegiatanId)

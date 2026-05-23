@@ -1,10 +1,11 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { usersOld, desa, kelompok, generus, mandiri } from "@/lib/schema";
+import { users, desa, kelompok, generus, mandiri } from "@/lib/schema";
 import { eq, or, like, sql, and } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { getSession } from "@/lib/auth";
+import bcrypt from "bcryptjs";
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,12 +25,12 @@ export async function GET(request: NextRequest) {
     const conditions = [];
     if (search) {
       conditions.push(or(
-        like(usersOld.name, `%${search}%`),
-        like(usersOld.email, `%${search}%`)
+        like(users.name, `%${search}%`),
+        like(users.email, `%${search}%`)
       ));
     }
     if (roleParam) {
-      conditions.push(eq(usersOld.role, roleParam as any));
+      conditions.push(eq(users.role, roleParam as any));
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -40,17 +41,17 @@ export async function GET(request: NextRequest) {
     if (isAll) {
       const data = await db
         .select({
-          id: usersOld.id,
-          name: usersOld.name,
-          email: usersOld.email,
+          id: users.id,
+          name: users.name,
+          email: users.email,
           desaNama: desa.nama,
           kelompokNama: kelompok.nama,
         })
-        .from(usersOld)
-        .leftJoin(desa, eq(usersOld.desaId, desa.id))
-        .leftJoin(kelompok, eq(usersOld.kelompokId, kelompok.id))
+        .from(users)
+        .leftJoin(desa, eq(users.desaId, desa.id))
+        .leftJoin(kelompok, eq(users.kelompokId, kelompok.id))
         .where(whereClause)
-        .orderBy(usersOld.name);
+        .orderBy(users.name);
 
       if (searchParams.get("format") === "csv") {
         const csvHeader = "Nama Lengkap,Desa,Kelompok,Email,Password Default\n";
@@ -75,29 +76,29 @@ export async function GET(request: NextRequest) {
     // LIST MODE: Paginated (Optimized Parallel Execution)
     const dataQuery = db
       .select({
-        id: usersOld.id,
-        name: usersOld.name,
-        email: usersOld.email,
-        role: usersOld.role,
-        desaId: usersOld.desaId,
-        kelompokId: usersOld.kelompokId,
-        createdAt: usersOld.createdAt,
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        role: users.role,
+        desaId: users.desaId,
+        kelompokId: users.kelompokId,
+        createdAt: users.createdAt,
         generusNomorUnik: generus.nomorUnik,
         isMandiri: sql<number>`CASE WHEN ${mandiri.id} IS NOT NULL THEN 1 ELSE 0 END`,
         mandiriStatus: mandiri.statusMandiri,
         mandiriNomorUrut: mandiri.nomorUrut
       })
-      .from(usersOld)
-      .leftJoin(generus, eq(usersOld.generusId, generus.id))
+      .from(users)
+      .leftJoin(generus, eq(users.generusId, generus.id))
       .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
       .where(whereClause)
-      .orderBy(usersOld.name)
+      .orderBy(users.name)
       .limit(limit)
       .offset(offset);
 
     const countQuery = db
       .select({ count: sql<number>`count(*)` })
-      .from(usersOld)
+      .from(users)
       .where(whereClause);
 
     const [data, countResult] = await Promise.all([dataQuery, countQuery]);
@@ -122,7 +123,7 @@ export async function PUT(request: NextRequest) {
     const { id, role, desaId, kelompokId } = await request.json();
     if (!id) return NextResponse.json({ error: "ID diperlukan" }, { status: 400 });
 
-    const user = await db.query.usersOld.findFirst({ where: eq(usersOld.id, id) });
+    const user = await db.query.users.findFirst({ where: eq(users.id, id) });
     if (!user) return NextResponse.json({ error: "User tidak ditemukan" }, { status: 404 });
 
     let generusId = user.generusId;
@@ -159,12 +160,12 @@ export async function PUT(request: NextRequest) {
       });
     }
 
-    await db.update(usersOld).set({ 
+    await db.update(users).set({ 
       role: role || user.role, 
       desaId: desaId ? Number(desaId) : user.desaId, 
       kelompokId: kelompokId ? Number(kelompokId) : user.kelompokId, 
       generusId 
-    }).where(eq(usersOld.id, id));
+    }).where(eq(users.id, id));
     
     // Sinkronkan ke generus jika user memiliki generusId
     if (generusId) {
@@ -196,11 +197,84 @@ export async function DELETE(request: NextRequest) {
     }
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
-    if (!id) return NextResponse.json({ error: "ID diperlukan" }, { status: 400 });
-    await db.delete(usersOld).where(eq(usersOld.id, id));
-    return NextResponse.json({ success: true });
+    const role = searchParams.get("role");
+    
+    if (id) {
+      await db.delete(users).where(eq(users.id, id));
+      return NextResponse.json({ success: true });
+    } else if (role) {
+      await db.delete(users).where(eq(users.role, role as any));
+      return NextResponse.json({ success: true });
+    } else {
+      return NextResponse.json({ error: "ID atau Role diperlukan" }, { status: 400 });
+    }
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Gagal menghapus data" }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getSession();
+    if (!session || !["admin", "pengurus_daerah", "kmm_daerah"].includes(session.role)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { name, email, password, role, desaId, kelompokId } = await request.json();
+
+    if (!name || !email || !password || !role) {
+      return NextResponse.json({ error: "Nama, email, password, dan role wajib diisi" }, { status: 400 });
+    }
+
+    const existingUser = await db.query.users.findFirst({
+      where: eq(users.email, email.toLowerCase()),
+    });
+
+    if (existingUser) {
+      return NextResponse.json({ error: "Email sudah terdaftar" }, { status: 409 });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const id = uuidv4();
+
+    // Auto-create Generus profile if role implies it, but here we can just create a basic profile for everyone or conditionally.
+    // For simplicity, let's create a generus profile if the role is generus, kelompok, desa, or pengurus_daerah, like in auth/register.
+    // Actually, maybe we shouldn't force generus creation for every single role like creator/admin.
+    let generusId = null;
+    const isGenerusRole = ["generus", "kelompok", "desa", "pengurus_daerah"].includes(role);
+    
+    if (isGenerusRole) {
+        generusId = uuidv4();
+        const prefix = role === "generus" ? "G" : "P";
+        const nomorUnik = `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
+
+        await db.insert(generus).values({
+          id: generusId,
+          nomorUnik,
+          nama: name,
+          jenisKelamin: "L", // Defaulting to L
+          kategoriUsia: "SMA", // Default
+          desaId: Number(desaId) || null,
+          kelompokId: Number(kelompokId) || null,
+          isGenerus: 1, 
+        });
+    }
+
+    await db.insert(users).values({
+      id,
+      name,
+      email: email.toLowerCase(),
+      passwordHash,
+      role: role,
+      desaId: Number(desaId) || null,
+      kelompokId: Number(kelompokId) || null,
+      generusId: generusId,
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Add user error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -20,9 +20,9 @@ export async function POST(request: NextRequest) {
     // If not found in users, check users_old (Generus / Legacy)
     let isLegacy = false;
     if (!user) {
-        const { usersOld } = await import("@/lib/schema");
-        user = await db.query.usersOld.findFirst({
-            where: eq(usersOld.email, email.toLowerCase()),
+        const { users } = await import("@/lib/schema");
+        user = await db.query.users.findFirst({
+            where: eq(users.email, email.toLowerCase()),
         }) as any;
         if (user) isLegacy = true;
     }

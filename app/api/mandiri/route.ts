@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiri, generus, desa, kelompok, mandiriDesa, mandiriKelompok, users, usersOld } from "@/lib/schema";
+import { mandiri, generus, desa, kelompok, mandiriDesa, mandiriKelompok, users } from "@/lib/schema";
 import { eq, and, or, like, sql, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
 
     // Remove from youth category (isGenerus = 0) and cleanup old account
     await db.update(generus).set({ isGenerus: 0 }).where(eq(generus.id, generusId));
-    await db.delete(usersOld).where(eq(usersOld.generusId, generusId));
+    await db.delete(users).where(eq(users.generusId, generusId));
 
     // AUTO-SYNC USER ACCOUNT to 'peserta' role
     if (genData) {

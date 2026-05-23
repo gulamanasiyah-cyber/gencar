@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth";
 
-const PUBLIC_PATHS = ["/login", "/register", "/api/auth/login", "/api/auth/register", "/api/auth/desa", "/api/auth/kelompok", "/api/auth/reset-password", "/api/settings", "/api/public", "/api/upload", "/mandiri/katalog", "/mandiri/daftar", "/api/mandiri/pilih", "/api/mandiri/komentar", "/api/mandiri/box-love", "/api/mandiri/rooms"];
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  const PUBLIC_PATHS = ["/login", "/register", "/api/auth/login", "/api/auth/register", "/api/auth/desa", "/api/auth/kelompok", "/api/auth/reset-password", "/api/settings", "/api/public", "/api/upload", "/mandiri/katalog", "/mandiri/daftar", "/api/mandiri/pilih", "/api/mandiri/komentar", "/api/mandiri/box-love", "/api/mandiri/rooms"];
 
   // Allow public paths
   if (PUBLIC_PATHS.some((path) => pathname.startsWith(path))) {

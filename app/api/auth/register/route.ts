@@ -7,32 +7,13 @@ import { v4 as uuidv4 } from "uuid";
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, password, nomorUnik } = await request.json();
+    const { name, email, password, desaId, kelompokId, dapukan, jenisKelamin } = await request.json();
 
-    if (!name || !email || !password || !nomorUnik) {
+    if (!name || !email || !password || !desaId || !kelompokId || !dapukan || !jenisKelamin) {
       return NextResponse.json({ error: "Semua field wajib diisi" }, { status: 400 });
     }
 
-    // 1. Verify that this Nomor Unik is a registered Mandiri participant
-    const person = await db.query.generus.findFirst({
-        where: eq(generus.nomorUnik, nomorUnik.toUpperCase().trim())
-    });
-
-    if (!person) {
-        return NextResponse.json({ error: "Nomor Unik tidak ditemukan dalam database generus." }, { status: 403 });
-    }
-
-    const isMandiriParticipant = await db.query.mandiri.findFirst({
-        where: eq(mandiri.generusId, person.id)
-    });
-
-    if (!isMandiriParticipant) {
-        return NextResponse.json({ 
-            error: "Pendaftaran gagal. Anda belum terdaftar sebagai Peserta Mandiri. Silakan isi form registrasi mandiri via link terlebih dahulu." 
-        }, { status: 403 });
-    }
-
-    // 2. Check if Email or GenerusID already has an account
+    // 2. Check if Email already has an account
     const existingUser = await db.query.users.findFirst({
       where: eq(users.email, email.toLowerCase()),
     });
@@ -41,29 +22,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email sudah terdaftar" }, { status: 409 });
     }
 
-    const existingByGenerus = await db.query.users.findFirst({
-        where: eq(users.generusId, person.id)
-    });
-
-    if (existingByGenerus) {
-        return NextResponse.json({ error: "Nomor Unik ini sudah memiliki akun yang terdaftar." }, { status: 409 });
-    }
-
     // 3. Create User
     const passwordHash = await bcrypt.hash(password, 12);
     const id = uuidv4();
+    const validRoles = ["generus", "kelompok", "desa", "pengurus_daerah"];
+    const assignedRole = validRoles.includes(dapukan) ? dapukan : "generus";
+
+    // Auto-create Generus profile
+    const generusId = uuidv4();
+    const prefix = assignedRole === "generus" ? "G" : "P";
+    const nomorUnik = `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    await db.insert(generus).values({
+      id: generusId,
+      nomorUnik,
+      nama: name,
+      jenisKelamin: jenisKelamin === "P" ? "P" : "L",
+      kategoriUsia: "SMA", // default
+      desaId: Number(desaId),
+      kelompokId: Number(kelompokId),
+      isGenerus: 1, // Ensure it appears in Data Generus
+    });
 
     await db.insert(users).values({
       id,
       name,
       email: email.toLowerCase(),
       passwordHash,
-      role: "generus", // Default to generus role for participants
-      generusId: person.id,
-      desaId: person.desaId,
-      kelompokId: person.kelompokId,
-      mandiriDesaId: person.mandiriDesaId,
-      mandiriKelompokId: person.mandiriKelompokId,
+      role: assignedRole,
+      desaId: Number(desaId),
+      kelompokId: Number(kelompokId),
+      generusId: generusId,
     });
 
     return NextResponse.json({ success: true });

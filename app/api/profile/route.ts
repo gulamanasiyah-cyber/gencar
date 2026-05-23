@@ -55,21 +55,21 @@ export async function GET(request: NextRequest) {
 
       // Jika tidak ada di tabel users, cek di users_old
       if (userData.length === 0) {
-          const { usersOld } = await import("@/lib/schema");
+          const { users } = await import("@/lib/schema");
           const oldData = await db
             .select({
-              id: usersOld.id,
-              nama: usersOld.name,
-              email: usersOld.email,
-              role: usersOld.role,
+              id: users.id,
+              nama: users.name,
+              email: users.email,
+              role: users.role,
               desaNama: desa.nama,
               kelompokNama: kelompok.nama,
-              createdAt: usersOld.createdAt,
+              createdAt: users.createdAt,
             })
-            .from(usersOld)
-            .leftJoin(desa, eq(usersOld.desaId, desa.id))
-            .leftJoin(kelompok, eq(usersOld.kelompokId, kelompok.id))
-            .where(eq(usersOld.id, session.userId))
+            .from(users)
+            .leftJoin(desa, eq(users.desaId, desa.id))
+            .leftJoin(kelompok, eq(users.kelompokId, kelompok.id))
+            .where(eq(users.id, session.userId))
             .limit(1);
           
           if (oldData.length > 0) {

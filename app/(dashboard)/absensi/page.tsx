@@ -50,7 +50,17 @@ function AbsensiContent() {
   const physicalInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch("/api/kegiatan").then((r) => r.json()).then((d) => setKegiatan(Array.isArray(d) ? d : []));
+    fetch("/api/kegiatan").then((r) => r.json()).then((d) => {
+      if (Array.isArray(d)) {
+        const offsetTz = new Date().getTimezoneOffset();
+        const localToday = new Date(new Date().getTime() - (offsetTz * 60 * 1000));
+        const todayStr = localToday.toISOString().split('T')[0];
+        const upcoming = d.filter(k => k.tanggal >= todayStr);
+        setKegiatan(upcoming);
+      } else {
+        setKegiatan([]);
+      }
+    });
     fetch("/api/profile").then(r => r.json()).then(d => setUserRole(d.role || ""));
   }, []);
 

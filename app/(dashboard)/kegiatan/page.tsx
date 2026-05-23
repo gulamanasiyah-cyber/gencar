@@ -22,6 +22,12 @@ export default function KegiatanPage() {
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<KegiatanItem | null>(null);
   const [userRole, setUserRole] = useState("");
+  const [activeTab, setActiveTab] = useState<"aktif" | "riwayat">("aktif");
+
+  const todayStr = new Date().toLocaleDateString('en-CA'); // Gets YYYY-MM-DD in local time
+  const activeData = data.filter(item => item.tanggal >= todayStr);
+  const historyData = data.filter(item => item.tanggal < todayStr);
+  const displayData = activeTab === "aktif" ? activeData : historyData;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -84,18 +90,35 @@ export default function KegiatanPage() {
           </button>
         </div>
 
+        <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+          <button 
+            className={`btn ${activeTab === "aktif" ? "btn-primary" : "btn-secondary"}`} 
+            onClick={() => setActiveTab("aktif")}
+            style={{ borderRadius: "20px", padding: "6px 16px", fontSize: "14px" }}
+          >
+            Kegiatan Mendatang ({activeData.length})
+          </button>
+          <button 
+            className={`btn ${activeTab === "riwayat" ? "btn-primary" : "btn-secondary"}`} 
+            onClick={() => setActiveTab("riwayat")}
+            style={{ borderRadius: "20px", padding: "6px 16px", fontSize: "14px" }}
+          >
+            Riwayat Kegiatan ({historyData.length})
+          </button>
+        </div>
+
         <div className="card">
           {loading ? (
             <div className="loading"><div className="spinner" /></div>
-          ) : data.length === 0 ? (
+          ) : displayData.length === 0 ? (
             <div className="empty-state">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <rect x="3" y="4" width="18" height="18" rx="2" />
                 <line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" />
                 <line x1="3" y1="10" x2="21" y2="10" />
               </svg>
-              <h3>Belum ada kegiatan</h3>
-              <p>Klik &quot;Tambah Kegiatan&quot; untuk membuat kegiatan baru</p>
+              <h3>{activeTab === "aktif" ? "Belum ada kegiatan mendatang" : "Belum ada riwayat kegiatan"}</h3>
+              {activeTab === "aktif" && <p>Klik &quot;Tambah Kegiatan&quot; untuk membuat kegiatan baru</p>}
             </div>
           ) : (
             <div className="table-wrapper">
@@ -110,7 +133,7 @@ export default function KegiatanPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.map((item) => (
+                  {displayData.map((item) => (
                     <tr key={item.id}>
                       <td>
                         <div style={{ fontWeight: 500 }}>{item.judul}</div>

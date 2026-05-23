@@ -19,6 +19,16 @@ async function getStats(session: any, searchParams?: any) {
     const kelompokFilterKegiatan = (session.role === "kelompok" || (session.role === "tim_pnkb" && session.kelompokId)) && session.kelompokId ? eq(kegiatan.kelompokId, session.kelompokId) : undefined;
     const kegiatanFilter = desaFilterKegiatan || kelompokFilterKegiatan;
 
+    const offsetTz = new Date().getTimezoneOffset();
+    const localToday = new Date(new Date().getTime() - (offsetTz * 60 * 1000));
+    const todayStr = localToday.toISOString().split('T')[0];
+    const finalKegiatanFilter = kegiatanFilter 
+      ? and(kegiatanFilter, sql`${kegiatan.tanggal} >= ${todayStr}`) 
+      : sql`${kegiatan.tanggal} >= ${todayStr}` as any;
+    const historyKegiatanFilter = kegiatanFilter 
+      ? and(kegiatanFilter, sql`${kegiatan.tanggal} < ${todayStr}`) 
+      : sql`${kegiatan.tanggal} < ${todayStr}` as any;
+
     const roleExclusion = or(
       isNull(users.role),
       notInArray(users.role, ["tim_pnkb", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "creator"])
@@ -47,16 +57,16 @@ async function getStats(session: any, searchParams?: any) {
 
     let mandiriUserConditions = [];
     if (mGender) mandiriUserConditions.push(eq(generus.jenisKelamin, mGender as any));
-    
+
     let mandiriDesaIds: number[] | undefined = undefined;
     if (mCity || mVillage) {
       const conditions = [];
       if (mCity) conditions.push(eq(mandiriDesa.kota, mCity));
       if (mVillage) conditions.push(eq(mandiriDesa.nama, mVillage));
-      
+
       const matchedDesas = await db.select({ id: mandiriDesa.id }).from(mandiriDesa).where(and(...conditions));
       mandiriDesaIds = matchedDesas.map(d => d.id);
-      
+
       if (mandiriDesaIds.length === 0) {
         mandiriUserConditions.push(sql`1=0`);
       } else {
@@ -76,7 +86,7 @@ async function getStats(session: any, searchParams?: any) {
     const [
       generusCount,
       kegiatanCount,
-      mandiriKegiatanCount,
+      historyKegiatanCount,
       artikelCount,
       beritaCount,
       userCount,
@@ -99,9 +109,9 @@ async function getStats(session: any, searchParams?: any) {
       mandiriHadirPanitiaPerempuan,
       mandiriTotalPanitia,
     ] = await Promise.all([
-      db.select({ count: sql<number>`count(DISTINCT ${generus.id})` }).from(generus).leftJoin(users, eq(generus.id, users.generusId)).where(finalGenerusFilter),
-      db.select({ count: sql<number>`count(*)` }).from(kegiatan).where(kegiatanFilter),
-      db.select({ count: sql<number>`count(*)` }).from(mandiriKegiatan),
+      db.select({ count: sql<number>`count(DISTINCT ${generus.id})` }).from(generus).leftJoin(users, eq(generus.id, users.generusId)).where(and(finalGenerusFilter, eq(generus.isGenerus, 1))),
+      db.select({ count: sql<number>`count(*)` }).from(kegiatan).where(finalKegiatanFilter),
+      db.select({ count: sql<number>`count(*)` }).from(kegiatan).where(historyKegiatanFilter),
       db.select({ count: sql<number>`count(*)` }).from(artikel).where(and(eq(artikel.status, "published"), eq(artikel.tipe, "artikel"))),
       db.select({ count: sql<number>`count(*)` }).from(artikel).where(and(eq(artikel.status, "published"), eq(artikel.tipe, "berita"))),
       ["admin", "pengurus_daerah", "kmm_daerah", "admin_romantic_room"].includes(session.role)
@@ -110,47 +120,47 @@ async function getStats(session: any, searchParams?: any) {
       db.select({ count: sql<number>`count(DISTINCT ${generus.id})` })
         .from(generus)
         .leftJoin(users, eq(generus.id, users.generusId))
-        .where(and(finalGenerusFilter, eq(generus.statusNikah, "Menikah"))),
+        .where(and(finalGenerusFilter, eq(generus.isGenerus, 1), eq(generus.statusNikah, "Menikah"))),
       db.select({ count: sql<number>`count(DISTINCT ${generus.id})` })
         .from(generus)
         .leftJoin(users, eq(generus.id, users.generusId))
-        .where(and(finalGenerusFilter, eq(generus.statusNikah, "Belum Menikah"))),
+        .where(and(finalGenerusFilter, eq(generus.isGenerus, 1), eq(generus.statusNikah, "Belum Menikah"))),
       db.select({ count: sql<number>`count(DISTINCT ${generus.id})` })
         .from(generus)
         .leftJoin(users, eq(generus.id, users.generusId))
-        .where(and(finalGenerusFilter, eq(generus.kategoriUsia, "PAUD"))),
+        .where(and(finalGenerusFilter, eq(generus.isGenerus, 1), eq(generus.kategoriUsia, "PAUD"))),
       db.select({ count: sql<number>`count(DISTINCT ${generus.id})` })
         .from(generus)
         .leftJoin(users, eq(generus.id, users.generusId))
-        .where(and(finalGenerusFilter, eq(generus.kategoriUsia, "TK"))),
+        .where(and(finalGenerusFilter, eq(generus.isGenerus, 1), eq(generus.kategoriUsia, "TK"))),
       db.select({ count: sql<number>`count(DISTINCT ${generus.id})` })
         .from(generus)
         .leftJoin(users, eq(generus.id, users.generusId))
-        .where(and(finalGenerusFilter, eq(generus.kategoriUsia, "SD"))),
+        .where(and(finalGenerusFilter, eq(generus.isGenerus, 1), eq(generus.kategoriUsia, "SD"))),
       db.select({ count: sql<number>`count(DISTINCT ${generus.id})` })
         .from(generus)
         .leftJoin(users, eq(generus.id, users.generusId))
-        .where(and(finalGenerusFilter, eq(generus.kategoriUsia, "SMP"))),
+        .where(and(finalGenerusFilter, eq(generus.isGenerus, 1), eq(generus.kategoriUsia, "SMP"))),
       db.select({ count: sql<number>`count(DISTINCT ${generus.id})` })
         .from(generus)
         .leftJoin(users, eq(generus.id, users.generusId))
-        .where(and(finalGenerusFilter, eq(generus.kategoriUsia, "SMA"))),
+        .where(and(finalGenerusFilter, eq(generus.isGenerus, 1), eq(generus.kategoriUsia, "SMA"))),
       db.select({ count: sql<number>`count(DISTINCT ${generus.id})` })
         .from(generus)
         .leftJoin(users, eq(generus.id, users.generusId))
-        .where(and(finalGenerusFilter, eq(generus.kategoriUsia, "SMK"))),
+        .where(and(finalGenerusFilter, eq(generus.isGenerus, 1), eq(generus.kategoriUsia, "SMK"))),
       db.select({ count: sql<number>`count(DISTINCT ${generus.id})` })
         .from(generus)
         .leftJoin(users, eq(generus.id, users.generusId))
-        .where(and(finalGenerusFilter, eq(generus.kategoriUsia, "Kuliah"))),
+        .where(and(finalGenerusFilter, eq(generus.isGenerus, 1), eq(generus.kategoriUsia, "Kuliah"))),
       db.select({ count: sql<number>`count(DISTINCT ${generus.id})` })
         .from(generus)
         .leftJoin(users, eq(generus.id, users.generusId))
-        .where(and(finalGenerusFilter, eq(generus.kategoriUsia, "Bekerja"))),
-      db.select({ count: sql<number>`count(DISTINCT ${mandiri.id})` })
-        .from(mandiri)
-        .innerJoin(generus, eq(mandiri.generusId, generus.id))
-        .where(and(generusFilter, mandiriUserFilter)),
+        .where(and(finalGenerusFilter, eq(generus.isGenerus, 1), eq(generus.kategoriUsia, "Bekerja"))),
+      db.select({ count: sql<number>`count(DISTINCT ${generus.id})` })
+        .from(generus)
+        .leftJoin(users, eq(generus.id, users.generusId))
+        .where(and(finalGenerusFilter, mandiriUserFilter, eq(generus.isGenerus, 1))),
       // Hadir Peserta (ada di mandiri, TIDAK ada di formPanitiaDanPengurus)
       db.select({ count: sql<number>`count(DISTINCT ${mandiri.id})` })
         .from(mandiriAbsensi)
@@ -221,16 +231,16 @@ async function getStats(session: any, searchParams?: any) {
       city2: md2.kota,
       village2: md2.nama,
     })
-    .from(mandiriKunjungan)
-    .innerJoin(mandiriPemilihan, eq(mandiriKunjungan.pemilihanId, mandiriPemilihan.id))
-    .leftJoin(g1, eq(sql`COALESCE(${mandiriPemilihan.pengirimId}, ${mandiriKunjungan.generusId})`, g1.id))
-    .leftJoin(g2, eq(mandiriPemilihan.penerimaId, g2.id))
-    .leftJoin(pan1, eq(g1.id, pan1.generusId))
-    .leftJoin(pan2, eq(g2.id, pan2.generusId))
-    .leftJoin(md1, eq(sql`COALESCE(${g1.mandiriDesaId}, ${pan1.mandiriDesaId})`, md1.id))
-    .leftJoin(md2, eq(sql`COALESCE(${g2.mandiriDesaId}, ${pan2.mandiriDesaId})`, md2.id))
-    .where(isNotNull(mandiriKunjungan.pemilihanId))
-    .groupBy(mandiriKunjungan.pemilihanId);
+      .from(mandiriKunjungan)
+      .innerJoin(mandiriPemilihan, eq(mandiriKunjungan.pemilihanId, mandiriPemilihan.id))
+      .leftJoin(g1, eq(sql`COALESCE(${mandiriPemilihan.pengirimId}, ${mandiriKunjungan.generusId})`, g1.id))
+      .leftJoin(g2, eq(mandiriPemilihan.penerimaId, g2.id))
+      .leftJoin(pan1, eq(g1.id, pan1.generusId))
+      .leftJoin(pan2, eq(g2.id, pan2.generusId))
+      .leftJoin(md1, eq(sql`COALESCE(${g1.mandiriDesaId}, ${pan1.mandiriDesaId})`, md1.id))
+      .leftJoin(md2, eq(sql`COALESCE(${g2.mandiriDesaId}, ${pan2.mandiriDesaId})`, md2.id))
+      .where(isNotNull(mandiriKunjungan.pemilihanId))
+      .groupBy(mandiriKunjungan.pemilihanId);
 
     const filteredVisits = allVisits.filter(v => {
       let match = true;
@@ -251,7 +261,7 @@ async function getStats(session: any, searchParams?: any) {
     return {
       generus: Number(generusCount[0].count),
       kegiatan: Number(kegiatanCount[0].count),
-      mandiriKegiatan: Number(mandiriKegiatanCount[0].count),
+      historyKegiatan: Number(historyKegiatanCount[0].count),
       artikel: Number(artikelCount[0].count),
       berita: Number(beritaCount[0].count),
       users: Number(userCount[0].count),
@@ -336,14 +346,14 @@ function AttendanceChart({ label, present, absent }: { label: string; present: n
           <div style={{ position: 'relative', width: '80px', height: '80px' }}>
             <svg viewBox="0 0 36 36" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
               <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#f3f4f6" strokeWidth="4"></circle>
-              <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#10b981" strokeWidth="4" 
+              <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#10b981" strokeWidth="4"
                 strokeDasharray={`${presentPercent} ${100 - presentPercent}`} strokeDashoffset="0"></circle>
             </svg>
             <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
               <div style={{ fontSize: '12px', fontWeight: 'bold' }}>{Math.round(presentPercent)}%</div>
             </div>
           </div>
-          
+
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ width: '10px', height: '10px', borderRadius: '2px', backgroundColor: '#10b981' }}></div>
@@ -401,23 +411,14 @@ function AdminDashboard({ role, stats, cities, villages }: { role: string; stats
 
   return (
     <div>
-      {/* Generus & Pendidikan Section */}
+      {/* Generus */}
       <h3 className="section-title" style={{ marginTop: "1rem", marginBottom: "1rem" }}>Data Generus & Pendidikan</h3>
       <div className="stats-grid" style={{ marginBottom: "2.5rem" }}>
         {(role === "admin" || role === "pengurus_daerah" || role === "kmm_daerah" || role === "desa" || role === "kelompok" || role === "tim_pnkb") && (
           <>
             <StatCard icon="users" color="blue" label="Total Generus" value={stats?.generus ?? 0} href="/generus" gradient="linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)" />
-            <StatCard icon="sparkles" color="emerald" label="Total Peserta" value={stats?.mandiri ?? 0} href="/mandiri" gradient="linear-gradient(135deg, #10b981 0%, #047857 100%)" />
-          </>
-        )}
-        {(role === "admin" || role === "pengurus_daerah" || role === "kmm_daerah" || role === "desa" || role === "kelompok" || role === "tim_pnkb") && (
-          <>
-            <StatCard icon="school" color="purple" label="PAUD" value={stats?.paud ?? 0} href="/generus" />
-            <StatCard icon="school" color="indigo" label="TK" value={stats?.tk ?? 0} href="/generus" />
-            <StatCard icon="book-open" color="cyan" label="SD" value={stats?.sd ?? 0} href="/generus" />
-            <StatCard icon="book-open" color="blue" label="SMP" value={stats?.smp ?? 0} href="/generus" />
-            <StatCard icon="library" color="orange" label="SMA" value={stats?.sma ?? 0} href="/generus" />
-            <StatCard icon="library" color="red" label="SMK" value={stats?.smk ?? 0} href="/generus" />
+            <StatCard icon="heart" color="red" label="Sudah Menikah" value={stats?.married ?? 0} href="/generus" />
+            <StatCard icon="heart-off" color="orange" label="Belum Menikah" value={stats?.notMarried ?? 0} href="/generus" />
           </>
         )}
       </div>
@@ -427,10 +428,8 @@ function AdminDashboard({ role, stats, cities, villages }: { role: string; stats
       <div className="stats-grid">
         {(role === "admin" || role === "pengurus_daerah" || role === "kmm_daerah" || role === "desa" || role === "kelompok" || role === "tim_pnkb") && (
           <>
-            <StatCard icon="heart" color="red" label="Sudah Menikah" value={stats?.married ?? 0} href="/generus" />
-            <StatCard icon="heart-off" color="orange" label="Belum Menikah" value={stats?.notMarried ?? 0} href="/generus" />
             <StatCard icon="calendar" color="green" label="Total Kegiatan" value={stats?.kegiatan ?? 0} href="/kegiatan" />
-            <StatCard icon="calendar" color="emerald" label="Kegiatan Mandiri" value={stats?.mandiriKegiatan ?? 0} href="/mandiri/kegiatan" />
+            <StatCard icon="calendar" color="gray" label="History Kegiatan" value={stats?.historyKegiatan ?? 0} href="/kegiatan" />
           </>
         )}
         {(role === "admin" || role === "pengurus_daerah" || role === "kmm_daerah" || role === "tim_pnkb") && (
@@ -541,13 +540,13 @@ function StatCard({ icon, color, label, href, value, gradient }: {
   };
 
   return (
-    <a href={href} className="stat-card premium-stat-card" style={{ 
-      textDecoration: "none", 
+    <a href={href} className="stat-card premium-stat-card" style={{
+      textDecoration: "none",
       display: "flex",
       background: gradient ? gradient : "white",
       color: gradient ? "white" : "inherit"
     }}>
-      <div className={`stat-icon ${color}`} style={{ 
+      <div className={`stat-icon ${color}`} style={{
         background: gradient ? "rgba(255,255,255,0.2)" : undefined,
         color: gradient ? "white" : undefined,
         backdropFilter: gradient ? "blur(4px)" : undefined
