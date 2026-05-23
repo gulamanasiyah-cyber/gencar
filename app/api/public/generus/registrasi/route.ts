@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     const { 
       nama, tempatLahir, tanggalLahir, jenisKelamin, kategoriUsia, alamat, noTelp, 
       pendidikan, pekerjaan, statusNikah, desaId, kelompokId, 
-      hobi, makananMinumanFavorit, suku, foto,
+      hobi, makananMinumanFavorit, suku, foto, namaOrtu, kategori,
       email, password 
     } = body;
 
@@ -87,6 +87,8 @@ export async function POST(request: NextRequest) {
       tanggalLahir,
       jenisKelamin,
       kategoriUsia,
+      kategori,
+      namaOrtu,
       alamat,
       noTelp,
       pendidikan,

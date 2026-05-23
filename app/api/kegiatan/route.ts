@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
         judul: kegiatan.judul,
         deskripsi: kegiatan.deskripsi,
         tanggal: kegiatan.tanggal,
+        jam: kegiatan.jam,
         lokasi: kegiatan.lokasi,
         desaNama: desa.nama,
         kelompokNama: kelompok.nama,
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const { judul, deskripsi, tanggal, lokasi, desaId, kelompokId } = body;
+    const { judul, deskripsi, tanggal, jam, lokasi, desaId, kelompokId } = body;
 
     if (!judul || !tanggal) {
       return NextResponse.json({ error: "Judul dan tanggal wajib diisi" }, { status: 400 });
@@ -80,6 +81,7 @@ export async function POST(request: NextRequest) {
       judul,
       deskripsi,
       tanggal,
+      jam,
       lokasi,
       desaId: finalDesaId,
       kelompokId: finalKelompokId,

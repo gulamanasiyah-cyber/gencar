@@ -14,14 +14,16 @@ interface Props {
   isMandiri?: boolean;
 }
 
-const KATEGORI = ["PAUD", "TK", "SD", "SMP", "SMA", "SMK", "Kuliah", "Bekerja"];
+const KATEGORI = ["SMP", "SMA", "SMK", "Kuliah", "Bekerja"];
 
 const EMPTY_FORM = {
   nama: "",
   jenisKelamin: "L",
-  kategoriUsia: "SD",
+  kategoriUsia: "SMP",
+  kategori: "Generus",
   tempatLahir: "",
   tanggalLahir: "",
+  namaOrtu: "",
   alamat: "",
   noTelp: "",
   pendidikan: "",
@@ -44,7 +46,9 @@ function itemToForm(src: GenerusItem) {
   return {
     nama: src.nama || "",
     jenisKelamin: src.jenisKelamin || "L",
-    kategoriUsia: src.kategoriUsia || "SD",
+    kategoriUsia: src.kategoriUsia || "SMP",
+    kategori: src.kategori || "Generus",
+    namaOrtu: src.namaOrtu || "",
     tempatLahir: src.tempatLahir || "",
     tanggalLahir: src.tanggalLahir || "",
     alamat: src.alamat || "",
@@ -366,20 +370,28 @@ export default function GenerusModal({ item, onClose, onSaved, isMandiri }: Prop
 
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Kategori Usia <span className="required">*</span></label>
+                  <label className="form-label">Kategori <span className="required">*</span></label>
+                  <select name="kategori" className="form-control" value={form.kategori} onChange={handleChange} required>
+                    <option value="Generus">Generus</option>
+                    <option value="Usia Mandiri">Usia Mandiri</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Pendidikan / Pekerjaan <span className="required">*</span></label>
                   <select name="kategoriUsia" className="form-control" value={form.kategoriUsia} onChange={handleChange} required>
                     {KATEGORI.filter(k => !isMandiri || ["Kuliah", "Bekerja"].includes(k)).map((k) => (
                       <option key={k} value={k}>{k}</option>
                     ))}
                   </select>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Status Nikah</label>
-                  <select name="statusNikah" className="form-control" value={form.statusNikah} onChange={handleChange}>
-                    <option value="Belum Menikah">Belum Menikah</option>
-                    <option value="Menikah">Menikah</option>
-                  </select>
-                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Status Nikah</label>
+                <select name="statusNikah" className="form-control" value={form.statusNikah} onChange={handleChange}>
+                  <option value="Belum Menikah">Belum Menikah</option>
+                  <option value="Menikah">Menikah</option>
+                </select>
               </div>
 
               <div className="form-row">
@@ -454,49 +466,17 @@ export default function GenerusModal({ item, onClose, onSaved, isMandiri }: Prop
                 <textarea name="alamat" className="form-control" value={form.alamat} onChange={handleChange} placeholder="Alamat lengkap" style={{ minHeight: 70 }} />
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">No. Telepon <span className="required">*</span></label>
-                  <input name="noTelp" className="form-control" value={form.noTelp} onChange={handleChange} required placeholder="08xx-xxxx-xxxx" />
-                  <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px" }}>
-                    Nomor ini tidak akan disebarluaskan, hanya digunakan untuk keperluan kordinasi antara panitia dengan peserta.
-                  </p>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Pendidikan <span className="required">*</span></label>
-                  <input name="pendidikan" className="form-control" value={form.pendidikan} onChange={handleChange} required placeholder="Pendidikan terakhir" />
-                  <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px" }}>
-                    Contoh Penulisan: S1 - Psikologi atau SMA - IPA
-                  </p>
-                </div>
+              <div className="form-group">
+                <label className="form-label">Nama Orang Tua</label>
+                <input name="namaOrtu" className="form-control" value={form.namaOrtu} onChange={handleChange} placeholder="Nama Ayah / Ibu" />
               </div>
 
               <div className="form-group">
-                <label className="form-label">Pekerjaan <span className="required">*</span></label>
-                <input name="pekerjaan" className="form-control" value={form.pekerjaan} onChange={handleChange} required placeholder="Pekerjaan saat ini" />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Akun Instagram (Opsional)</label>
-                <input name="instagram" className="form-control" value={form.instagram} onChange={handleChange} placeholder="username_tanpa_at" />
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Hobi <span className="required">*</span></label>
-                  <input name="hobi" className="form-control" value={form.hobi} onChange={handleChange} required placeholder="Hobi..." />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Suku <span className="required">*</span></label>
-                  <input name="suku" className="form-control" value={form.suku} onChange={handleChange} required placeholder="Suku..." />
-                  <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px" }}>
-                    Mengikuti suku ayah, (contoh : Betawi / Jawa / Melayu / dll)
-                  </p>
-                </div>
-              </div>
-              <div className="form-group" style={{ marginBottom: isMandiri ? 0 : 20 }}>
-                <label className="form-label">Favorit Makanan/Minuman <span className="required">*</span></label>
-                <input name="makananMinumanFavorit" className="form-control" value={form.makananMinumanFavorit} onChange={handleChange} required placeholder="Favorit..." />
+                <label className="form-label">Nomor WhatsApp Anda <span className="required">*</span></label>
+                <input name="noTelp" className="form-control" value={form.noTelp} onChange={handleChange} required placeholder="08xx-xxxx-xxxx" />
+                <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px" }}>
+                  Nomor ini tidak akan disebarluaskan, hanya digunakan untuk keperluan kordinasi antar pengurus.
+                </p>
               </div>
 
               <div style={{ marginTop: "20px", padding: "15px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>

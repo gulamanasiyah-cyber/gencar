@@ -22,11 +22,11 @@ async function getStats(session: any, searchParams?: any) {
     const offsetTz = new Date().getTimezoneOffset();
     const localToday = new Date(new Date().getTime() - (offsetTz * 60 * 1000));
     const todayStr = localToday.toISOString().split('T')[0];
-    const finalKegiatanFilter = kegiatanFilter 
-      ? and(kegiatanFilter, sql`${kegiatan.tanggal} >= ${todayStr}`) 
+    const finalKegiatanFilter = kegiatanFilter
+      ? and(kegiatanFilter, sql`${kegiatan.tanggal} >= ${todayStr}`)
       : sql`${kegiatan.tanggal} >= ${todayStr}` as any;
-    const historyKegiatanFilter = kegiatanFilter 
-      ? and(kegiatanFilter, sql`${kegiatan.tanggal} < ${todayStr}`) 
+    const historyKegiatanFilter = kegiatanFilter
+      ? and(kegiatanFilter, sql`${kegiatan.tanggal} < ${todayStr}`)
       : sql`${kegiatan.tanggal} < ${todayStr}` as any;
 
     const roleExclusion = or(
@@ -100,6 +100,7 @@ async function getStats(session: any, searchParams?: any) {
       smkCount,
       kuliahCount,
       bekerjaCount,
+      usiaMandiriCount,
       mandiriCount,
       mandiriHadirPeserta,
       mandiriHadirLaki,
@@ -157,6 +158,10 @@ async function getStats(session: any, searchParams?: any) {
         .from(generus)
         .leftJoin(users, eq(generus.id, users.generusId))
         .where(and(finalGenerusFilter, eq(generus.isGenerus, 1), eq(generus.kategoriUsia, "Bekerja"))),
+      db.select({ count: sql<number>`count(DISTINCT ${generus.id})` })
+        .from(generus)
+        .leftJoin(users, eq(generus.id, users.generusId))
+        .where(and(finalGenerusFilter, eq(generus.isGenerus, 1), or(eq(users.role, "usia_mandiri"), eq(generus.kategori, "Usia Mandiri")))),
       db.select({ count: sql<number>`count(DISTINCT ${generus.id})` })
         .from(generus)
         .leftJoin(users, eq(generus.id, users.generusId))
@@ -275,6 +280,7 @@ async function getStats(session: any, searchParams?: any) {
       smk: Number(smkCount[0].count),
       kuliah: Number(kuliahCount[0].count),
       bekerja: Number(bekerjaCount[0].count),
+      usiaMandiri: Number(usiaMandiriCount[0].count),
       mandiri: Number(mandiriCount[0].count),
       mandiriHadirPeserta: Number(mandiriHadirPeserta[0]?.count || 0),
       mandiriHadirLaki: Number(mandiriHadirLaki[0]?.count || 0),
@@ -419,7 +425,9 @@ function AdminDashboard({ role, stats, cities, villages }: { role: string; stats
             <StatCard icon="users" color="blue" label="Total Generus" value={stats?.generus ?? 0} href="/generus" gradient="linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)" />
             <StatCard icon="heart" color="red" label="Sudah Menikah" value={stats?.married ?? 0} href="/generus" />
             <StatCard icon="heart-off" color="orange" label="Belum Menikah" value={stats?.notMarried ?? 0} href="/generus" />
+            <StatCard icon="user-check" color="pink" label="Total Usia Mandiri" value={stats?.usiaMandiri ?? 0} href="/generus" />
             <StatCard icon="briefcase" color="emerald" label="Total Bekerja" value={stats?.bekerja ?? 0} href="/generus" />
+            <StatCard icon="book-open" color="purple" label="SMP" value={stats?.smp ?? 0} href="/generus" />
             <StatCard icon="school" color="pink" label="SMA" value={stats?.sma ?? 0} href="/generus" />
             <StatCard icon="school" color="indigo" label="SMK" value={stats?.smk ?? 0} href="/generus" />
             <StatCard icon="graduation-cap" color="blue" label="Kuliah" value={stats?.kuliah ?? 0} href="/generus" />
@@ -613,7 +621,7 @@ function RecentInfo() {
       <div className="card-body">
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {[
-            { label: "Kategori Usia", value: "PAUD, TK, SD, SMP, SMA, Kuliah, Bekerja" },
+            { label: "Kategori Usia", value: "SMP, SMA, Kuliah, Bekerja" },
             { label: "Fitur QR Code", value: "Aktif - setiap generus memiliki QR unik" },
             { label: "Absensi", value: "Scan QR atau cari manual" },
             { label: "Artikel", value: "Submit artikel, admin yang mempublish" },

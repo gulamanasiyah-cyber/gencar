@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import NewsTicker from "./NewsTicker";
+import LandingProfileWidget from "./LandingProfileWidget";
 
 const DigitalClock = dynamic(() => import("@/components/DigitalClock"), { ssr: false });
 
@@ -32,7 +33,9 @@ export default function HomeHeader({ session }: { session: any }) {
             <DigitalClock />
             <div className="topbar-auth">
               {session ? (
-                <Link href="/dashboard" className="tb-btn tb-btn-dashboard">⚡ Dashboard</Link>
+                !["generus", "usia_mandiri"].includes(session.role) && (
+                  <Link href="/dashboard" className="tb-btn tb-btn-dashboard">⚡ Dashboard</Link>
+                )
               ) : (
                 <>
                   <Link href="/login" className="tb-btn tb-btn-ghost">Masuk</Link>
@@ -61,10 +64,15 @@ export default function HomeHeader({ session }: { session: any }) {
             </div>
 
             <div className="masthead-right">
-              <DigitalClock className="masthead-edition" />
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <DigitalClock className="masthead-edition" />
+                <LandingProfileWidget session={session} />
+              </div>
               <div className="masthead-cta">
                 {session ? (
-                  <Link href="/dashboard" className="ms-btn ms-btn-dash">Dashboard →</Link>
+                  !["generus", "usia_mandiri"].includes(session.role) && (
+                    <Link href="/dashboard" className="ms-btn ms-btn-dash">Dashboard →</Link>
+                  )
                 ) : (
                   <>
                     <Link href="/login" className="ms-btn ms-btn-border">Masuk</Link>

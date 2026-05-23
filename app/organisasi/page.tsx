@@ -1,36 +1,96 @@
 import { db } from "@/lib/db";
-import { users, generus, kegiatan } from "@/lib/schema";
-import { eq, desc, inArray } from "drizzle-orm";
+import { artikel, users, organisasiPengurus, settings } from "@/lib/schema";
+import { desc, asc, and, eq, inArray } from "drizzle-orm";
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
 
 import HomeHeader from "@/components/HomeHeader";
 
-async function getKegiatan(limit = 20) {
+async function getBeritaUtama(limit = 6) {
   try {
-    return await db.select().from(kegiatan).orderBy(desc(kegiatan.tanggal)).limit(limit);
+    return await db
+      .select({
+        id: artikel.id,
+        judul: artikel.judul,
+        ringkasan: artikel.ringkasan,
+        coverImage: artikel.coverImage,
+        publishedAt: artikel.publishedAt,
+        authorName: users.name,
+      })
+      .from(artikel)
+      .leftJoin(users, eq(artikel.authorId, users.id))
+      .where(and(eq(artikel.tipe, "berita"), inArray(artikel.status, ["published", "approved"])))
+      .orderBy(desc(artikel.publishedAt))
+      .limit(limit);
+  } catch (error) {
+    console.error("Error fetching berita utama:", error);
+    return [];
+  }
+}
+
+
+async function getPengurus() {
+  try {
+    return await db
+      .select()
+      .from(organisasiPengurus)
+      .orderBy(asc(organisasiPengurus.urutan), desc(organisasiPengurus.createdAt));
   } catch {
     return [];
   }
 }
 
-async function getMembers(limit = 24) {
+async function getSettings() {
   try {
-    return await db
-      .select({
-        id: users.id,
-        name: users.name,
-        role: users.role,
-        foto: generus.foto,
-      })
-      .from(users)
-      .leftJoin(generus, eq(users.generusId, generus.id))
-      .where(inArray(users.role, ["admin", "desa", "kelompok", "creator"]))
-      .orderBy(desc(users.createdAt))
-      .limit(limit);
+    const res = await db.select().from(settings);
+    const obj: Record<string, string | null> = {};
+    res.forEach((s) => {
+      obj[s.key] = s.value;
+    });
+    return obj;
   } catch {
-    return [];
+    return {};
   }
+}
+
+function getEmbedUrl(mapsLink: string, placeName: string) {
+  if (!mapsLink) {
+    if (placeName) {
+      return `https://maps.google.com/maps?q=${encodeURIComponent(placeName)}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+    }
+    return "";
+  }
+  
+  // If it's already an iframe source or output=embed
+  if (mapsLink.includes("output=embed") || mapsLink.includes("google.com/maps/embed")) {
+    return mapsLink;
+  }
+
+  // Check if it has coordinates (@lat,lng)
+  const coordRegex = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
+  const match = mapsLink.match(coordRegex);
+  if (match) {
+    const lat = match[1];
+    const lng = match[2];
+    return `https://maps.google.com/maps?q=${lat},${lng}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+  }
+
+  // Check if it's a search link with q=
+  if (mapsLink.includes("q=")) {
+    try {
+      const urlObj = new URL(mapsLink);
+      const q = urlObj.searchParams.get("q");
+      if (q) {
+        return `https://maps.google.com/maps?q=${encodeURIComponent(q)}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+      }
+    } catch (e) {
+      // Ignore URL parsing errors
+    }
+  }
+
+  // Fallback to place name or encode the whole link as query
+  const query = placeName || mapsLink;
+  return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
 }
 
 function formatDateShort(dateStr: string | null) {
@@ -44,8 +104,11 @@ function formatDateShort(dateStr: string | null) {
 
 export default async function OrganisasiPage() {
   const session = await getSession();
-  const allKegiatan = await getKegiatan();
-  const allMembers = await getMembers();
+  const allBerita = await getBeritaUtama();
+  const allPengurus = await getPengurus();
+  const allSettings = await getSettings();
+  const lokasiNama = allSettings["lokasi_nama"] || "";
+  const lokasiGmaps = allSettings["lokasi_gmaps"] || "";
 
   return (
     <>
@@ -203,28 +266,36 @@ export default async function OrganisasiPage() {
       </header>
 
       <main>
-        <section id="kegiatan" className="section">
+        <section id="berita" className="section">
           <div className="wrap">
             <div className="sect-hd">
-              <h2 className="sect-hd-title">Agenda Kegiatan</h2>
+              <h2 className="sect-hd-title">Berita Utama</h2>
             </div>
-            {allKegiatan.length > 0 ? (
+            {allBerita.length > 0 ? (
               <div className="keg-grid">
-                {allKegiatan.map((k) => (
-                  <div key={k.id} className="keg-card">
-                    <span className="keg-date">{formatDateShort(k.tanggal)}</span>
-                    <h3 className="keg-title">{k.judul}</h3>
-                    <p className="keg-desc">{k.deskripsi || "Tidak ada deskripsi tersedia."}</p>
-                    <div className="keg-loc">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
-                      {k.lokasi || "Lokasi belum ditentukan"}
+                {allBerita.map((b) => (
+                  <Link key={b.id} href={`/berita/${b.id}`} className="keg-card" style={{ cursor: "pointer" }}>
+                    {b.coverImage ? (
+                      <div style={{ width: "100%", height: "180px", borderRadius: "10px", overflow: "hidden", marginBottom: "16px" }}>
+                        <img src={b.coverImage} alt={b.judul} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      </div>
+                    ) : (
+                      <div style={{ width: "100%", height: "180px", borderRadius: "10px", overflow: "hidden", marginBottom: "16px", background: "linear-gradient(135deg, var(--primary-lt) 0%, #e2e8f0 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "40px" }}>
+                        📰
+                      </div>
+                    )}
+                    <span className="keg-date">{formatDateShort(b.publishedAt)}</span>
+                    <h3 className="keg-title" style={{ fontSize: "18px", lineHeight: "1.4", minHeight: "50px", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{b.judul}</h3>
+                    <p className="keg-desc" style={{ display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", fontSize: "13px", color: "var(--gray)", marginBottom: "12px" }}>{b.ringkasan || "Tidak ada ringkasan tersedia."}</p>
+                    <div style={{ fontSize: "12px", color: "var(--gray-lt)", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", marginTop: "auto" }}>
+                      <span>Oleh: {b.authorName || "Anonim"}</span>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             ) : (
               <div className="empty">
-                <p>Belum ada jadwal kegiatan yang dipublikasikan.</p>
+                <p>Belum ada berita utama yang dipublikasikan.</p>
               </div>
             )}
           </div>
@@ -232,36 +303,119 @@ export default async function OrganisasiPage() {
 
         <section id="profile" className="section">
           <div className="wrap">
+            {/* Pengurus / Struktur Kepengurusan */}
             <div className="sect-hd">
-              <h2 className="sect-hd-title">Profil Anggota</h2>
+              <h2 className="sect-hd-title">Struktur Kepengurusan</h2>
             </div>
-            {allMembers.length > 0 ? (
+            {allPengurus.length > 0 ? (
               <div className="mem-grid">
-                {allMembers.map((m) => (
-                  <div key={m.id} className="mem-card">
+                {allPengurus.map((p) => (
+                  <div key={p.id} className="mem-card">
                     <div className="mem-avatar">
-                      {m.foto
-                        ? <img src={m.foto} alt={m.name} />
-                        : (m.name.split(' ').map((n: any) => n[0]).slice(0, 2).join('').toUpperCase() || "?")
+                      {p.foto
+                        ? <img src={p.foto} alt={p.nama} />
+                        : (p.nama.split(' ').map((n: any) => n[0]).slice(0, 2).join('').toUpperCase() || "?")
                       }
                     </div>
-                    <div className="mem-name">{m.name}</div>
-                    <div className="mem-role">
-                      {m.role === 'admin' && 'Admin Utama'}
-                      {m.role === 'desa' && 'Pengurus Desa'}
-                      {m.role === 'kelompok' && 'Pengurus Kelompok'}
-                      {m.role === 'creator' && 'Kontributor'}
-                    </div>
+                    <div className="mem-name">{p.nama}</div>
+                    <div className="mem-role">{p.dapukan}</div>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="empty">
-                <p>Data kepengurusan sedang dalam proses pembaharuan.</p>
+                <p>Belum ada data struktur kepengurusan.</p>
               </div>
             )}
           </div>
         </section>
+
+        {lokasiNama && (
+          <section id="lokasi" className="section" style={{ background: "white" }}>
+            <div className="wrap">
+              <div className="sect-hd">
+                <h2 className="sect-hd-title">Lokasi Kami</h2>
+              </div>
+              
+              <div style={{
+                background: "#f8fafc",
+                border: "1px solid var(--border)",
+                borderRadius: "24px",
+                padding: "24px",
+                boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)",
+                maxWidth: "900px",
+                margin: "0 auto"
+              }}>
+                <div style={{ 
+                  display: "flex", 
+                  justifyContent: "space-between", 
+                  alignItems: "center", 
+                  marginBottom: "16px",
+                  flexWrap: "wrap",
+                  gap: "12px"
+                }}>
+                  <div>
+                    <h3 style={{ fontSize: "20px", fontWeight: 700, color: "var(--navy)" }}>{lokasiNama}</h3>
+                    <p style={{ fontSize: "14px", color: "var(--gray)", marginTop: "4px" }}>Petunjuk arah dan lokasi peta sekretariat kami.</p>
+                  </div>
+                  {lokasiGmaps && (
+                    <a 
+                      href={lokasiGmaps} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="btn btn-primary"
+                      style={{ 
+                        display: "inline-flex", 
+                        alignItems: "center", 
+                        gap: "8px", 
+                        padding: "10px 20px", 
+                        borderRadius: "12px",
+                        fontSize: "14px",
+                        fontWeight: 600,
+                        backgroundColor: "var(--primary)",
+                        color: "white",
+                        transition: "background-color 0.2s"
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: "4px" }}>
+                        <path d="M15 3h6v6" />
+                        <path d="M10 14 21 3" />
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                      </svg>
+                      Buka di Google Maps
+                    </a>
+                  )}
+                </div>
+
+                {/* Embedded Map */}
+                <div style={{ 
+                  width: "100%", 
+                  height: "450px", 
+                  borderRadius: "16px", 
+                  overflow: "hidden", 
+                  border: "1px solid var(--border)",
+                  boxShadow: "inset 0 2px 4px 0 rgb(0 0 0 / 0.05)"
+                }}>
+                  {getEmbedUrl(lokasiGmaps, lokasiNama) ? (
+                    <iframe
+                      src={getEmbedUrl(lokasiGmaps, lokasiNama)}
+                      width="100%"
+                      height="100%"
+                      style={{ border: 0 }}
+                      allowFullScreen={true}
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                    />
+                  ) : (
+                    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--gray)" }}>
+                      Peta tidak dapat ditampilkan.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
       </main>
 
       <footer className="footer">

@@ -78,6 +78,7 @@ const navItems = [
     items: [
       { href: "/admin/logo", label: "Logo & Tema", icon: "logo", roles: ["admin"] },
       { href: "/admin/users", label: "Kelola User", icon: "users-cog", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
+      { href: "/admin/pengurus", label: "Kelola Pengurus", icon: "users", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
       { href: "/admin/desa", label: "Kelola Desa", icon: "map", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
       { href: "/admin/berita", label: "Moderasi Berita", icon: "news", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
       { href: "/admin/artikel", label: "Moderasi Artikel", icon: "artikel", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },

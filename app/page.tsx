@@ -963,7 +963,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
       `}</style>
 
       <HomeHeader session={session} />
-      <HomeNavbar query={query} />
+      <HomeNavbar query={query} session={session} />
 
       {/* Animasi Teks Bergerak di Bawah Navigasi */}
       <NewsTicker customText="Pusat informasi dan berita kegiatan Generasi Penerus Jakarta Barat 2. Punya karya tulis atau berita kegiatan terbaru? Yuk, kontribusi! Hubungi Admin untuk memuat artikel atau berita Kamu di sini." />
@@ -1098,7 +1098,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                     </div>
                   </Link>
                 ))}
-                <Link href="/berita" className="sect-hd-more" style={{ textAlign: 'center', width: '100%', display: 'block', marginTop: 10 }}>Lihat Semua Berita →</Link>
+                <Link href="/#berita" className="sect-hd-more" style={{ textAlign: 'center', width: '100%', display: 'block', marginTop: 10 }}>Lihat Semua Berita →</Link>
               </div>
             ) : (
               <div className="empty" style={{ border: 'none', padding: 20 }}>

@@ -509,7 +509,7 @@ export default function GenerusPage() {
               >
                 Semua Kategori
               </button>
-              {["SMA", "SMK", "Kuliah", "Bekerja"].map((cat) => (
+              {["SMP", "SMA", "SMK", "Kuliah", "Bekerja"].map((cat) => (
                 <button
                   key={cat}
                   className={`btn btn-sm ${kategoriFilter === cat ? "btn-primary" : "btn-secondary"}`}
@@ -611,6 +611,7 @@ export default function GenerusPage() {
                     <th>JK</th>
                     <th>Umur</th>
                     <th>Kategori</th>
+                    <th>Pend / Pekerjaan</th>
                     <th>Desa</th>
                     <th>Kelompok</th>
                     <th>Alamat</th>
@@ -644,9 +645,19 @@ export default function GenerusPage() {
                       <td>{item.jenisKelamin === "L" ? "Laki-laki" : "Perempuan"}</td>
                       <td>{umur}</td>
                       <td>
-                        <span className={`badge ${kategoriColor[item.kategoriUsia] || "badge-gray"}`}>
+                        <span className={`badge ${item.kategori === "Usia Mandiri" ? "badge-purple" : "badge-blue"}`}>
+                          {item.kategori || "Generus"}
+                        </span>
+                      </td>
+                      <td style={{ maxWidth: "150px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        <span className={`badge ${kategoriColor[item.kategoriUsia] || "badge-gray"}`} style={{ display: "inline-block", marginBottom: (item.pendidikan || item.pekerjaan) ? "4px" : "0" }}>
                           {item.kategoriUsia}
                         </span>
+                        {(item.pendidikan || item.pekerjaan) && (
+                          <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px", fontWeight: 500 }}>
+                            {item.pendidikan || item.pekerjaan}
+                          </div>
+                        )}
                       </td>
                       <td>{item.desaNama || "-"}</td>
                       <td>{item.kelompokNama || "-"}</td>

@@ -28,6 +28,9 @@ export default function RegisterPage() {
     dapukan: "",
     jenisKelamin: "",
     kategoriUsia: "",
+    kategori: "Generus",
+    namaOrtu: "",
+    noTelp: "",
   });
   const [desaList, setDesaList] = useState<Desa[]>([]);
   const [kelompokList, setKelompokList] = useState<Kelompok[]>([]);
@@ -102,6 +105,9 @@ export default function RegisterPage() {
           dapukan: form.dapukan,
           jenisKelamin: form.jenisKelamin,
           kategoriUsia: form.kategoriUsia,
+          kategori: form.kategori,
+          namaOrtu: form.namaOrtu,
+          noTelp: form.noTelp,
         }),
       });
 
@@ -213,6 +219,7 @@ export default function RegisterPage() {
             >
               <option value="">-- Pilih Dapukan --</option>
               <option value="generus">Generus</option>
+              <option value="usia_mandiri">Usia Mandiri</option>
               <option value="kelompok">Pengurus Kelompok</option>
               <option value="desa">Pengurus Desa</option>
               <option value="pengurus_daerah">Pengurus Daerah</option>
@@ -238,6 +245,55 @@ export default function RegisterPage() {
           </div>
 
           <div className="form-group">
+            <label className="form-label" htmlFor="kategori">
+              Kategori <span className="required">*</span>
+            </label>
+            <select
+              id="kategori"
+              name="kategori"
+              className="form-control"
+              value={form.kategori}
+              onChange={handleChange}
+              required
+            >
+              <option value="Generus">Generus</option>
+              <option value="Usia Mandiri">Usia Mandiri</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="namaOrtu">
+              Nama Orang Tua <span className="required">*</span>
+            </label>
+            <input
+              type="text"
+              id="namaOrtu"
+              name="namaOrtu"
+              className="form-control"
+              value={form.namaOrtu}
+              onChange={handleChange}
+              placeholder="Masukkan nama orang tua"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="noTelp">
+              Nomor WhatsApp Anda <span className="required">*</span>
+            </label>
+            <input
+              type="text"
+              id="noTelp"
+              name="noTelp"
+              className="form-control"
+              value={form.noTelp}
+              onChange={handleChange}
+              placeholder="Contoh: 081234567890"
+              required
+            />
+          </div>
+
+          <div className="form-group">
             <label className="form-label" htmlFor="kategoriUsia">
               Pekerjaan / Pendidikan <span className="required">*</span>
             </label>
@@ -250,10 +306,11 @@ export default function RegisterPage() {
               required
             >
               <option value="">-- Pilih --</option>
-              <option value="Bekerja">Bekerja</option>
+              <option value="SMP">SMP</option>
               <option value="SMA">SMA</option>
               <option value="SMK">SMK</option>
               <option value="Kuliah">Kuliah</option>
+              <option value="Bekerja">Bekerja</option>
             </select>
           </div>
 

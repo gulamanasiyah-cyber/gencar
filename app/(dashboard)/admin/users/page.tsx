@@ -72,6 +72,7 @@ function AddUserForm({ desaList, kelompokList, onSuccess, onCancel }: { desaList
         <label className="form-label" style={{ display: 'block', marginBottom: '5px' }}>Role</label>
         <select className="form-control" value={addForm.role} onChange={e => setAddForm({...addForm, role: e.target.value, desaId: '', kelompokId: ''})}>
           <option value="generus">Generus</option>
+          <option value="usia_mandiri">Usia Mandiri</option>
           <option value="peserta">Peserta (Mandiri)</option>
           <option value="creator">Creator/Penulis</option>
           <option value="kelompok">Pengurus Kelompok</option>
@@ -227,7 +228,7 @@ export default function AdminUsersPage() {
 
    const roleColors: Record<string, string> = {
     admin: "badge-red", pengurus_daerah: "badge-red", kmm_daerah: "badge-red",
-    desa: "badge-blue", kelompok: "badge-green", generus: "badge-purple", peserta: "badge-indigo",
+    desa: "badge-blue", kelompok: "badge-green", generus: "badge-purple", peserta: "badge-indigo", usia_mandiri: "badge-pink",
     creator: "badge-orange", pending: "badge-gray", tim_pnkb: "badge-blue",
     admin_romantic_room: "badge-purple", admin_keuangan: "badge-blue",
     admin_kegiatan: "badge-orange",
@@ -295,6 +296,7 @@ export default function AdminUsersPage() {
               >
                 <option value="">Semua Role</option>
                 <option value="generus">Generus</option>
+                <option value="usia_mandiri">Usia Mandiri</option>
                 <option value="peserta">Peserta (Mandiri)</option>
                 <option value="creator">Creator/Penulis</option>
                 <option value="kelompok">Pengurus Kelompok</option>
@@ -341,20 +343,24 @@ export default function AdminUsersPage() {
                       <td style={{ fontWeight: 500 }}>{user.name}</td>
                        <td className="text-muted">{user.email}</td>
                       <td>
-                        <div className="flex flex-col gap-1">
-                          {user.generusNomorUnik ? (
-                            <span className="badge badge-purple" style={{ fontSize: 10, padding: "2px 4px" }}>
-                              Generus: #{user.generusNomorUnik}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400" style={{ fontSize: 10 }}>-</span>
-                          )}
-                          {user.isMandiri ? (
-                            <span className="badge badge-indigo" style={{ fontSize: 10, padding: "2px 4px" }}>
-                              Mandiri ({user.mandiriNomorUrut || "-"})
-                            </span>
-                          ) : null}
-                        </div>
+                        {["pengurus_daerah", "desa", "kelompok"].includes(user.role) ? (
+                          <span className="text-gray-400" style={{ fontSize: 10 }}>-</span>
+                        ) : (
+                          <div className="flex flex-col gap-1">
+                            {user.generusNomorUnik ? (
+                              <span className="badge badge-purple" style={{ fontSize: 10, padding: "2px 4px" }}>
+                                Generus: #{user.generusNomorUnik}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400" style={{ fontSize: 10 }}>-</span>
+                            )}
+                            {user.isMandiri ? (
+                              <span className="badge badge-indigo" style={{ fontSize: 10, padding: "2px 4px" }}>
+                                Mandiri ({user.mandiriNomorUrut || "-"})
+                              </span>
+                            ) : null}
+                          </div>
+                        )}
                       </td>
                       <td>
                         <span className={`badge ${roleColors[user.role] || "badge-gray"}`}>
@@ -383,6 +389,7 @@ export default function AdminUsersPage() {
                         <div className="flex gap-2">
                           <select className="form-control" style={{ padding: "4px 8px", fontSize: 12, width: "auto" }} value={user.role} onChange={(e) => updateUser(user.id, { role: e.target.value })}>
                             <option value="generus">Generus</option>
+                            <option value="usia_mandiri">Usia Mandiri</option>
                             <option value="peserta">Peserta (Mandiri)</option>
                             <option value="creator">Creator/Penulis</option>
                             <option value="kelompok">Pengurus Kelompok</option>

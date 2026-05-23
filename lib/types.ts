@@ -4,6 +4,8 @@ export interface GenerusItem {
   nama: string;
   jenisKelamin: string;
   kategoriUsia: string;
+  kategori?: string | null;
+  namaOrtu?: string | null;
   tempatLahir: string | null;
   tanggalLahir: string | null;
   alamat: string | null;

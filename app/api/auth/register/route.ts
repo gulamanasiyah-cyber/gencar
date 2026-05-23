@@ -7,9 +7,9 @@ import { v4 as uuidv4 } from "uuid";
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, password, desaId, kelompokId, dapukan, jenisKelamin, kategoriUsia } = await request.json();
+    const { name, email, password, desaId, kelompokId, dapukan, jenisKelamin, kategoriUsia, kategori, namaOrtu, noTelp } = await request.json();
 
-    if (!name || !email || !password || !desaId || !kelompokId || !dapukan || !jenisKelamin || !kategoriUsia) {
+    if (!name || !email || !password || !desaId || !kelompokId || !dapukan || !jenisKelamin || !kategoriUsia || !kategori || !namaOrtu || !noTelp) {
       return NextResponse.json({ error: "Semua field wajib diisi" }, { status: 400 });
     }
 
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     // 3. Create User
     const passwordHash = await bcrypt.hash(password, 12);
     const id = uuidv4();
-    const validRoles = ["generus", "kelompok", "desa", "pengurus_daerah"];
+    const validRoles = ["generus", "kelompok", "desa", "pengurus_daerah", "usia_mandiri"];
     const assignedRole = validRoles.includes(dapukan) ? dapukan : "generus";
 
     // Auto-create Generus profile
@@ -39,6 +39,9 @@ export async function POST(request: NextRequest) {
       nama: name,
       jenisKelamin: jenisKelamin === "P" ? "P" : "L",
       kategoriUsia: kategoriUsia,
+      kategori: kategori,
+      namaOrtu: namaOrtu,
+      noTelp: noTelp,
       desaId: Number(desaId),
       kelompokId: Number(kelompokId),
       isGenerus: 1, // Ensure it appears in Data Generus

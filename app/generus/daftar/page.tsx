@@ -24,6 +24,8 @@ export default function GenerusDaftarPage() {
     makananMinumanFavorit: "",
     suku: "",
     foto: "",
+    kategori: "Generus",
+    namaOrtu: "",
     desaId: "",
     kelompokId: "",
   });
@@ -259,15 +261,21 @@ export default function GenerusDaftarPage() {
                         <div className="form-group">
                             <label className="form-label">Kategori Usia <span className="required">*</span></label>
                             <select name="kategoriUsia" className="form-control" value={form.kategoriUsia} onChange={handleChange}>
-                                <option value="PAUD">PAUD</option>
-                                <option value="TK">TK</option>
-                                <option value="SD">SD</option>
+
                                 <option value="SMP">SMP</option>
                                 <option value="SMA">SMA/SMK</option>
                                 <option value="Kuliah">Kuliah</option>
                                 <option value="Bekerja">Bekerja</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form-label">Kategori <span className="required">*</span></label>
+                        <select name="kategori" className="form-control" value={form.kategori} onChange={handleChange}>
+                            <option value="Generus">Generus</option>
+                            <option value="Usia Mandiri">Usia Mandiri</option>
+                        </select>
                     </div>
 
                     <div className="form-row">
@@ -287,21 +295,17 @@ export default function GenerusDaftarPage() {
                         </div>
                     </div>
 
-                    <div className="form-row">
-                        <div className="form-group">
-                            <label className="form-label">No. Telepon / WhatsApp</label>
-                            <input name="noTelp" className="form-control" value={form.noTelp} onChange={handleChange} placeholder="08xx-xxxx-xxxx" />
-                            <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px", lineHeight: "1.3" }}>
-                                Nomor ini tidak akan disebarluaskan, hanya digunakan untuk keperluan kordinasi antara panitia dengan peserta.
-                            </p>
-                        </div>
-                        <div className="form-group">
-                            <label className="form-label">Pendidikan Terakhir</label>
-                            <input name="pendidikan" className="form-control" value={form.pendidikan} onChange={handleChange} placeholder="S1/SMA/dll" />
-                            <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px" }}>
-                                Contoh Penulisan: S1 - Psikologi atau SMA - IPA
-                            </p>
-                        </div>
+                    <div className="form-group">
+                        <label className="form-label">Nama Orang Tua</label>
+                        <input name="namaOrtu" className="form-control" value={form.namaOrtu} onChange={handleChange} placeholder="Nama Ayah / Ibu" />
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form-label">Nomor WhatsApp Anda</label>
+                        <input name="noTelp" className="form-control" value={form.noTelp} onChange={handleChange} placeholder="08xx-xxxx-xxxx" />
+                        <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px", lineHeight: "1.3" }}>
+                            Nomor ini tidak akan disebarluaskan, hanya digunakan untuk keperluan kordinasi antara panitia dengan peserta.
+                        </p>
                     </div>
 
                     <div className="form-row">
@@ -313,19 +317,6 @@ export default function GenerusDaftarPage() {
                             <label className="form-label">Tanggal Lahir</label>
                             <input name="tanggalLahir" type="date" className="form-control" value={form.tanggalLahir} onChange={handleChange} />
                         </div>
-                    </div>
-
-                    <div className="form-group">
-                        <label className="form-label">Pekerjaan</label>
-                        <input name="pekerjaan" className="form-control" value={form.pekerjaan} onChange={handleChange} placeholder="Pekerjaan saat ini" />
-                    </div>
-
-                    <div className="form-group">
-                        <label className="form-label">Suku</label>
-                        <input name="suku" className="form-control" value={form.suku} onChange={handleChange} placeholder="Betawi / Jawa / dll" />
-                        <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px" }}>
-                            Mengikuti suku ayah, (contoh : Betawi / Jawa / Melayu / dll)
-                        </p>
                     </div>
 
                     <div className="form-group">

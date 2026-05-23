@@ -10,9 +10,12 @@ interface KegiatanItem {
   judul: string;
   deskripsi: string | null;
   tanggal: string;
+  jam?: string | null;
   lokasi: string | null;
   desaNama: string | null;
   kelompokNama: string | null;
+  desaId?: number | null;
+  kelompokId?: number | null;
   createdAt: string | null;
 }
 
@@ -126,7 +129,9 @@ export default function KegiatanPage() {
                 <thead>
                   <tr>
                     <th>Kegiatan</th>
+                    <th>Deskripsi</th>
                     <th>Tanggal</th>
+                    <th>Jam</th>
                     <th>Lokasi</th>
                     <th>Desa/Kelompok</th>
                     <th>Aksi</th>
@@ -137,14 +142,15 @@ export default function KegiatanPage() {
                     <tr key={item.id}>
                       <td>
                         <div style={{ fontWeight: 500 }}>{item.judul}</div>
-                        {item.deskripsi && (
-                          <div className="text-sm text-muted" style={{ marginTop: 2, maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {item.deskripsi}
-                          </div>
-                        )}
+                      </td>
+                      <td style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {item.deskripsi || "-"}
                       </td>
                       <td style={{ whiteSpace: "nowrap" }}>
                         {formatDate(item.tanggal)}
+                      </td>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        {item.jam || "-"}
                       </td>
                       <td>{item.lokasi || "-"}</td>
                       <td>
@@ -197,12 +203,29 @@ function KegiatanModal({ item, onClose, onSaved }: {
     judul: item?.judul || "",
     deskripsi: item?.deskripsi || "",
     tanggal: item?.tanggal || "",
+    jam: item?.jam || "",
     lokasi: item?.lokasi || "",
+    desaId: item?.desaId ? String(item.desaId) : "",
+    kelompokId: item?.kelompokId ? String(item.kelompokId) : "",
   });
+  const [desaList, setDesaList] = useState<{ id: number; nama: string }[]>([]);
+  const [kelompokList, setKelompokList] = useState<{ id: number; nama: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchingItem, setFetchingItem] = useState(false);
   const [fetchError, setFetchError] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/auth/desa").then(r => r.json()).then(setDesaList).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    if (!form.desaId) { setKelompokList([]); return; }
+    fetch(`/api/auth/kelompok?desaId=${form.desaId}`)
+      .then(r => r.json())
+      .then(setKelompokList)
+      .catch(console.error);
+  }, [form.desaId]);
 
   useEffect(() => {
     if (!isEdit || !item?.id) return;
@@ -218,7 +241,10 @@ function KegiatanModal({ item, onClose, onSaved }: {
           judul: fresh.judul || "",
           deskripsi: fresh.deskripsi || "",
           tanggal: fresh.tanggal || "",
+          jam: fresh.jam || "",
           lokasi: fresh.lokasi || "",
+          desaId: fresh.desaId ? String(fresh.desaId) : "",
+          kelompokId: fresh.kelompokId ? String(fresh.kelompokId) : "",
         });
       })
       .catch(() => {
@@ -227,14 +253,17 @@ function KegiatanModal({ item, onClose, onSaved }: {
           judul: item.judul || "",
           deskripsi: item.deskripsi || "",
           tanggal: item.tanggal || "",
+          jam: item.jam || "",
           lokasi: item.lokasi || "",
+          desaId: item.desaId ? String(item.desaId) : "",
+          kelompokId: item.kelompokId ? String(item.kelompokId) : "",
         });
       })
       .finally(() => setFetchingItem(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.id]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
@@ -305,9 +334,15 @@ function KegiatanModal({ item, onClose, onSaved }: {
                 <label className="form-label">Judul Kegiatan <span className="required">*</span></label>
                 <input name="judul" className="form-control" value={form.judul} onChange={handleChange} required placeholder="Nama kegiatan" />
               </div>
-              <div className="form-group">
-                <label className="form-label">Tanggal <span className="required">*</span></label>
-                <input name="tanggal" type="date" className="form-control" value={form.tanggal} onChange={handleChange} required />
+              <div className="form-row" style={{ display: "flex", gap: "12px" }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">Tanggal <span className="required">*</span></label>
+                  <input name="tanggal" type="date" className="form-control" value={form.tanggal} onChange={handleChange} required />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">Jam</label>
+                  <input name="jam" type="time" className="form-control" value={form.jam} onChange={handleChange} />
+                </div>
               </div>
               <div className="form-group">
                 <label className="form-label">Lokasi</label>
@@ -316,6 +351,22 @@ function KegiatanModal({ item, onClose, onSaved }: {
               <div className="form-group">
                 <label className="form-label">Deskripsi</label>
                 <textarea name="deskripsi" className="form-control" value={form.deskripsi} onChange={handleChange} placeholder="Deskripsi kegiatan..." />
+              </div>
+              <div className="form-row" style={{ display: "flex", gap: "12px" }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">Desa</label>
+                  <select name="desaId" className="form-control" value={form.desaId} onChange={handleChange}>
+                    <option value="">Pilih Desa (Opsional)</option>
+                    {desaList.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
+                  </select>
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">Kelompok</label>
+                  <select name="kelompokId" className="form-control" value={form.kelompokId} onChange={handleChange}>
+                    <option value="">Pilih Kelompok (Opsional)</option>
+                    {kelompokList.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                  </select>
+                </div>
               </div>
             </div>
             <div className="modal-footer">

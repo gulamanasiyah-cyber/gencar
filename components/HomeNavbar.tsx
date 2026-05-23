@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Menu, X, Search, ChevronDown } from "lucide-react";
 
-export default function HomeNavbar({ query }: { query?: string }) {
+export default function HomeNavbar({ query, session }: { query?: string; session?: any }) {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -35,13 +35,17 @@ export default function HomeNavbar({ query }: { query?: string }) {
             <a href="#artikel" className="nav-link" onClick={() => setIsOpen(false)}>Artikel</a>
             <a href="#berita" className="nav-link" onClick={() => setIsOpen(false)}>Berita</a>
             
+            {session && ["generus", "usia_mandiri"].includes(session.role) && (
+              <Link href="/scan" className="nav-link" onClick={() => setIsOpen(false)}>Absensi</Link>
+            )}
+            
             <div className="nav-item">
               <button className="nav-link dropdown-toggle" style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center', cursor: 'pointer', width: '100%', textAlign: 'left' }}>
                 Organisasi
                 <ChevronDown size={14} style={{ marginLeft: 6, opacity: 0.7 }} />
               </button>
               <div className="nav-dropdown">
-                <Link href="/agenda" className="nav-dropdown-link" onClick={() => setIsOpen(false)}>Kegiatan</Link>
+                <a href="#berita" className="nav-dropdown-link" onClick={() => setIsOpen(false)}>Kegiatan</a>
                 <Link href="/organisasi" className="nav-dropdown-link" onClick={() => setIsOpen(false)}>Tentang Kami</Link>
               </div>
             </div>

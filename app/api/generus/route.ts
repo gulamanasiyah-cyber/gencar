@@ -31,6 +31,12 @@ function buildWhereClause(
   
   if (isGenerus) {
     conditions.push(eq(generus.isGenerus, 1));
+    conditions.push(
+      or(
+        isNull(users.role),
+        notInArray(users.role, ["pengurus_daerah", "desa", "kelompok"])
+      )
+    );
   }
   
   if (notInMandiri) {
@@ -187,6 +193,7 @@ export async function GET(request: NextRequest) {
         tanggalLahir: generus.tanggalLahir,
         tempatLahir: generus.tempatLahir,
         kategoriUsia: generus.kategoriUsia,
+        kategori: generus.kategori,
         jenisKelamin: generus.jenisKelamin,
         nomorUrut: mandiri.nomorUrut,
         mandiriDesaNama: mandiriDesa.nama,
@@ -194,6 +201,7 @@ export async function GET(request: NextRequest) {
         mandiriKelompokNama: mandiriKelompok.nama,
         // Added missing fields for Katalog view
         noTelp: canSeePrivateData ? generus.noTelp : sql`NULL`,
+        namaOrtu: canSeePrivateData ? generus.namaOrtu : sql`NULL`,
         alamat: generus.alamat,
         pendidikan: generus.pendidikan,
         pekerjaan: generus.pekerjaan,
@@ -259,8 +267,8 @@ export async function GET(request: NextRequest) {
       .select({ count: sql<number>`count(*)` })
       .from(generus);
 
-    // Only join users if status filtering is happening and it's not simply 'all'
-    if (status !== "all" || search) {
+    // Only join users if status filtering is happening, it's not simply 'all', or filtering by isGenerus
+    if (status !== "all" || search || filterIsGenerus) {
       countQuery.leftJoin(users, eq(generus.id, users.generusId));
     }
 

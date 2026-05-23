@@ -128,7 +128,7 @@ export async function PUT(request: NextRequest) {
 
     let generusId = user.generusId;
 
-    const needsGenerusProfile = ["generus", "peserta", "creator"].includes(role);
+    const needsGenerusProfile = ["generus", "peserta", "creator", "usia_mandiri"].includes(role);
     if (needsGenerusProfile && !generusId) {
       generusId = uuidv4();
       const prefix = role === "creator" ? "C" : role === "peserta" ? "P" : "G";
@@ -242,7 +242,7 @@ export async function POST(request: NextRequest) {
     // For simplicity, let's create a generus profile if the role is generus, kelompok, desa, or pengurus_daerah, like in auth/register.
     // Actually, maybe we shouldn't force generus creation for every single role like creator/admin.
     let generusId = null;
-    const isGenerusRole = ["generus", "kelompok", "desa", "pengurus_daerah"].includes(role);
+    const isGenerusRole = ["generus", "kelompok", "desa", "pengurus_daerah", "usia_mandiri"].includes(role);
     
     if (isGenerusRole) {
         generusId = uuidv4();

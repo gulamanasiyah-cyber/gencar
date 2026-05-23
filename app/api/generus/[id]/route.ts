@@ -22,6 +22,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         tanggalLahir: generus.tanggalLahir,
         jenisKelamin: generus.jenisKelamin,
         kategoriUsia: generus.kategoriUsia,
+        kategori: generus.kategori,
+        namaOrtu: generus.namaOrtu,
         alamat: generus.alamat,
         noTelp: generus.noTelp,
         pendidikan: generus.pendidikan,
@@ -101,7 +103,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       nama, tempatLahir, tanggalLahir, jenisKelamin, kategoriUsia, 
       alamat, noTelp, pendidikan, pekerjaan, statusNikah, 
       desaId, kelompokId, mandiriDesaId, mandiriKelompokId,
-      hobi, makananMinumanFavorit, suku, foto, instagram 
+      hobi, makananMinumanFavorit, suku, foto, instagram, namaOrtu, kategori 
     } = body;
 
     await db
@@ -112,6 +114,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         tanggalLahir,
         jenisKelamin,
         kategoriUsia,
+        kategori,
+        namaOrtu,
         alamat,
         noTelp,
         pendidikan,
@@ -158,6 +162,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         nama: generus.nama,
         jenisKelamin: generus.jenisKelamin,
         kategoriUsia: generus.kategoriUsia,
+        kategori: generus.kategori,
+        namaOrtu: generus.namaOrtu,
         tempatLahir: generus.tempatLahir,
         tanggalLahir: generus.tanggalLahir,
         alamat: generus.alamat,
