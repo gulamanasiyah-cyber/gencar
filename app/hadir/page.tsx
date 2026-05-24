@@ -110,11 +110,27 @@ function HadirContent() {
         <div className="card" style={{ maxWidth: 400, width: "100%", textAlign: "center", padding: 32 }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
           <h2 style={{ marginBottom: 8 }}>Kegiatan Tidak Ditemukan</h2>
-          <p className="text-muted">Pastikan Anda memindai QR Code yang valid dari panitia.</p>
+          <p className="text-muted">Pastikan Anda memindai QR Code yang valid dari pengurus.</p>
         </div>
       </div>
     );
   }
+
+  const formatTanggal = (tgl: string) => {
+    if (!tgl) return "";
+    try {
+      const date = new Date(tgl);
+      if (isNaN(date.getTime())) return tgl; // Invalid date fallback
+      return date.toLocaleDateString("id-ID", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric"
+      });
+    } catch {
+      return tgl;
+    }
+  };
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-light)", padding: 20 }}>
@@ -128,10 +144,15 @@ function HadirContent() {
           <h2 style={{ marginBottom: 8 }}>Absensi Kegiatan</h2>
           <div style={{ fontWeight: 600, fontSize: 18, color: "var(--primary)" }}>{kegiatan.judul}</div>
           <div className="text-sm text-muted" style={{ marginTop: 4 }}>
-            {kegiatan.tanggal} {kegiatan.jam ? `• ${kegiatan.jam}` : ""}
+            {formatTanggal(kegiatan.tanggal)} {kegiatan.jam ? `• ${kegiatan.jam}` : ""}
           </div>
           {kegiatan.lokasi && (
             <div className="text-sm text-muted" style={{ marginTop: 4 }}>📍 {kegiatan.lokasi}</div>
+          )}
+          {kegiatan.deskripsi && (
+            <div style={{ marginTop: 16, padding: "12px 16px", background: "var(--bg-body)", borderRadius: 8, fontSize: 13, color: "var(--gray)", textAlign: "left", lineHeight: 1.5 }}>
+              {kegiatan.deskripsi}
+            </div>
           )}
         </div>
 
@@ -139,7 +160,7 @@ function HadirContent() {
           <div style={{ textAlign: "center", padding: 24, background: "rgba(22,163,74,0.1)", borderRadius: 12, border: "1px solid rgba(22,163,74,0.2)" }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
             <div style={{ fontWeight: 600, fontSize: 18, color: "var(--success)" }}>Kehadiran Tercatat!</div>
-            <div style={{ marginTop: 8 }}>Terima kasih, <strong>{success.nama}</strong>.</div>
+            <div style={{ marginTop: 8 }}>Alhamdulillahi jaza kumullohu khoiro, <br/><strong>{success.nama}</strong>.</div>
           </div>
         ) : (
           <div>
