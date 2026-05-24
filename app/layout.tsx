@@ -1,8 +1,27 @@
 import type { Metadata } from "next";
+import { Inter, Plus_Jakarta_Sans, Merriweather } from "next/font/google";
 import "./globals.css";
 import PageTransition from "@/components/PageTransition";
 import ThemeConfig from "@/components/ThemeConfig";
 import { Suspense } from "react";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  weight: ["300", "400", "500", "600", "700"],
+});
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-plus-jakarta-sans",
+  weight: ["300", "400", "500", "600", "700", "800"],
+});
+
+const merriweather = Merriweather({
+  subsets: ["latin"],
+  variable: "--font-merriweather",
+  weight: ["300", "400", "700", "900"],
+});
 
 export const metadata: Metadata = {
   title: {
@@ -22,7 +41,7 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.ico" />
       </head>
-      <body suppressHydrationWarning>
+      <body className={`${inter.variable} ${plusJakartaSans.variable} ${merriweather.variable}`} suppressHydrationWarning>
         <Suspense fallback={null}>
           <ThemeConfig />
           <PageTransition />

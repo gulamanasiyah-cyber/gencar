@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Swal from "sweetalert2";
 import GlobalLoading from "@/app/loading";
+import PhotoUpload from "@/components/mandiri/PhotoUpload";
+import { registerSchema } from "@/lib/validation";
 
 interface Desa {
   id: number;
@@ -31,6 +33,7 @@ export default function RegisterPage() {
     kategori: "Generus",
     namaOrtu: "",
     noTelp: "",
+    foto: "",
   });
   const [desaList, setDesaList] = useState<Desa[]>([]);
   const [kelompokList, setKelompokList] = useState<Kelompok[]>([]);
@@ -86,8 +89,11 @@ export default function RegisterPage() {
       setError("Password tidak sama");
       return;
     }
-    if (form.password.length < 8) {
-      setError("Password minimal 8 karakter");
+
+    const validation = registerSchema.safeParse(form);
+    if (!validation.success) {
+      const firstError = (validation.error as any).errors[0]?.message || "Input tidak valid";
+      setError(firstError);
       return;
     }
 
@@ -108,6 +114,7 @@ export default function RegisterPage() {
           kategori: form.kategori,
           namaOrtu: form.namaOrtu,
           noTelp: form.noTelp,
+          foto: form.foto,
         }),
       });
 
@@ -156,7 +163,7 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        <h2 className="auth-title">Buat Akun Baru</h2>
+        <h2 className="auth-title" style={{ textAlign: "center", marginBottom: "20px" }}>Buat Akun Baru</h2>
 
         {error && (
           <div className="alert alert-error">
@@ -170,6 +177,14 @@ export default function RegisterPage() {
         )}
 
         <form onSubmit={handleSubmit}>
+          <div className="form-group" style={{ textAlign: "center", marginBottom: "24px" }}>
+            <PhotoUpload
+              value={form.foto}
+              onChange={(url) => setForm((prev) => ({ ...prev, foto: url }))}
+              helperText="Unggah foto profil Anda (maksimal 8 MB)"
+            />
+          </div>
+
           <div className="form-group">
             <label className="form-label" htmlFor="desaId">
               Desa <span className="required">*</span>

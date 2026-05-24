@@ -4,14 +4,19 @@ import { users, generus, mandiri } from "@/lib/schema";
 import { eq, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
+import { registerSchema } from "@/lib/validation";
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, password, desaId, kelompokId, dapukan, jenisKelamin, kategoriUsia, kategori, namaOrtu, noTelp } = await request.json();
+    const body = await request.json();
+    const result = registerSchema.safeParse(body);
 
-    if (!name || !email || !password || !desaId || !kelompokId || !dapukan || !jenisKelamin || !kategoriUsia || !kategori || !namaOrtu || !noTelp) {
-      return NextResponse.json({ error: "Semua field wajib diisi" }, { status: 400 });
+    if (!result.success) {
+      const firstError = (result.error as any).errors[0]?.message || "Input tidak valid";
+      return NextResponse.json({ error: firstError }, { status: 400 });
     }
+
+    const { name, email, password, desaId, kelompokId, dapukan, jenisKelamin, kategoriUsia, kategori, namaOrtu, noTelp, foto } = result.data;
 
     // 2. Check if Email already has an account
     const existingUser = await db.query.users.findFirst({
@@ -45,6 +50,7 @@ export async function POST(request: NextRequest) {
       desaId: Number(desaId),
       kelompokId: Number(kelompokId),
       isGenerus: 1, // Ensure it appears in Data Generus
+      foto: foto || null,
     });
 
     await db.insert(users).values({
@@ -52,7 +58,7 @@ export async function POST(request: NextRequest) {
       name,
       email: email.toLowerCase(),
       passwordHash,
-      role: assignedRole,
+      role: assignedRole as any,
       desaId: Number(desaId),
       kelompokId: Number(kelompokId),
       generusId: generusId,
