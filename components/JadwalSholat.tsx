@@ -53,18 +53,21 @@ export default function JadwalSholat() {
   useEffect(() => {
     const fetchPrayerTimes = async () => {
       try {
-        const res = await fetch(
-          "https://api.aladhan.com/v1/timingsByCity?city=Jakarta&country=Indonesia&method=11"
-        );
+        const date = new Date();
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+
+        const res = await fetch(`/api/sholat?year=${year}&month=${month}&day=${day}`);
         if (res.ok) {
           const json = await res.json();
-          if (json.data && json.data.timings) {
+          if (json.status && json.data && json.data.jadwal) {
             setTimings({
-              Fajr: json.data.timings.Fajr,
-              Dhuhr: json.data.timings.Dhuhr,
-              Asr: json.data.timings.Asr,
-              Maghrib: json.data.timings.Maghrib,
-              Isha: json.data.timings.Isha,
+              Fajr: json.data.jadwal.subuh,
+              Dhuhr: json.data.jadwal.dzuhur,
+              Asr: json.data.jadwal.ashar,
+              Maghrib: json.data.jadwal.maghrib,
+              Isha: json.data.jadwal.isya,
             });
             setError(false);
           } else {
