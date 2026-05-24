@@ -20,6 +20,7 @@ interface AbsensiItem {
   generusNama: string | null;
   generusNomorUnik: string | null;
   generusKategori: string | null;
+  generusJenisKelamin: string | null;
   timestamp: string | null;
   keterangan: string | null;
 }
@@ -186,10 +187,32 @@ function AbsensiContent() {
 
           {/* Right: Attendance list */}
           <div className="card">
-            <div className="card-header">
+            <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span className="card-title">Daftar Hadir</span>
-              <span className="badge badge-blue">{absensiList.length} hadir</span>
+              <span className="badge badge-blue">{absensiList.length} total hadir</span>
             </div>
+            
+            {selectedKegiatan && absensiList.length > 0 && (
+              <div style={{ padding: "16px", borderBottom: "1px solid var(--border)", display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px", background: "var(--bg-light)" }}>
+                <div style={{ background: "white", padding: "12px", borderRadius: "8px", border: "1px solid var(--border)", textAlign: "center" }}>
+                  <div style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600, textTransform: "uppercase", marginBottom: "4px" }}>Laki-laki</div>
+                  <div style={{ fontSize: "18px", fontWeight: 700, color: "var(--primary)" }}>{absensiList.filter(a => a.generusJenisKelamin === "L").length}</div>
+                </div>
+                <div style={{ background: "white", padding: "12px", borderRadius: "8px", border: "1px solid var(--border)", textAlign: "center" }}>
+                  <div style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600, textTransform: "uppercase", marginBottom: "4px" }}>Perempuan</div>
+                  <div style={{ fontSize: "18px", fontWeight: 700, color: "#ec4899" }}>{absensiList.filter(a => a.generusJenisKelamin === "P").length}</div>
+                </div>
+                <div style={{ background: "white", padding: "12px", borderRadius: "8px", border: "1px solid var(--border)", textAlign: "center" }}>
+                  <div style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600, textTransform: "uppercase", marginBottom: "4px" }}>Generus</div>
+                  <div style={{ fontSize: "18px", fontWeight: 700, color: "#10b981" }}>{absensiList.filter(a => a.generusKategori === "Generus").length}</div>
+                </div>
+                <div style={{ background: "white", padding: "12px", borderRadius: "8px", border: "1px solid var(--border)", textAlign: "center" }}>
+                  <div style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600, textTransform: "uppercase", marginBottom: "4px" }}>Usia Mandiri</div>
+                  <div style={{ fontSize: "18px", fontWeight: 700, color: "#f59e0b" }}>{absensiList.filter(a => a.generusKategori === "Usia Mandiri").length}</div>
+                </div>
+              </div>
+            )}
+
             {loading ? (
               <div className="loading"><div className="spinner" /></div>
             ) : absensiList.length === 0 ? (

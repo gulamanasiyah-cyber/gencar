@@ -39,7 +39,8 @@ export async function GET(request: NextRequest) {
         keterangan: absensi.keterangan,
         generusNama: generus.nama,
         generusNomorUnik: generus.nomorUnik,
-        generusKategori: generus.kategoriUsia,
+        generusKategori: generus.kategori,
+        generusJenisKelamin: generus.jenisKelamin,
       })
       .from(absensi)
       .leftJoin(generus, eq(absensi.generusId, generus.id))
