@@ -14,15 +14,15 @@ function generateNomorUnik() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { 
-      nama, tempatLahir, tanggalLahir, jenisKelamin, kategoriUsia, alamat, noTelp, 
+    const {
+      nama, tempatLahir, tanggalLahir, jenisKelamin, kategoriUsia, alamat, noTelp, noTelpOrtu, 
       pendidikan, pekerjaan, statusNikah, desaId, kelompokId, 
       hobi, makananMinumanFavorit, suku, foto, namaOrtu, kategori,
       email, password 
     } = body;
 
-    if (!nama || !jenisKelamin || !kategoriUsia || !desaId || !email || !password) {
-      return NextResponse.json({ error: "Nama, Wilayah, Email & Password wajib diisi" }, { status: 400 });
+    if (!nama || !jenisKelamin || !kategoriUsia || !desaId || !email || !password || !tempatLahir || !tanggalLahir || !namaOrtu || !noTelp || !noTelpOrtu || !alamat || !foto) {
+      return NextResponse.json({ error: "Semua data wajib diisi secara lengkap" }, { status: 400 });
     }
 
     // 1. Email Uniqueness Check
@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
       namaOrtu,
       alamat,
       noTelp,
+      noTelpOrtu,
       pendidikan,
       pekerjaan,
       statusNikah: statusNikah || "Belum Menikah",

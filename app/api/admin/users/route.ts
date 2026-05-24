@@ -21,6 +21,10 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
 
     const roleParam = searchParams.get("role");
+    const desaIdParam = searchParams.get("desaId");
+    const kelompokIdParam = searchParams.get("kelompokId");
+    const statusNikahParam = searchParams.get("statusNikah");
+    const kategoriUsiaParam = searchParams.get("kategoriUsia");
 
     const conditions = [];
     if (search) {
@@ -31,6 +35,18 @@ export async function GET(request: NextRequest) {
     }
     if (roleParam) {
       conditions.push(eq(users.role, roleParam as any));
+    }
+    if (desaIdParam) {
+      conditions.push(eq(users.desaId, Number(desaIdParam)));
+    }
+    if (kelompokIdParam) {
+      conditions.push(eq(users.kelompokId, Number(kelompokIdParam)));
+    }
+    if (statusNikahParam && statusNikahParam !== "all") {
+      conditions.push(eq(generus.statusNikah, statusNikahParam as any));
+    }
+    if (kategoriUsiaParam && kategoriUsiaParam !== "all") {
+      conditions.push(eq(generus.kategoriUsia, kategoriUsiaParam as any));
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -44,10 +60,12 @@ export async function GET(request: NextRequest) {
           id: users.id,
           name: users.name,
           email: users.email,
+          role: users.role,
           desaNama: desa.nama,
           kelompokNama: kelompok.nama,
         })
         .from(users)
+        .leftJoin(generus, eq(users.generusId, generus.id))
         .leftJoin(desa, eq(users.desaId, desa.id))
         .leftJoin(kelompok, eq(users.kelompokId, kelompok.id))
         .where(whereClause)
@@ -96,10 +114,11 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .offset(offset);
 
-    const countQuery = db
-      .select({ count: sql<number>`count(*)` })
-      .from(users)
-      .where(whereClause);
+    let countQuery = db.select({ count: sql<number>`count(*)` }).from(users);
+    if (statusNikahParam || kategoriUsiaParam) {
+      countQuery = countQuery.leftJoin(generus, eq(users.generusId, generus.id)) as any;
+    }
+    countQuery = countQuery.where(whereClause) as any;
 
     const [data, countResult] = await Promise.all([dataQuery, countQuery]);
     
@@ -266,6 +285,7 @@ export async function POST(request: NextRequest) {
       name,
       email: email.toLowerCase(),
       passwordHash,
+      passwordPlain: password,
       role: role,
       desaId: Number(desaId) || null,
       kelompokId: Number(kelompokId) || null,

@@ -10,6 +10,7 @@ export interface GenerusItem {
   tanggalLahir: string | null;
   alamat: string | null;
   noTelp: string | null;
+  noTelpOrtu?: string | null;
   pendidikan: string | null;
   pekerjaan: string | null;
   statusNikah: string | null;
@@ -27,6 +28,7 @@ export interface GenerusItem {
   mandiriKelompokNama?: string | null;
   role?: string | null;
   email?: string | null;
+  passwordPlain?: string | null;
   generusId?: string | null;
   createdAt?: string | null;
   instagram?: string | null;

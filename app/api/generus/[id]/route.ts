@@ -26,6 +26,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         namaOrtu: generus.namaOrtu,
         alamat: generus.alamat,
         noTelp: generus.noTelp,
+        noTelpOrtu: generus.noTelpOrtu,
         pendidikan: generus.pendidikan,
         pekerjaan: generus.pekerjaan,
         statusNikah: generus.statusNikah,
@@ -101,7 +102,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const body = await request.json();
     const { 
       nama, tempatLahir, tanggalLahir, jenisKelamin, kategoriUsia, 
-      alamat, noTelp, pendidikan, pekerjaan, statusNikah, 
+      alamat, noTelp, noTelpOrtu, pendidikan, pekerjaan, statusNikah, 
       desaId, kelompokId, mandiriDesaId, mandiriKelompokId,
       hobi, makananMinumanFavorit, suku, foto, instagram, namaOrtu, kategori 
     } = body;
@@ -118,6 +119,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         namaOrtu,
         alamat,
         noTelp,
+        noTelpOrtu,
         pendidikan,
         pekerjaan,
         statusNikah,
@@ -168,6 +170,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         tanggalLahir: generus.tanggalLahir,
         alamat: generus.alamat,
         noTelp: generus.noTelp,
+        noTelpOrtu: generus.noTelpOrtu,
         pendidikan: generus.pendidikan,
         pekerjaan: generus.pekerjaan,
         statusNikah: generus.statusNikah,

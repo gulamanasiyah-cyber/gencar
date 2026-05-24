@@ -32,7 +32,7 @@ export default function GenerusPage() {
   const [kelompokFilter, setKelompokFilter] = useState("");
   const [desas, setDesas] = useState<{id: number, nama: string}[]>([]);
   const [kelompoks, setKelompoks] = useState<{id: number, nama: string}[]>([]);
-  const [deadline, setDeadline] = useState("");
+  const [isActive, setIsActive] = useState("true");
   const [regTitle, setRegTitle] = useState("");
   const [regDesc, setRegDesc] = useState("");
   
@@ -53,7 +53,7 @@ export default function GenerusPage() {
         try {
             const res = await fetch("/api/settings");
             const s = await res.json();
-            setDeadline(s.generus_registration_deadline || "");
+            setIsActive(s.generus_registration_active ?? "true");
             setRegTitle(s.generus_registration_title || "");
             setRegDesc(s.generus_registration_description || "");
         } catch (e) {
@@ -65,15 +65,18 @@ export default function GenerusPage() {
 
   const handleSettings = async () => {
     const { value: formValues } = await Swal.fire({
-      title: "Pengaturan Pendaftaran Generus",
+      title: "Pengaturan Pendaftaran Muda-Mudi",
       html: `
         <div style="text-align: left">
           <label class="form-label">Nama Kegiatan / Judul Form</label>
-          <input id="swal-title" class="form-control" value="${regTitle}" placeholder="Contoh: Pendataan Generus Daerah 2024" style="margin-bottom: 12px">
+          <input id="swal-title" class="form-control" value="${regTitle}" placeholder="Contoh: Pendataan Generus Daerah 2026" style="margin-bottom: 12px">
           <label class="form-label">Deskripsi Kegiatan</label>
-          <textarea id="swal-desc" class="form-control" rows="3" placeholder="Contoh: Pendataan seluruh generus..." style="margin-bottom: 12px">${regDesc}</textarea>
-          <label class="form-label">Batas Waktu (Deadline)</label>
-          <input id="swal-deadline" type="datetime-local" class="form-control" value="${deadline ? new Date(deadline).toISOString().slice(0, 16) : ""}">
+          <textarea id="swal-desc" class="form-control" rows="3" placeholder="Contoh: Pendataan seluruh muda-mudi..." style="margin-bottom: 12px">${regDesc}</textarea>
+          <label class="form-label">Status Pendaftaran</label>
+          <select id="swal-active" class="form-control" style="margin-bottom: 12px">
+            <option value="true" ${isActive !== "false" ? "selected" : ""}>Aktif (Buka)</option>
+            <option value="false" ${isActive === "false" ? "selected" : ""}>Nonaktif (Tutup)</option>
+          </select>
         </div>
       `,
       focusConfirm: false,
@@ -83,10 +86,10 @@ export default function GenerusPage() {
         return {
           title: (document.getElementById("swal-title") as HTMLInputElement).value,
           desc: (document.getElementById("swal-desc") as HTMLTextAreaElement).value,
-          deadline: (document.getElementById("swal-deadline") as HTMLInputElement).value,
+          active: (document.getElementById("swal-active") as HTMLSelectElement).value,
         };
       },
-      footer: "Nama & deskripsi akan muncul di form publik generus"
+      footer: "Nama & deskripsi akan muncul di form publik muda-mudi"
     });
 
     if (formValues) {
@@ -105,12 +108,12 @@ export default function GenerusPage() {
             fetch("/api/mandiri/settings", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ key: "generus_registration_deadline", value: formValues.deadline }),
+                body: JSON.stringify({ key: "generus_registration_active", value: formValues.active }),
             })
         ]);
         setRegTitle(formValues.title);
         setRegDesc(formValues.desc);
-        setDeadline(formValues.deadline);
+        setIsActive(formValues.active);
         Swal.fire({ icon: "success", title: "Berhasil disimpan", timer: 1000, showConfirmButton: false });
       } catch (e: any) {
         Swal.fire({ icon: "error", title: "Error", text: e.message });
@@ -122,7 +125,7 @@ export default function GenerusPage() {
     const link = `${window.location.origin}/generus/daftar`;
     navigator.clipboard.writeText(link);
     Swal.fire({
-      title: "Link Pendaftaran Generus",
+      title: "Link Pendaftaran Muda-Mudi",
       html: `
         <div style="background: var(--bg); padding: 12px; border-radius: 8px; font-family: monospace; font-size: 13px; margin-bottom: 20px; border: 1px dashed var(--border)">
             ${link}
@@ -164,7 +167,7 @@ export default function GenerusPage() {
 
   const handleDelete = async (id: string) => {
     const res = await Swal.fire({
-      title: 'Hapus Data Generus?',
+      title: 'Hapus Data Muda-Mudi?',
       text: "Data yang dihapus tidak dapat dikembalikan!",
       icon: 'warning',
       showCancelButton: true,
@@ -179,7 +182,7 @@ export default function GenerusPage() {
       Swal.fire({
         icon: 'success',
         title: 'Terhapus!',
-        text: 'Data generus berhasil dihapus.',
+        text: 'Data muda-mudi berhasil dihapus.',
         timer: 1500,
         showConfirmButton: false
       });
@@ -201,8 +204,8 @@ export default function GenerusPage() {
 
   const handleDeleteAll = async () => {
     const res = await Swal.fire({
-      title: 'Hapus SEMUA Data Generus?',
-      text: "Data yang dihapus (Generus & Absensi) tidak dapat dikembalikan! Akun User yang terhubung juga akan terhapus.",
+      title: 'Hapus SEMUA Data Muda-Mudi?',
+      text: "Data yang dihapus (Muda-Mudi & Absensi) tidak dapat dikembalikan! Akun User yang terhubung juga akan terhapus.",
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
@@ -214,7 +217,7 @@ export default function GenerusPage() {
     if (res.isConfirmed) {
       const confirm2 = await Swal.fire({
         title: 'Konfirmasi Terakhir',
-        text: 'Ketik "HAPUS SEMUA" untuk mengonfirmasi penghapusan seluruh database generus.',
+        text: 'Ketik "HAPUS SEMUA" untuk mengonfirmasi penghapusan seluruh database muda-mudi.',
         input: 'text',
         inputPlaceholder: 'HAPUS SEMUA',
         showCancelButton: true,
@@ -273,7 +276,7 @@ export default function GenerusPage() {
 
     Swal.fire({
       title: "Menyiapkan PDF Login...",
-      text: "Mengambil data kredensial login generus",
+      text: "Mengambil data kredensial login muda-mudi",
       allowOutsideClick: false,
       didOpen: () => {
         Swal.showLoading();
@@ -287,13 +290,13 @@ export default function GenerusPage() {
       const exportData = json.data || [];
 
       if (exportData.length === 0) {
-        Swal.fire({ icon: "info", title: "Tidak ada data", text: "Tidak ada data generus ditemukan." });
+        Swal.fire({ icon: "info", title: "Tidak ada data", text: "Tidak ada data muda-mudi ditemukan." });
         return;
       }
 
       const doc = new jsPDF();
       doc.setFontSize(18);
-      doc.text("Daftar Akun Login Generus - Admin", 14, 15);
+      doc.text("Daftar Akun Login Muda-Mudi - Admin", 14, 15);
       
       doc.setFontSize(10);
       doc.setTextColor(100);
@@ -333,7 +336,7 @@ export default function GenerusPage() {
     if (userRole === "admin") {
       const result = await Swal.fire({
         title: 'Metode Ekspor PDF',
-        text: "Pilih data generus yang ingin diekspor:",
+        text: "Pilih data muda-mudi yang ingin diekspor:",
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#10b981',
@@ -360,7 +363,7 @@ export default function GenerusPage() {
     });
 
     try {
-      const params = new URLSearchParams({ all: "true" });
+      const params = new URLSearchParams({ all: "true", isGenerus: "true" });
       
       if (exportMode === 'filtered') {
         if (search) params.set("search", search);
@@ -372,16 +375,19 @@ export default function GenerusPage() {
       
       const res = await fetch(`/api/generus?${params}`);
       const json = await res.json();
-      const exportData = json.data || [];
+      let exportData = json.data || [];
+
+      // Abaikan admin/pengurus, tapi tetap sertakan yang tidak memiliki akun (role null)
+      exportData = exportData.filter((item: any) => !item.role || ["generus", "usia_mandiri", "peserta"].includes(item.role));
 
       if (exportData.length === 0) {
-        Swal.fire({ icon: "info", title: "Tidak ada data", text: "Tidak ada data generus yang sesuai untuk diekspor." });
+        Swal.fire({ icon: "info", title: "Tidak ada data", text: "Tidak ada data pengguna yang sesuai untuk diekspor." });
         return;
       }
 
       const doc = new jsPDF();
       doc.setFontSize(18);
-      doc.text(exportMode === 'full' ? "Database Lengkap Generus" : "Data Generus (Filtered)", 14, 15);
+      doc.text(exportMode === 'full' ? "Database Lengkap Muda-Mudi" : "Data Muda-Mudi (Filtered)", 14, 15);
       
       const filterText = (exportMode === 'filtered') 
         ? [`Waktu: ${new Date().toLocaleString('id-ID')}`, `Total: ${exportData.length}`]
@@ -392,11 +398,11 @@ export default function GenerusPage() {
       doc.text(filterText.join(" | "), 14, 22);
 
       const tableData = exportData.map((item: any) => [
-        item.nama,
+        item.name || item.nama, // Handling fallback just in case
         item.desaNama || "-",
         item.kelompokNama || "-",
         item.email || "-",
-        "generusjb2",
+        item.passwordPlain || (item.email ? "*** (Rahasia)" : "Belum Ada Akun"),
       ]);
 
       autoTable(doc, {
@@ -434,13 +440,13 @@ export default function GenerusPage() {
 
   return (
     <div>
-      <Topbar title="Data Generus" role={userRole} userName={userName} />
+      <Topbar title="Data Muda-Mudi" role={userRole} userName={userName} />
 
       <div className="page-content">
         <div className="page-header">
           <div className="page-header-left">
-            <h2>Data Generus</h2>
-            <p>Total {total} generus terdaftar</p>
+            <h2>Data Muda-Mudi</h2>
+            <p>Total {total} muda-mudi terdaftar</p>
           </div>
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", width: "100%", justifyContent: "flex-end" }}>
             {["admin", "pengurus_daerah", "kmm_daerah"].includes(userRole) && (
@@ -493,7 +499,7 @@ export default function GenerusPage() {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
               </svg>
-              Tambah Generus
+              Tambah Muda-Mudi
             </button>
           </div>
         </div>
@@ -598,8 +604,8 @@ export default function GenerusPage() {
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
                   <circle cx="9" cy="7" r="4" />
                 </svg>
-                <h3>Belum ada data generus</h3>
-                <p>Klik &quot;Tambah Generus&quot; untuk menambahkan data</p>
+                <h3>Belum ada data muda-mudi</h3>
+                <p>Klik &quot;Tambah Muda-Mudi&quot; untuk menambahkan data</p>
               </div>
             ) : (
               <table>
@@ -609,13 +615,15 @@ export default function GenerusPage() {
                     <th>No. Unik</th>
                     <th>Nama</th>
                     <th>JK</th>
-                    <th>Umur</th>
+                    <th>TTL / Umur</th>
                     <th>Kategori</th>
                     <th>Pend / Pekerjaan</th>
                     <th>Desa</th>
                     <th>Kelompok</th>
                     <th>Alamat</th>
+                    <th>No. Telp</th>
                     <th>Status</th>
+                    <th>Akun Login</th>
                     <th>Aksi</th>
                   </tr>
                 </thead>
@@ -643,10 +651,15 @@ export default function GenerusPage() {
                       </td>
                       <td style={{ fontWeight: 500 }}>{item.nama}</td>
                       <td>{item.jenisKelamin === "L" ? "Laki-laki" : "Perempuan"}</td>
-                      <td>{umur}</td>
+                      <td>
+                        <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                          {item.tempatLahir ? item.tempatLahir + ", " : ""}{item.tanggalLahir || "-"}
+                        </div>
+                        <div style={{ fontWeight: 500 }}>{umur}</div>
+                      </td>
                       <td>
                         <span className={`badge ${item.kategori === "Usia Mandiri" ? "badge-purple" : "badge-blue"}`}>
-                          {item.kategori || "Generus"}
+                          {item.kategori === "Generus" ? "Muda-Mudi" : (item.kategori || "Muda-Mudi")}
                         </span>
                       </td>
                       <td style={{ maxWidth: "150px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -664,10 +677,26 @@ export default function GenerusPage() {
                       <td style={{ maxWidth: "150px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.alamat || "-"}>
                         {item.alamat || "-"}
                       </td>
+                      <td style={{ fontSize: "11px" }}>
+                        <div style={{ color: "var(--text-main)", fontWeight: 500 }}>{item.noTelp || "-"}</div>
+                        {item.noTelpOrtu && <div style={{ color: "var(--text-muted)", marginTop: "2px" }}>Ortu: {item.noTelpOrtu}</div>}
+                      </td>
                       <td>
                         <span className={`badge ${item.statusNikah === "Menikah" ? "badge-green" : "badge-gray"}`}>
                           {item.statusNikah || "Belum Menikah"}
                         </span>
+                      </td>
+                      <td style={{ maxWidth: "150px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        <div style={{ fontSize: "11px", fontWeight: 500, color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: "2px" }}>
+                           {item.email ? (
+                             <>
+                               <span style={{ color: "var(--text-main)" }} title={item.email}>{item.email}</span>
+                               <span style={{ color: "var(--color-primary)" }}>P: {item.passwordPlain || "***"}</span>
+                             </>
+                           ) : (
+                             <span>-</span>
+                           )}
+                        </div>
                       </td>
                       <td>
                         <div className="flex gap-2">

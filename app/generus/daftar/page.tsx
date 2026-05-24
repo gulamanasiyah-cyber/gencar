@@ -15,6 +15,7 @@ export default function GenerusDaftarPage() {
     tanggalLahir: "",
     alamat: "",
     noTelp: "",
+    noTelpOrtu: "",
     email: "",
     password: "",
     pendidikan: "",
@@ -36,8 +37,7 @@ export default function GenerusDaftarPage() {
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [deadline, setDeadline] = useState<string>("");
-  const [isPastDeadline, setIsPastDeadline] = useState(false);
+  const [isActive, setIsActive] = useState<string>("true");
   const [regTitle, setRegTitle] = useState("");
   const [regDesc, setRegDesc] = useState("");
   const [agreed, setAgreed] = useState(false);
@@ -55,15 +55,11 @@ export default function GenerusDaftarPage() {
   }, []);
 
   useEffect(() => {
-    // Fetch Settings
-    fetch("/api/public/mandiri/settings?key=generus_registration_deadline")
+    fetch("/api/public/mandiri/settings?key=generus_registration_active")
       .then(r => r.json())
       .then(d => {
-        if (d.value) {
-            setDeadline(d.value);
-            if (new Date() > new Date(d.value)) {
-                setIsPastDeadline(true);
-            }
+        if (d.value !== undefined) {
+            setIsActive(d.value);
         }
       });
 
@@ -143,7 +139,7 @@ export default function GenerusDaftarPage() {
           <div style={{ fontSize: "60px", marginBottom: "20px" }}>✅</div>
           <h2 style={{ marginBottom: "10px" }}>Pendaftaran Berhasil!</h2>
           <p style={{ color: "var(--text-muted)", marginBottom: "24px" }}>
-            Data Anda telah berhasil disimpan dalam Sistem Pendataan Generus.
+            Data Anda telah berhasil disimpan dalam Sistem Pendataan Muda-Mudi.
           </p>
           <div style={{ background: "var(--bg)", padding: "20px", borderRadius: "10px", marginBottom: "24px" }}>
             <p style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px" }}>Nomor Unik Anda:</p>
@@ -160,14 +156,14 @@ export default function GenerusDaftarPage() {
     );
   }
 
-  if (isPastDeadline) {
+  if (isActive === "false") {
       return (
         <div className="auth-page">
           <div className="auth-card" style={{ maxWidth: "500px", textAlign: "center" }}>
-            <div style={{ fontSize: "60px", marginBottom: "20px" }}>⌛</div>
+            <div style={{ fontSize: "60px", marginBottom: "20px" }}>🔒</div>
             <h2 style={{ marginBottom: "10px" }}>Pendaftaran Ditutup</h2>
             <p style={{ color: "var(--text-muted)", marginBottom: "24px" }}>
-              Mohon maaf, pendaftaran telah berakhir pada <b>{new Date(deadline).toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' })}</b>.
+              Mohon maaf, pendaftaran saat ini sedang dinonaktifkan / ditutup.
             </p>
             <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>
                 Silakan hubungi pengurus setempat untuk informasi lebih lanjut.
@@ -186,26 +182,18 @@ export default function GenerusDaftarPage() {
           )}
           <div style={{ textAlign: 'left' }}>
             <h1 style={{ margin: 0, lineHeight: 1 }}>JB2.ID</h1>
-            <p style={{ margin: 0, fontSize: '11px' }}>Sistem Manajemen Generus JB2</p>
+            <p style={{ margin: 0, fontSize: '11px' }}>Sistem Manajemen Muda-Mudi JB2</p>
           </div>
         </div>
                 <p style={{ fontWeight: "600", fontSize: "1.2rem", marginBottom: "4px" }}>
-                    {regTitle || "Pendaftaran Data Generus"}
+                    {regTitle || "Pendaftaran Data Muda-Mudi"}
                 </p>
                 {regDesc && (
                     <p style={{ fontSize: "14px", color: "var(--text-muted)", marginBottom: "12px", lineHeight: "1.5" }}>
                         {renderTextWithLinks(regDesc)}
                     </p>
                 )}
-                {deadline && (
-                    <div style={{ 
-                        marginTop: 12, padding: "8px 12px", borderRadius: 8, 
-                        background: "#fff7ed", color: "#c2410c", fontSize: 12,
-                        border: "1px solid #ffedd5"
-                    }}>
-                        Batas waktu pengisian: <b>{new Date(deadline).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</b>
-                    </div>
-                )}
+
             
             <form onSubmit={handleSubmit}>
                 <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -240,42 +228,67 @@ export default function GenerusDaftarPage() {
                         </p>
                     </div>
 
-                    <div className="form-group">
-                        <label className="form-label">Email <span className="required">*</span></label>
-                        <input name="email" type="email" className="form-control" value={form.email} onChange={handleChange} required placeholder="Masukkan alamat email aktif" />
-                    </div>
-
-                    <div className="form-group">
-                        <label className="form-label">Password <span className="required">*</span></label>
-                        <input name="password" type="password" className="form-control" value={form.password} onChange={handleChange} required placeholder="Masukkan password untuk login" />
-                    </div>
-
                     <div className="form-row">
                         <div className="form-group">
-                            <label className="form-label">Jenis Kelamin <span className="required">*</span></label>
-                            <select name="jenisKelamin" className="form-control" value={form.jenisKelamin} onChange={handleChange}>
-                                <option value="L">Laki-laki</option>
-                                <option value="P">Perempuan</option>
-                            </select>
+                            <label className="form-label">Tempat Lahir <span className="required">*</span></label>
+                            <input name="tempatLahir" className="form-control" value={form.tempatLahir} onChange={handleChange} placeholder="Kota Kelahiran" required />
                         </div>
                         <div className="form-group">
-                            <label className="form-label">Kategori Usia <span className="required">*</span></label>
-                            <select name="kategoriUsia" className="form-control" value={form.kategoriUsia} onChange={handleChange}>
-
-                                <option value="SMP">SMP</option>
-                                <option value="SMA">SMA/SMK</option>
-                                <option value="Kuliah">Kuliah</option>
-                                <option value="Bekerja">Bekerja</option>
-                            </select>
+                            <label className="form-label">Tanggal Lahir <span className="required">*</span></label>
+                            <input name="tanggalLahir" type="date" className="form-control" value={form.tanggalLahir} onChange={handleChange} required />
                         </div>
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form-label">Jenis Kelamin <span className="required">*</span></label>
+                        <select name="jenisKelamin" className="form-control" value={form.jenisKelamin} onChange={handleChange}>
+                            <option value="L">Laki-laki</option>
+                            <option value="P">Perempuan</option>
+                        </select>
                     </div>
 
                     <div className="form-group">
                         <label className="form-label">Kategori <span className="required">*</span></label>
                         <select name="kategori" className="form-control" value={form.kategori} onChange={handleChange}>
-                            <option value="Generus">Generus</option>
+                            <option value="Generus">Muda-Mudi</option>
                             <option value="Usia Mandiri">Usia Mandiri</option>
                         </select>
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form-label">Pendidikan / Pekerjaan <span className="required">*</span></label>
+                        <select name="kategoriUsia" className="form-control" value={form.kategoriUsia} onChange={handleChange}>
+                            {form.kategori === "Generus" ? (
+                                <>
+                                    <option value="SMP">SMP</option>
+                                    <option value="SMA">SMA</option>
+                                    <option value="SMK">SMK</option>
+                                </>
+                            ) : (
+                                <>
+                                    <option value="Kuliah">Kuliah</option>
+                                    <option value="Bekerja">Bekerja</option>
+                                </>
+                            )}
+                        </select>
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form-label">Nama Orang Tua <span className="required">*</span></label>
+                        <input name="namaOrtu" className="form-control" value={form.namaOrtu} onChange={handleChange} placeholder="Nama Ayah / Ibu" required />
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form-label">Nomor WhatsApp Anda <span className="required">*</span></label>
+                        <input name="noTelp" className="form-control" value={form.noTelp} onChange={handleChange} placeholder="08xx-xxxx-xxxx" required />
+                        <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px", lineHeight: "1.3" }}>
+                            Nomor ini tidak akan disebarluaskan, hanya digunakan untuk keperluan kordinasi.
+                        </p>
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form-label">Nomor WhatsApp Orangtua <span className="required">*</span></label>
+                        <input name="noTelpOrtu" className="form-control" value={form.noTelpOrtu} onChange={handleChange} placeholder="08xx-xxxx-xxxx" required />
                     </div>
 
                     <div className="form-row">
@@ -296,32 +309,18 @@ export default function GenerusDaftarPage() {
                     </div>
 
                     <div className="form-group">
-                        <label className="form-label">Nama Orang Tua</label>
-                        <input name="namaOrtu" className="form-control" value={form.namaOrtu} onChange={handleChange} placeholder="Nama Ayah / Ibu" />
+                        <label className="form-label">Alamat Lengkap <span className="required">*</span></label>
+                        <textarea name="alamat" className="form-control" value={form.alamat} onChange={handleChange} placeholder="Masukkan alamat domisili saat ini" required />
                     </div>
 
                     <div className="form-group">
-                        <label className="form-label">Nomor WhatsApp Anda</label>
-                        <input name="noTelp" className="form-control" value={form.noTelp} onChange={handleChange} placeholder="08xx-xxxx-xxxx" />
-                        <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px", lineHeight: "1.3" }}>
-                            Nomor ini tidak akan disebarluaskan, hanya digunakan untuk keperluan kordinasi antara panitia dengan peserta.
-                        </p>
-                    </div>
-
-                    <div className="form-row">
-                        <div className="form-group">
-                            <label className="form-label">Tempat Lahir</label>
-                            <input name="tempatLahir" className="form-control" value={form.tempatLahir} onChange={handleChange} placeholder="Kota Kelahiran" />
-                        </div>
-                        <div className="form-group">
-                            <label className="form-label">Tanggal Lahir</label>
-                            <input name="tanggalLahir" type="date" className="form-control" value={form.tanggalLahir} onChange={handleChange} />
-                        </div>
+                        <label className="form-label">Email <span className="required">*</span></label>
+                        <input name="email" type="email" className="form-control" value={form.email} onChange={handleChange} required placeholder="Masukkan alamat email aktif" />
                     </div>
 
                     <div className="form-group">
-                        <label className="form-label">Alamat Lengkap</label>
-                        <textarea name="alamat" className="form-control" value={form.alamat} onChange={handleChange} placeholder="Alamat saat ini (opsional)" />
+                        <label className="form-label">Password <span className="required">*</span></label>
+                        <input name="password" type="password" className="form-control" value={form.password} onChange={handleChange} required placeholder="Masukkan password untuk login" />
                     </div>
 
                     <div className="form-group" style={{ padding: "15px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>

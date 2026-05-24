@@ -30,6 +30,7 @@ export const generus = sqliteTable("generus", {
   kategori: text("kategori", { enum: ["Generus", "Usia Mandiri"] }).default("Generus"),
   alamat: text("alamat"),
   noTelp: text("no_telp"),
+  noTelpOrtu: text("no_telp_ortu"),
   pendidikan: text("pendidikan"),
   pekerjaan: text("pekerjaan"),
   statusNikah: text("status_nikah", { enum: ["Belum Menikah", "Menikah"] }).default("Belum Menikah"),
@@ -64,6 +65,7 @@ export const users = sqliteTable("users", {
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  passwordPlain: text("password_plain"),
   role: text("role", { enum: ["admin", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "generus", "peserta", "creator", "pending", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "admin_pdkt", "usia_mandiri"] })
     .notNull()
     .default("pending"),

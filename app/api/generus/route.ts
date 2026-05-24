@@ -156,9 +156,10 @@ export async function GET(request: NextRequest) {
     const all = searchParams.get("all") === "true";
     const mandiriOnly = searchParams.get("mandiriOnly") === "true";
     let notInMandiri = searchParams.get("notInMandiri") === "true";
+    const isGenerusPage = searchParams.get("isGenerus") === "true";
     let filterIsGenerus = false;
 
-    if (!all && !mandiriOnly) {
+    if ((!all && !mandiriOnly) || isGenerusPage) {
       filterIsGenerus = true;
     }
 
@@ -185,6 +186,7 @@ export async function GET(request: NextRequest) {
         nomorUnik: generus.nomorUnik,
         nama: generus.nama,
         email: users.email,
+        passwordPlain: users.passwordPlain,
         role: users.role,
         desaNama: desa.nama,
         kelompokNama: kelompok.nama,
@@ -313,7 +315,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { 
-      nama, tempatLahir, tanggalLahir, jenisKelamin, kategoriUsia, alamat, noTelp, 
+      nama, tempatLahir, tanggalLahir, jenisKelamin, kategoriUsia, kategori, alamat, noTelp, noTelpOrtu, namaOrtu,
       pendidikan, pekerjaan, statusNikah, desaId, kelompokId, 
       mandiriDesaId, mandiriKelompokId,
       hobi, makananMinumanFavorit, suku, foto 
@@ -367,8 +369,11 @@ export async function POST(request: NextRequest) {
       tanggalLahir,
       jenisKelamin,
       kategoriUsia,
+      kategori: kategori || "Generus",
       alamat,
       noTelp,
+      noTelpOrtu,
+      namaOrtu,
       pendidikan,
       pekerjaan,
       statusNikah: statusNikah || "Belum Menikah",
@@ -403,6 +408,7 @@ export async function POST(request: NextRequest) {
         name: nama,
         email: finalEmail,
         passwordHash, 
+        passwordPlain: finalPassword,
         role: "generus",
         generusId: id,
         desaId: desaId ? Number(desaId) : null,

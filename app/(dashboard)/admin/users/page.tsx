@@ -369,13 +369,13 @@ export default function AdminUsersPage() {
                       </td>
                       <td>
                         <div className="flex flex-col gap-1">
-                          {["desa", "kelompok", "creator", "generus", "peserta", "tim_pnkb"].includes(user.role) ? (
+                          {["desa", "kelompok", "creator", "generus", "usia_mandiri", "peserta", "tim_pnkb"].includes(user.role) ? (
                             <>
                               <select className="form-control" style={{ padding: "4px 8px", fontSize: 11, minWidth: 120 }} value={user.desaId || ""} onChange={(e) => updateUser(user.id, { desaId: Number(e.target.value) })}>
                                 <option value="">Pilih Desa</option>
                                 {desaList.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
                               </select>
-                              {["kelompok", "creator", "generus", "peserta", "tim_pnkb"].includes(user.role) && (
+                              {["kelompok", "creator", "generus", "usia_mandiri", "peserta", "tim_pnkb"].includes(user.role) && (
                                 <select className="form-control" style={{ padding: "4px 8px", fontSize: 11, minWidth: 120 }} value={user.kelompokId || ""} onChange={(e) => updateUser(user.id, { kelompokId: Number(e.target.value) })}>
                                   <option value="">Pilih Kelompok</option>
                                   {kelompokList.filter(k => !user.desaId || k.desaId === user.desaId).map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}

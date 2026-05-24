@@ -12,13 +12,16 @@ export const registerSchema = z.object({
     (val) => (typeof val === "string" && val ? Number(val) : val),
     z.number({ message: "Kelompok wajib dipilih" }).positive("Kelompok wajib dipilih")
   ),
-  dapukan: z.string().min(1, "Dapukan wajib dipilih"),
-  jenisKelamin: z.string().optional().or(z.literal("")),
-  kategoriUsia: z.string().optional().or(z.literal("")),
+  jenisKelamin: z.string().min(1, "Jenis Kelamin wajib dipilih"),
+  kategoriUsia: z.string().min(1, "Kategori Usia wajib dipilih"),
   kategori: z.enum(["Generus", "Usia Mandiri"], { message: "Kategori tidak valid" }),
-  namaOrtu: z.string().optional().or(z.literal("")),
+  namaOrtu: z.string().min(2, "Nama Orangtua wajib diisi"),
+  tempatLahir: z.string().min(2, "Tempat Lahir wajib diisi"),
+  tanggalLahir: z.string().min(1, "Tanggal Lahir wajib diisi"),
   noTelp: z.string().min(10, "Nomor WhatsApp minimal 10 digit").regex(/^\d+$/, "Nomor WhatsApp hanya boleh berisi angka").trim(),
-  foto: z.string().url("Format foto tidak valid").optional().or(z.literal("")),
+  noTelpOrtu: z.string().min(10, "Nomor WhatsApp Ortu minimal 10 digit").regex(/^\d+$/, "Nomor WhatsApp Ortu hanya boleh berisi angka").trim(),
+  alamat: z.string().min(3, "Alamat lengkap wajib diisi"),
+  foto: z.string().url("Format foto tidak valid").min(1, "Foto profil wajib diunggah"),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

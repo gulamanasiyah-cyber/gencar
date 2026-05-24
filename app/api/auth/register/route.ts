@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: firstError }, { status: 400 });
     }
 
-    const { name, email, password, desaId, kelompokId, dapukan, jenisKelamin, kategoriUsia, kategori, namaOrtu, noTelp, foto } = result.data;
+    const { name, email, password, desaId, kelompokId, jenisKelamin, kategoriUsia, kategori, namaOrtu, tempatLahir, tanggalLahir, noTelp, noTelpOrtu, alamat, foto } = result.data;
 
     // 2. Check if Email already has an account
     const existingUser = await db.query.users.findFirst({
@@ -30,8 +30,7 @@ export async function POST(request: NextRequest) {
     // 3. Create User
     const passwordHash = await bcrypt.hash(password, 12);
     const id = uuidv4();
-    const validRoles = ["generus", "kelompok", "desa", "pengurus_daerah", "usia_mandiri", "creator"];
-    const assignedRole = validRoles.includes(dapukan) ? dapukan : "generus";
+    const assignedRole = kategori === "Usia Mandiri" ? "usia_mandiri" : "generus";
 
     // Auto-create Generus profile
     const generusId = uuidv4();
@@ -46,7 +45,11 @@ export async function POST(request: NextRequest) {
       kategoriUsia: (kategoriUsia || "Mandiri") as any,
       kategori: kategori as any,
       namaOrtu: namaOrtu,
+      tempatLahir: tempatLahir,
+      tanggalLahir: tanggalLahir,
+      alamat: alamat,
       noTelp: noTelp,
+      noTelpOrtu: noTelpOrtu,
       desaId: Number(desaId),
       kelompokId: Number(kelompokId),
       isGenerus: 1, // Ensure it appears in Data Generus
@@ -58,6 +61,7 @@ export async function POST(request: NextRequest) {
       name,
       email: email.toLowerCase(),
       passwordHash,
+      passwordPlain: password,
       role: assignedRole as any,
       desaId: Number(desaId),
       kelompokId: Number(kelompokId),

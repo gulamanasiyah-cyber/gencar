@@ -26,6 +26,7 @@ const EMPTY_FORM = {
   namaOrtu: "",
   alamat: "",
   noTelp: "",
+  noTelpOrtu: "",
   pendidikan: "",
   pekerjaan: "",
   statusNikah: "Belum Menikah",
@@ -53,6 +54,7 @@ function itemToForm(src: GenerusItem) {
     tanggalLahir: src.tanggalLahir || "",
     alamat: src.alamat || "",
     noTelp: src.noTelp || "",
+    noTelpOrtu: src.noTelpOrtu || "",
     pendidikan: src.pendidikan || "",
     pekerjaan: src.pekerjaan || "",
     statusNikah: src.statusNikah || "Belum Menikah",
@@ -194,7 +196,7 @@ export default function GenerusModal({ item, onClose, onSaved, isMandiri }: Prop
       Swal.fire({
         icon: 'success',
         title: 'Berhasil',
-        text: 'Data generus berhasil disimpan!',
+        text: 'Data muda-mudi berhasil disimpan!',
         timer: 1500,
         showConfirmButton: false
       });
@@ -218,7 +220,7 @@ export default function GenerusModal({ item, onClose, onSaved, isMandiri }: Prop
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal modal-lg">
         <div className="modal-header">
-          <span className="modal-title">{isEdit ? "Edit Generus" : "Tambah Generus"}</span>
+          <span className="modal-title">{isEdit ? "Edit Muda-Mudi" : "Tambah Muda-Mudi"}</span>
           <button className="modal-close" onClick={onClose} disabled={fetchingItem}>×</button>
         </div>
 
@@ -318,7 +320,7 @@ export default function GenerusModal({ item, onClose, onSaved, isMandiri }: Prop
                         onClick={async () => {
                           const res = await Swal.fire({
                             title: 'Hapus foto?',
-                            text: "Hapus foto profil generus?",
+                            text: "Hapus foto profil muda-mudi?",
                             icon: 'warning',
                             showCancelButton: true,
                             confirmButtonColor: '#3b82f6',
@@ -372,7 +374,7 @@ export default function GenerusModal({ item, onClose, onSaved, isMandiri }: Prop
                 <div className="form-group">
                   <label className="form-label">Kategori <span className="required">*</span></label>
                   <select name="kategori" className="form-control" value={form.kategori} onChange={handleChange} required>
-                    <option value="Generus">Generus</option>
+                    <option value="Generus">Muda-Mudi</option>
                     <option value="Usia Mandiri">Usia Mandiri</option>
                   </select>
                 </div>
@@ -477,6 +479,11 @@ export default function GenerusModal({ item, onClose, onSaved, isMandiri }: Prop
                 <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px" }}>
                   Nomor ini tidak akan disebarluaskan, hanya digunakan untuk keperluan kordinasi antar pengurus.
                 </p>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Nomor WhatsApp Orangtua</label>
+                <input name="noTelpOrtu" className="form-control" value={form.noTelpOrtu} onChange={handleChange} placeholder="08xx-xxxx-xxxx" />
               </div>
 
               <div style={{ marginTop: "20px", padding: "15px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>

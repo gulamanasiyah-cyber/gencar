@@ -200,7 +200,7 @@ export default function MandiriPage() {
    const handleDelete = async (id: string) => {
       const res = await Swal.fire({
          title: "Hapus Peserta?",
-         text: "Data registrasi, data generus, dan akun login akan dihapus secara permanen.",
+         text: "Data registrasi, data muda-mudi, dan akun login akan dihapus secara permanen.",
          icon: "warning",
          showCancelButton: true,
          confirmButtonColor: "#ef4444",
@@ -243,7 +243,7 @@ export default function MandiriPage() {
                <div className="page-header">
                   <div className="page-header-left">
                      <h2>{regTitle || "Pengelolaan Peserta Mandiri"}</h2>
-                     <p>Kelola data generus yang memasuki usia mandiri / persiapan nikah</p>
+                     <p>Kelola data muda-mudi yang memasuki usia mandiri / persiapan nikah</p>
                   </div>
                   <div style={{ display: "flex", gap: "10px" }}>
                      <button
