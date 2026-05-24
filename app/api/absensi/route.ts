@@ -130,3 +130,43 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Gagal menyimpan absensi" }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) return NextResponse.json({ error: "id absensi diperlukan" }, { status: 400 });
+
+    const existing = await db.query.absensi.findFirst({
+      where: eq(absensi.id, id),
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Absensi tidak ditemukan" }, { status: 404 });
+    }
+
+    // Role-based validation (Admin can delete anything, desa/kelompok restricted)
+    if (session.role === "desa" || session.role === "kelompok") {
+      const relatedKegiatan = await db.query.kegiatan.findFirst({
+        where: eq(kegiatan.id, existing.kegiatanId),
+      });
+      if (session.role === "desa" && relatedKegiatan?.desaId !== session.desaId) {
+        return NextResponse.json({ error: "Tidak diizinkan menghapus data desa lain" }, { status: 403 });
+      }
+      if (session.role === "kelompok" && relatedKegiatan?.kelompokId !== session.kelompokId) {
+        return NextResponse.json({ error: "Tidak diizinkan menghapus data kelompok lain" }, { status: 403 });
+      }
+    }
+
+    await db.delete(absensi).where(eq(absensi.id, id));
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Absensi DELETE error:", error);
+    return NextResponse.json({ error: "Gagal menghapus absensi" }, { status: 500 });
+  }
+}
