@@ -71,7 +71,7 @@ export default function LandingProfileWidget({ session }: { session: any }) {
   if (loading) return <div style={{ width: 150, height: 40, background: "#f1f5f9", borderRadius: 8 }} />;
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: '24px', borderLeft: '1px solid var(--border)', paddingLeft: '24px' }}>
+    <div className="profile-widget-wrapper">
       <div 
         style={{ position: 'relative', width: '48px', height: '48px', borderRadius: '50%', background: 'var(--primary-lt)', cursor: 'pointer', overflow: 'hidden', border: '2px solid var(--primary)' }}
         onClick={handlePhotoClick}
@@ -104,7 +104,24 @@ export default function LandingProfileWidget({ session }: { session: any }) {
         </button>
       </div>
       <style jsx>{`
+        .profile-widget-wrapper {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-left: 24px;
+          border-left: 1px solid var(--border);
+          padding-left: 24px;
+        }
         div:hover > .photo-overlay { opacity: 1 !important; }
+        
+        @media (max-width: 992px) {
+          .profile-widget-wrapper {
+            margin-left: 0;
+            border-left: none;
+            padding-left: 0;
+            gap: 10px;
+          }
+        }
       `}</style>
     </div>
   );

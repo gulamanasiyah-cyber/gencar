@@ -64,7 +64,7 @@ export default function HomeHeader({ session }: { session: any }) {
             </div>
 
             <div className="masthead-right">
-              <div style={{ display: 'flex', alignItems: 'center' }}>
+              <div className="masthead-right-content">
                 <DigitalClock className="masthead-edition" />
                 <LandingProfileWidget session={session} />
               </div>
@@ -143,20 +143,36 @@ export default function HomeHeader({ session }: { session: any }) {
           align-items: flex-end;
           gap: 8px;
         }
+        .masthead-right-content {
+          display: flex;
+          align-items: center;
+        }
         .masthead-cta {
           display: flex;
           gap: 10px;
         }
         
-        @media (max-width: 768px) {
+        @media (max-width: 992px) {
           .topbar-inner { gap: 10px; }
           .masthead { padding: 12px 0; }
-          .masthead-right { display: none; }
+          .masthead-inner { flex-direction: column; align-items: flex-start; gap: 12px; }
+          .masthead-right { 
+            display: flex; 
+            flex-direction: row; 
+            justify-content: flex-end; 
+            width: 100%; 
+            align-items: center; 
+            border-top: 1px solid var(--border); 
+            padding-top: 12px; 
+            margin-top: 4px;
+          }
+          .masthead-right-content { justify-content: flex-end; }
           .masthead-brand { gap: 12px; }
           .masthead-logo-img, .masthead-logo { width: 44px; height: 44px; }
           .masthead-logo { font-size: 20px; }
           .masthead-title { font-size: 16px; line-height: 1.3; }
           .masthead-sub { font-size: 9px; }
+          :global(.masthead-edition) { display: none !important; }
         }
       `}</style>
 
