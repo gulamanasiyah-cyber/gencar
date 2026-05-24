@@ -17,6 +17,8 @@ function HadirContent() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<{ nama: string } | null>(null);
 
+  const [siteLogo, setSiteLogo] = useState<string | null>(null);
+
   useEffect(() => {
     // Fetch Profil
     fetch("/api/profile")
@@ -48,6 +50,17 @@ function HadirContent() {
       setLoadingKegiatan(false);
     }
   }, [kegiatanId]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleLogoUpdate = () => {
+        setSiteLogo((window as any).__SITE_LOGO__ || null);
+      };
+      handleLogoUpdate();
+      window.addEventListener('site-logo-updated', handleLogoUpdate);
+      return () => window.removeEventListener('site-logo-updated', handleLogoUpdate);
+    }
+  }, []);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -136,23 +149,27 @@ function HadirContent() {
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-light)", padding: 20 }}>
       <div className="card" style={{ maxWidth: 400, width: "100%", padding: 32 }}>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <div style={{ width: 64, height: 64, background: "var(--primary-light)", color: "var(--primary)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="32" height="32">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
+          <div style={{ width: 64, height: 64, background: siteLogo ? "transparent" : "var(--primary-light)", color: "var(--primary)", borderRadius: siteLogo ? "0" : "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+            {siteLogo ? (
+              <img src={siteLogo} alt="Logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="32" height="32">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+            )}
           </div>
           <h2 style={{ marginBottom: 8 }}>Absensi Kegiatan</h2>
           <div style={{ fontWeight: 600, fontSize: 18, color: "var(--primary)" }}>{kegiatan.judul}</div>
+          {kegiatan.deskripsi && (
+            <div style={{ fontSize: 13, color: "var(--gray)", marginTop: 6, marginBottom: 12, lineHeight: 1.4 }}>
+              {kegiatan.deskripsi}
+            </div>
+          )}
           <div className="text-sm text-muted" style={{ marginTop: 4 }}>
             {formatTanggal(kegiatan.tanggal)} {kegiatan.jam ? `• ${kegiatan.jam}` : ""}
           </div>
           {kegiatan.lokasi && (
             <div className="text-sm text-muted" style={{ marginTop: 4 }}>📍 {kegiatan.lokasi}</div>
-          )}
-          {kegiatan.deskripsi && (
-            <div style={{ marginTop: 16, padding: "12px 16px", background: "var(--bg-body)", borderRadius: 8, fontSize: 13, color: "var(--gray)", textAlign: "left", lineHeight: 1.5 }}>
-              {kegiatan.deskripsi}
-            </div>
           )}
         </div>
 
