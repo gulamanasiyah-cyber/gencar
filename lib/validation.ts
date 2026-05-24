@@ -13,12 +13,10 @@ export const registerSchema = z.object({
     z.number({ message: "Kelompok wajib dipilih" }).positive("Kelompok wajib dipilih")
   ),
   dapukan: z.string().min(1, "Dapukan wajib dipilih"),
-  jenisKelamin: z.enum(["L", "P"], { message: "Jenis kelamin harus L atau P" }),
-  kategoriUsia: z.enum(["SMP", "SMA", "SMK", "Kuliah", "Bekerja", "Mandiri"], {
-    message: "Pilih pekerjaan/pendidikan yang valid",
-  }),
+  jenisKelamin: z.string().optional().or(z.literal("")),
+  kategoriUsia: z.string().optional().or(z.literal("")),
   kategori: z.enum(["Generus", "Usia Mandiri"], { message: "Kategori tidak valid" }),
-  namaOrtu: z.string().min(2, "Nama orang tua minimal 2 karakter").trim(),
+  namaOrtu: z.string().optional().or(z.literal("")),
   noTelp: z.string().min(10, "Nomor WhatsApp minimal 10 digit").regex(/^\d+$/, "Nomor WhatsApp hanya boleh berisi angka").trim(),
   foto: z.string().url("Format foto tidak valid").optional().or(z.literal("")),
 });

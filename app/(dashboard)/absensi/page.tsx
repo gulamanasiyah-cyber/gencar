@@ -41,6 +41,74 @@ function AbsensiContent() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [userRole, setUserRole] = useState("");
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<GenerusResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const res = await fetch(`/api/generus?search=${encodeURIComponent(searchQuery)}&limit=10`);
+        const data = await res.json();
+        setSearchResults(data.data || []);
+      } catch (err) {
+        console.error("Search error:", err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleManualHadir = async (user: GenerusResult) => {
+    if (!selectedKegiatan) return;
+    
+    try {
+      const res = await fetch("/api/absensi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kegiatanId: selectedKegiatan,
+          generusId: user.id,
+          keterangan: "hadir"
+        })
+      });
+      
+      const data = await res.json();
+      if (res.ok) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Berhasil',
+          text: `${user.nama} berhasil dicatat hadir.`,
+          timer: 1500,
+          showConfirmButton: false
+        });
+        setSearchQuery(""); // Clear search after successful add
+        setSearchResults([]);
+        fetchAbsensi(true);
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Gagal',
+          text: data.error || 'Gagal mencatat kehadiran'
+        });
+      }
+    } catch (err) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Terjadi kesalahan jaringan'
+      });
+    }
+  };
+
   useEffect(() => {
     fetch("/api/kegiatan").then((r) => r.json()).then((d) => {
       if (Array.isArray(d)) {
@@ -155,33 +223,110 @@ function AbsensiContent() {
               </div>
 
               {selectedKegiatan && (
-                <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginTop: 16 }}>
-                  <div className="form-label" style={{ marginBottom: 12 }}>QR Code Kegiatan</div>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: 24, background: "white", borderRadius: 8, border: "1px solid var(--border)" }}>
-                    <QRCodeCanvas
-                      id="qrCodeCanvas"
-                      value={typeof window !== "undefined" ? `${window.location.origin}/hadir?kegiatanId=${selectedKegiatan}` : ""}
-                      size={200}
-                      level={"M"}
-                      includeMargin={true}
-                    />
-                    <div style={{ marginTop: 16, textAlign: "center", fontWeight: 500, color: "var(--text)" }}>
-                      {kegiatan.find(k => k.id === selectedKegiatan)?.judul}
+                <>
+                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginTop: 16 }}>
+                    <div className="form-label" style={{ marginBottom: 12 }}>Pencarian Manual</div>
+                    <div style={{ position: "relative" }}>
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        placeholder="Ketik nama lengkap atau nomor unik..." 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                      {isSearching && <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)" }} className="spinner-small" />}
+                      
+                      {searchResults.length > 0 && searchQuery.length >= 2 && (
+                        <div style={{ 
+                          position: "absolute", 
+                          top: "100%", 
+                          left: 0, 
+                          right: 0, 
+                          background: "white", 
+                          border: "1px solid var(--border)", 
+                          borderRadius: 4, 
+                          maxHeight: 200, 
+                          overflowY: "auto", 
+                          zIndex: 10,
+                          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
+                        }}>
+                          {searchResults.map((user) => (
+                            <div 
+                              key={user.id} 
+                              style={{ 
+                                padding: "8px 12px", 
+                                borderBottom: "1px solid var(--border)", 
+                                cursor: "pointer",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center"
+                              }}
+                              onClick={() => handleManualHadir(user)}
+                              onMouseOver={(e) => e.currentTarget.style.backgroundColor = "var(--bg-light)"}
+                              onMouseOut={(e) => e.currentTarget.style.backgroundColor = "white"}
+                            >
+                              <div>
+                                <div style={{ fontWeight: 500, fontSize: 14 }}>{user.nama}</div>
+                                <div style={{ fontSize: 12, color: "var(--muted)" }}>{user.nomorUnik} • {user.kategoriUsia}</div>
+                              </div>
+                              <button className="btn btn-sm btn-primary" style={{ padding: "4px 8px", fontSize: 12 }}>
+                                Hadir
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {searchResults.length === 0 && searchQuery.length >= 2 && !isSearching && (
+                        <div style={{ 
+                          position: "absolute", 
+                          top: "100%", 
+                          left: 0, 
+                          right: 0, 
+                          background: "white", 
+                          border: "1px solid var(--border)", 
+                          borderRadius: 4, 
+                          padding: "12px",
+                          textAlign: "center",
+                          color: "var(--muted)",
+                          zIndex: 10,
+                          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
+                        }}>
+                          Tidak ada data ditemukan
+                        </div>
+                      )}
                     </div>
-                    <div className="text-sm text-muted" style={{ textAlign: "center", marginTop: 4 }}>
-                      {kegiatan.find(k => k.id === selectedKegiatan)?.tanggal} • {kegiatan.find(k => k.id === selectedKegiatan)?.jam || "-"}
-                    </div>
-                    <p className="text-sm text-muted" style={{ textAlign: "center", marginTop: 16, marginBottom: 16 }}>
-                      Generus dapat memindai QR Code ini untuk mencatat kehadiran.
+                    <p className="text-sm text-muted" style={{ marginTop: 8 }}>
+                      Cari peserta dan klik tombol Hadir untuk mencatat kehadiran secara manual.
                     </p>
-                    <button className="btn btn-primary" onClick={downloadQRCode}>
-                      ⬇️ Unduh Barcode
-                    </button>
                   </div>
-                </div>
+
+                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginTop: 16 }}>
+                    <div className="form-label" style={{ marginBottom: 12 }}>QR Code Kegiatan</div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: 24, background: "white", borderRadius: 8, border: "1px solid var(--border)" }}>
+                      <QRCodeCanvas
+                        id="qrCodeCanvas"
+                        value={typeof window !== "undefined" ? `${window.location.origin}/hadir?kegiatanId=${selectedKegiatan}` : ""}
+                        size={200}
+                        level={"M"}
+                        includeMargin={true}
+                      />
+                      <div style={{ marginTop: 16, textAlign: "center", fontWeight: 500, color: "var(--text)" }}>
+                        {kegiatan.find(k => k.id === selectedKegiatan)?.judul}
+                      </div>
+                      <div className="text-sm text-muted" style={{ textAlign: "center", marginTop: 4 }}>
+                        {kegiatan.find(k => k.id === selectedKegiatan)?.tanggal} • {kegiatan.find(k => k.id === selectedKegiatan)?.jam || "-"}
+                      </div>
+                      <p className="text-sm text-muted" style={{ textAlign: "center", marginTop: 16, marginBottom: 16 }}>
+                        Generus dapat memindai QR Code ini untuk mencatat kehadiran.
+                      </p>
+                      <button className="btn btn-primary" onClick={downloadQRCode}>
+                        ⬇️ Unduh Barcode
+                      </button>
+                    </div>
+                  </div>
+                </>
               )}
-
-
             </div>
           </div>
 

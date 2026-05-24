@@ -30,10 +30,28 @@ export async function GET() {
       ? and(generusFilter, roleExcludeFilter, eq(generus.isGenerus, 1)) 
       : and(roleExcludeFilter, eq(generus.isGenerus, 1));
 
+    let artikelAuthorConditions = [];
+    if (["desa", "kelompok", "creator"].includes(session.role)) {
+      if (session.desaId && (session.role === "desa" || session.role === "creator")) {
+        artikelAuthorConditions.push(eq(users.desaId, session.desaId));
+      }
+      if (session.kelompokId && (session.role === "kelompok" || session.role === "creator")) {
+        artikelAuthorConditions.push(eq(users.kelompokId, session.kelompokId));
+      }
+    }
+    const artikelAuthorFilter = artikelAuthorConditions.length > 0 ? and(...artikelAuthorConditions) : undefined;
+
     const [generusCount, kegiatanCount, artikelCount, userCount, marriedCount, notMarriedCount] = await Promise.all([
       db.select({ count: sql<number>`count(DISTINCT ${generus.id})` }).from(generus).leftJoin(users, eq(generus.id, users.generusId)).where(finalGenerusFilter),
       db.select({ count: sql<number>`count(*)` }).from(kegiatan),
-      db.select({ count: sql<number>`count(*)` }).from(artikel).where(eq(artikel.status, "published")),
+      db.select({ count: sql<number>`count(*)` })
+        .from(artikel)
+        .leftJoin(users, eq(artikel.authorId, users.id))
+        .where(
+          artikelAuthorFilter 
+            ? and(eq(artikel.status, "published"), artikelAuthorFilter)
+            : eq(artikel.status, "published")
+        ),
       ["admin", "pengurus_daerah", "kmm_daerah"].includes(session.role)
         ? db.select({ count: sql<number>`count(*)` }).from(users)
         : Promise.resolve([{ count: 0 }]),

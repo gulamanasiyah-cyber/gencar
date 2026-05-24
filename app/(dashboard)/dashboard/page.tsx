@@ -83,6 +83,17 @@ async function getStats(session: any, searchParams?: any) {
     }
     const panitiaFilterWithParams = panitiaConditions.length > 0 ? and(...panitiaConditions) : undefined;
 
+    let artikelAuthorConditions = [];
+    if (["desa", "kelompok", "creator"].includes(session.role)) {
+      if (session.desaId && (session.role === "desa" || session.role === "creator")) {
+        artikelAuthorConditions.push(eq(users.desaId, session.desaId));
+      }
+      if (session.kelompokId && (session.role === "kelompok" || session.role === "creator")) {
+        artikelAuthorConditions.push(eq(users.kelompokId, session.kelompokId));
+      }
+    }
+    const artikelAuthorFilter = artikelAuthorConditions.length > 0 ? and(...artikelAuthorConditions) : undefined;
+
     const [
       generusCount,
       kegiatanCount,
@@ -113,8 +124,22 @@ async function getStats(session: any, searchParams?: any) {
       db.select({ count: sql<number>`count(DISTINCT ${generus.id})` }).from(generus).leftJoin(users, eq(generus.id, users.generusId)).where(and(finalGenerusFilter, eq(generus.isGenerus, 1))),
       db.select({ count: sql<number>`count(*)` }).from(kegiatan).where(finalKegiatanFilter),
       db.select({ count: sql<number>`count(*)` }).from(kegiatan).where(historyKegiatanFilter),
-      db.select({ count: sql<number>`count(*)` }).from(artikel).where(and(eq(artikel.status, "published"), eq(artikel.tipe, "artikel"))),
-      db.select({ count: sql<number>`count(*)` }).from(artikel).where(and(eq(artikel.status, "published"), eq(artikel.tipe, "berita"))),
+      db.select({ count: sql<number>`count(*)` })
+        .from(artikel)
+        .leftJoin(users, eq(artikel.authorId, users.id))
+        .where(
+          artikelAuthorFilter 
+            ? and(eq(artikel.status, "published"), eq(artikel.tipe, "artikel"), artikelAuthorFilter)
+            : and(eq(artikel.status, "published"), eq(artikel.tipe, "artikel"))
+        ),
+      db.select({ count: sql<number>`count(*)` })
+        .from(artikel)
+        .leftJoin(users, eq(artikel.authorId, users.id))
+        .where(
+          artikelAuthorFilter 
+            ? and(eq(artikel.status, "published"), eq(artikel.tipe, "berita"), artikelAuthorFilter)
+            : and(eq(artikel.status, "published"), eq(artikel.tipe, "berita"))
+        ),
       ["admin", "pengurus_daerah", "kmm_daerah", "admin_romantic_room"].includes(session.role)
         ? db.select({ count: sql<number>`count(*)` }).from(users)
         : Promise.resolve([{ count: 0 }]),

@@ -177,13 +177,15 @@ export default function RegisterPage() {
         )}
 
         <form onSubmit={handleSubmit}>
-          <div className="form-group" style={{ textAlign: "center", marginBottom: "24px" }}>
-            <PhotoUpload
-              value={form.foto}
-              onChange={(url) => setForm((prev) => ({ ...prev, foto: url }))}
-              helperText="Unggah foto profil Anda (maksimal 8 MB)"
-            />
-          </div>
+          {!['pengurus_daerah', 'desa', 'kelompok', 'creator'].includes(form.dapukan) && (
+            <div className="form-group" style={{ textAlign: "center", marginBottom: "24px" }}>
+              <PhotoUpload
+                value={form.foto}
+                onChange={(url) => setForm((prev) => ({ ...prev, foto: url }))}
+                helperText="Unggah foto profil Anda (maksimal 8 MB)"
+              />
+            </div>
+          )}
 
           <div className="form-group">
             <label className="form-label" htmlFor="desaId">
@@ -238,59 +240,66 @@ export default function RegisterPage() {
               <option value="kelompok">Pengurus Kelompok</option>
               <option value="desa">Pengurus Desa</option>
               <option value="pengurus_daerah">Pengurus Daerah</option>
+              <option value="creator">Creator</option>
             </select>
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="jenisKelamin">
-              Jenis Kelamin <span className="required">*</span>
-            </label>
-            <select
-              id="jenisKelamin"
-              name="jenisKelamin"
-              className="form-control"
-              value={form.jenisKelamin}
-              onChange={handleChange}
-              required
-            >
-              <option value="">-- Pilih Jenis Kelamin --</option>
-              <option value="L">Laki-laki</option>
-              <option value="P">Perempuan</option>
-            </select>
-          </div>
+          {!['pengurus_daerah', 'desa', 'kelompok', 'creator'].includes(form.dapukan) && (
+            <>
+              <div className="form-group">
+                <label className="form-label" htmlFor="jenisKelamin">
+                  Jenis Kelamin <span className="required">*</span>
+                </label>
+                <select
+                  id="jenisKelamin"
+                  name="jenisKelamin"
+                  className="form-control"
+                  value={form.jenisKelamin}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">-- Pilih Jenis Kelamin --</option>
+                  <option value="L">Laki-laki</option>
+                  <option value="P">Perempuan</option>
+                </select>
+              </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="kategori">
-              Kategori <span className="required">*</span>
-            </label>
-            <select
-              id="kategori"
-              name="kategori"
-              className="form-control"
-              value={form.kategori}
-              onChange={handleChange}
-              required
-            >
-              <option value="Generus">Generus</option>
-              <option value="Usia Mandiri">Usia Mandiri</option>
-            </select>
-          </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="kategori">
+                  Kategori <span className="required">*</span>
+                </label>
+                <select
+                  id="kategori"
+                  name="kategori"
+                  className="form-control"
+                  value={form.kategori}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="Generus">Generus</option>
+                  <option value="Usia Mandiri">Usia Mandiri</option>
+                </select>
+              </div>
+            </>
+          )}
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="namaOrtu">
-              Nama Orang Tua <span className="required">*</span>
-            </label>
-            <input
-              type="text"
-              id="namaOrtu"
-              name="namaOrtu"
-              className="form-control"
-              value={form.namaOrtu}
-              onChange={handleChange}
-              placeholder="Masukkan nama orang tua"
-              required
-            />
-          </div>
+          {!['pengurus_daerah', 'desa', 'kelompok', 'creator'].includes(form.dapukan) && (
+            <div className="form-group">
+              <label className="form-label" htmlFor="namaOrtu">
+                Nama Orang Tua <span className="required">*</span>
+              </label>
+              <input
+                type="text"
+                id="namaOrtu"
+                name="namaOrtu"
+                className="form-control"
+                value={form.namaOrtu}
+                onChange={handleChange}
+                placeholder="Masukkan nama orang tua"
+                required
+              />
+            </div>
+          )}
 
           <div className="form-group">
             <label className="form-label" htmlFor="noTelp">
@@ -308,26 +317,28 @@ export default function RegisterPage() {
             />
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="kategoriUsia">
-              Pekerjaan / Pendidikan <span className="required">*</span>
-            </label>
-            <select
-              id="kategoriUsia"
-              name="kategoriUsia"
-              className="form-control"
-              value={form.kategoriUsia}
-              onChange={handleChange}
-              required
-            >
-              <option value="">-- Pilih --</option>
-              <option value="SMP">SMP</option>
-              <option value="SMA">SMA</option>
-              <option value="SMK">SMK</option>
-              <option value="Kuliah">Kuliah</option>
-              <option value="Bekerja">Bekerja</option>
-            </select>
-          </div>
+          {!['pengurus_daerah', 'desa', 'kelompok', 'creator'].includes(form.dapukan) && (
+            <div className="form-group">
+              <label className="form-label" htmlFor="kategoriUsia">
+                Pekerjaan / Pendidikan <span className="required">*</span>
+              </label>
+              <select
+                id="kategoriUsia"
+                name="kategoriUsia"
+                className="form-control"
+                value={form.kategoriUsia}
+                onChange={handleChange}
+                required
+              >
+                <option value="">-- Pilih --</option>
+                <option value="SMP">SMP</option>
+                <option value="SMA">SMA</option>
+                <option value="SMK">SMK</option>
+                <option value="Kuliah">Kuliah</option>
+                <option value="Bekerja">Bekerja</option>
+              </select>
+            </div>
+          )}
 
           <div className="form-group">
             <label className="form-label" htmlFor="name">

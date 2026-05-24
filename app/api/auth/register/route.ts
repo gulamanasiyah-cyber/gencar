@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     // 3. Create User
     const passwordHash = await bcrypt.hash(password, 12);
     const id = uuidv4();
-    const validRoles = ["generus", "kelompok", "desa", "pengurus_daerah", "usia_mandiri"];
+    const validRoles = ["generus", "kelompok", "desa", "pengurus_daerah", "usia_mandiri", "creator"];
     const assignedRole = validRoles.includes(dapukan) ? dapukan : "generus";
 
     // Auto-create Generus profile
@@ -43,8 +43,8 @@ export async function POST(request: NextRequest) {
       nomorUnik,
       nama: name,
       jenisKelamin: jenisKelamin === "P" ? "P" : "L",
-      kategoriUsia: kategoriUsia,
-      kategori: kategori,
+      kategoriUsia: (kategoriUsia || "Mandiri") as any,
+      kategori: kategori as any,
       namaOrtu: namaOrtu,
       noTelp: noTelp,
       desaId: Number(desaId),

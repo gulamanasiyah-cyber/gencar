@@ -34,7 +34,7 @@ function buildWhereClause(
     conditions.push(
       or(
         isNull(users.role),
-        notInArray(users.role, ["pengurus_daerah", "desa", "kelompok"])
+        notInArray(users.role, ["tim_pnkb", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "creator"])
       )
     );
   }
