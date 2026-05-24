@@ -11,11 +11,26 @@ function HadirContent() {
   const [loadingKegiatan, setLoadingKegiatan] = useState(true);
   const [kegiatan, setKegiatan] = useState<any>(null);
   
-  const [nomorUnik, setNomorUnik] = useState("");
+  const [profile, setProfile] = useState<any>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<{ nama: string } | null>(null);
 
   useEffect(() => {
+    // Fetch Profil
+    fetch("/api/profile")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.error) {
+          setProfile(data);
+        }
+        setLoadingProfile(false);
+      })
+      .catch(() => {
+        setLoadingProfile(false);
+      });
+
     if (kegiatanId) {
       fetch(`/api/public/kegiatan/${kegiatanId}`)
         .then((res) => {
@@ -34,16 +49,16 @@ function HadirContent() {
     }
   }, [kegiatanId]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!nomorUnik || !kegiatanId) return;
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!profile || !profile.nomorUnik || !kegiatanId) return;
 
     setSubmitting(true);
     try {
       const res = await fetch("/api/public/absensi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kegiatanId, nomorUnik }),
+        body: JSON.stringify({ kegiatanId, nomorUnik: profile.nomorUnik }),
       });
       const data = await res.json();
 
@@ -53,6 +68,7 @@ function HadirContent() {
           title: "Sudah Hadir",
           text: "Anda sudah tercatat hadir untuk kegiatan ini.",
         });
+        setSuccess({ nama: profile.nama });
       } else if (!res.ok) {
         Swal.fire({
           icon: "error",
@@ -60,8 +76,7 @@ function HadirContent() {
           text: data.error || "Gagal mencatat absensi.",
         });
       } else {
-        setSuccess({ nama: data.generusNama });
-        setNomorUnik("");
+        setSuccess({ nama: data.generusNama || profile.nama });
         Swal.fire({
           icon: "success",
           title: "Berhasil",
@@ -81,7 +96,7 @@ function HadirContent() {
     }
   };
 
-  if (loadingKegiatan) {
+  if (loadingKegiatan || loadingProfile) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-light)" }}>
         <div className="spinner" />
@@ -125,28 +140,32 @@ function HadirContent() {
             <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
             <div style={{ fontWeight: 600, fontSize: 18, color: "var(--success)" }}>Kehadiran Tercatat!</div>
             <div style={{ marginTop: 8 }}>Terima kasih, <strong>{success.nama}</strong>.</div>
-            <button className="btn btn-secondary btn-full" style={{ marginTop: 24 }} onClick={() => setSuccess(null)}>
-              Input Peserta Lain
-            </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit}>
-            <div className="form-group" style={{ marginBottom: 24 }}>
-              <label className="form-label">Masukkan Nomor Unik Anda</label>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Contoh: 123456"
-                value={nomorUnik}
-                onChange={(e) => setNomorUnik(e.target.value)}
-                required
-                style={{ textAlign: "center", fontSize: 18, letterSpacing: 2, padding: "12px 16px" }}
-              />
-            </div>
-            <button type="submit" className="btn btn-primary btn-full" disabled={submitting || !nomorUnik}>
-              {submitting ? "Memproses..." : "Konfirmasi Kehadiran"}
-            </button>
-          </form>
+          <div>
+            {!profile ? (
+              <div style={{ textAlign: "center", padding: 20 }}>
+                <p style={{ marginBottom: 16 }}>Silakan masuk ke akun Anda terlebih dahulu untuk mencatat kehadiran.</p>
+                <a href="/login" className="btn btn-primary btn-full">
+                  Login untuk Absen
+                </a>
+              </div>
+            ) : (
+              <div style={{ textAlign: "center" }}>
+                <p style={{ marginBottom: 24 }}>
+                  Masuk sebagai: <br />
+                  <strong style={{ fontSize: 18, color: "var(--navy)" }}>{profile.nama}</strong>
+                </p>
+                <button 
+                  onClick={() => handleSubmit()} 
+                  className="btn btn-primary btn-full" 
+                  disabled={submitting}
+                >
+                  {submitting ? "Memproses..." : "Konfirmasi Kehadiran Saya"}
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
