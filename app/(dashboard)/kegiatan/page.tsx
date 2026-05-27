@@ -7,7 +7,7 @@ import Swal from "sweetalert2";
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 interface KegiatanItem {
   id: string;
@@ -226,7 +226,7 @@ export default function KegiatanPage() {
       item.kelompokNama || "-"
     ]);
 
-    (doc as any).autoTable({
+    autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
       startY: 20,
