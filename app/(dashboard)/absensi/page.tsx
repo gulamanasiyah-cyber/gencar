@@ -6,6 +6,10 @@ import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { QRCodeCanvas } from "qrcode.react";
 import Swal from "sweetalert2";
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 interface KegiatanItem {
   id: string;
@@ -23,6 +27,10 @@ interface AbsensiItem {
   generusJenisKelamin: string | null;
   timestamp: string | null;
   keterangan: string | null;
+  desaId?: number | null;
+  desaNama?: string | null;
+  kelompokId?: number | null;
+  kelompokNama?: string | null;
 }
 
 interface GenerusResult {
@@ -32,10 +40,27 @@ interface GenerusResult {
   kategoriUsia: string;
 }
 
+const BAR_COLORS = [
+  "#2563eb", // Blue
+  "#10b981", // Emerald
+  "#f59e0b", // Amber
+  "#ef4444", // Red
+  "#8b5cf6", // Violet
+  "#ec4899", // Pink
+  "#06b6d4", // Cyan
+  "#f43f5e", // Rose
+  "#14b8a6", // Teal
+  "#6366f1", // Indigo
+  "#a855f7", // Purple
+];
+
 function AbsensiContent() {
   const searchParams = useSearchParams();
+  const [allKegiatan, setAllKegiatan] = useState<KegiatanItem[]>([]);
   const [kegiatan, setKegiatan] = useState<KegiatanItem[]>([]);
   const [selectedKegiatan, setSelectedKegiatan] = useState<string>(searchParams.get("kegiatanId") || "");
+  const [selectedBulan, setSelectedBulan] = useState<string>((new Date().getMonth() + 1).toString());
+  const [selectedTahun, setSelectedTahun] = useState<string>(new Date().getFullYear().toString());
   const [absensiList, setAbsensiList] = useState<AbsensiItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -44,6 +69,11 @@ function AbsensiContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<GenerusResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+
+  const [desaFilter, setDesaFilter] = useState("");
+  const [kelompokFilter, setKelompokFilter] = useState("");
+  const [desas, setDesas] = useState<{id: number, nama: string}[]>([]);
+  const [kelompoks, setKelompoks] = useState<{id: number, nama: string}[]>([]);
 
   useEffect(() => {
     if (searchQuery.length < 2) {
@@ -112,17 +142,26 @@ function AbsensiContent() {
   useEffect(() => {
     fetch("/api/kegiatan").then((r) => r.json()).then((d) => {
       if (Array.isArray(d)) {
-        const offsetTz = new Date().getTimezoneOffset();
-        const localToday = new Date(new Date().getTime() - (offsetTz * 60 * 1000));
-        const todayStr = localToday.toISOString().split('T')[0];
-        const upcoming = d.filter(k => k.tanggal >= todayStr);
-        setKegiatan(upcoming);
+        setAllKegiatan(d);
       } else {
-        setKegiatan([]);
+        setAllKegiatan([]);
       }
     });
-    fetch("/api/profile").then(r => r.json()).then(d => setUserRole(d.role || ""));
+    fetch("/api/profile").then(r => r.json()).then(d => {
+      setUserRole(d.role || "");
+      if (["admin", "pengurus_daerah", "kmm_daerah"].includes(d.role)) {
+        fetch("/api/admin/desa").then(r => r.json()).then(setDesas);
+        fetch("/api/admin/kelompok").then(r => r.json()).then(setKelompoks);
+      }
+    });
   }, []);
+
+  useEffect(() => {
+    const paddedBulan = selectedBulan.padStart(2, '0');
+    const prefix = `${selectedTahun}-${paddedBulan}`;
+    const filtered = allKegiatan.filter(k => k.tanggal.startsWith(prefix));
+    setKegiatan(filtered);
+  }, [allKegiatan, selectedBulan, selectedTahun]);
 
   const fetchAbsensi = useCallback(async (isPolling = false) => {
     if (!selectedKegiatan) { setAbsensiList([]); return; }
@@ -188,6 +227,136 @@ function AbsensiContent() {
     }
   };
 
+  const filteredAbsensiList = absensiList.filter((item) => {
+    let match = true;
+    if (desaFilter) {
+      match = match && item.desaId === Number(desaFilter);
+    }
+    if (kelompokFilter) {
+      match = match && item.kelompokId === Number(kelompokFilter);
+    }
+    return match;
+  });
+
+  const getComparisonData = () => {
+    const groups: Record<string, { name: string; kehadiranRaw: number }> = {};
+    
+    if (!desaFilter) {
+      desas.forEach(d => {
+        groups[d.nama] = { name: d.nama, kehadiranRaw: 0 };
+      });
+      groups["Lainnya"] = { name: "Lainnya", kehadiranRaw: 0 };
+
+      let totalKehadiran = 0;
+      absensiList.forEach(item => {
+        const key = item.desaNama || "Lainnya";
+        if (!groups[key]) {
+          groups[key] = { name: key, kehadiranRaw: 0 };
+        }
+        groups[key].kehadiranRaw += 1;
+        totalKehadiran += 1;
+      });
+
+      if (groups["Lainnya"] && groups["Lainnya"].kehadiranRaw === 0) {
+        delete groups["Lainnya"];
+      }
+
+      return Object.values(groups).map(g => ({
+        name: g.name,
+        kehadiran: totalKehadiran > 0 ? Number(((g.kehadiranRaw / totalKehadiran) * 100).toFixed(1)) : 0,
+        kehadiranRaw: g.kehadiranRaw
+      }));
+    } else {
+      const targetDesaId = Number(desaFilter);
+      kelompoks
+        .filter(k => (k as any).desaId === targetDesaId)
+        .forEach(k => {
+          groups[k.nama] = { name: k.nama, kehadiranRaw: 0 };
+        });
+      groups["Lainnya"] = { name: "Lainnya", kehadiranRaw: 0 };
+
+      const desaAbsensi = absensiList.filter(item => item.desaId === targetDesaId);
+
+      let totalKehadiran = 0;
+      desaAbsensi.forEach(item => {
+        const key = item.kelompokNama || "Lainnya";
+        if (!groups[key]) {
+          groups[key] = { name: key, kehadiranRaw: 0 };
+        }
+        groups[key].kehadiranRaw += 1;
+        totalKehadiran += 1;
+      });
+
+      if (groups["Lainnya"] && groups["Lainnya"].kehadiranRaw === 0) {
+        delete groups["Lainnya"];
+      }
+
+      return Object.values(groups).map(g => ({
+        name: g.name,
+        kehadiran: totalKehadiran > 0 ? Number(((g.kehadiranRaw / totalKehadiran) * 100).toFixed(1)) : 0,
+        kehadiranRaw: g.kehadiranRaw
+      }));
+    }
+  };
+
+  const chartData = getComparisonData();
+
+  const handleExportExcel = () => {
+    const selectedKegiatanItem = allKegiatan.find(k => k.id === selectedKegiatan);
+    const kegiatanTitle = selectedKegiatanItem?.judul || "Kegiatan";
+    const kegiatanTanggal = selectedKegiatanItem?.tanggal || "";
+
+    const exportData = absensiList.map((item, index) => ({
+      No: index + 1,
+      Nama: item.generusNama || "-",
+      "No. Unik": item.generusNomorUnik || "-",
+      Kategori: item.generusKategori || "-",
+      "Jenis Kelamin": item.generusJenisKelamin === "L" ? "Laki-laki" : (item.generusJenisKelamin === "P" ? "Perempuan" : "-"),
+      Desa: item.desaNama || "-",
+      Kelompok: item.kelompokNama || "-",
+      Waktu: item.timestamp ? new Date(item.timestamp).toLocaleTimeString("id-ID") : "-"
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Kehadiran");
+    XLSX.writeFile(wb, `Kehadiran_${kegiatanTitle.replace(/\s+/g, "_")}_${kegiatanTanggal}.xlsx`);
+  };
+
+  const handleExportPDF = () => {
+    const selectedKegiatanItem = allKegiatan.find(k => k.id === selectedKegiatan);
+    const kegiatanTitle = selectedKegiatanItem?.judul || "Kegiatan";
+    const kegiatanTanggal = selectedKegiatanItem?.tanggal || "";
+
+    const doc = new jsPDF();
+    doc.text(`Data Kehadiran: ${kegiatanTitle}`, 14, 15);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Tanggal Kegiatan: ${kegiatanTanggal} | Total Hadir: ${absensiList.length}`, 14, 22);
+
+    const tableColumn = ["No", "Nama", "No. Unik", "Kategori", "JK", "Desa", "Kelompok", "Waktu"];
+    const tableRows = absensiList.map((item, index) => [
+      index + 1,
+      item.generusNama || "-",
+      item.generusNomorUnik || "-",
+      item.generusKategori || "-",
+      item.generusJenisKelamin || "-",
+      item.desaNama || "-",
+      item.kelompokNama || "-",
+      item.timestamp ? new Date(item.timestamp).toLocaleTimeString("id-ID") : "-"
+    ]);
+
+    (doc as any).autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 27,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] }
+    });
+
+    doc.save(`Kehadiran_${kegiatanTitle.replace(/\s+/g, "_")}_${kegiatanTanggal}.pdf`);
+  };
+
   return (
     <div>
       <Topbar title="Absensi" role={userRole} />
@@ -197,11 +366,84 @@ function AbsensiContent() {
             <h2>Sistem Absensi</h2>
             <p>Catat kehadiran menggunakan QR Code atau pencarian manual</p>
           </div>
+          {selectedKegiatan && (
+            <div className="page-header-right" style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <button className="btn btn-success" onClick={handleExportExcel} style={{ display: "flex", alignItems: "center", gap: "6px", flex: "1 1 auto" }} disabled={absensiList.length === 0}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                </svg>
+                Excel
+              </button>
+              <button className="btn btn-danger" onClick={handleExportPDF} style={{ display: "flex", alignItems: "center", gap: "6px", flex: "1 1 auto" }} disabled={absensiList.length === 0}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                </svg>
+                PDF
+              </button>
+            </div>
+          )}
         </div>
 
         {message && (
           <div className={`alert ${message.type === "success" ? "alert-success" : "alert-error"}`} style={{ marginBottom: 16 }}>
             {message.text}
+          </div>
+        )}
+
+        {selectedKegiatan && (
+          <div className="card" style={{ marginBottom: "20px" }}>
+            <div className="card-header">
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600 }}>
+                {!desaFilter ? "Grafik Perbandingan Kehadiran Antar-Desa" : "Grafik Perbandingan Kehadiran Antar-Kelompok"}
+              </h3>
+            </div>
+            <div className="card-body" style={{ padding: "20px" }}>
+              {chartData.length > 0 ? (
+                <div>
+                  <div style={{ width: '100%', overflowX: 'auto', overflowY: 'hidden', paddingBottom: "10px" }}>
+                    <div style={{ height: 300, minWidth: `${Math.max(chartData.length * 120, 600)}px` }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
+                          <YAxis 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{ fill: '#64748b', fontSize: 12 }} 
+                            domain={[0, 100]} 
+                            tickFormatter={(tick) => `${tick}%`}
+                          />
+                          <Tooltip 
+                            cursor={{ fill: '#f1f5f9' }} 
+                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
+                            formatter={(value: any, name: any, props: any) => {
+                              const raw = props.payload.kehadiranRaw;
+                              return [`${value}% (${raw} orang)`, name];
+                            }}
+                          />
+                          <Bar dataKey="kehadiran" name="Kehadiran" radius={[4, 4, 0, 0]}>
+                            {chartData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  {/* Color Legend */}
+                  <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "16px", marginTop: "16px", padding: "12px", background: "var(--bg)", borderRadius: "8px", border: "1px solid var(--border)" }}>
+                    {chartData.map((entry, index) => (
+                      <div key={entry.name} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", fontWeight: 500, color: "var(--text)" }}>
+                        <span style={{ display: "inline-block", width: "12px", height: "12px", borderRadius: "3px", backgroundColor: BAR_COLORS[index % BAR_COLORS.length] }} />
+                        {entry.name}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p style={{ textAlign: "center", color: "#64748b", margin: "40px 0" }}>Tidak ada data untuk ditampilkan pada grafik.</p>
+              )}
+            </div>
           </div>
         )}
 
@@ -212,6 +454,27 @@ function AbsensiContent() {
               <span className="card-title">Pilih Kegiatan</span>
             </div>
             <div className="card-body">
+              <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
+                <div style={{ flex: 1 }}>
+                  <label className="form-label" style={{ fontSize: "12px" }}>Bulan</label>
+                  <select className="form-control" value={selectedBulan} onChange={(e) => setSelectedBulan(e.target.value)}>
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                      <option key={m} value={m.toString()}>
+                        {new Date(2000, m - 1, 1).toLocaleString('id-ID', { month: 'long' })}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label className="form-label" style={{ fontSize: "12px" }}>Tahun</label>
+                  <select className="form-control" value={selectedTahun} onChange={(e) => setSelectedTahun(e.target.value)}>
+                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map((y) => (
+                      <option key={y} value={y.toString()}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div className="form-group">
                 <label className="form-label">Kegiatan <span className="required">*</span></label>
                 <select className="form-control" value={selectedKegiatan} onChange={(e) => setSelectedKegiatan(e.target.value)}>
@@ -332,35 +595,62 @@ function AbsensiContent() {
 
           {/* Right: Attendance list */}
           <div className="card">
-            <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="card-header" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "10px" }}>
               <span className="card-title">Daftar Hadir</span>
-              <span className="badge badge-blue">{absensiList.length} total hadir</span>
+              
+              {["admin", "pengurus_daerah", "kmm_daerah"].includes(userRole) && (
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", flex: 1, justifyContent: "flex-end" }}>
+                  <select 
+                    className="form-control form-control-sm" 
+                    style={{ width: "auto", minWidth: "140px", padding: "4px 8px", fontSize: "13px" }}
+                    value={desaFilter}
+                    onChange={(e) => { setDesaFilter(e.target.value); setKelompokFilter(""); }}
+                  >
+                    <option value="">Semua Desa</option>
+                    {desas.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
+                  </select>
+
+                  <select 
+                    className="form-control form-control-sm" 
+                    style={{ width: "auto", minWidth: "140px", padding: "4px 8px", fontSize: "13px" }}
+                    value={kelompokFilter}
+                    onChange={(e) => setKelompokFilter(e.target.value)}
+                  >
+                    <option value="">Semua Kelompok</option>
+                    {kelompoks
+                      .filter(k => !desaFilter || (k as any).desaId === Number(desaFilter))
+                      .map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                  </select>
+                </div>
+              )}
+
+              <span className="badge badge-blue">{filteredAbsensiList.length} total hadir</span>
             </div>
             
-            {selectedKegiatan && absensiList.length > 0 && (
-              <div style={{ padding: "16px", borderBottom: "1px solid var(--border)", display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px", background: "var(--bg-light)" }}>
+            {selectedKegiatan && filteredAbsensiList.length > 0 && (
+              <div className="stats-grid" style={{ padding: "16px", borderBottom: "1px solid var(--border)", background: "var(--bg-light)", marginBottom: 0, gap: "12px" }}>
                 <div style={{ background: "white", padding: "12px", borderRadius: "8px", border: "1px solid var(--border)", textAlign: "center" }}>
                   <div style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600, textTransform: "uppercase", marginBottom: "4px" }}>Laki-laki</div>
-                  <div style={{ fontSize: "18px", fontWeight: 700, color: "var(--primary)" }}>{absensiList.filter(a => a.generusJenisKelamin === "L").length}</div>
+                  <div style={{ fontSize: "18px", fontWeight: 700, color: "var(--primary)" }}>{filteredAbsensiList.filter(a => a.generusJenisKelamin === "L").length}</div>
                 </div>
                 <div style={{ background: "white", padding: "12px", borderRadius: "8px", border: "1px solid var(--border)", textAlign: "center" }}>
                   <div style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600, textTransform: "uppercase", marginBottom: "4px" }}>Perempuan</div>
-                  <div style={{ fontSize: "18px", fontWeight: 700, color: "#ec4899" }}>{absensiList.filter(a => a.generusJenisKelamin === "P").length}</div>
+                  <div style={{ fontSize: "18px", fontWeight: 700, color: "#ec4899" }}>{filteredAbsensiList.filter(a => a.generusJenisKelamin === "P").length}</div>
                 </div>
                 <div style={{ background: "white", padding: "12px", borderRadius: "8px", border: "1px solid var(--border)", textAlign: "center" }}>
                   <div style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600, textTransform: "uppercase", marginBottom: "4px" }}>Generus</div>
-                  <div style={{ fontSize: "18px", fontWeight: 700, color: "#10b981" }}>{absensiList.filter(a => a.generusKategori === "Generus").length}</div>
+                  <div style={{ fontSize: "18px", fontWeight: 700, color: "#10b981" }}>{filteredAbsensiList.filter(a => a.generusKategori === "Generus").length}</div>
                 </div>
                 <div style={{ background: "white", padding: "12px", borderRadius: "8px", border: "1px solid var(--border)", textAlign: "center" }}>
                   <div style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600, textTransform: "uppercase", marginBottom: "4px" }}>Usia Mandiri</div>
-                  <div style={{ fontSize: "18px", fontWeight: 700, color: "#f59e0b" }}>{absensiList.filter(a => a.generusKategori === "Usia Mandiri").length}</div>
+                  <div style={{ fontSize: "18px", fontWeight: 700, color: "#f59e0b" }}>{filteredAbsensiList.filter(a => a.generusKategori === "Usia Mandiri").length}</div>
                 </div>
               </div>
             )}
 
             {loading ? (
               <div className="loading"><div className="spinner" /></div>
-            ) : absensiList.length === 0 ? (
+            ) : filteredAbsensiList.length === 0 ? (
               <div className="empty-state">
                 <h3>Belum ada yang hadir</h3>
                 <p>Scan QR code, sistem akan mencatat kehadiran</p>
@@ -378,12 +668,15 @@ function AbsensiContent() {
                     </tr>
                   </thead>
                   <tbody>
-                    {absensiList.map((item, i) => (
+                    {filteredAbsensiList.map((item, i) => (
                       <tr key={item.id}>
                         <td className="text-muted">{i + 1}</td>
                         <td>
                           <div style={{ fontWeight: 500 }}>{item.generusNama}</div>
-                          <div className="text-sm text-muted" style={{ fontFamily: "monospace" }}>{item.generusNomorUnik}</div>
+                          <div className="text-sm text-muted" style={{ fontFamily: "monospace", marginBottom: "2px" }}>{item.generusNomorUnik}</div>
+                          {(item.desaNama || item.kelompokNama) && (
+                            <div className="text-sm text-muted" style={{ fontSize: "11px" }}>{item.desaNama} {item.desaNama && item.kelompokNama ? '•' : ''} {item.kelompokNama}</div>
+                          )}
                         </td>
                         <td><span className="badge badge-blue">{item.generusKategori}</span></td>
                         <td className="text-sm text-muted">
@@ -406,6 +699,7 @@ function AbsensiContent() {
             )}
           </div>
         </div>
+
       </div>
     </div>
   );

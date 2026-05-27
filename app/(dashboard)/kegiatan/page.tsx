@@ -4,6 +4,10 @@ import Topbar from "@/components/Topbar";
 
 import { useState, useEffect, useCallback } from "react";
 import Swal from "sweetalert2";
+import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 interface KegiatanItem {
   id: string;
@@ -19,6 +23,20 @@ interface KegiatanItem {
   createdAt: string | null;
 }
 
+const BAR_COLORS = [
+  "#2563eb", // Blue
+  "#10b981", // Emerald
+  "#f59e0b", // Amber
+  "#ef4444", // Red
+  "#8b5cf6", // Violet
+  "#ec4899", // Pink
+  "#06b6d4", // Cyan
+  "#f43f5e", // Rose
+  "#14b8a6", // Teal
+  "#6366f1", // Indigo
+  "#a855f7", // Purple
+];
+
 export default function KegiatanPage() {
   const [data, setData] = useState<KegiatanItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,10 +45,107 @@ export default function KegiatanPage() {
   const [userRole, setUserRole] = useState("");
   const [activeTab, setActiveTab] = useState<"aktif" | "riwayat">("aktif");
 
+  const [filterDesaId, setFilterDesaId] = useState<string>("");
+  const [filterKelompokId, setFilterKelompokId] = useState<string>("");
+  const [filterBulan, setFilterBulan] = useState<string>("");
+  const [filterTahun, setFilterTahun] = useState<string>("");
+  const [desaList, setDesaList] = useState<{ id: number; nama: string }[]>([]);
+  const [kelompokList, setKelompokList] = useState<{ id: number; nama: string }[]>([]);
+
+  useEffect(() => {
+    fetch("/api/auth/desa").then(r => r.json()).then(setDesaList).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    if (!filterDesaId) {
+      setKelompokList([]);
+      setFilterKelompokId("");
+      return;
+    }
+    fetch(`/api/auth/kelompok?desaId=${filterDesaId}`)
+      .then(r => r.json())
+      .then(setKelompokList)
+      .catch(console.error);
+  }, [filterDesaId]);
+
   const todayStr = new Date().toLocaleDateString('en-CA'); // Gets YYYY-MM-DD in local time
-  const activeData = data.filter(item => item.tanggal >= todayStr);
-  const historyData = data.filter(item => item.tanggal < todayStr);
+  
+  const filteredData = data.filter(item => {
+    if (filterDesaId && item.desaId !== Number(filterDesaId)) return false;
+    if (filterKelompokId && item.kelompokId !== Number(filterKelompokId)) return false;
+    
+    if (filterBulan || filterTahun) {
+      const dateObj = new Date(item.tanggal);
+      const m = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+      const y = dateObj.getFullYear().toString();
+      
+      if (filterBulan && m !== filterBulan) return false;
+      if (filterTahun && y !== filterTahun) return false;
+    }
+    
+    return true;
+  });
+
+  const activeData = filteredData.filter(item => item.tanggal >= todayStr);
+  const historyData = filteredData.filter(item => item.tanggal < todayStr);
   const displayData = activeTab === "aktif" ? activeData : historyData;
+
+  const getComparisonData = () => {
+    const groups: Record<string, { name: string; mendatang: number; riwayat: number }> = {};
+    
+    if (!filterDesaId) {
+      desaList.forEach(d => {
+        groups[d.nama] = { name: d.nama, mendatang: 0, riwayat: 0 };
+      });
+      groups["Sak Daerah"] = { name: "Sak Daerah", mendatang: 0, riwayat: 0 };
+    } else {
+      kelompokList.forEach(k => {
+        groups[k.nama] = { name: k.nama, mendatang: 0, riwayat: 0 };
+      });
+      groups["Tanpa Kelompok"] = { name: "Tanpa Kelompok", mendatang: 0, riwayat: 0 };
+    }
+
+    const getGroupKey = (item: KegiatanItem) => {
+      if (!filterDesaId) return item.desaNama || "Sak Daerah";
+      return item.kelompokNama || "Tanpa Kelompok";
+    };
+
+    let totalMendatang = 0;
+    let totalRiwayat = 0;
+
+    filteredData.forEach(item => {
+      const key = getGroupKey(item);
+      if (!groups[key]) {
+        groups[key] = { name: key, mendatang: 0, riwayat: 0 };
+      }
+      if (item.tanggal >= todayStr) {
+        groups[key].mendatang += 1;
+        totalMendatang += 1;
+      } else {
+        groups[key].riwayat += 1;
+        totalRiwayat += 1;
+      }
+    });
+
+    if (!filterDesaId && groups["Sak Daerah"]?.mendatang === 0 && groups["Sak Daerah"]?.riwayat === 0) {
+      delete groups["Sak Daerah"];
+    }
+    if (filterDesaId && groups["Tanpa Kelompok"]?.mendatang === 0 && groups["Tanpa Kelompok"]?.riwayat === 0) {
+      delete groups["Tanpa Kelompok"];
+    }
+
+    return Object.values(groups).map(g => ({
+      name: g.name,
+      mendatang: totalMendatang > 0 ? Number(((g.mendatang / totalMendatang) * 100).toFixed(1)) : 0,
+      riwayat: totalRiwayat > 0 ? Number(((g.riwayat / totalRiwayat) * 100).toFixed(1)) : 0,
+      mendatangRaw: g.mendatang,
+      riwayatRaw: g.riwayat
+    }));
+  };
+
+  const chartData = getComparisonData();
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -79,6 +194,49 @@ export default function KegiatanPage() {
     return new Date(d).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   };
 
+  const handleExportExcel = () => {
+    const exportData = displayData.map((item, index) => ({
+      No: index + 1,
+      Kegiatan: item.judul,
+      Deskripsi: item.deskripsi || "-",
+      Tanggal: formatDate(item.tanggal),
+      Jam: item.jam || "-",
+      Lokasi: item.lokasi || "-",
+      Desa: item.desaNama || "-",
+      Kelompok: item.kelompokNama || "-"
+    }));
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Kegiatan");
+    XLSX.writeFile(wb, `Data_Kegiatan_${activeTab}.xlsx`);
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    doc.text(`Data Kegiatan ${activeTab === 'aktif' ? 'Mendatang' : 'Riwayat'}`, 14, 15);
+    
+    const tableColumn = ["No", "Kegiatan", "Tanggal", "Jam", "Lokasi", "Desa", "Kelompok"];
+    const tableRows = displayData.map((item, index) => [
+      index + 1,
+      item.judul,
+      formatDate(item.tanggal),
+      item.jam || "-",
+      item.lokasi || "-",
+      item.desaNama || "-",
+      item.kelompokNama || "-"
+    ]);
+
+    (doc as any).autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 20,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] }
+    });
+
+    doc.save(`Data_Kegiatan_${activeTab}.pdf`);
+  };
+
   return (
     <div>
       <Topbar title="Kegiatan" role={userRole} />
@@ -88,26 +246,155 @@ export default function KegiatanPage() {
             <h2>Manajemen Kegiatan</h2>
             <p>Kelola kegiatan desa dan kelompok</p>
           </div>
-          <button className="btn btn-primary" onClick={() => { setEditItem(null); setShowModal(true); }}>
-            + Tambah Kegiatan
-          </button>
+          <div className="page-header-right" style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <button className="btn btn-success" onClick={handleExportExcel} style={{ flex: "1 1 auto", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }} disabled={displayData.length === 0}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+              </svg>
+              Excel
+            </button>
+            <button className="btn btn-danger" onClick={handleExportPDF} style={{ flex: "1 1 auto", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }} disabled={displayData.length === 0}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+              </svg>
+              PDF
+            </button>
+            <button className="btn btn-primary" onClick={() => { setEditItem(null); setShowModal(true); }} style={{ flex: "1 1 auto" }}>
+              + Tambah Kegiatan
+            </button>
+          </div>
         </div>
 
-        <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
-          <button 
-            className={`btn ${activeTab === "aktif" ? "btn-primary" : "btn-secondary"}`} 
-            onClick={() => setActiveTab("aktif")}
-            style={{ borderRadius: "20px", padding: "6px 16px", fontSize: "14px" }}
-          >
-            Kegiatan Mendatang ({activeData.length})
-          </button>
-          <button 
-            className={`btn ${activeTab === "riwayat" ? "btn-primary" : "btn-secondary"}`} 
-            onClick={() => setActiveTab("riwayat")}
-            style={{ borderRadius: "20px", padding: "6px 16px", fontSize: "14px" }}
-          >
-            Riwayat Kegiatan ({historyData.length})
-          </button>
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "16px" }}>
+          <div style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "4px" }}>
+            <button 
+              className={`btn ${activeTab === "aktif" ? "btn-primary" : "btn-secondary"}`} 
+              onClick={() => setActiveTab("aktif")}
+              style={{ borderRadius: "20px", padding: "6px 16px", fontSize: "14px", whiteSpace: "nowrap" }}
+            >
+              Kegiatan Mendatang ({activeData.length})
+            </button>
+            <button 
+              className={`btn ${activeTab === "riwayat" ? "btn-primary" : "btn-secondary"}`} 
+              onClick={() => setActiveTab("riwayat")}
+              style={{ borderRadius: "20px", padding: "6px 16px", fontSize: "14px", whiteSpace: "nowrap" }}
+            >
+              Riwayat Kegiatan ({historyData.length})
+            </button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px" }}>
+            <select 
+              className="form-control" 
+              value={filterBulan} 
+              onChange={e => setFilterBulan(e.target.value)} 
+              style={{ borderRadius: "8px", width: "100%" }}
+            >
+              <option value="">Semua Bulan</option>
+              <option value="01">Januari</option>
+              <option value="02">Februari</option>
+              <option value="03">Maret</option>
+              <option value="04">April</option>
+              <option value="05">Mei</option>
+              <option value="06">Juni</option>
+              <option value="07">Juli</option>
+              <option value="08">Agustus</option>
+              <option value="09">September</option>
+              <option value="10">Oktober</option>
+              <option value="11">November</option>
+              <option value="12">Desember</option>
+            </select>
+            <select 
+              className="form-control" 
+              value={filterTahun} 
+              onChange={e => setFilterTahun(e.target.value)} 
+              style={{ borderRadius: "8px", width: "100%" }}
+            >
+              <option value="">Semua Tahun</option>
+              {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+            <select 
+              className="form-control" 
+              value={filterDesaId} 
+              onChange={e => setFilterDesaId(e.target.value)} 
+              style={{ borderRadius: "8px", width: "100%" }}
+            >
+              <option value="">Semua Desa</option>
+              {desaList.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
+            </select>
+            <select 
+              className="form-control" 
+              value={filterKelompokId} 
+              onChange={e => setFilterKelompokId(e.target.value)} 
+              style={{ borderRadius: "8px", width: "100%" }}
+              disabled={!filterDesaId}
+            >
+              <option value="">Semua Kelompok</option>
+              {kelompokList.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="card" style={{ marginBottom: "20px" }}>
+          <div className="card-header">
+            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600 }}>
+              {activeTab === "aktif" ? "Grafik Perbandingan Kegiatan" : "Grafik Perbandingan Riwayat Kegiatan"}
+            </h3>
+          </div>
+          <div className="card-body" style={{ padding: "20px" }}>
+            {chartData.length > 0 ? (
+              <div>
+                <div style={{ width: '100%', overflowX: 'auto', overflowY: 'hidden', paddingBottom: "10px" }}>
+                  <div style={{ height: 300, minWidth: `${Math.max(chartData.length * 120, 600)}px` }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: '#64748b', fontSize: 12 }} 
+                          domain={[0, 100]} 
+                          tickFormatter={(tick) => `${tick}%`}
+                        />
+                        <Tooltip 
+                          cursor={{ fill: '#f1f5f9' }} 
+                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
+                          formatter={(value: any, name: any, props: any) => {
+                            const raw = name === "Kegiatan Mendatang" ? props.payload.mendatangRaw : props.payload.riwayatRaw;
+                            return [`${value}% (${raw} kegiatan)`, name];
+                          }}
+                        />
+                        {activeTab === "aktif" ? (
+                          <Bar dataKey="mendatang" name="Kegiatan Mendatang" radius={[4, 4, 0, 0]}>
+                            {chartData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
+                            ))}
+                          </Bar>
+                        ) : (
+                          <Bar dataKey="riwayat" name="Riwayat Kegiatan" radius={[4, 4, 0, 0]}>
+                            {chartData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
+                            ))}
+                          </Bar>
+                        )}
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+                {/* Color Legend */}
+                <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "16px", marginTop: "16px", padding: "12px", background: "var(--bg)", borderRadius: "8px", border: "1px solid var(--border)" }}>
+                  {chartData.map((entry, index) => (
+                    <div key={entry.name} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", fontWeight: 500, color: "var(--text)" }}>
+                      <span style={{ display: "inline-block", width: "12px", height: "12px", borderRadius: "3px", backgroundColor: BAR_COLORS[index % BAR_COLORS.length] }} />
+                      {entry.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+               <p style={{ textAlign: "center", color: "#64748b", margin: "40px 0" }}>Tidak ada data untuk ditampilkan pada grafik.</p>
+            )}
+          </div>
         </div>
 
         <div className="card">
@@ -334,12 +621,12 @@ function KegiatanModal({ item, onClose, onSaved }: {
                 <label className="form-label">Judul Kegiatan <span className="required">*</span></label>
                 <input name="judul" className="form-control" value={form.judul} onChange={handleChange} required placeholder="Nama kegiatan" />
               </div>
-              <div className="form-row" style={{ display: "flex", gap: "12px" }}>
-                <div className="form-group" style={{ flex: 1 }}>
+              <div className="form-row" style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                <div className="form-group" style={{ flex: "1 1 200px" }}>
                   <label className="form-label">Tanggal <span className="required">*</span></label>
                   <input name="tanggal" type="date" className="form-control" value={form.tanggal} onChange={handleChange} required />
                 </div>
-                <div className="form-group" style={{ flex: 1 }}>
+                <div className="form-group" style={{ flex: "1 1 200px" }}>
                   <label className="form-label">Jam</label>
                   <input name="jam" type="time" className="form-control" value={form.jam} onChange={handleChange} />
                 </div>
@@ -352,15 +639,15 @@ function KegiatanModal({ item, onClose, onSaved }: {
                 <label className="form-label">Deskripsi</label>
                 <textarea name="deskripsi" className="form-control" value={form.deskripsi} onChange={handleChange} placeholder="Deskripsi kegiatan..." />
               </div>
-              <div className="form-row" style={{ display: "flex", gap: "12px" }}>
-                <div className="form-group" style={{ flex: 1 }}>
+              <div className="form-row" style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                <div className="form-group" style={{ flex: "1 1 200px" }}>
                   <label className="form-label">Desa</label>
                   <select name="desaId" className="form-control" value={form.desaId} onChange={handleChange}>
                     <option value="">Pilih Desa (Opsional)</option>
                     {desaList.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
                   </select>
                 </div>
-                <div className="form-group" style={{ flex: 1 }}>
+                <div className="form-group" style={{ flex: "1 1 200px" }}>
                   <label className="form-label">Kelompok</label>
                   <select name="kelompokId" className="form-control" value={form.kelompokId} onChange={handleChange}>
                     <option value="">Pilih Kelompok (Opsional)</option>

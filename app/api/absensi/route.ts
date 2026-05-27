@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { absensi, generus, kegiatan } from "@/lib/schema";
+import { absensi, generus, kegiatan, desa, kelompok } from "@/lib/schema";
 import { eq, and } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
@@ -41,9 +41,15 @@ export async function GET(request: NextRequest) {
         generusNomorUnik: generus.nomorUnik,
         generusKategori: generus.kategori,
         generusJenisKelamin: generus.jenisKelamin,
+        desaId: generus.desaId,
+        desaNama: desa.nama,
+        kelompokId: generus.kelompokId,
+        kelompokNama: kelompok.nama,
       })
       .from(absensi)
       .leftJoin(generus, eq(absensi.generusId, generus.id))
+      .leftJoin(desa, eq(generus.desaId, desa.id))
+      .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
       .where(eq(absensi.kegiatanId, kegiatanId));
 
     return NextResponse.json(data, {
