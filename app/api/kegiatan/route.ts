@@ -1,8 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { kegiatan, desa, kelompok } from "@/lib/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { kegiatan, desa, kelompok, generus } from "@/lib/schema";
+import { eq, and, sql, or, isNull } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 
@@ -14,8 +14,11 @@ export async function GET(request: NextRequest) {
     const conditions = [];
     if (session.role === "desa" && session.desaId) {
       conditions.push(eq(kegiatan.desaId, session.desaId));
-    } else if (session.role === "kelompok" && session.kelompokId) {
-      conditions.push(eq(kegiatan.kelompokId, session.kelompokId));
+    } else if (session.role === "kelompok" && session.kelompokId && session.desaId) {
+      conditions.push(or(
+        eq(kegiatan.kelompokId, session.kelompokId),
+        and(eq(kegiatan.desaId, session.desaId), isNull(kegiatan.kelompokId))
+      ));
     }
 
     const data = await db
@@ -60,20 +63,16 @@ export async function POST(request: NextRequest) {
     }
 
     const id = uuidv4();
-    let finalDesaId = ["admin", "pengurus_daerah", "kmm_daerah", "admin_keuangan"].includes(session.role) ? (desaId ? Number(desaId) : null) : session.desaId;
-    let finalKelompokId = ["admin", "pengurus_daerah", "kmm_daerah", "admin_keuangan"].includes(session.role) ? (kelompokId ? Number(kelompokId) : null) : session.kelompokId;
+    let finalDesaId = desaId ? Number(desaId) : null;
+    let finalKelompokId = kelompokId ? Number(kelompokId) : null;
 
-    // Additional strictness: Pengurus Desa cannot create for other Desa
     if (session.role === "desa") {
-      finalDesaId = session.desaId;
-      // KelompokId can be null (event for entire desa) or specific kelompok within that desa
-      // Ideally we should validate that the kelompokId belongs to this desaId
+      if (!desaId) finalDesaId = session.desaId;
     }
 
-    // Additional strictness: Pengurus Kelompok cannot create for other Kelompok
     if (session.role === "kelompok") {
-      finalKelompokId = session.kelompokId;
-      finalDesaId = session.desaId; // Usually grouped under a desa
+      if (!desaId) finalDesaId = session.desaId;
+      if (!kelompokId) finalKelompokId = session.kelompokId;
     }
 
     await db.insert(kegiatan).values({
@@ -94,3 +93,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Gagal menyimpan data" }, { status: 500 });
   }
 }
+

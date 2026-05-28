@@ -139,7 +139,7 @@ export async function PUT(request: NextRequest) {
     if (!session || !["admin", "pengurus_daerah", "kmm_daerah"].includes(session.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const { id, role, desaId, kelompokId } = await request.json();
+    const { id, role, desaId, kelompokId, name, email, password } = await request.json();
     if (!id) return NextResponse.json({ error: "ID diperlukan" }, { status: 400 });
 
     const user = await db.query.users.findFirst({ where: eq(users.id, id) });
@@ -179,12 +179,21 @@ export async function PUT(request: NextRequest) {
       });
     }
 
-    await db.update(users).set({ 
+    const updatePayload: any = { 
       role: role || user.role, 
-      desaId: desaId ? Number(desaId) : user.desaId, 
-      kelompokId: kelompokId ? Number(kelompokId) : user.kelompokId, 
       generusId 
-    }).where(eq(users.id, id));
+    };
+
+    if (desaId !== undefined) updatePayload.desaId = desaId ? Number(desaId) : null;
+    if (kelompokId !== undefined) updatePayload.kelompokId = kelompokId ? Number(kelompokId) : null;
+    if (name) updatePayload.name = name;
+    if (email) updatePayload.email = email.toLowerCase();
+    if (password) {
+      updatePayload.passwordHash = await bcrypt.hash(password, 12);
+      updatePayload.passwordPlain = password;
+    }
+
+    await db.update(users).set(updatePayload).where(eq(users.id, id));
     
     // Sinkronkan ke generus jika user memiliki generusId
     if (generusId) {

@@ -14,8 +14,11 @@ import autoTable from 'jspdf-autotable';
 interface KegiatanItem {
   id: string;
   judul: string;
+  deskripsi?: string | null;
   tanggal: string;
   jam?: string | null;
+  desaId?: number | null;
+  kelompokId?: number | null;
 }
 
 interface AbsensiItem {
@@ -61,10 +64,12 @@ function AbsensiContent() {
   const [selectedKegiatan, setSelectedKegiatan] = useState<string>(searchParams.get("kegiatanId") || "");
   const [selectedBulan, setSelectedBulan] = useState<string>((new Date().getMonth() + 1).toString());
   const [selectedTahun, setSelectedTahun] = useState<string>(new Date().getFullYear().toString());
+  const [tingkatFilter, setTingkatFilter] = useState("");
   const [absensiList, setAbsensiList] = useState<AbsensiItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [userRole, setUserRole] = useState("");
+  const [userDesaId, setUserDesaId] = useState<number | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<GenerusResult[]>([]);
@@ -72,6 +77,7 @@ function AbsensiContent() {
 
   const [desaFilter, setDesaFilter] = useState("");
   const [kelompokFilter, setKelompokFilter] = useState("");
+  const [kategoriFilter, setKategoriFilter] = useState("");
   const [desas, setDesas] = useState<{id: number, nama: string}[]>([]);
   const [kelompoks, setKelompoks] = useState<{id: number, nama: string}[]>([]);
 
@@ -149,9 +155,12 @@ function AbsensiContent() {
     });
     fetch("/api/profile").then(r => r.json()).then(d => {
       setUserRole(d.role || "");
+      setUserDesaId(d.desaId || null);
       if (["admin", "pengurus_daerah", "kmm_daerah"].includes(d.role)) {
         fetch("/api/admin/desa").then(r => r.json()).then(setDesas);
         fetch("/api/admin/kelompok").then(r => r.json()).then(setKelompoks);
+      } else if (["desa", "kelompok"].includes(d.role) && d.desaId) {
+        fetch(`/api/auth/kelompok?desaId=${d.desaId}`).then(r => r.json()).then(setKelompoks);
       }
     });
   }, []);
@@ -159,9 +168,22 @@ function AbsensiContent() {
   useEffect(() => {
     const paddedBulan = selectedBulan.padStart(2, '0');
     const prefix = `${selectedTahun}-${paddedBulan}`;
-    const filtered = allKegiatan.filter(k => k.tanggal.startsWith(prefix));
+    const filtered = allKegiatan.filter(k => {
+      const matchDate = k.tanggal.startsWith(prefix);
+      
+      let matchTingkat = true;
+      if (tingkatFilter === "daerah") {
+        matchTingkat = !k.desaId && !k.kelompokId;
+      } else if (tingkatFilter === "desa") {
+        matchTingkat = !!k.desaId && !k.kelompokId;
+      } else if (tingkatFilter === "kelompok") {
+        matchTingkat = !!k.kelompokId;
+      }
+
+      return matchDate && matchTingkat;
+    });
     setKegiatan(filtered);
-  }, [allKegiatan, selectedBulan, selectedTahun]);
+  }, [allKegiatan, selectedBulan, selectedTahun, tingkatFilter]);
 
   const fetchAbsensi = useCallback(async (isPolling = false) => {
     if (!selectedKegiatan) { setAbsensiList([]); return; }
@@ -235,13 +257,18 @@ function AbsensiContent() {
     if (kelompokFilter) {
       match = match && item.kelompokId === Number(kelompokFilter);
     }
+    if (kategoriFilter) {
+      match = match && item.generusKategori === kategoriFilter;
+    }
     return match;
   });
 
   const getComparisonData = () => {
     const groups: Record<string, { name: string; kehadiranRaw: number }> = {};
     
-    if (!desaFilter) {
+    const isComparingDesa = !desaFilter && !["desa", "kelompok"].includes(userRole);
+
+    if (isComparingDesa) {
       desas.forEach(d => {
         groups[d.nama] = { name: d.nama, kehadiranRaw: 0 };
       });
@@ -267,15 +294,20 @@ function AbsensiContent() {
         kehadiranRaw: g.kehadiranRaw
       }));
     } else {
-      const targetDesaId = Number(desaFilter);
-      kelompoks
-        .filter(k => (k as any).desaId === targetDesaId)
-        .forEach(k => {
-          groups[k.nama] = { name: k.nama, kehadiranRaw: 0 };
-        });
+      const targetDesaId = (userRole === "desa" || userRole === "kelompok") ? userDesaId : Number(desaFilter);
+      
+      if (targetDesaId) {
+        kelompoks
+          .filter(k => (userRole === "desa" || userRole === "kelompok") ? true : (k as any).desaId === targetDesaId)
+          .forEach(k => {
+            groups[k.nama] = { name: k.nama, kehadiranRaw: 0 };
+          });
+      }
       groups["Lainnya"] = { name: "Lainnya", kehadiranRaw: 0 };
 
-      const desaAbsensi = absensiList.filter(item => item.desaId === targetDesaId);
+      const desaAbsensi = (userRole === "desa" || userRole === "kelompok") 
+        ? absensiList 
+        : absensiList.filter(item => item.desaId === targetDesaId);
 
       let totalKehadiran = 0;
       desaAbsensi.forEach(item => {
@@ -305,15 +337,19 @@ function AbsensiContent() {
     const selectedKegiatanItem = allKegiatan.find(k => k.id === selectedKegiatan);
     const kegiatanTitle = selectedKegiatanItem?.judul || "Kegiatan";
     const kegiatanTanggal = selectedKegiatanItem?.tanggal || "";
+    const kegiatanDeskripsi = selectedKegiatanItem?.deskripsi || "-";
 
-    const exportData = absensiList.map((item, index) => ({
+    const exportData = filteredAbsensiList.map((item, index) => ({
       No: index + 1,
+      Kegiatan: kegiatanTitle,
+      "Deskripsi Kegiatan": kegiatanDeskripsi,
       Nama: item.generusNama || "-",
       "No. Unik": item.generusNomorUnik || "-",
       Kategori: item.generusKategori || "-",
       "Jenis Kelamin": item.generusJenisKelamin === "L" ? "Laki-laki" : (item.generusJenisKelamin === "P" ? "Perempuan" : "-"),
       Desa: item.desaNama || "-",
       Kelompok: item.kelompokNama || "-",
+      Keterangan: item.keterangan || "Hadir",
       Waktu: item.timestamp ? new Date(item.timestamp).toLocaleTimeString("id-ID") : "-"
     }));
     
@@ -327,22 +363,26 @@ function AbsensiContent() {
     const selectedKegiatanItem = allKegiatan.find(k => k.id === selectedKegiatan);
     const kegiatanTitle = selectedKegiatanItem?.judul || "Kegiatan";
     const kegiatanTanggal = selectedKegiatanItem?.tanggal || "";
+    const kegiatanDeskripsi = selectedKegiatanItem?.deskripsi || "-";
 
     const doc = new jsPDF();
     doc.text(`Data Kehadiran: ${kegiatanTitle}`, 14, 15);
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`Tanggal Kegiatan: ${kegiatanTanggal} | Total Hadir: ${absensiList.length}`, 14, 22);
+    doc.text(`Tanggal Kegiatan: ${kegiatanTanggal} | Total Hadir: ${filteredAbsensiList.length}`, 14, 22);
 
-    const tableColumn = ["No", "Nama", "No. Unik", "Kategori", "JK", "Desa", "Kelompok", "Waktu"];
-    const tableRows = absensiList.map((item, index) => [
+    const tableColumn = ["No", "Kegiatan", "Deskripsi", "Nama", "No. Unik", "Kategori", "JK", "Desa", "Kelompok", "Keterangan", "Waktu"];
+    const tableRows = filteredAbsensiList.map((item, index) => [
       index + 1,
+      kegiatanTitle,
+      kegiatanDeskripsi,
       item.generusNama || "-",
       item.generusNomorUnik || "-",
       item.generusKategori || "-",
       item.generusJenisKelamin || "-",
       item.desaNama || "-",
       item.kelompokNama || "-",
+      item.keterangan || "Hadir",
       item.timestamp ? new Date(item.timestamp).toLocaleTimeString("id-ID") : "-"
     ]);
 
@@ -394,7 +434,7 @@ function AbsensiContent() {
           <div className="card" style={{ marginBottom: "20px" }}>
             <div className="card-header">
               <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600 }}>
-                {!desaFilter ? "Grafik Perbandingan Kehadiran Antar-Desa" : "Grafik Perbandingan Kehadiran Antar-Kelompok"}
+                {(!desaFilter && !["desa", "kelompok"].includes(userRole)) ? "Grafik Perbandingan Kehadiran Antar-Desa" : "Grafik Perbandingan Kehadiran Antar-Kelompok"}
               </h3>
             </div>
             <div className="card-body" style={{ padding: "20px" }}>
@@ -457,7 +497,7 @@ function AbsensiContent() {
               <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
                 <div style={{ flex: 1 }}>
                   <label className="form-label" style={{ fontSize: "12px" }}>Bulan</label>
-                  <select className="form-control" value={selectedBulan} onChange={(e) => setSelectedBulan(e.target.value)}>
+                  <select className="form-control" value={selectedBulan} onChange={(e) => { setSelectedBulan(e.target.value); setSelectedKegiatan(""); }}>
                     {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                       <option key={m} value={m.toString()}>
                         {new Date(2000, m - 1, 1).toLocaleString('id-ID', { month: 'long' })}
@@ -467,7 +507,7 @@ function AbsensiContent() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <label className="form-label" style={{ fontSize: "12px" }}>Tahun</label>
-                  <select className="form-control" value={selectedTahun} onChange={(e) => setSelectedTahun(e.target.value)}>
+                  <select className="form-control" value={selectedTahun} onChange={(e) => { setSelectedTahun(e.target.value); setSelectedKegiatan(""); }}>
                     {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map((y) => (
                       <option key={y} value={y.toString()}>{y}</option>
                     ))}
@@ -487,8 +527,22 @@ function AbsensiContent() {
 
               {selectedKegiatan && (
                 <>
-                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginTop: 16 }}>
-                    <div className="form-label" style={{ marginBottom: 12 }}>Pencarian Manual</div>
+                  {(() => {
+                    const k = kegiatan.find(x => x.id === selectedKegiatan);
+                    if (!k) return false;
+                    
+                    if (userRole === "desa") {
+                      if (k.kelompokId !== null || k.desaId === null) return false;
+                    }
+                    
+                    if (userRole === "kelompok") {
+                      if (k.kelompokId === null) return false;
+                    }
+                    
+                    return true;
+                  })() && (
+                    <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginTop: 16 }}>
+                      <div className="form-label" style={{ marginBottom: 12 }}>Pencarian Manual</div>
                     <div style={{ position: "relative" }}>
                       <input 
                         type="text" 
@@ -559,35 +613,53 @@ function AbsensiContent() {
                         </div>
                       )}
                     </div>
-                    <p className="text-sm text-muted" style={{ marginTop: 8 }}>
-                      Cari peserta dan klik tombol Hadir untuk mencatat kehadiran secara manual.
-                    </p>
-                  </div>
-
-                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginTop: 16 }}>
-                    <div className="form-label" style={{ marginBottom: 12 }}>QR Code Kegiatan</div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: 24, background: "white", borderRadius: 8, border: "1px solid var(--border)" }}>
-                      <QRCodeCanvas
-                        id="qrCodeCanvas"
-                        value={typeof window !== "undefined" ? `${window.location.origin}/hadir?kegiatanId=${selectedKegiatan}` : ""}
-                        size={200}
-                        level={"M"}
-                        includeMargin={true}
-                      />
-                      <div style={{ marginTop: 16, textAlign: "center", fontWeight: 500, color: "var(--text)" }}>
-                        {kegiatan.find(k => k.id === selectedKegiatan)?.judul}
-                      </div>
-                      <div className="text-sm text-muted" style={{ textAlign: "center", marginTop: 4 }}>
-                        {kegiatan.find(k => k.id === selectedKegiatan)?.tanggal} • {kegiatan.find(k => k.id === selectedKegiatan)?.jam || "-"}
-                      </div>
-                      <p className="text-sm text-muted" style={{ textAlign: "center", marginTop: 16, marginBottom: 16 }}>
-                        Generus dapat memindai QR Code ini untuk mencatat kehadiran.
+                      <p className="text-sm text-muted" style={{ marginTop: 8 }}>
+                        Cari peserta dan klik tombol Hadir untuk mencatat kehadiran secara manual.
                       </p>
-                      <button className="btn btn-primary" onClick={downloadQRCode}>
-                        ⬇️ Unduh Barcode
-                      </button>
                     </div>
-                  </div>
+                  )}
+
+                  {(() => {
+                    const k = kegiatan.find(x => x.id === selectedKegiatan);
+                    if (!k) return false;
+                    
+                    if (userRole === "desa") {
+                      // Hide if not Pengajian Desa
+                      if (k.kelompokId !== null || k.desaId === null) return false;
+                    }
+                    
+                    if (userRole === "kelompok") {
+                      // Hide if not Pengajian Kelompok
+                      if (k.kelompokId === null) return false;
+                    }
+                    
+                    return true;
+                  })() && (
+                    <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginTop: 16 }}>
+                      <div className="form-label" style={{ marginBottom: 12 }}>QR Code Kegiatan</div>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: 24, background: "white", borderRadius: 8, border: "1px solid var(--border)" }}>
+                        <QRCodeCanvas
+                          id="qrCodeCanvas"
+                          value={typeof window !== "undefined" ? `${window.location.origin}/hadir?kegiatanId=${selectedKegiatan}` : ""}
+                          size={200}
+                          level={"M"}
+                          includeMargin={true}
+                        />
+                        <div style={{ marginTop: 16, textAlign: "center", fontWeight: 500, color: "var(--text)" }}>
+                          {kegiatan.find(k => k.id === selectedKegiatan)?.judul}
+                        </div>
+                        <div className="text-sm text-muted" style={{ textAlign: "center", marginTop: 4 }}>
+                          {kegiatan.find(k => k.id === selectedKegiatan)?.tanggal} • {kegiatan.find(k => k.id === selectedKegiatan)?.jam || "-"}
+                        </div>
+                        <p className="text-sm text-muted" style={{ textAlign: "center", marginTop: 16, marginBottom: 16 }}>
+                          Generus dapat memindai QR Code ini untuk mencatat kehadiran.
+                        </p>
+                        <button className="btn btn-primary" onClick={downloadQRCode}>
+                          ⬇️ Unduh Barcode
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -598,8 +670,22 @@ function AbsensiContent() {
             <div className="card-header" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "10px" }}>
               <span className="card-title">Daftar Hadir</span>
               
-              {["admin", "pengurus_daerah", "kmm_daerah"].includes(userRole) && (
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", flex: 1, justifyContent: "flex-end" }}>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", flex: 1, justifyContent: "flex-end" }}>
+                <select 
+                  className="form-control form-control-sm" 
+                  style={{ width: "auto", minWidth: "140px", padding: "4px 8px", fontSize: "13px" }}
+                  value={tingkatFilter}
+                  onChange={(e) => { setTingkatFilter(e.target.value); setSelectedKegiatan(""); }}
+                >
+                  <option value="">Semua Tingkat</option>
+                  {["admin", "pengurus_daerah", "kmm_daerah"].includes(userRole) && (
+                    <option value="daerah">Pengajian Daerah</option>
+                  )}
+                  <option value="desa">Pengajian Desa</option>
+                  <option value="kelompok">Pengajian Kelompok</option>
+                </select>
+
+                {["admin", "pengurus_daerah", "kmm_daerah"].includes(userRole) && (
                   <select 
                     className="form-control form-control-sm" 
                     style={{ width: "auto", minWidth: "140px", padding: "4px 8px", fontSize: "13px" }}
@@ -609,7 +695,9 @@ function AbsensiContent() {
                     <option value="">Semua Desa</option>
                     {desas.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
                   </select>
+                )}
 
+                {["admin", "pengurus_daerah", "kmm_daerah", "desa"].includes(userRole) && (
                   <select 
                     className="form-control form-control-sm" 
                     style={{ width: "auto", minWidth: "140px", padding: "4px 8px", fontSize: "13px" }}
@@ -618,11 +706,22 @@ function AbsensiContent() {
                   >
                     <option value="">Semua Kelompok</option>
                     {kelompoks
-                      .filter(k => !desaFilter || (k as any).desaId === Number(desaFilter))
+                      .filter(k => (userRole === "desa") ? true : (!desaFilter || (k as any).desaId === Number(desaFilter)))
                       .map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
                   </select>
-                </div>
-              )}
+                )}
+
+                <select 
+                  className="form-control form-control-sm" 
+                  style={{ width: "auto", minWidth: "140px", padding: "4px 8px", fontSize: "13px" }}
+                  value={kategoriFilter}
+                  onChange={(e) => setKategoriFilter(e.target.value)}
+                >
+                  <option value="">Semua Kategori</option>
+                  <option value="Generus">Generus</option>
+                  <option value="Usia Mandiri">Usia Mandiri</option>
+                </select>
+              </div>
 
               <span className="badge badge-blue">{filteredAbsensiList.length} total hadir</span>
             </div>
@@ -648,7 +747,19 @@ function AbsensiContent() {
               </div>
             )}
 
-            {loading ? (
+            {!selectedKegiatan ? (
+              <div className="empty-state" style={{ padding: "40px 20px", textAlign: "center" }}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1" style={{ margin: "0 auto 16px" }}>
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                <h3 style={{ fontSize: "16px", fontWeight: 600, color: "var(--text)" }}>Pilih kegiatan terlebih dahulu</h3>
+                <p style={{ color: "var(--muted)", fontSize: "14px", marginTop: "8px" }}>Silakan pilih kegiatan di panel sebelah kiri untuk melihat daftar hadir.</p>
+              </div>
+            ) : loading ? (
               <div className="loading"><div className="spinner" /></div>
             ) : filteredAbsensiList.length === 0 ? (
               <div className="empty-state">
@@ -661,6 +772,7 @@ function AbsensiContent() {
                   <thead>
                     <tr>
                       <th>#</th>
+                      <th>Kegiatan & Deskripsi</th>
                       <th>Nama</th>
                       <th>Kategori</th>
                       <th>Waktu</th>
@@ -671,6 +783,10 @@ function AbsensiContent() {
                     {filteredAbsensiList.map((item, i) => (
                       <tr key={item.id}>
                         <td className="text-muted">{i + 1}</td>
+                        <td>
+                          <div style={{ fontWeight: 500 }}>{allKegiatan.find(k => k.id === selectedKegiatan)?.judul || "-"}</div>
+                          <div className="text-sm text-muted" style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis" }}>{allKegiatan.find(k => k.id === selectedKegiatan)?.deskripsi || "-"}</div>
+                        </td>
                         <td>
                           <div style={{ fontWeight: 500 }}>{item.generusNama}</div>
                           <div className="text-sm text-muted" style={{ fontFamily: "monospace", marginBottom: "2px" }}>{item.generusNomorUnik}</div>

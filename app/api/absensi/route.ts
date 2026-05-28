@@ -23,11 +23,16 @@ export async function GET(request: NextRequest) {
 
     if (!targetKegiatan) return NextResponse.json({ error: "Kegiatan tidak ditemukan" }, { status: 404 });
 
-    if (session.role === "desa" && targetKegiatan.desaId !== session.desaId) {
+    if (session.role === "desa" && targetKegiatan.desaId != session.desaId) {
       return NextResponse.json({ error: "Tidak diizinkan mengakses data desa lain" }, { status: 403 });
     }
-    if (session.role === "kelompok" && targetKegiatan.kelompokId !== session.kelompokId) {
-      return NextResponse.json({ error: "Tidak diizinkan mengakses data kelompok lain" }, { status: 403 });
+    if (session.role === "kelompok") {
+      if (targetKegiatan.kelompokId !== null && targetKegiatan.kelompokId != session.kelompokId) {
+        return NextResponse.json({ error: "Tidak diizinkan mengakses data kelompok lain" }, { status: 403 });
+      }
+      if (targetKegiatan.desaId !== null && targetKegiatan.desaId != session.desaId) {
+        return NextResponse.json({ error: "Tidak diizinkan mengakses data desa lain" }, { status: 403 });
+      }
     }
 
     const data = await db
@@ -77,14 +82,24 @@ export async function POST(request: NextRequest) {
     const kegiatanExists = await db.query.kegiatan.findFirst({
       where: eq(kegiatan.id, kegiatanId),
     });
+    
     if (!kegiatanExists) {
       return NextResponse.json({ error: "Kegiatan tidak ditemukan" }, { status: 404 });
     }
-    if (session.role === "desa" && kegiatanExists.desaId !== session.desaId) {
-        return NextResponse.json({ error: "Tidak diizinkan mencatat absensi desa lain" }, { status: 403 });
+
+    // 1. Validasi akses pengguna terhadap kegiatan
+    if (session.role === "desa") {
+        if (kegiatanExists.desaId && kegiatanExists.desaId != session.desaId) {
+            return NextResponse.json({ error: "Tidak diizinkan mencatat absensi desa lain" }, { status: 403 });
+        }
     }
-    if (session.role === "kelompok" && kegiatanExists.kelompokId !== session.kelompokId) {
-        return NextResponse.json({ error: "Tidak diizinkan mencatat absensi kelompok lain" }, { status: 403 });
+    if (session.role === "kelompok") {
+        if (kegiatanExists.desaId && kegiatanExists.desaId != session.desaId) {
+            return NextResponse.json({ error: "Tidak diizinkan mencatat absensi desa lain" }, { status: 403 });
+        }
+        if (kegiatanExists.kelompokId && kegiatanExists.kelompokId != session.kelompokId) {
+            return NextResponse.json({ error: "Tidak diizinkan mencatat absensi kelompok lain" }, { status: 403 });
+        }
     }
 
     // Resolve generus and validate access
@@ -104,13 +119,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generus must be in the same location as session
-    if (session.role === "desa" && resolvedGenerus.desaId !== session.desaId) {
-        return NextResponse.json({ error: "Generus ini bukan bagian dari desa Anda" }, { status: 403 });
+    // 2. Validasi Generus berdasarkan tingkat kegiatan (Daerah / Desa / Kelompok)
+    if (kegiatanExists.kelompokId) {
+        // Pengajian Kelompok: Generus harus berasal dari kelompok yang sama dengan kegiatan
+        if (resolvedGenerus.kelompokId != kegiatanExists.kelompokId) {
+            return NextResponse.json({ error: "Generus ini bukan bagian dari kelompok kegiatan ini" }, { status: 403 });
+        }
+    } else if (kegiatanExists.desaId) {
+        // Pengajian Desa: Generus harus berasal dari desa yang sama dengan kegiatan
+        if (resolvedGenerus.desaId != kegiatanExists.desaId) {
+            return NextResponse.json({ error: "Generus ini bukan bagian dari desa kegiatan ini" }, { status: 403 });
+        }
     }
-    if (session.role === "kelompok" && resolvedGenerus.kelompokId !== session.kelompokId) {
-        return NextResponse.json({ error: "Generus ini bukan bagian dari kelompok Anda" }, { status: 403 });
-    }
+    // Pengajian Daerah: Bebas, semua generus bisa absen
 
     const resolvedGenerusId = resolvedGenerus.id;
 
@@ -161,11 +182,16 @@ export async function DELETE(request: NextRequest) {
       const relatedKegiatan = await db.query.kegiatan.findFirst({
         where: eq(kegiatan.id, existing.kegiatanId),
       });
-      if (session.role === "desa" && relatedKegiatan?.desaId !== session.desaId) {
+      if (session.role === "desa" && relatedKegiatan?.desaId != session.desaId) {
         return NextResponse.json({ error: "Tidak diizinkan menghapus data desa lain" }, { status: 403 });
       }
-      if (session.role === "kelompok" && relatedKegiatan?.kelompokId !== session.kelompokId) {
-        return NextResponse.json({ error: "Tidak diizinkan menghapus data kelompok lain" }, { status: 403 });
+      if (session.role === "kelompok") {
+        if (relatedKegiatan?.kelompokId !== null && relatedKegiatan?.kelompokId != session.kelompokId) {
+          return NextResponse.json({ error: "Tidak diizinkan menghapus data kelompok lain" }, { status: 403 });
+        }
+        if (relatedKegiatan?.desaId !== null && relatedKegiatan?.desaId != session.desaId) {
+          return NextResponse.json({ error: "Tidak diizinkan menghapus data desa lain" }, { status: 403 });
+        }
       }
     }
 

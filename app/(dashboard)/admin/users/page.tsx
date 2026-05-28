@@ -97,6 +97,62 @@ function AddUserForm({ desaList, kelompokList, onSuccess, onCancel }: { desaList
   );
 }
 
+function EditUserForm({ user, onSuccess, onCancel }: { user: UserItem, onSuccess: () => void, onCancel: () => void }) {
+  const [editForm, setEditForm] = useState({ name: user.name, email: user.email, password: '' });
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const payload: any = { id: user.id, name: editForm.name, email: editForm.email };
+      if (editForm.password) {
+        payload.password = editForm.password;
+      }
+      
+      const res = await fetch("/api/admin/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Data user berhasil diperbarui', timer: 1500 });
+        onSuccess();
+      } else {
+        Swal.fire({ icon: 'error', title: 'Gagal', text: data.error || 'Gagal memperbarui user' });
+      }
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Gagal', text: 'Terjadi kesalahan sistem' });
+    }
+    setSubmitting(false);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} style={{ textAlign: 'left' }}>
+      <div className="form-group" style={{ marginBottom: '15px' }}>
+        <label className="form-label" style={{ display: 'block', marginBottom: '5px' }}>Nama Lengkap</label>
+        <input type="text" className="form-control" required value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} />
+      </div>
+      <div className="form-group" style={{ marginBottom: '15px' }}>
+        <label className="form-label" style={{ display: 'block', marginBottom: '5px' }}>Email</label>
+        <input type="email" className="form-control" required value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} />
+      </div>
+      <div className="form-group" style={{ marginBottom: '15px' }}>
+        <label className="form-label" style={{ display: 'block', marginBottom: '5px' }}>Password Baru <small>(Kosongkan jika tidak diubah)</small></label>
+        <input type="password" className="form-control" value={editForm.password} onChange={e => setEditForm({...editForm, password: e.target.value})} placeholder="Masukkan password baru..." />
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+        <button type="button" className="btn btn-secondary" onClick={onCancel}>Batal</button>
+        <button type="submit" className="btn btn-primary" disabled={submitting}>
+          {submitting ? 'Menyimpan...' : 'Simpan Perubahan'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export default function AdminUsersPage() {
   const [data, setData] = useState<UserItem[]>([]);
   const [desaList, setDesaList] = useState<DesaItem[]>([]);
@@ -245,6 +301,24 @@ export default function AdminUsersPage() {
     );
     MySwal.fire({
       title: 'Tambah User Baru',
+      html: formElement,
+      showConfirmButton: false,
+      showCloseButton: true,
+      allowOutsideClick: false,
+      width: '500px'
+    });
+  };
+
+  const handleOpenEditUser = (user: UserItem) => {
+    const formElement = (
+      <EditUserForm 
+        user={user} 
+        onSuccess={() => { MySwal.close(); fetchData(); }} 
+        onCancel={() => MySwal.close()} 
+      />
+    );
+    MySwal.fire({
+      title: 'Edit User',
       html: formElement,
       showConfirmButton: false,
       showCloseButton: true,
@@ -403,7 +477,10 @@ export default function AdminUsersPage() {
                             <option value="admin_keuangan">Admin Keuangan</option>
                             <option value="admin_kegiatan">Admin Kegiatan</option>
                           </select>
-                          <button className="btn btn-sm btn-danger" onClick={() => handleDelete(user.id)}>Hapus</button>
+                          <div className="flex gap-2" style={{ marginTop: "8px" }}>
+                            <button className="btn btn-sm btn-secondary" onClick={() => handleOpenEditUser(user)}>Edit</button>
+                            <button className="btn btn-sm btn-danger" onClick={() => handleDelete(user.id)}>Hapus</button>
+                          </div>
                         </div>
                       </td>
                     </tr>

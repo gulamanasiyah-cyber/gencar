@@ -29,15 +29,15 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const body = await request.json();
     const { judul, deskripsi, tanggal, jam, lokasi, desaId, kelompokId } = body;
 
-    let finalDesaId = ["admin", "pengurus_daerah", "kmm_daerah", "admin_keuangan"].includes(session.role) ? (desaId ? Number(desaId) : null) : session.desaId;
-    let finalKelompokId = ["admin", "pengurus_daerah", "kmm_daerah", "admin_keuangan"].includes(session.role) ? (kelompokId ? Number(kelompokId) : null) : session.kelompokId;
+    let finalDesaId = desaId ? Number(desaId) : null;
+    let finalKelompokId = kelompokId ? Number(kelompokId) : null;
 
     if (session.role === "desa") {
-      finalDesaId = session.desaId;
+      if (!desaId) finalDesaId = session.desaId;
     }
     if (session.role === "kelompok") {
-      finalKelompokId = session.kelompokId;
-      finalDesaId = session.desaId;
+      if (!desaId) finalDesaId = session.desaId;
+      if (!kelompokId) finalKelompokId = session.kelompokId;
     }
 
     await db.update(kegiatan).set({ 

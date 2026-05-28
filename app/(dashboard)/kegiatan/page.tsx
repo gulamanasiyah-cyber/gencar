@@ -43,12 +43,14 @@ export default function KegiatanPage() {
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<KegiatanItem | null>(null);
   const [userRole, setUserRole] = useState("");
+  const [userDesaId, setUserDesaId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<"aktif" | "riwayat">("aktif");
 
   const [filterDesaId, setFilterDesaId] = useState<string>("");
   const [filterKelompokId, setFilterKelompokId] = useState<string>("");
   const [filterBulan, setFilterBulan] = useState<string>("");
   const [filterTahun, setFilterTahun] = useState<string>("");
+  const [filterTingkat, setFilterTingkat] = useState<string>("");
   const [desaList, setDesaList] = useState<{ id: number; nama: string }[]>([]);
   const [kelompokList, setKelompokList] = useState<{ id: number; nama: string }[]>([]);
 
@@ -57,16 +59,25 @@ export default function KegiatanPage() {
   }, []);
 
   useEffect(() => {
-    if (!filterDesaId) {
-      setKelompokList([]);
+    const fetchDesaId = (userRole === "desa" || userRole === "kelompok") ? userDesaId : filterDesaId;
+    
+    if (!fetchDesaId) {
+      if (["admin", "pengurus_daerah", "kmm_daerah"].includes(userRole)) {
+        fetch("/api/admin/kelompok")
+          .then(r => r.json())
+          .then(setKelompokList)
+          .catch(console.error);
+      } else {
+        setKelompokList([]);
+      }
       setFilterKelompokId("");
       return;
     }
-    fetch(`/api/auth/kelompok?desaId=${filterDesaId}`)
+    fetch(`/api/auth/kelompok?desaId=${fetchDesaId}`)
       .then(r => r.json())
       .then(setKelompokList)
       .catch(console.error);
-  }, [filterDesaId]);
+  }, [filterDesaId, userRole, userDesaId]);
 
   const todayStr = new Date().toLocaleDateString('en-CA'); // Gets YYYY-MM-DD in local time
   
@@ -83,6 +94,10 @@ export default function KegiatanPage() {
       if (filterTahun && y !== filterTahun) return false;
     }
     
+    if (filterTingkat === "daerah" && (item.desaId || item.kelompokId)) return false;
+    if (filterTingkat === "desa" && (!item.desaId || item.kelompokId)) return false;
+    if (filterTingkat === "kelompok" && !item.kelompokId) return false;
+
     return true;
   });
 
@@ -90,48 +105,78 @@ export default function KegiatanPage() {
   const historyData = filteredData.filter(item => item.tanggal < todayStr);
   const displayData = activeTab === "aktif" ? activeData : historyData;
 
+  const isComparingDesa = !filterDesaId && ["admin", "pengurus_daerah", "kmm_daerah"].includes(userRole) && filterTingkat !== "kelompok";
+
   const getComparisonData = () => {
     const groups: Record<string, { name: string; mendatang: number; riwayat: number }> = {};
     
-    if (!filterDesaId) {
+    if (isComparingDesa) {
       desaList.forEach(d => {
         groups[d.nama] = { name: d.nama, mendatang: 0, riwayat: 0 };
       });
-      groups["Sak Daerah"] = { name: "Sak Daerah", mendatang: 0, riwayat: 0 };
     } else {
-      kelompokList.forEach(k => {
-        groups[k.nama] = { name: k.nama, mendatang: 0, riwayat: 0 };
-      });
-      groups["Tanpa Kelompok"] = { name: "Tanpa Kelompok", mendatang: 0, riwayat: 0 };
+      if (filterKelompokId) {
+        const selectedK = kelompokList.find(k => k.id === Number(filterKelompokId));
+        if (selectedK) {
+          groups[selectedK.nama] = { name: selectedK.nama, mendatang: 0, riwayat: 0 };
+        }
+      } else {
+        kelompokList.forEach(k => {
+          groups[k.nama] = { name: k.nama, mendatang: 0, riwayat: 0 };
+        });
+      }
     }
 
     const getGroupKey = (item: KegiatanItem) => {
-      if (!filterDesaId) return item.desaNama || "Sak Daerah";
-      return item.kelompokNama || "Tanpa Kelompok";
+      // We don't use getGroupKey directly anymore
+      return null;
     };
 
     let totalMendatang = 0;
     let totalRiwayat = 0;
 
     filteredData.forEach(item => {
-      const key = getGroupKey(item);
-      if (!groups[key]) {
-        groups[key] = { name: key, mendatang: 0, riwayat: 0 };
-      }
-      if (item.tanggal >= todayStr) {
-        groups[key].mendatang += 1;
-        totalMendatang += 1;
+      const isMendatang = item.tanggal >= todayStr;
+
+      if (isComparingDesa) {
+        if (item.desaNama) {
+          const key = item.desaNama;
+          if (groups[key]) {
+            groups[key].mendatang += isMendatang ? 1 : 0;
+            groups[key].riwayat += isMendatang ? 0 : 1;
+            totalMendatang += isMendatang ? 1 : 0;
+            totalRiwayat += isMendatang ? 0 : 1;
+          }
+        } else {
+          Object.keys(groups).forEach(key => {
+            groups[key].mendatang += isMendatang ? 1 : 0;
+            groups[key].riwayat += isMendatang ? 0 : 1;
+            totalMendatang += isMendatang ? 1 : 0;
+            totalRiwayat += isMendatang ? 0 : 1;
+          });
+        }
       } else {
-        groups[key].riwayat += 1;
-        totalRiwayat += 1;
+        if (item.kelompokNama) {
+          const key = item.kelompokNama;
+          if (groups[key]) {
+            groups[key].mendatang += isMendatang ? 1 : 0;
+            groups[key].riwayat += isMendatang ? 0 : 1;
+            totalMendatang += isMendatang ? 1 : 0;
+            totalRiwayat += isMendatang ? 0 : 1;
+          }
+        } else {
+          Object.keys(groups).forEach(key => {
+            groups[key].mendatang += isMendatang ? 1 : 0;
+            groups[key].riwayat += isMendatang ? 0 : 1;
+            totalMendatang += isMendatang ? 1 : 0;
+            totalRiwayat += isMendatang ? 0 : 1;
+          });
+        }
       }
     });
 
-    if (!filterDesaId && groups["Sak Daerah"]?.mendatang === 0 && groups["Sak Daerah"]?.riwayat === 0) {
+    if (isComparingDesa && groups["Sak Daerah"]?.mendatang === 0 && groups["Sak Daerah"]?.riwayat === 0) {
       delete groups["Sak Daerah"];
-    }
-    if (filterDesaId && groups["Tanpa Kelompok"]?.mendatang === 0 && groups["Tanpa Kelompok"]?.riwayat === 0) {
-      delete groups["Tanpa Kelompok"];
     }
 
     return Object.values(groups).map(g => ({
@@ -162,7 +207,10 @@ export default function KegiatanPage() {
 
   useEffect(() => { 
     fetchData(); 
-    fetch("/api/profile").then(r => r.json()).then(d => setUserRole(d.role || ""));
+    fetch("/api/profile").then(r => r.json()).then(d => {
+      setUserRole(d.role || "");
+      setUserDesaId(d.desaId || null);
+    });
   }, [fetchData]);
 
   const handleDelete = async (id: string) => {
@@ -215,10 +263,11 @@ export default function KegiatanPage() {
     const doc = new jsPDF();
     doc.text(`Data Kegiatan ${activeTab === 'aktif' ? 'Mendatang' : 'Riwayat'}`, 14, 15);
     
-    const tableColumn = ["No", "Kegiatan", "Tanggal", "Jam", "Lokasi", "Desa", "Kelompok"];
+    const tableColumn = ["No", "Kegiatan", "Deskripsi", "Tanggal", "Jam", "Lokasi", "Desa", "Kelompok"];
     const tableRows = displayData.map((item, index) => [
       index + 1,
       item.judul,
+      item.deskripsi || "-",
       formatDate(item.tanggal),
       item.jam || "-",
       item.lokasi || "-",
@@ -314,19 +363,33 @@ export default function KegiatanPage() {
             </select>
             <select 
               className="form-control" 
-              value={filterDesaId} 
-              onChange={e => setFilterDesaId(e.target.value)} 
+              value={filterTingkat} 
+              onChange={e => setFilterTingkat(e.target.value)} 
               style={{ borderRadius: "8px", width: "100%" }}
             >
-              <option value="">Semua Desa</option>
-              {desaList.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
+              <option value="">Semua Tingkat</option>
+              {["admin", "pengurus_daerah", "kmm_daerah"].includes(userRole) && (
+                <option value="daerah">Pengajian Daerah</option>
+              )}
+              <option value="desa">Pengajian Desa</option>
+              <option value="kelompok">Pengajian Kelompok</option>
             </select>
+            {["admin", "pengurus_daerah", "kmm_daerah"].includes(userRole) && (
+              <select 
+                className="form-control" 
+                value={filterDesaId} 
+                onChange={e => { setFilterDesaId(e.target.value); setFilterKelompokId(""); }} 
+                style={{ borderRadius: "8px", width: "100%" }}
+              >
+                <option value="">Semua Desa</option>
+                {desaList.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
+              </select>
+            )}
             <select 
               className="form-control" 
               value={filterKelompokId} 
               onChange={e => setFilterKelompokId(e.target.value)} 
               style={{ borderRadius: "8px", width: "100%" }}
-              disabled={!filterDesaId}
             >
               <option value="">Semua Kelompok</option>
               {kelompokList.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
@@ -337,7 +400,9 @@ export default function KegiatanPage() {
         <div className="card" style={{ marginBottom: "20px" }}>
           <div className="card-header">
             <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600 }}>
-              {activeTab === "aktif" ? "Grafik Perbandingan Kegiatan" : "Grafik Perbandingan Riwayat Kegiatan"}
+              <span className="card-title">
+                {(!filterDesaId && ["admin", "pengurus_daerah", "kmm_daerah"].includes(userRole) && filterTingkat !== "kelompok") ? "Grafik Perbandingan Kegiatan Antar-Desa" : "Grafik Perbandingan Kegiatan Antar-Kelompok"}
+              </span>
             </h3>
           </div>
           <div className="card-body" style={{ padding: "20px" }}>
@@ -441,8 +506,17 @@ export default function KegiatanPage() {
                       </td>
                       <td>{item.lokasi || "-"}</td>
                       <td>
-                        {item.kelompokNama && <div className="text-sm">{item.kelompokNama}</div>}
-                        {item.desaNama && <div className="text-sm text-muted">{item.desaNama}</div>}
+                        {item.kelompokId ? (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-sm font-medium">{item.kelompokNama || "-"}</span>
+                            <span className="text-xs text-muted">{item.desaNama || "-"}</span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-sm font-medium">{!item.desaId ? "Semua Desa" : "Semua Kelompok"}</span>
+                            <span className="text-xs text-muted">{item.desaNama || "Sak Daerah"}</span>
+                          </div>
+                        )}
                       </td>
                       <td>
                         <div className="flex gap-2">
