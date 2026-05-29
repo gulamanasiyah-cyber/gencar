@@ -1,3 +1,4 @@
+export const runtime = "edge";
 export const dynamic = 'force-dynamic';
 import { db } from "@/lib/db";
 import { artikel, users, generus, kegiatan, visitorStats } from "@/lib/schema";

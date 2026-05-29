@@ -1,3 +1,4 @@
+export const runtime = "edge";
 import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans, Merriweather } from "next/font/google";
 import "./globals.css";

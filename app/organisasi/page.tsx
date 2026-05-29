@@ -1,3 +1,4 @@
+export const runtime = "edge";
 import { db } from "@/lib/db";
 import { artikel, users, organisasiPengurus, settings } from "@/lib/schema";
 import { desc, asc, and, eq, inArray } from "drizzle-orm";

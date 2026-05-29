@@ -1,4 +1,6 @@
 "use client";
+export const runtime = "edge";
+
 
 import { useState, useEffect } from "react";
 import { ArrowLeft, MapPin, Calendar, Heart, Globe, GraduationCap, Briefcase, Music, UtilityPole as Utensils, Star, ShieldCheck, Sparkles, Lock } from "lucide-react";
