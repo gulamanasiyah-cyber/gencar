@@ -11,9 +11,10 @@ export default function NewsTicker({ articles = [], customText }: { articles?: a
 
   if (!mounted) return null;
 
+  const defaultText = "Portal informasi dan berita kegiatan GENCAR BERKARYA";
   const displayText = customText || (articles.length > 0
-    ? articles.map(a => a.judul).join(' • ')
-    : "Portal informasi dan berita kegiatan generasi penerus jakarta barat 2");
+    ? `${defaultText} • ` + articles.map(a => a.judul).join(' • ')
+    : defaultText);
 
   return (
     <div className="breaking" suppressHydrationWarning>

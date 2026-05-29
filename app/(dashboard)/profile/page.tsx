@@ -2,6 +2,7 @@
 export const runtime = "edge";
 
 
+
 import Topbar from "@/components/Topbar";
 
 import { useState, useEffect, useRef } from "react";
@@ -336,7 +337,7 @@ export default function ProfilePage() {
                     <line x1="12" y1="16" x2="12" y2="12"></line>
                     <line x1="12" y1="8" x2="12.01" y2="8"></line>
                   </svg>
-                  <span>Data profil ini akan ditampilkan pada sistem administrasi JB2.ID.</span>
+                  <span>Data profil ini akan ditampilkan pada sistem administrasi GENCAR BERKARYA.</span>
                 </div>
 
                 <div className="form-group" style={{ textAlign: "center", marginBottom: 28 }}>
@@ -612,7 +613,7 @@ export default function ProfilePage() {
               <span>{data.desaNama || "Daerah"} &bull; {data.kelompokNama || "Jakarta Barat 2"}</span>
             </div>
             <div className="id-footer-right">
-              JB2.ID &copy; 2026
+              GENCAR BERKARYA &copy; 2026
             </div>
           </div>
           <div className="id-card-seal" />

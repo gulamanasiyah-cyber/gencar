@@ -22,7 +22,16 @@ export default function GlobalLoading() {
         {siteLogo && (
           <img src={siteLogo} alt="Logo" style={{ width: "32px", height: "32px", objectFit: "contain" }} />
         )}
-        JB2.ID
+        <span style={{
+          background: "linear-gradient(135deg, #dc2626, #eab308)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          backgroundClip: "text",
+          color: "transparent",
+          fontWeight: 900
+        }}>
+          GENCAR BERKARYA INDONESIA
+        </span>
       </div>
       <div className="loader-dots">
         <div className="loader-dot" />

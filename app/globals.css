@@ -1,12 +1,14 @@
 /* Next.js font optimizations used in layout.tsx */
 
 :root {
-  --primary: #2563eb;
-  --primary-dark: #1d4ed8;
-  --primary-light: #eff6ff;
+  --primary: #dc2626;
+  --primary-dark: #b91c1c;
+  --primary-dk: #b91c1c;
+  --primary-light: #fef2f2;
+  --primary-lt: #fef2f2;
   --secondary: #64748b;
   --success: #16a34a;
-  --warning: #d97706;
+  --warning: #eab308;
   --danger: #dc2626;
   --info: #0891b2;
 

@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
         });
 
         // --- AUTOMATIC USER ACCOUNT CREATION ---
-        let email = emailRaw ? String(emailRaw).toLowerCase().trim() : `${nomorUnik.toLowerCase()}@jb2.id`;
+        let email = emailRaw ? String(emailRaw).toLowerCase().trim() : `${nomorUnik.toLowerCase()}@gencarberkarya.id`;
         const passwordPlain = passRaw ? String(passRaw) : nomorUnik;
         const passwordHash = await bcrypt.hash(passwordPlain, 10);
 

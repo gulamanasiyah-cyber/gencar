@@ -199,7 +199,7 @@ export default function JadwalSholat() {
                   background: isNext ? "var(--primary-lt)" : "white",
                   borderRadius: "8px",
                   border: isNext ? "1px solid var(--primary)" : "1px solid var(--border)",
-                  boxShadow: isNext ? "0 4px 6px -1px rgba(37, 99, 235, 0.08)" : "none",
+                  boxShadow: isNext ? "0 4px 6px -1px rgba(220, 38, 38, 0.08)" : "none",
                   transition: "all 0.2s ease",
                 }}
               >

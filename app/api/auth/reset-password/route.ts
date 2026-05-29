@@ -1,4 +1,9 @@
 export const runtime = "edge";
+
+// Polyfill setImmediate for Edge Runtime
+if (typeof globalThis.setImmediate === 'undefined') {
+  (globalThis as any).setImmediate = (fn: any, ...args: any[]) => setTimeout(fn, 0, ...args);
+}
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/schema";
@@ -30,7 +35,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email tidak terdaftar dalam sistem" }, { status: 400 });
     }
 
-    const passwordHash = await bcrypt.hash(newPassword, 12);
+    const passwordHash = bcrypt.hashSync(newPassword, 12);
 
     await db.update(users)
       .set({ passwordHash })

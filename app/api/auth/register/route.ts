@@ -1,4 +1,9 @@
 export const runtime = "edge";
+
+// Polyfill setImmediate for Edge Runtime
+if (typeof globalThis.setImmediate === 'undefined') {
+  (globalThis as any).setImmediate = (fn: any, ...args: any[]) => setTimeout(fn, 0, ...args);
+}
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { users, generus, mandiri } from "@/lib/schema";
@@ -29,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Create User
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = bcrypt.hashSync(password, 12);
     const id = uuidv4();
     const assignedRole = kategori === "Usia Mandiri" ? "usia_mandiri" : "generus";
 

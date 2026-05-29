@@ -350,7 +350,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: an
         <div className="page-header">
           <div className="page-header-left">
             <h2>Selamat datang, {session?.name}!</h2>
-            <p>{isUser ? "Berikut ringkasan profil dan aktivitas Anda" : "Berikut ringkasan data sistem JB2.ID"}</p>
+            <p>{isUser ? "Berikut ringkasan profil dan aktivitas Anda" : "Berikut ringkasan data sistem GENCAR BERKARYA"}</p>
           </div>
         </div>
 

@@ -159,7 +159,7 @@ export default async function KegiatanPage() {
 
       <footer style={{ background: '#0f172a', padding: '40px 0', color: 'rgba(255,255,255,0.4)', textAlign: 'center', fontSize: '13px' }}>
         <div className="wrap">
-          © 2026 JB2.ID — Portal Digital Jakarta Barat 2
+          © 2026 GENCAR BERKARYA — Portal Digital Jakarta Barat 2
         </div>
       </footer>
     </>

@@ -12,10 +12,22 @@ const nextConfig = {
   images: {
     minimumCacheTTL: 60,
   },
-  webpack: (config) => {
+  webpack: (config, { isServer, nextRuntime }) => {
     config.infrastructureLogging = {
       level: 'error',
     };
+    if (nextRuntime === 'edge') {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        http: false,
+        https: false,
+        url: false,
+        crypto: false,
+        canvas: false,
+        path2d: false
+      };
+    }
     return config;
   },
   async headers() {

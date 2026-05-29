@@ -1,3 +1,8 @@
+// Polyfill setImmediate for Edge Runtime
+if (typeof globalThis.setImmediate === 'undefined') {
+  (globalThis as any).setImmediate = (fn: any, ...args: any[]) => setTimeout(fn, 0, ...args);
+}
+
 export const runtime = "edge";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -32,7 +37,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email atau password salah" }, { status: 401 });
     }
 
-    const validPassword = await bcrypt.compare(password, user.passwordHash);
+    const validPassword = bcrypt.compareSync(password, user.passwordHash);
     if (!validPassword) {
       return NextResponse.json({ error: "Email atau password salah" }, { status: 401 });
     }

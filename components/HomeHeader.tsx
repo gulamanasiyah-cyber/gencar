@@ -58,7 +58,7 @@ export default function HomeHeader({ session }: { session: any }) {
                 <div className="masthead-logo">J</div>
               )}
               <div className="masthead-text">
-                <div className="masthead-title">GENCAR BERKARYA</div>
+                <div className="masthead-title">GENCAR BERKARYA INDONESIA</div>
                 <div className="masthead-sub">Berita & Informasi Generasi Muda Cengkareng</div>
               </div>
             </div>
@@ -86,6 +86,39 @@ export default function HomeHeader({ session }: { session: any }) {
       </div>
 
       <style jsx>{`
+        .topbar {
+          background: var(--navy, #1e293b);
+          border-bottom: 2px solid var(--primary, #dc2626);
+        }
+        .tb-btn {
+          font-size: 11px; font-weight: 600; padding: 3px 12px;
+          border-radius: 3px; letter-spacing: 0.3px; transition: all 0.18s;
+          text-decoration: none; display: inline-block;
+        }
+        .tb-btn-ghost { color: rgba(255,255,255,0.55); border: 1px solid rgba(255,255,255,0.15); }
+        .tb-btn-ghost:hover { color: white; border-color: rgba(255,255,255,0.4); }
+        .tb-btn-fill { background: var(--primary, #dc2626); color: white; }
+        .tb-btn-fill:hover { background: var(--primary-dk, #b91c1c); }
+        .tb-btn-dashboard { background: var(--primary, #dc2626); color: white; }
+        .tb-btn-dashboard:hover { background: var(--primary-dk, #b91c1c); }
+        
+        .masthead {
+          background: var(--white, #fff);
+          border-bottom: 1px solid var(--border, #e2e8f0);
+          padding: 18px 0 14px;
+        }
+        
+        .ms-btn {
+          font-size: 12px; font-weight: 600; padding: 6px 16px; border-radius: 4px;
+          transition: all 0.18s; text-decoration: none; display: inline-block;
+        }
+        .ms-btn-border { border: 1.5px solid var(--border, #e2e8f0); color: var(--slate, #334155); }
+        .ms-btn-border:hover { border-color: var(--primary, #dc2626); color: var(--primary, #dc2626); }
+        .ms-btn-fill { background: var(--primary, #dc2626); color: white; }
+        .ms-btn-fill:hover { background: var(--primary-dk, #b91c1c); }
+        .ms-btn-dash { background: var(--navy, #1e293b); color: white; }
+        .ms-btn-dash:hover { background: var(--slate, #334155); }
+
         .topbar-inner {
           display: flex;
           justify-content: space-between;
@@ -113,7 +146,7 @@ export default function HomeHeader({ session }: { session: any }) {
           width: 52px;
           height: 52px;
           border-radius: 10px;
-          background: linear-gradient(135deg, var(--success-dk), var(--success));
+          background: linear-gradient(135deg, var(--primary), var(--warning));
           display: flex;
           align-items: center;
           justify-content: center;

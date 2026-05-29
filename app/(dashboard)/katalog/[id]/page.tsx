@@ -2,6 +2,7 @@
 export const runtime = "edge";
 
 
+
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -263,7 +264,7 @@ export default function KatalogDetailPage({ params }: { params: { id: string } }
               </div>
             </div>
             <div className="footer-copyright">
-              &copy; 2026 JB2.ID - Personal Branding Analytics
+              &copy; 2026 GENCAR BERKARYA - Personal Branding Analytics
             </div>
           </div>
         </div>
@@ -347,7 +348,7 @@ export default function KatalogDetailPage({ params }: { params: { id: string } }
               <span>{data.desaNama} &bull; {data.kelompokNama}</span>
             </div>
             <div className="id-footer-right">
-              JB2.ID &copy; 2026
+              GENCAR BERKARYA &copy; 2026
             </div>
           </div>
           <div className="id-card-seal" />

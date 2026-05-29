@@ -422,8 +422,8 @@ export default async function OrganisasiPage() {
       <footer className="footer">
         <div className="wrap">
           <div className="footer-inner">
-            <div className="footer-logo">JB2.ID</div>
-            <div className="footer-copy">© 2026 JB2.ID</div>
+            <div className="footer-logo">GENCAR BERKARYA</div>
+            <div className="footer-copy">© 2026 GENCAR BERKARYA</div>
           </div>
         </div>
       </footer>

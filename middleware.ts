@@ -12,7 +12,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Allow public artikel, berita, and organisasi page
-  if (pathname === "/" || pathname.startsWith("/artikel") || pathname.startsWith("/berita") || pathname.startsWith("/organisasi")) {
+  if (pathname === "/" || pathname.startsWith("/artikel") || pathname.startsWith("/berita") || pathname.startsWith("/organisasi") || pathname.endsWith("/rate")) {
     return NextResponse.next();
   }
 

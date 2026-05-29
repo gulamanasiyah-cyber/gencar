@@ -21,8 +21,8 @@ export default function HomeNavbar({ query, session }: { query?: string; session
       <div className="wrap">
         <div className="navbar-inner">
           {/* Mobile Toggle */}
-          <button 
-            className="landing-hamburger" 
+          <button
+            className="landing-hamburger"
             onClick={() => setIsOpen(!isOpen)}
             aria-label="Toggle menu"
           >
@@ -31,21 +31,21 @@ export default function HomeNavbar({ query, session }: { query?: string; session
 
           {/* Nav Links */}
           <div className={`nav-links ${isOpen ? "active" : ""}`}>
-            <a href="#beranda" className="nav-link nav-link-active" onClick={() => setIsOpen(false)}>Beranda</a>
-            <a href="#artikel" className="nav-link" onClick={() => setIsOpen(false)}>Artikel</a>
-            <a href="#berita" className="nav-link" onClick={() => setIsOpen(false)}>Berita</a>
-            
+            <Link href="/" className="nav-link nav-link-active" onClick={() => setIsOpen(false)}>Beranda</Link>
+            <Link href="/#artikel" className="nav-link" onClick={() => setIsOpen(false)}>Artikel</Link>
+            <Link href="/#berita" className="nav-link" onClick={() => setIsOpen(false)}>Berita</Link>
+
             {session && ["generus", "usia_mandiri"].includes(session.role) && (
               <Link href="/scan" className="nav-link" onClick={() => setIsOpen(false)}>Absensi</Link>
             )}
-            
+
             <div className="nav-item">
               <button className="nav-link dropdown-toggle" style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center', cursor: 'pointer', width: '100%', textAlign: 'left' }}>
                 Organisasi
                 <ChevronDown size={14} style={{ marginLeft: 6, opacity: 0.7 }} />
               </button>
               <div className="nav-dropdown">
-                <a href="#berita" className="nav-dropdown-link" onClick={() => setIsOpen(false)}>Kegiatan</a>
+                <Link href="/#kegiatan" className="nav-dropdown-link" onClick={() => setIsOpen(false)}>Kegiatan</Link>
                 <Link href="/organisasi" className="nav-dropdown-link" onClick={() => setIsOpen(false)}>Tentang Kami</Link>
               </div>
             </div>
@@ -69,7 +69,7 @@ export default function HomeNavbar({ query, session }: { query?: string; session
 
       <style jsx>{`
         .navbar {
-          background: var(--green-dk);
+          background: linear-gradient(135deg, var(--primary), var(--warning));
           position: sticky;
           top: 0;
           z-index: 1000;

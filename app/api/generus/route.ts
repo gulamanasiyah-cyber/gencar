@@ -392,7 +392,7 @@ export async function POST(request: NextRequest) {
 
     // AUTO-CREATE USER ACCOUNT for Generus role (in users)
     const { email: customEmail, password: customPassword } = body;
-    let finalEmail = customEmail ? customEmail.toLowerCase() : `${nomorUnik.toLowerCase()}@jb2.id`;
+    let finalEmail = customEmail ? customEmail.toLowerCase() : `${nomorUnik.toLowerCase()}@gencarberkarya.id`;
     const finalPassword = customPassword || nomorUnik;
     
     // Check email uniqueness in users

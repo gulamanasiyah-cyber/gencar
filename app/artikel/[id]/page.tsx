@@ -5,7 +5,7 @@ import { eq, desc, and, ne } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import HomeHeader from "@/components/HomeHeader";
-import HomeNav from "@/components/HomeNav";
+import HomeNavbar from "@/components/HomeNavbar";
 import NewsTicker from "@/components/NewsTicker";
 import { getSession } from "@/lib/auth";
 
@@ -197,7 +197,7 @@ export default async function PublicArtikelDetailPage({ params }: { params: { id
       `}</style>
 
       <HomeHeader session={session} />
-      <HomeNav />
+      <HomeNavbar session={session} />
       <NewsTicker customText="Pusat informasi dan berita kegiatan GENCAR BERKARYA. Punya karya tulis atau info kegiatan terbaru? Yuk, kontribusi! Hubungi Admin untuk memuat artikel atau berita Kamu di sini." />
 
       <main style={{ background: '#fff' }}>
@@ -209,7 +209,7 @@ export default async function PublicArtikelDetailPage({ params }: { params: { id
               
               <div className="journal-meta">
                 <div className="author-info">
-                  Oleh <span className="author-name">{author?.name || "Redaksi JB2.ID"}</span>
+                  Oleh <span className="author-name">{author?.name || "Redaksi GENCAR BERKARYA"}</span>
                 </div>
                 <div>
                   {data.publishedAt ? new Date(data.publishedAt).toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' }) : "-"}
@@ -271,7 +271,7 @@ export default async function PublicArtikelDetailPage({ params }: { params: { id
         <div className="wrap">
           <div className="footer-main">
             <div>
-              <span className="footer-logo-name">JB2.ID</span>
+              <span className="footer-logo-name">GENCAR BERKARYA</span>
               <p className="footer-desc">
                 Portal berita dan sistem manajemen digital resmi GENCAR BERKARYA.
                 Membangun generasi Profesional yang Religius.
@@ -295,7 +295,7 @@ export default async function PublicArtikelDetailPage({ params }: { params: { id
           </div>
           <hr className="footer-sep" />
           <div className="footer-bottom">
-            <span className="footer-copy">© 2026 JB2.ID — Hak Cipta Dilindungi</span>
+            <span className="footer-copy">© 2026 GENCAR BERKARYA — Hak Cipta Dilindungi</span>
             <div className="footer-bottom-right">
               <span className="footer-bottom-link">Kebijakan Privasi</span>
               <span className="footer-bottom-link">Syarat & Ketentuan</span>

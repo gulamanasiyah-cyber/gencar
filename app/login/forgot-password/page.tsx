@@ -2,6 +2,7 @@
 export const runtime = "edge";
 
 
+
 import { useState, useEffect, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -88,7 +89,7 @@ export default function ResetPasswordPage() {
             <img src={siteLogo} alt="Logo" style={{ width: "40px", height: "40px", objectFit: "contain" }} />
           )}
           <div style={{ textAlign: 'left' }}>
-            <h1 style={{ margin: 0, lineHeight: 1 }}>JB2.ID</h1>
+            <h1 style={{ margin: 0, lineHeight: 1, color: '#000' }}>GENCAR BERKARYA</h1>
             <p style={{ margin: 0, fontSize: '11px' }}>Sistem Manajemen JB2</p>
           </div>
         </div>

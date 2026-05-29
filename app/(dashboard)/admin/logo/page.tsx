@@ -2,6 +2,7 @@
 export const runtime = "edge";
 
 
+
 import Topbar from "@/components/Topbar";
 import { useState, useEffect, useRef } from "react";
 import Swal from "sweetalert2";
@@ -78,7 +79,7 @@ export default function AdminLogoPage() {
         <div className="page-header">
           <div className="page-header-left">
             <h2>Pengaturan Logo Situs</h2>
-            <p>Kelola logo resmi website JB2.ID</p>
+            <p>Kelola logo resmi website GENCAR BERKARYA</p>
           </div>
         </div>
 

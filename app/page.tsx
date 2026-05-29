@@ -2,7 +2,7 @@ export const runtime = "edge";
 export const dynamic = 'force-dynamic';
 import { db } from "@/lib/db";
 import { artikel, users, generus, kegiatan, visitorStats } from "@/lib/schema";
-import { eq, desc, and, inArray, sql, like } from "drizzle-orm";
+import { eq, desc, and, inArray, sql, like, gt } from "drizzle-orm";
 
 import Link from "next/link";
 import FeaturedArticleSlider from "@/components/FeaturedArticleSlider";
@@ -95,6 +95,27 @@ async function getPublishedArticles(limit = 12, tipe?: "artikel" | "berita", sea
       .limit(limit);
   } catch (error) {
     console.error("Error fetching articles:", error);
+    return [];
+  }
+}
+
+async function getPopularArticles(limit = 6) {
+  try {
+    return await db
+      .select({
+        id: artikel.id,
+        judul: artikel.judul,
+        coverImage: artikel.coverImage,
+        publishedAt: artikel.publishedAt,
+        ratingSum: artikel.ratingSum,
+        ratingCount: artikel.ratingCount,
+      })
+      .from(artikel)
+      .where(and(inArray(artikel.status, ["published", "approved"]), gt(artikel.ratingCount, 0)))
+      .orderBy(desc(artikel.ratingSum))
+      .limit(limit);
+  } catch (error) {
+    console.error("Error fetching popular articles:", error);
     return [];
   }
 }
@@ -205,14 +226,16 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
 
   const articles = await getPublishedArticles(20, "artikel", query);
   const news = await getPublishedArticles(10, "berita", query);
+  const popularArticles = await getPopularArticles(6);
+
+  const allCombined = [...articles, ...news]
+    .sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime());
 
   // Kombinasikan Artikel dan Berita untuk Slider Hero, urutkan berdasarkan tanggal terbaru
-  const combinedForHero = [...articles, ...news]
-    .sort((a, b) => new Date(b.publishedAt || 0).getTime() - new Date(a.publishedAt || 0).getTime())
-    .slice(0, 8);
+  const combinedForHero = allCombined.slice(0, 8);
 
   const heroSliderArticles = combinedForHero;
-  const gridArticles = articles.slice(0, 15); // Gunakan pool artikel untuk grid di bawahnya
+  const gridArticles = allCombined.slice(0, 15); // Gunakan pool gabungan untuk grid di bawahnya
 
   const recentKegiatan = await getRecentKegiatan(4, query);
 
@@ -240,14 +263,15 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
 
         /* ─── VARIABLES (Synced with globals.css) ─── */
         :root {
-          --primary:  #2563eb;
-          --primary-dk: #1d4ed8;
-          --primary-lt: #eff6ff;
+          --primary:  #dc2626;
+          --primary-dk: #b91c1c;
+          --primary-lt: #fef2f2;
           --secondary: #64748b;
           --success:  #16a34a;
           --success-dk: #15803d;
           --success-lt: #dcfce7;
           --danger:   #dc2626;
+          --warning:  #eab308;
           --navy:     #1e293b;
           --slate:    #334155;
           --gray:     #64748b;
@@ -265,7 +289,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
           --green:    var(--primary);
           --green-dk: var(--primary-dk);
           --green-lt: var(--primary-lt);
-          --red:      var(--danger);
+          --red:      var(--primary);
         }
 
         .wrap { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
@@ -294,8 +318,8 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
         .tb-btn-ghost:hover { color: white; border-color: rgba(255,255,255,0.4); }
         .tb-btn-fill { background: var(--green); color: white; }
         .tb-btn-fill:hover { background: var(--green-dk); }
-        .tb-btn-dashboard { background: #2563eb; color: white; }
-        .tb-btn-dashboard:hover { background: #1d4ed8; }
+        .tb-btn-dashboard { background: var(--primary); color: white; }
+        .tb-btn-dashboard:hover { background: var(--primary-dk); }
 
         /* ─────────────────────────────────
            MASTHEAD / HEADER
@@ -311,9 +335,9 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
         .masthead-brand { display: flex; align-items: center; gap: 14px; }
         .masthead-logo {
           width: 52px; height: 52px; border-radius: 10px;
-          background: linear-gradient(135deg, var(--success-dk), var(--success));
+          background: linear-gradient(135deg, var(--primary), var(--warning));
           display: flex; align-items: center; justify-content: center;
-          font-size: 26px; flex-shrink: 0; box-shadow: 0 4px 12px rgba(22,163,74,0.18);
+          font-size: 26px; flex-shrink: 0; box-shadow: 0 4px 12px rgba(220,38,38,0.25);
         }
         .masthead-title {
           font-family: var(--serif);
@@ -343,7 +367,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
            NAVBAR (Categories)
         ───────────────────────────────── */
         .navbar {
-          background: var(--green-dk);
+          background: linear-gradient(135deg, var(--primary), var(--warning));
           position: sticky; top: 0; z-index: 100;
           box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
@@ -429,7 +453,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
           display: flex; align-items: center;
         }
         .breaking-label {
-          background: var(--red); color: white;
+          background: var(--primary); color: white;
           padding: 8px 16px; font-size: 11px; font-weight: 800;
           text-transform: uppercase; letter-spacing: 1px;
           white-space: nowrap; z-index: 10;
@@ -490,7 +514,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
         .sect-hd-title::before {
           content: '';
           display: block; width: 3px; height: 18px;
-          background: var(--red); border-radius: 2px;
+          background: var(--primary); border-radius: 2px;
         }
         .sect-hd-more {
           font-size: 11.5px; font-weight: 600; color: var(--green);
@@ -536,7 +560,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
         }
         .art-row-img-placeholder {
           position: absolute; inset: 0;
-          background: linear-gradient(135deg, var(--green-lt), #f0fdf4);
+          background: linear-gradient(135deg, var(--primary-lt), #eff6ff);
           display: flex; align-items: center; justify-content: center; font-size: 26px;
         }
         .art-row-body { flex: 1; }
@@ -571,12 +595,12 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
         .art-card:hover .art-card-img img { transform: scale(1.05); }
         .art-card-img-placeholder {
           position: absolute; inset: 0;
-          background: linear-gradient(135deg, #dcfce7, #f0fdf4);
+          background: linear-gradient(135deg, var(--primary-lt), #eff6ff);
           display: flex; align-items: center; justify-content: center; font-size: 36px;
         }
         .art-card-body { padding: 14px; flex: 1; display: flex; flex-direction: column; }
         .art-card-cat {
-          font-size: 10px; font-weight: 800; color: var(--red);
+          font-size: 10px; font-weight: 800; color: var(--primary);
           text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 7px;
         }
         .art-card-title {
@@ -763,7 +787,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
           font-size: 12px; font-weight: 800; color: white;
           text-transform: uppercase; letter-spacing: 1px;
         }
-        .sw-head-bar { width: 3px; height: 13px; background: var(--red); border-radius: 2px; flex-shrink: 0; }
+        .sw-head-bar { width: 3px; height: 13px; background: var(--primary); border-radius: 2px; flex-shrink: 0; }
         .sw-body { padding: 0; }
         .sw-item {
           display: flex; gap: 12px; padding: 12px 16px;
@@ -802,7 +826,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
         .sw-thumb img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
         .sw-thumb-placeholder {
           position: absolute; inset: 0;
-          background: linear-gradient(135deg, #dcfce7, #f0fdf4);
+          background: linear-gradient(135deg, var(--primary-lt), #eff6ff);
           display: flex; align-items: center; justify-content: center; font-size: 18px;
         }
         .sw-thumb-body { flex: 1; }
@@ -816,7 +840,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
 
         /* CTA Widget */
         .sw-cta {
-          background: linear-gradient(135deg, var(--green-dk), var(--green));
+          background: linear-gradient(135deg, var(--primary), var(--warning));
           padding: 20px 16px; text-align: center;
         }
         .sw-cta-icon { font-size: 32px; margin-bottom: 10px; }
@@ -866,7 +890,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
         }
         .about-text {}
         .about-tag {
-          display: inline-block; background: var(--red); color: white;
+          display: inline-block; background: var(--primary); color: white;
           font-size: 10px; font-weight: 800; padding: 3px 10px; border-radius: 2px;
           text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px;
         }
@@ -906,7 +930,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
         .footer-brand-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
         .footer-logo-icon {
           width: 40px; height: 40px; border-radius: 8px;
-          background: linear-gradient(135deg, var(--success-dk), var(--success));
+          background: linear-gradient(135deg, var(--primary), var(--warning));
           display: flex; align-items: center; justify-content: center; font-size: 20px;
         }
         .footer-logo-name { font-family: var(--serif); font-size: 20px; font-weight: 900; color: white; }
@@ -1006,13 +1030,26 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
           .masthead-title { font-size: 18px; }
           .footer-logo-name { font-size: 18px; }
         }
+@media (max-width: 600px) {
+          .nav-links .nav-link:nth-child(n+5) { display: none; }
+          .masthead-cta { display: none; }
+          .art-list .art-row-img { width: 90px; }
+          .masthead-title { font-size: 22px; }
+          .masthead-logo { width: 44px; height: 44px; font-size: 20px; }
+          .main-layout { margin-top: 16px; gap: 20px; }
+        }
+        @media (max-width: 480px) {
+          .sect-hd-title { font-size: 15px; }
+          .masthead-title { font-size: 18px; }
+          .footer-logo-name { font-size: 18px; }
+        }
       `}</style>
 
       <HomeHeader session={session} />
       <HomeNavbar query={query} session={session} />
 
       {/* Animasi Teks Bergerak di Bawah Navigasi */}
-      <NewsTicker customText="Pusat informasi dan berita kegiatan Generasi Penerus Jakarta Barat 2. Punya karya tulis atau berita kegiatan terbaru? Yuk, kontribusi! Hubungi Admin untuk memuat artikel atau berita Kamu di sini." />
+      <NewsTicker articles={combinedForHero} />
 
 
 
@@ -1030,11 +1067,11 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                )}
             </div>
             <div className="hero-sidebar-wrapper" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
-               <div className="sect-hd" style={{ borderBottom: '2px solid var(--danger)' }}>
-                  <span className="sect-hd-title" style={{ borderLeft: '4px solid var(--danger)', paddingLeft: '8px', color: 'var(--danger)' }}>Terkini</span>
+               <div className="sect-hd" style={{ borderBottom: '2px solid var(--primary)' }}>
+                  <span className="sect-hd-title" style={{ borderLeft: '4px solid var(--primary)', paddingLeft: '8px', color: 'var(--primary)' }}>Artikel & Berita Terpopuler</span>
                </div>
                <div className="sidebar-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {news.slice(0, 6).map((item) => (
+                  {popularArticles.map((item) => (
                     <Link href={`/artikel/${item.id}`} key={item.id} className="sw-item-thumb" style={{ padding: '0', borderBottom: 'none' }}>
                       <div className="sw-thumb" style={{ width: '80px', height: '60px', borderRadius: '8px' }}>
                         {item.coverImage ? (
@@ -1093,8 +1130,8 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
           ) : (
             <>
               {/* TERBARU SECTION */}
-              <div className="sect-hd" style={{ marginTop: 10, borderBottom: '2px solid var(--danger)' }}>
-                <span className="sect-hd-title" style={{ borderLeft: '4px solid var(--danger)', paddingLeft: '8px', color: 'var(--danger)' }}>Artikel Terbaru</span>
+              <div className="sect-hd" style={{ marginTop: 10, borderBottom: '2px solid var(--primary)' }}>
+                <span className="sect-hd-title" style={{ borderLeft: '4px solid var(--primary)', paddingLeft: '8px', color: 'var(--primary)' }}>Artikel dan Berita Terbaru</span>
                 <Link href="/#artikel" className="sect-hd-more">Lihat Semua →</Link>
               </div>
               
@@ -1107,7 +1144,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                       ) : (
                         <div className="art-card-img-placeholder">📄</div>
                       )}
-                      <span className="art-card-badge" style={{ backgroundColor: 'var(--danger)' }}>{item.tipe}</span>
+                      <span className="art-card-badge" style={{ backgroundColor: 'var(--primary)' }}>{item.tipe}</span>
                     </div>
                     <div className="art-card-body" style={{ padding: '12px 0' }}>
                       <h3 className="art-card-title" style={{ fontSize: '15px' }}>{item.judul}</h3>
@@ -1120,8 +1157,8 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
               </div>
 
               {/* VIDEO SECTION */}
-              <div className="sect-hd" style={{ marginTop: 40, borderBottom: '2px solid var(--danger)' }}>
-                <span className="sect-hd-title" style={{ borderLeft: '4px solid var(--danger)', paddingLeft: '8px', color: 'var(--danger)' }}>Video Utama</span>
+              <div className="sect-hd" style={{ marginTop: 40, borderBottom: '2px solid var(--primary)' }}>
+                <span className="sect-hd-title" style={{ borderLeft: '4px solid var(--primary)', paddingLeft: '8px', color: 'var(--primary)' }}>Profil Kami</span>
               </div>
               <div className="hero-grid" style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: '12px', marginBottom: 40, boxShadow: 'none', border: '1px solid var(--border)' }}>
                 <iframe
@@ -1134,7 +1171,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                     border: 'none'
                   }}
                   src="https://www.youtube.com/embed/kkDN69-4zco?autoplay=1&mute=1&loop=1&playlist=kkDN69-4zco&controls=0&modestbranding=1&rel=0&vq=hd720"
-                  title="JB2.ID Hero Video"
+                  title="GENCAR BERKARYA Hero Video"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                 ></iframe>
@@ -1143,8 +1180,8 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
               {/* Lokasi Kami */}
               {lokasiNama && (
                 <div style={{ marginTop: 32, marginBottom: 40 }}>
-                  <div className="sect-hd" style={{ borderBottom: '2px solid var(--danger)' }}>
-                    <span className="sect-hd-title" style={{ borderLeft: '4px solid var(--danger)', paddingLeft: '8px', color: 'var(--danger)' }}>Lokasi Kami</span>
+                  <div className="sect-hd" style={{ borderBottom: '2px solid var(--primary)' }}>
+                    <span className="sect-hd-title" style={{ borderLeft: '4px solid var(--primary)', paddingLeft: '8px', color: 'var(--primary)' }}>Lokasi Kami</span>
                   </div>
                   <div style={{
                     background: "white",
@@ -1179,7 +1216,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                             borderRadius: "8px",
                             fontSize: "13px",
                             fontWeight: 600,
-                            backgroundColor: "var(--danger)",
+                            backgroundColor: "var(--primary)",
                             color: "white",
                           }}
                         >
@@ -1227,7 +1264,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
            
           {/* Widget: Statistik Pengunjung */}
           <div className="sidebar-widget" style={{ marginBottom: 28, borderRadius: '12px', border: '1px solid var(--border)' }}>
-            <div className="sw-head" style={{ background: 'var(--danger)' }}>
+            <div className="sw-head" style={{ background: 'var(--primary)' }}>
               <span className="sw-head-bar" style={{ background: '#fff' }}></span>
               <span className="sw-head-title">Statistik Pengunjung</span>
             </div>
@@ -1243,11 +1280,11 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
           <section id="kegiatan" className="sect-wrap" style={{
             marginTop: 0,
             background: '#fff',
-            borderTop: '3px solid var(--danger)',
+            borderTop: '3px solid var(--primary)',
             padding: '24px 16px',
             borderRadius: '0 0 12px 12px',
             border: '1px solid var(--border)',
-            borderTopColor: 'var(--danger)',
+            borderTopColor: 'var(--primary)',
             marginBottom: 28
           }}>
             <div className="sect-hd" style={{ borderBottom: 'none', marginBottom: 12 }}>
@@ -1256,8 +1293,8 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
             {recentKegiatan.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {recentKegiatan.map((k) => (
-                  <div key={k.id} className="keg-card" style={{ padding: '16px', height: 'auto', borderLeft: '3px solid var(--danger)' }}>
-                    <span className="keg-date-badge" style={{ marginBottom: 8, fontSize: '9px', background: 'var(--danger)', color: '#fff' }} suppressHydrationWarning>{formatDateShort(k.tanggal)}</span>
+                  <div key={k.id} className="keg-card" style={{ padding: '16px', height: 'auto', borderLeft: '3px solid var(--primary)' }}>
+                    <span className="keg-date-badge" style={{ marginBottom: 8, fontSize: '9px', background: 'var(--primary)', color: '#fff' }} suppressHydrationWarning>{formatDateShort(k.tanggal)}</span>
 
                     <h3 className="keg-title" style={{ fontSize: '15px', marginBottom: 6 }}>{k.judul}</h3>
                     <div className="keg-meta" style={{ fontSize: '10px' }}>
@@ -1266,7 +1303,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                     </div>
                   </div>
                 ))}
-                <Link href="/agenda" className="sect-hd-more" style={{ textAlign: 'center', width: '100%', display: 'block', background: 'var(--danger)', color: 'white', border: 'none' }}>Lihat Kalender →</Link>
+                <Link href="/agenda" className="sect-hd-more" style={{ textAlign: 'center', width: '100%', display: 'block', background: 'var(--primary)', color: 'white', border: 'none' }}>Lihat Kalender →</Link>
               </div>
             ) : (
               <div className="empty" style={{ border: 'none', padding: 20 }}>
@@ -1285,7 +1322,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
             marginBottom: 28
           }}>
             <div className="sect-hd" style={{ marginBottom: 20, borderBottom: 'none' }}>
-              <span className="sect-hd-title" style={{ borderLeft: '4px solid var(--danger)', paddingLeft: '8px', color: 'var(--danger)' }}>Visi & Misi</span>
+              <span className="sect-hd-title" style={{ borderLeft: '4px solid var(--primary)', paddingLeft: '8px', color: 'var(--primary)' }}>Visi & Misi</span>
             </div>
 
             <div>
@@ -1296,7 +1333,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                   "Mewujudkan Tri Sukses."
                 ].map((misi, i) => (
                   <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                    <div style={{ background: 'rgba(220,38,38,0.1)', color: 'var(--danger)', width: '20px', height: '20px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 800, flexShrink: 0 }}>
+                    <div style={{ background: 'rgba(37,99,235,0.1)', color: 'var(--primary)', width: '20px', height: '20px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 800, flexShrink: 0 }}>
                       {i + 1}
                     </div>
                     <p style={{ margin: 0, fontSize: '13px', lineHeight: '1.5', color: 'var(--navy)', fontWeight: 500 }}>{misi}</p>

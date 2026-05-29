@@ -155,6 +155,8 @@ export const artikel = sqliteTable("artikel", {
     .notNull()
     .references(() => users.id),
   publishedAt: text("published_at"),
+  ratingSum: integer("rating_sum").default(0),
+  ratingCount: integer("rating_count").default(0),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 });

@@ -2,6 +2,7 @@
 export const runtime = "edge";
 
 
+
 import { useState, useEffect, FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -95,8 +96,8 @@ function LoginContent() {
             <img src={siteLogo} alt="Logo" style={{ width: "40px", height: "40px", objectFit: "contain" }} />
           )}
           <div style={{ textAlign: 'left' }}>
-            <h1 style={{ margin: 0, lineHeight: 1 }}>JB2.ID</h1>
-            <p style={{ margin: 0, fontSize: '11px' }}>Sistem Manajemen Generus JB2</p>
+            <h1 style={{ margin: 0, lineHeight: 1, color: '#000' }}>GENCAR BERKARYA</h1>
+            <p style={{ margin: 0, fontSize: '11px' }}>Sistem Manajemen Generus Cengkareng</p>
           </div>
         </div>
 

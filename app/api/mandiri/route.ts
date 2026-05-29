@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
         await db.insert(users).values({
           id: uuidv4(),
           name: genData.nama,
-          email: `${genData.nomorUnik.toLowerCase()}@jb2.id`, // Default email since admin may not have it
+          email: `${genData.nomorUnik.toLowerCase()}@gencarberkarya.id`, // Default email since admin may not have it
           passwordHash,
           role: "peserta",
           generusId: generusId,

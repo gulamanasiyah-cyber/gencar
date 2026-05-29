@@ -2,6 +2,7 @@
 export const runtime = "edge";
 
 
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Html5QrcodeScanner } from "html5-qrcode";

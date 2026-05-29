@@ -11,6 +11,7 @@ interface Article {
   coverImage: string | null;
   publishedAt: string | null;
   authorName: string | null;
+  tipe?: string;
 }
 
 interface Props {
@@ -107,8 +108,8 @@ export default function FeaturedArticleSlider({ articles }: Props) {
           display: inline-flex;
           align-items: center;
           gap: 6px;
-          background: #eff6ff;
-          color: #2563eb;
+          background: var(--primary-lt);
+          color: var(--primary);
           font-size: 11px;
           font-weight: 800;
           padding: 6px 14px;
@@ -123,7 +124,7 @@ export default function FeaturedArticleSlider({ articles }: Props) {
           width: 6px;
           height: 6px;
           border-radius: 50%;
-          background: #2563eb;
+          background: var(--primary);
         }
         .fas-title {
           font-family: 'Inter', sans-serif;
@@ -187,11 +188,11 @@ export default function FeaturedArticleSlider({ articles }: Props) {
           box-shadow: 0 2px 4px rgba(0,0,0,0.02);
         }
         .nav-btn:hover {
-          background: #2563eb;
+          background: var(--primary);
           color: white;
-          border-color: #2563eb;
+          border-color: var(--primary);
           transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+          box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
         }
 
         @media (max-width: 1100px) {
@@ -226,7 +227,7 @@ export default function FeaturedArticleSlider({ articles }: Props) {
 
         <div className="fas-content">
           <Link href={`/artikel/${current.id}`} style={{ textDecoration: 'none' }}>
-            <div className="fas-badge">Artikel Utama</div>
+            <div className="fas-badge">{current.tipe === "berita" ? "Berita Utama" : "Artikel Utama"}</div>
             <h2 className="fas-title">{current.judul}</h2>
             <p className="fas-desc">{current.ringkasan || "Klik untuk membaca selengkapnya mengenai informasi penting ini."}</p>
             <div className="fas-meta">

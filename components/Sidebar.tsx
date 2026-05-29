@@ -310,7 +310,7 @@ export default function Sidebar({ user }: SidebarProps) {
             <img src={siteLogo} alt="Logo" className="sidebar-logo-img" />
           )}
           <div>
-            <h1>JB2.ID</h1>
+            <h1>GENCAR BERKARYA</h1>
             <p style={{ fontSize: "9px" }}>Sistem Manajemen Generus JB2</p>
           </div>
         </div>
