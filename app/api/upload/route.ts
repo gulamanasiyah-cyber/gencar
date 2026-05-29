@@ -1,8 +1,8 @@
 export const runtime = "edge";
 import { NextRequest, NextResponse } from "next/server";
 
-// Max file size: 8 MB (in bytes)
-const MAX_FILE_SIZE = 8 * 1024 * 1024;
+// Max file size: 2 MB (in bytes)
+const MAX_FILE_SIZE = 2 * 1024 * 1024;
 
 // Allowed MIME types for photo uploads
 const ALLOWED_MIME_TYPES = [

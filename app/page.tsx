@@ -980,7 +980,8 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
           .footer-main { grid-template-columns: 1fr 1fr; gap: 28px; }
           .nav-search { width: 280px; }
         }
-        @media (max-width: 768px) {
+                @media (max-width: 768px) {
+          .responsive-hero-grid { grid-template-columns: 1fr !important; }
           .hero-grid { grid-template-columns: 1fr; }
           .hero-side { display: none; }
           .art-grid { grid-template-columns: 1fr; }
@@ -991,6 +992,8 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
           .nav-search { width: 100%; }
         }
         @media (max-width: 600px) {
+
+@media (max-width: 600px) {
           .nav-links .nav-link:nth-child(n+5) { display: none; }
           .masthead-cta { display: none; }
           .art-list .art-row-img { width: 90px; }
@@ -1013,24 +1016,55 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
 
 
 
-      {/* ═══ MAIN LAYOUT ═══ */}
-      <div id="beranda" className="main-layout" suppressHydrationWarning>
+            {/* ═══ ANTARA STYLE HERO LAYOUT ═══ */}
+      <div className="wrap" style={{ marginTop: '24px', marginBottom: '24px' }}>
+         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 308px', gap: '28px', alignItems: 'start' }} className="responsive-hero-grid">
+            <div className="hero-slider-wrapper" style={{ minWidth: 0, height: '100%' }}>
+               {query ? (
+                  <div className="sect-hd">
+                    <span className="sect-hd-title">Hasil Pencarian: "{query}"</span>
+                    <Link href="/" className="sect-hd-more">Hapus Pencarian ×</Link>
+                  </div>
+               ) : (
+                  <FeaturedArticleSlider articles={heroSliderArticles} />
+               )}
+            </div>
+            <div className="hero-sidebar-wrapper" style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
+               <div className="sect-hd" style={{ borderBottom: '2px solid var(--danger)' }}>
+                  <span className="sect-hd-title" style={{ borderLeft: '4px solid var(--danger)', paddingLeft: '8px', color: 'var(--danger)' }}>Terkini</span>
+               </div>
+               <div className="sidebar-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {news.slice(0, 6).map((item) => (
+                    <Link href={`/artikel/${item.id}`} key={item.id} className="sw-item-thumb" style={{ padding: '0', borderBottom: 'none' }}>
+                      <div className="sw-thumb" style={{ width: '80px', height: '60px', borderRadius: '8px' }}>
+                        {item.coverImage ? (
+                          <img src={item.coverImage} alt={item.judul} />
+                        ) : (
+                          <div className="sw-thumb-placeholder">📰</div>
+                        )}
+                      </div>
+                      <div className="sw-thumb-body">
+                        <h4 className="sw-thumb-title" style={{ fontSize: '13px', marginBottom: '4px' }}>{item.judul}</h4>
+                        <div className="sw-thumb-date" suppressHydrationWarning>{timeAgo(item.publishedAt)}</div>
+                      </div>
+                    </Link>
+                  ))}
+               </div>
+            </div>
+         </div>
+      </div>
+
+      {/* ═══ MAIN CONTENT LAYOUT ═══ */}
+      <div id="beranda" className="main-layout" style={{ marginTop: 0 }} suppressHydrationWarning>
 
         {/* ─── LEFT COLUMN ─── */}
         <div>
-
           {query ? (
-            <div className="search-results-section">
-              <div className="sect-hd">
-                <span className="sect-hd-title">Hasil Pencarian: "{query}"</span>
-                <Link href="/" className="sect-hd-more">Hapus Pencarian ×</Link>
-              </div>
-
+             <div className="search-results-section">
               {articles.length === 0 && news.length === 0 ? (
                 <div className="empty">
                   <div className="empty-icon">🔍</div>
                   <p className="empty-text">Tidak ditemukan artikel atau berita dengan kata kunci "{query}".</p>
-                  <Link href="/" className="btn btn-primary" style={{ marginTop: 16, display: 'inline-block' }}>Lihat Semua Artikel</Link>
                 </div>
               ) : (
                 <div className="art-grid">
@@ -1049,19 +1083,47 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                         <p className="art-card-excerpt">{item.ringkasan}</p>
                         <div className="art-card-foot">
                           <span className="art-card-date">{formatDateShort(item.publishedAt)}</span>
-                          <span className="art-card-read">Baca Selengkapnya →</span>
                         </div>
                       </div>
                     </Link>
                   ))}
                 </div>
               )}
-              <div style={{ marginBottom: 40 }} />
-            </div>
+             </div>
           ) : (
             <>
-              {/* HERO Video Utama */}
-              <div className="hero-grid" style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: '12px' }}>
+              {/* TERBARU SECTION */}
+              <div className="sect-hd" style={{ marginTop: 10, borderBottom: '2px solid var(--danger)' }}>
+                <span className="sect-hd-title" style={{ borderLeft: '4px solid var(--danger)', paddingLeft: '8px', color: 'var(--danger)' }}>Artikel Terbaru</span>
+                <Link href="/#artikel" className="sect-hd-more">Lihat Semua →</Link>
+              </div>
+              
+              <div className="art-grid">
+                {gridArticles.map((item) => (
+                  <Link href={`/artikel/${item.id}`} key={item.id} className="art-card" style={{ border: 'none', background: 'transparent' }}>
+                    <div className="art-card-img" style={{ borderRadius: '12px' }}>
+                      {item.coverImage ? (
+                        <img src={item.coverImage} alt={item.judul} />
+                      ) : (
+                        <div className="art-card-img-placeholder">📄</div>
+                      )}
+                      <span className="art-card-badge" style={{ backgroundColor: 'var(--danger)' }}>{item.tipe}</span>
+                    </div>
+                    <div className="art-card-body" style={{ padding: '12px 0' }}>
+                      <h3 className="art-card-title" style={{ fontSize: '15px' }}>{item.judul}</h3>
+                      <div className="art-card-foot" style={{ borderTop: 'none', paddingTop: 0 }}>
+                        <span className="art-card-date">{formatDateShort(item.publishedAt)}</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+
+              {/* VIDEO SECTION */}
+              <div className="sect-hd" style={{ marginTop: 40, borderBottom: '2px solid var(--danger)' }}>
+                <span className="sect-hd-title" style={{ borderLeft: '4px solid var(--danger)', paddingLeft: '8px', color: 'var(--danger)' }}>Video Utama</span>
+              </div>
+              <div className="hero-grid" style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: '12px', marginBottom: 40, boxShadow: 'none', border: '1px solid var(--border)' }}>
                 <iframe
                   style={{
                     position: 'absolute',
@@ -1078,21 +1140,11 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                 ></iframe>
               </div>
 
-              {/* Section: Artikel Utama & Terbaru */}
-              <div className="sect-hd" style={{ marginTop: 24 }}>
-                <span className="sect-hd-title">Artikel Utama dan Terbaru</span>
-                <Link href="/#artikel" className="sect-hd-more">Lihat Semua →</Link>
-              </div>
-
-              <div style={{ marginBottom: 40 }}>
-                <FeaturedArticleSlider articles={articles.slice(0, 5)} />
-              </div>
-
               {/* Lokasi Kami */}
               {lokasiNama && (
-                <div style={{ marginTop: 32 }}>
-                  <div className="sect-hd">
-                    <span className="sect-hd-title">Lokasi Kami</span>
+                <div style={{ marginTop: 32, marginBottom: 40 }}>
+                  <div className="sect-hd" style={{ borderBottom: '2px solid var(--danger)' }}>
+                    <span className="sect-hd-title" style={{ borderLeft: '4px solid var(--danger)', paddingLeft: '8px', color: 'var(--danger)' }}>Lokasi Kami</span>
                   </div>
                   <div style={{
                     background: "white",
@@ -1100,7 +1152,6 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                     borderRadius: "16px",
                     padding: "20px",
                     boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
-                    marginBottom: 40
                   }}>
                     <div style={{
                       display: "flex",
@@ -1128,7 +1179,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                             borderRadius: "8px",
                             fontSize: "13px",
                             fontWeight: 600,
-                            backgroundColor: "var(--primary)",
+                            backgroundColor: "var(--danger)",
                             color: "white",
                           }}
                         >
@@ -1171,84 +1222,42 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
             </>
           )}
 
-
-          {/* AREA LAINNYA */}
-
         </div>
-        <div> {/* Wrapper untuk Sidebar agar semua item berada di kolom kanan yang sama */}
+        <div> {/* ─── RIGHT COLUMN ─── */}
+           
           {/* Widget: Statistik Pengunjung */}
-          <div className="sidebar-widget" style={{ marginBottom: 28 }}>
-            <div className="sw-head">
-              <span className="sw-head-bar" style={{ background: 'var(--success)' }}></span>
+          <div className="sidebar-widget" style={{ marginBottom: 28, borderRadius: '12px', border: '1px solid var(--border)' }}>
+            <div className="sw-head" style={{ background: 'var(--danger)' }}>
+              <span className="sw-head-bar" style={{ background: '#fff' }}></span>
               <span className="sw-head-title">Statistik Pengunjung</span>
             </div>
             <div className="sw-body" style={{ padding: '16px' }}>
               <div style={{ background: 'var(--bg)', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
-                <div style={{ fontSize: '24px', fontWeight: 900, color: 'var(--primary)' }} suppressHydrationWarning>{formattedTotal}</div>
+                <div style={{ fontSize: '24px', fontWeight: 900, color: 'var(--navy)' }} suppressHydrationWarning>{formattedTotal}</div>
                 <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--gray-lt)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Kunjungan</div>
               </div>
             </div>
           </div>
 
-          {/* ═══ BERITA SECTION ═══ */}
-          <section id="berita" className="sect-wrap" style={{
-            marginTop: 0,
-            background: '#fff',
-            borderTop: '1px solid var(--border)',
-            borderBottom: '1px solid var(--border)',
-            padding: '30px 16px',
-            borderRadius: '16px',
-            border: '1px solid var(--border)',
-            marginBottom: 28
-          }}>
-            <div className="sect-hd">
-              <span className="sect-hd-title">Berita Utama</span>
-            </div>
-            {news.length > 0 ? (
-              <div className="sidebar-list">
-                {news.map((item) => (
-                  <Link href={`/artikel/${item.id}`} key={item.id} className="sw-item-thumb" style={{ padding: '12px 0' }}>
-                    <div className="sw-thumb">
-                      {item.coverImage ? (
-                        <img src={item.coverImage} alt={item.judul} />
-                      ) : (
-                        <div className="sw-thumb-placeholder">📰</div>
-                      )}
-                    </div>
-                    <div className="sw-thumb-body">
-                      <h4 className="sw-thumb-title">{item.judul}</h4>
-                      <div className="sw-thumb-date" suppressHydrationWarning>{timeAgo(item.publishedAt)}</div>
-
-                    </div>
-                  </Link>
-                ))}
-                <Link href="/#berita" className="sect-hd-more" style={{ textAlign: 'center', width: '100%', display: 'block', marginTop: 10 }}>Lihat Semua Berita →</Link>
-              </div>
-            ) : (
-              <div className="empty" style={{ border: 'none', padding: 20 }}>
-                <p className="empty-text" style={{ fontSize: '11px' }}>Belum ada berita terbaru.</p>
-              </div>
-            )}
-          </section>
-
           {/* ═══ KEGIATAN SECTION ═══ */}
           <section id="kegiatan" className="sect-wrap" style={{
             marginTop: 0,
             background: '#fff',
-            borderTop: '1px solid var(--border)',
-            borderBottom: '1px solid var(--border)',
-            padding: '30px 16px',
-            borderRadius: '16px',
-            border: '1px solid var(--border)'
+            borderTop: '3px solid var(--danger)',
+            padding: '24px 16px',
+            borderRadius: '0 0 12px 12px',
+            border: '1px solid var(--border)',
+            borderTopColor: 'var(--danger)',
+            marginBottom: 28
           }}>
-            <div className="sect-hd">
-              <span className="sect-hd-title">Kegiatan</span>
+            <div className="sect-hd" style={{ borderBottom: 'none', marginBottom: 12 }}>
+              <span className="sect-hd-title" style={{ fontSize: '15px' }}>Agenda Kegiatan</span>
             </div>
             {recentKegiatan.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {recentKegiatan.map((k) => (
-                  <div key={k.id} className="keg-card" style={{ padding: '16px', height: 'auto' }}>
-                    <span className="keg-date-badge" style={{ marginBottom: 8, fontSize: '9px' }} suppressHydrationWarning>{formatDateShort(k.tanggal)}</span>
+                  <div key={k.id} className="keg-card" style={{ padding: '16px', height: 'auto', borderLeft: '3px solid var(--danger)' }}>
+                    <span className="keg-date-badge" style={{ marginBottom: 8, fontSize: '9px', background: 'var(--danger)', color: '#fff' }} suppressHydrationWarning>{formatDateShort(k.tanggal)}</span>
 
                     <h3 className="keg-title" style={{ fontSize: '15px', marginBottom: 6 }}>{k.judul}</h3>
                     <div className="keg-meta" style={{ fontSize: '10px' }}>
@@ -1257,7 +1266,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                     </div>
                   </div>
                 ))}
-                <Link href="/agenda" className="sect-hd-more" style={{ textAlign: 'center', width: '100%', display: 'block' }}>Lihat Kalender →</Link>
+                <Link href="/agenda" className="sect-hd-more" style={{ textAlign: 'center', width: '100%', display: 'block', background: 'var(--danger)', color: 'white', border: 'none' }}>Lihat Kalender →</Link>
               </div>
             ) : (
               <div className="empty" style={{ border: 'none', padding: 20 }}>
@@ -1268,14 +1277,15 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
 
           {/* ═══ VISI & MISI SECTION ═══ */}
           <section id="visi-misi" className="sect-wrap" style={{
-            marginTop: 28,
+            marginTop: 0,
             background: '#fff',
-            padding: '30px 16px',
-            borderRadius: '16px',
-            border: '1px solid var(--border)'
+            padding: '24px 16px',
+            borderRadius: '12px',
+            border: '1px solid var(--border)',
+            marginBottom: 28
           }}>
-            <div className="sect-hd" style={{ marginBottom: 20 }}>
-              <span className="sect-hd-title">Visi & Misi</span>
+            <div className="sect-hd" style={{ marginBottom: 20, borderBottom: 'none' }}>
+              <span className="sect-hd-title" style={{ borderLeft: '4px solid var(--danger)', paddingLeft: '8px', color: 'var(--danger)' }}>Visi & Misi</span>
             </div>
 
             <div>
@@ -1286,10 +1296,10 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                   "Mewujudkan Tri Sukses."
                 ].map((misi, i) => (
                   <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                    <div style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--primary)', width: '20px', height: '20px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 800, flexShrink: 0 }}>
+                    <div style={{ background: 'rgba(220,38,38,0.1)', color: 'var(--danger)', width: '20px', height: '20px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 800, flexShrink: 0 }}>
                       {i + 1}
                     </div>
-                    <p style={{ margin: 0, fontSize: '13px', lineHeight: '1.5', color: 'var(--text)', fontWeight: 500 }}>{misi}</p>
+                    <p style={{ margin: 0, fontSize: '13px', lineHeight: '1.5', color: 'var(--navy)', fontWeight: 500 }}>{misi}</p>
                   </div>
                 ))}
               </div>
@@ -1298,17 +1308,16 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
 
           {/* ═══ JADWAL SHOLAT SECTION ═══ */}
           <section id="jadwal-sholat" className="sect-wrap" style={{
-            marginTop: 28,
+            marginTop: 0,
             background: '#fff',
-            padding: '30px 16px',
-            borderRadius: '16px',
+            padding: '24px 16px',
+            borderRadius: '12px',
             border: '1px solid var(--border)'
           }}>
             <JadwalSholat />
           </section>
 
         </div>
-
       </div>
 
 
