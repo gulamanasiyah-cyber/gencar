@@ -32,10 +32,10 @@ const montserrat = Montserrat({
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | JB2.ID",
-    default: "JB2.ID - Sistem Manajemen Generus Jakarta Barat 2",
+    template: "%s | GENCAR",
+    default: "GENCAR - Sistem Manajemen Generus Cengkareng Berkarya",
   },
-  description: "Sistem Manajemen Generus Jakarta Barat 2, Kegiatan, dan Absensi JB2.ID",
+  description: "Sistem Manajemen Generus Cengkareng, Kegiatan, dan Absensi",
 };
 
 export default function RootLayout({

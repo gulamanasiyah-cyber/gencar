@@ -1,6 +1,5 @@
-export const runtime = "nodejs";
+export const runtime = "edge";
 import { NextRequest, NextResponse } from "next/server";
-import cloudinary from "@/lib/cloudinary";
 
 // Max file size: 8 MB (in bytes)
 const MAX_FILE_SIZE = 8 * 1024 * 1024;
@@ -38,38 +37,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
-
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    if (buffer.length > MAX_FILE_SIZE) {
+    if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: `Ukuran file terlalu besar (${(buffer.length / 1024 / 1024).toFixed(1)} MB). Maksimal 8 MB.` },
+        { error: `Ukuran file terlalu besar (${(file.size / 1024 / 1024).toFixed(1)} MB). Maksimal 8 MB.` },
         { status: 400 }
       );
     }
 
-    const result = await new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        {
-          folder: "uploads",
-          resource_type: "image",
-          transformation: [
-            { width: 800, height: 800, crop: "limit" },
-            { quality: "auto:good" },
-          ],
-        },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      ).end(buffer);
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+    if (!cloudName || !apiKey || !apiSecret) {
+      return NextResponse.json({ error: "Konfigurasi Cloudinary tidak ditemukan" }, { status: 500 });
+    }
+
+    const timestamp = Math.round(new Date().getTime() / 1000).toString();
+    const folder = "uploads";
+    const transformation = "c_limit,h_800,w_800/q_auto:good";
+    
+    // Sort parameters alphabetically for signature: folder, timestamp, transformation
+    const paramsToSign = `folder=${folder}&timestamp=${timestamp}&transformation=${transformation}${apiSecret}`;
+    
+    // Generate SHA-1 signature using Edge Crypto
+    const encoder = new TextEncoder();
+    const data = encoder.encode(paramsToSign);
+    const hashBuffer = await crypto.subtle.digest("SHA-1", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const signature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+    const cloudinaryFormData = new FormData();
+    cloudinaryFormData.append("file", file);
+    cloudinaryFormData.append("api_key", apiKey);
+    cloudinaryFormData.append("timestamp", timestamp);
+    cloudinaryFormData.append("signature", signature);
+    cloudinaryFormData.append("folder", folder);
+    cloudinaryFormData.append("transformation", transformation);
+    
+    const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+      method: "POST",
+      body: cloudinaryFormData,
     });
+
+    const result = await uploadRes.json();
+
+    if (!uploadRes.ok) {
+      throw new Error(result.error?.message || "Gagal mengupload foto");
+    }
 
     return NextResponse.json({
       success: true,
-      url: (result as any).secure_url,
-      public_id: (result as any).public_id,
+      url: result.secure_url,
+      public_id: result.public_id,
     });
   } catch (error: any) {
     console.error("Cloudinary upload error details:", error);
