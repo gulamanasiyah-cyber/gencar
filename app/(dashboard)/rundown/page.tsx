@@ -299,11 +299,22 @@ export default function RundownPage() {
       Swal.fire({ title: 'Membaca PDF...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
       
       try {
-        // @ts-ignore - Using stable CJS build for Next.js compatibility
-        const pdfjsModule = await import("pdfjs-dist/build/pdf");
-        const pdfjsLib = pdfjsModule.default || pdfjsModule;
+        // Load pdfjs-dist from CDN to avoid bundling Node.js builtins (fs, http, https, url)
+        // which cause build failures on Cloudflare Pages / Edge Runtime
+        const PDFJS_VERSION = "4.4.168";
+        const pdfjsLib: any = await new Promise((resolve, reject) => {
+          if ((window as any).pdfjsLib) {
+            resolve((window as any).pdfjsLib);
+            return;
+          }
+          const script = document.createElement("script");
+          script.src = `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build/pdf.min.js`;
+          script.onload = () => resolve((window as any).pdfjsLib);
+          script.onerror = () => reject(new Error("Failed to load PDF.js from CDN"));
+          document.head.appendChild(script);
+        });
         
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.js`;
 
         const arrayBuffer = await file.arrayBuffer();
         const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });

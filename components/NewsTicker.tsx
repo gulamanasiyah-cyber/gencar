@@ -11,10 +11,8 @@ export default function NewsTicker({ articles = [], customText }: { articles?: a
 
   if (!mounted) return null;
 
-  const defaultText = "Portal informasi dan berita kegiatan GENCAR BERKARYA";
-  const displayText = customText || (articles.length > 0
-    ? `${defaultText} • ` + articles.map(a => a.judul).join(' • ')
-    : defaultText);
+  const defaultText = "Portal informasi dan berita kegiatan Generus Muda Cengkareng • Mari berbagi inspirasi! Punya cerita atau liputan kegiatan menarik? Yuk, kirimkan karya tulismu dan jadilah kontributor artikel di website ini!";
+  const displayText = customText || defaultText;
 
   return (
     <div className="breaking" suppressHydrationWarning>
