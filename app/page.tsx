@@ -1323,10 +1323,10 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                 {siteLogo && (
                   <img src={siteLogo} alt="Logo" style={{ width: "32px", height: "32px", objectFit: "contain" }} />
                 )}
-                <span className="footer-logo-name">GENERASI PENERUS PC LDII JAKARTA BARAT 2</span>
+                <span className="footer-logo-name">GENCAR BERKARYA</span>
               </div>
               <p className="footer-desc">
-                Portal berita dan sistem manajemen digital resmi Generasi Penerus PC LDII Jakarta Barat 2.
+                Portal berita dan sistem manajemen digital resmi GENCAR BERKARYA.
                 Mewujudkan Generasi Penerus Profesional Religius.
               </p>
             </div>
@@ -1348,7 +1348,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
           </div>
           <hr className="footer-sep" />
           <div className="footer-bottom" suppressHydrationWarning>
-            <span className="footer-copy" suppressHydrationWarning>© 2026 GENERASI PENERUS PC LDII JAKARTA BARAT 2 — Hak Cipta Dilindungi</span>
+            <span className="footer-copy" suppressHydrationWarning>© {new Date().getFullYear()} GENCAR BERKARYA — Hak Cipta Dilindungi</span>
             <div className="footer-bottom-right">
               <span className="footer-bottom-link">Kebijakan Privasi</span>
               <span className="footer-bottom-link">Syarat & Ketentuan</span>

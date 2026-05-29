@@ -198,7 +198,7 @@ export default async function PublicArtikelDetailPage({ params }: { params: { id
 
       <HomeHeader session={session} />
       <HomeNav />
-      <NewsTicker customText="Pusat informasi dan berita kegiatan Generasi Penerus Jakarta Barat 2. Punya karya tulis atau info kegiatan terbaru? Yuk, kontribusi! Hubungi Admin untuk memuat artikel atau berita Kamu di sini." />
+      <NewsTicker customText="Pusat informasi dan berita kegiatan GENCAR BERKARYA. Punya karya tulis atau info kegiatan terbaru? Yuk, kontribusi! Hubungi Admin untuk memuat artikel atau berita Kamu di sini." />
 
       <main style={{ background: '#fff' }}>
         <div className="journal-wrap">
@@ -273,7 +273,7 @@ export default async function PublicArtikelDetailPage({ params }: { params: { id
             <div>
               <span className="footer-logo-name">JB2.ID</span>
               <p className="footer-desc">
-                Portal berita dan sistem manajemen digital resmi Generasi Penerus PC LDII Jakarta Barat 2.
+                Portal berita dan sistem manajemen digital resmi GENCAR BERKARYA.
                 Membangun generasi Profesional yang Religius.
               </p>
             </div>

@@ -1,6 +1,6 @@
 export const runtime = "edge";
 import type { Metadata } from "next";
-import { Inter, Plus_Jakarta_Sans, Merriweather } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans, Merriweather, Montserrat } from "next/font/google";
 import "./globals.css";
 import PageTransition from "@/components/PageTransition";
 import ThemeConfig from "@/components/ThemeConfig";
@@ -24,6 +24,12 @@ const merriweather = Merriweather({
   weight: ["300", "400", "700", "900"],
 });
 
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  variable: "--font-montserrat",
+  weight: ["400", "500", "600", "700", "800", "900"],
+});
+
 export const metadata: Metadata = {
   title: {
     template: "%s | JB2.ID",
@@ -42,7 +48,7 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.ico" />
       </head>
-      <body className={`${inter.variable} ${plusJakartaSans.variable} ${merriweather.variable}`} suppressHydrationWarning>
+      <body className={`${inter.variable} ${plusJakartaSans.variable} ${merriweather.variable} ${montserrat.variable}`} suppressHydrationWarning>
         <Suspense fallback={null}>
           <ThemeConfig />
           <PageTransition />
