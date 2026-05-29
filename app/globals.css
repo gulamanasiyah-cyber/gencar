@@ -568,6 +568,7 @@ textarea.form-control {
 /* ─── Table ──────────────────────────────────── */
 .table-wrapper {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 table {
@@ -1466,6 +1467,26 @@ tr:hover td {
     grid-template-columns: 1fr !important;
     gap: 16px !important;
   }
+  
+  .page-header-actions {
+    justify-content: stretch !important;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .filter-container {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .filter-container > div {
+    width: 100% !important;
+  }
+  .search-bar {
+    min-width: 100% !important;
+  }
+  .filter-selects {
+    flex-direction: column !important;
+  }
+
 
   /* Force stack any grid with 2 columns to 1 on mobile */
   [style*="grid-template-columns: 1fr 1fr"],

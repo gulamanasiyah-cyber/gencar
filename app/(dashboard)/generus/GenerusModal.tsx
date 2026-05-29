@@ -241,7 +241,7 @@ export default function GenerusModal({ item, onClose, onSaved, isMandiri }: Prop
                 Memuat data terbaru dari server...
               </div>
               {[0, 1, 2, 3].map((i) => (
-                <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div key={i} className="form-row" style={{ gap: 12 }}>
                   {[0, 1].map((j) => (
                     <div key={j} style={{
                       height: 42, borderRadius: 8,

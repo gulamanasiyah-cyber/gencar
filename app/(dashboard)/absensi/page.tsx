@@ -407,7 +407,7 @@ function AbsensiContent() {
             <p>Catat kehadiran menggunakan QR Code atau pencarian manual</p>
           </div>
           {selectedKegiatan && (
-            <div className="page-header-right" style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <div className="page-header-actions" style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
               <button className="btn btn-success" onClick={handleExportExcel} style={{ display: "flex", alignItems: "center", gap: "6px", flex: "1 1 auto" }} disabled={absensiList.length === 0}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
@@ -494,7 +494,7 @@ function AbsensiContent() {
               <span className="card-title">Pilih Kegiatan</span>
             </div>
             <div className="card-body">
-              <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
+              <div className="form-row" style={{ marginBottom: "16px" }}>
                 <div style={{ flex: 1 }}>
                   <label className="form-label" style={{ fontSize: "12px" }}>Bulan</label>
                   <select className="form-control" value={selectedBulan} onChange={(e) => { setSelectedBulan(e.target.value); setSelectedKegiatan(""); }}>
@@ -667,13 +667,16 @@ function AbsensiContent() {
 
           {/* Right: Attendance list */}
           <div className="card">
-            <div className="card-header" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "10px" }}>
-              <span className="card-title">Daftar Hadir</span>
+            <div className="card-header" style={{ display: "flex", flexDirection: "column", gap: "16px", alignItems: "stretch" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                <span className="card-title">Daftar Hadir</span>
+                <span className="badge badge-blue">{filteredAbsensiList.length} total hadir</span>
+              </div>
               
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", flex: 1, justifyContent: "flex-end" }}>
+              <div className="filter-selects-container" style={{ display: "flex", gap: "8px", flexWrap: "wrap", width: "100%" }}>
                 <select 
-                  className="form-control form-control-sm" 
-                  style={{ width: "auto", minWidth: "140px", padding: "4px 8px", fontSize: "13px" }}
+                  className="form-control" 
+                  style={{ flex: "1 1 180px", minWidth: "130px", padding: "8px 12px", fontSize: "13px", height: "38px", borderRadius: "8px" }}
                   value={tingkatFilter}
                   onChange={(e) => { setTingkatFilter(e.target.value); setSelectedKegiatan(""); }}
                 >
@@ -687,8 +690,8 @@ function AbsensiContent() {
 
                 {["admin", "pengurus_daerah", "kmm_daerah"].includes(userRole) && (
                   <select 
-                    className="form-control form-control-sm" 
-                    style={{ width: "auto", minWidth: "140px", padding: "4px 8px", fontSize: "13px" }}
+                    className="form-control" 
+                    style={{ flex: "1 1 180px", minWidth: "130px", padding: "8px 12px", fontSize: "13px", height: "38px", borderRadius: "8px" }}
                     value={desaFilter}
                     onChange={(e) => { setDesaFilter(e.target.value); setKelompokFilter(""); }}
                   >
@@ -699,8 +702,8 @@ function AbsensiContent() {
 
                 {["admin", "pengurus_daerah", "kmm_daerah", "desa"].includes(userRole) && (
                   <select 
-                    className="form-control form-control-sm" 
-                    style={{ width: "auto", minWidth: "140px", padding: "4px 8px", fontSize: "13px" }}
+                    className="form-control" 
+                    style={{ flex: "1 1 180px", minWidth: "130px", padding: "8px 12px", fontSize: "13px", height: "38px", borderRadius: "8px" }}
                     value={kelompokFilter}
                     onChange={(e) => setKelompokFilter(e.target.value)}
                   >
@@ -712,8 +715,8 @@ function AbsensiContent() {
                 )}
 
                 <select 
-                  className="form-control form-control-sm" 
-                  style={{ width: "auto", minWidth: "140px", padding: "4px 8px", fontSize: "13px" }}
+                  className="form-control" 
+                  style={{ flex: "1 1 180px", minWidth: "130px", padding: "8px 12px", fontSize: "13px", height: "38px", borderRadius: "8px" }}
                   value={kategoriFilter}
                   onChange={(e) => setKategoriFilter(e.target.value)}
                 >
@@ -722,8 +725,6 @@ function AbsensiContent() {
                   <option value="Usia Mandiri">Usia Mandiri</option>
                 </select>
               </div>
-
-              <span className="badge badge-blue">{filteredAbsensiList.length} total hadir</span>
             </div>
             
             {selectedKegiatan && filteredAbsensiList.length > 0 && (

@@ -295,7 +295,7 @@ export default function KegiatanPage() {
             <h2>Manajemen Kegiatan</h2>
             <p>Kelola kegiatan desa dan kelompok</p>
           </div>
-          <div className="page-header-right" style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          <div className="page-header-actions" style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
             <button className="btn btn-success" onClick={handleExportExcel} style={{ flex: "1 1 auto", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }} disabled={displayData.length === 0}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />

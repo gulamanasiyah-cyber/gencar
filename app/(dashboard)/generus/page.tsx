@@ -448,7 +448,7 @@ export default function GenerusPage() {
             <h2>Data Muda-Mudi</h2>
             <p>Total {total} muda-mudi terdaftar</p>
           </div>
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", width: "100%", justifyContent: "flex-end" }}>
+          <div className="page-header-actions" style={{ display: "flex", gap: "10px", flexWrap: "wrap", width: "100%", justifyContent: "flex-end" }}>
             {["admin", "pengurus_daerah", "kmm_daerah"].includes(userRole) && (
               <>
                 <button
@@ -527,7 +527,7 @@ export default function GenerusPage() {
               ))}
             </div>
 
-            <div style={{ display: "flex", gap: "12px", width: "100%", flexWrap: "wrap", alignItems: "center" }}>
+            <div className="filter-container" style={{ display: "flex", gap: "12px", width: "100%", flexWrap: "wrap", alignItems: "center" }}>
               <div className="search-bar" style={{ flex: 1, minWidth: "250px" }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
@@ -541,7 +541,7 @@ export default function GenerusPage() {
                 />
               </div>
 
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", width: "100%" }}>
+              <div className="filter-selects" style={{ display: "flex", gap: "8px", flexWrap: "wrap", width: "100%" }}>
                 <select 
                   className="form-control" 
                   style={{ flex: "1 1 140px" }}
