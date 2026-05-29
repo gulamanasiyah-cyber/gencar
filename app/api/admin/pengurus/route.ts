@@ -5,7 +5,6 @@ import { db } from "@/lib/db";
 import { organisasiPengurus } from "@/lib/schema";
 import { eq, asc, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
-import crypto from "crypto";
 
 export async function GET() {
   try {
