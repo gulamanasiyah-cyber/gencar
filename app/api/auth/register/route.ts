@@ -1,4 +1,3 @@
-export const runtime = "edge";
 
 // Polyfill setImmediate for Edge Runtime
 if (typeof globalThis.setImmediate === 'undefined') {

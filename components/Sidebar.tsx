@@ -350,7 +350,7 @@ export default function Sidebar({ user }: SidebarProps) {
                     className={`sidebar-link ${pathname.startsWith(item.href) && (item.href !== "/dashboard" || pathname === "/dashboard") ? "active" : ""}`}
                   >
                     {icons[item.icon]}
-                    {item.label}
+                    <span className="sidebar-link-text">{item.label}</span>
                   </Link>
                 ))}
               </div>
@@ -390,7 +390,7 @@ export default function Sidebar({ user }: SidebarProps) {
             style={{ width: "100%", background: "none", border: "none", cursor: "pointer" }}
           >
             {icons.logout}
-            {loggingOut ? "Keluar..." : "Keluar"}
+            <span className="sidebar-link-text">{loggingOut ? "Keluar..." : "Keluar"}</span>
           </button>
         </div>
       </aside>

@@ -1,5 +1,4 @@
 "use client";
-export const runtime = "edge";
 
 
 
@@ -395,103 +394,229 @@ export default function AdminUsersPage() {
             </div>
           </div>
 
-          <div className="table-wrapper">
-            {loading ? (
-              <div className="loading"><div className="spinner" /></div>
-            ) : data.length === 0 ? (
-               <div className="empty-state">
-                 <p>Tidak ada user ditemukan.</p>
-               </div>
-            ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Nama</th>
-                    <th>Email</th>
-                    <th>Profil</th>
-                    <th>Role</th>
-                    <th>Desa/Kelompok</th>
-                    <th>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.map((user) => (
-                    <tr key={user.id}>
-                      <td style={{ fontWeight: 500 }}>{user.name}</td>
-                       <td className="text-muted">{user.email}</td>
-                      <td>
-                        {["pengurus_daerah", "desa", "kelompok"].includes(user.role) ? (
-                          <span className="text-gray-400" style={{ fontSize: 10 }}>-</span>
-                        ) : (
-                          <div className="flex flex-col gap-1">
-                            {user.generusNomorUnik ? (
-                              <span className="badge badge-purple" style={{ fontSize: 10, padding: "2px 4px" }}>
-                                Generus: #{user.generusNomorUnik}
-                              </span>
-                            ) : (
-                              <span className="text-gray-400" style={{ fontSize: 10 }}>-</span>
-                            )}
-                            {user.isMandiri ? (
-                              <span className="badge badge-indigo" style={{ fontSize: 10, padding: "2px 4px" }}>
-                                Mandiri ({user.mandiriNomorUrut || "-"})
-                              </span>
-                            ) : null}
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <span className={`badge ${roleColors[user.role] || "badge-gray"}`}>
-                          {user.role}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="flex flex-col gap-1">
-                          {["desa", "kelompok", "creator", "generus", "usia_mandiri", "peserta", "tim_pnkb"].includes(user.role) ? (
-                            <>
-                              <select className="form-control" style={{ padding: "4px 8px", fontSize: 11, minWidth: 120 }} value={user.desaId || ""} onChange={(e) => updateUser(user.id, { desaId: Number(e.target.value) })}>
-                                <option value="">Pilih Desa</option>
-                                {desaList.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
-                              </select>
-                              {["kelompok", "creator", "generus", "usia_mandiri", "peserta", "tim_pnkb"].includes(user.role) && (
-                                <select className="form-control" style={{ padding: "4px 8px", fontSize: 11, minWidth: 120 }} value={user.kelompokId || ""} onChange={(e) => updateUser(user.id, { kelompokId: Number(e.target.value) })}>
-                                  <option value="">Pilih Kelompok</option>
-                                  {kelompokList.filter(k => !user.desaId || k.desaId === user.desaId).map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
-                                </select>
-                              )}
-                            </>
-                          ) : "-"}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="flex gap-2">
-                          <select className="form-control" style={{ padding: "4px 8px", fontSize: 12, width: "auto" }} value={user.role} onChange={(e) => updateUser(user.id, { role: e.target.value })}>
-                            <option value="generus">Generus</option>
-                            <option value="usia_mandiri">Usia Mandiri</option>
-                            <option value="peserta">Peserta (Mandiri)</option>
-                            <option value="creator">Creator/Penulis</option>
-                            <option value="kelompok">Pengurus Kelompok</option>
-                            <option value="desa">Pengurus Desa</option>
-                            <option value="pending">Menunggu (Pending)</option>
-                            <option value="admin">Admin Utama</option>
-                            <option value="pengurus_daerah">Pengurus Daerah</option>
-                            <option value="kmm_daerah">KMM Daerah</option>
-                            <option value="tim_pnkb">Tim PNKB</option>
-                            <option value="admin_romantic_room">Admin Romantic Room</option>
-                            <option value="admin_keuangan">Admin Keuangan</option>
-                            <option value="admin_kegiatan">Admin Kegiatan</option>
-                          </select>
-                          <div className="flex gap-2" style={{ marginTop: "8px" }}>
-                            <button className="btn btn-sm btn-secondary" onClick={() => handleOpenEditUser(user)}>Edit</button>
-                            <button className="btn btn-sm btn-danger" onClick={() => handleDelete(user.id)}>Hapus</button>
-                          </div>
-                        </div>
-                      </td>
+          {loading ? (
+            <div className="loading"><div className="spinner" /></div>
+          ) : data.length === 0 ? (
+             <div className="empty-state">
+               <p>Tidak ada user ditemukan.</p>
+             </div>
+          ) : (
+            <>
+              {/* 🖥️ Desktop Table View */}
+              <div className="table-wrapper desktop-only">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Nama</th>
+                      <th>Email</th>
+                      <th>Profil</th>
+                      <th>Role</th>
+                      <th>Desa/Kelompok</th>
+                      <th>Aksi</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+                  </thead>
+                  <tbody>
+                    {data.map((user) => (
+                      <tr key={user.id}>
+                        <td style={{ fontWeight: 500 }}>{user.name}</td>
+                        <td className="text-muted">{user.email}</td>
+                        <td>
+                          {["pengurus_daerah", "desa", "kelompok"].includes(user.role) ? (
+                            <span className="text-gray-400" style={{ fontSize: 10 }}>-</span>
+                          ) : (
+                            <div className="flex flex-col gap-1">
+                              {user.generusNomorUnik ? (
+                                <span className="badge badge-purple" style={{ fontSize: 10, padding: "2px 4px" }}>
+                                  Generus: #{user.generusNomorUnik}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400" style={{ fontSize: 10 }}>-</span>
+                              )}
+                              {user.isMandiri ? (
+                                <span className="badge badge-indigo" style={{ fontSize: 10, padding: "2px 4px" }}>
+                                  Mandiri ({user.mandiriNomorUrut || "-"})
+                                </span>
+                              ) : null}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <span className={`badge ${roleColors[user.role] || "badge-gray"}`}>
+                            {user.role}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="flex flex-col gap-1">
+                            {["desa", "kelompok", "creator", "generus", "usia_mandiri", "peserta", "tim_pnkb"].includes(user.role) ? (
+                              <>
+                                <select className="form-control" style={{ padding: "4px 8px", fontSize: 11, minWidth: 120 }} value={user.desaId || ""} onChange={(e) => updateUser(user.id, { desaId: Number(e.target.value) })}>
+                                  <option value="">Pilih Desa</option>
+                                  {desaList.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
+                                </select>
+                                {["kelompok", "creator", "generus", "usia_mandiri", "peserta", "tim_pnkb"].includes(user.role) && (
+                                  <select className="form-control" style={{ padding: "4px 8px", fontSize: 11, minWidth: 120 }} value={user.kelompokId || ""} onChange={(e) => updateUser(user.id, { kelompokId: Number(e.target.value) })}>
+                                    <option value="">Pilih Kelompok</option>
+                                    {kelompokList.filter(k => !user.desaId || k.desaId === user.desaId).map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                                  </select>
+                                )}
+                              </>
+                            ) : "-"}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="flex gap-2">
+                            <select className="form-control" style={{ padding: "4px 8px", fontSize: 12, width: "auto" }} value={user.role} onChange={(e) => updateUser(user.id, { role: e.target.value })}>
+                              <option value="generus">Generus</option>
+                              <option value="usia_mandiri">Usia Mandiri</option>
+                              <option value="peserta">Peserta (Mandiri)</option>
+                              <option value="creator">Creator/Penulis</option>
+                              <option value="kelompok">Pengurus Kelompok</option>
+                              <option value="desa">Pengurus Desa</option>
+                              <option value="pending">Menunggu (Pending)</option>
+                              <option value="admin">Admin Utama</option>
+                              <option value="pengurus_daerah">Pengurus Daerah</option>
+                              <option value="kmm_daerah">KMM Daerah</option>
+                              <option value="tim_pnkb">Tim PNKB</option>
+                              <option value="admin_romantic_room">Admin Romantic Room</option>
+                              <option value="admin_keuangan">Admin Keuangan</option>
+                              <option value="admin_kegiatan">Admin Kegiatan</option>
+                            </select>
+                            <div className="flex gap-2" style={{ marginTop: "8px" }}>
+                              <button className="btn btn-sm btn-secondary" onClick={() => handleOpenEditUser(user)}>Edit</button>
+                              <button className="btn btn-sm btn-danger" onClick={() => handleDelete(user.id)}>Hapus</button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 📱 Mobile Card View */}
+              <div className="mobile-only" style={{ display: "flex", flexDirection: "column", gap: "14px", padding: "12px 14px" }}>
+                {data.map((user) => (
+                  <div 
+                    key={user.id} 
+                    style={{ 
+                      padding: "16px", 
+                      display: "flex", 
+                      flexDirection: "column", 
+                      gap: "12px", 
+                      border: "1px solid var(--border)", 
+                      borderRadius: "14px", 
+                      background: "var(--bg-card)",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.02)"
+                    }}
+                  >
+                    {/* Header: Name, Email & Role Badge */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <h4 style={{ margin: "0 0 2px 0", fontSize: "14.5px", fontWeight: 600, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user.name}</h4>
+                        <span style={{ fontSize: "12px", color: "var(--muted)", wordBreak: "break-all" }}>{user.email}</span>
+                      </div>
+                      <span className={`badge ${roleColors[user.role] || "badge-gray"}`} style={{ fontSize: "9.5px", padding: "3px 8px", flexShrink: 0 }}>
+                        {user.role}
+                      </span>
+                    </div>
+
+                    {/* Profil details (e.g., Generus/Mandiri) */}
+                    {(user.generusNomorUnik || user.isMandiri) && (
+                      <div style={{ padding: "8px 10px", background: "var(--bg-light)", borderRadius: "8px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                        {user.generusNomorUnik && (
+                          <span className="badge badge-purple" style={{ fontSize: "9px", padding: "2px 6px" }}>
+                            Generus: #{user.generusNomorUnik}
+                          </span>
+                        )}
+                        {user.isMandiri && (
+                          <span className="badge badge-indigo" style={{ fontSize: "9px", padding: "2px 6px" }}>
+                            Mandiri ({user.mandiriNomorUrut || "-"})
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Desa/Kelompok assignments */}
+                    {["desa", "kelompok", "creator", "generus", "usia_mandiri", "peserta", "tim_pnkb"].includes(user.role) && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px", borderTop: "1px solid var(--border)", paddingTop: "10px" }}>
+                        <span style={{ fontSize: "10.5px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted)", letterSpacing: "0.2px" }}>Wilayah Tugas</span>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                          <div>
+                            <select 
+                              className="form-control" 
+                              style={{ padding: "6px 8px", fontSize: "11.5px", height: "34px", borderRadius: "8px" }} 
+                              value={user.desaId || ""} 
+                              onChange={(e) => updateUser(user.id, { desaId: Number(e.target.value) })}
+                            >
+                              <option value="">Pilih Desa</option>
+                              {desaList.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
+                            </select>
+                          </div>
+                          {["kelompok", "creator", "generus", "usia_mandiri", "peserta", "tim_pnkb"].includes(user.role) && (
+                            <div>
+                              <select 
+                                className="form-control" 
+                                style={{ padding: "6px 8px", fontSize: "11.5px", height: "34px", borderRadius: "8px" }} 
+                                value={user.kelompokId || ""} 
+                                onChange={(e) => updateUser(user.id, { kelompokId: Number(e.target.value) })}
+                              >
+                                <option value="">Pilih Kelompok</option>
+                                {kelompokList.filter(k => !user.desaId || k.desaId === user.desaId).map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Actions Area */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", borderTop: "1px solid var(--border)", paddingTop: "10px", marginTop: "2px" }}>
+                      <span style={{ fontSize: "10.5px", fontWeight: 700, textTransform: "uppercase", color: "var(--muted)", letterSpacing: "0.2px" }}>Ubah Role & Aksi</span>
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                        <select 
+                          className="form-control" 
+                          style={{ padding: "6px 10px", fontSize: "12px", height: "36px", flex: 1, borderRadius: "8px" }} 
+                          value={user.role} 
+                          onChange={(e) => updateUser(user.id, { role: e.target.value })}
+                        >
+                          <option value="generus">Generus</option>
+                          <option value="usia_mandiri">Usia Mandiri</option>
+                          <option value="peserta">Peserta (Mandiri)</option>
+                          <option value="creator">Creator/Penulis</option>
+                          <option value="kelompok">Pengurus Kelompok</option>
+                          <option value="desa">Pengurus Desa</option>
+                          <option value="pending">Menunggu (Pending)</option>
+                          <option value="admin">Admin Utama</option>
+                          <option value="pengurus_daerah">Pengurus Daerah</option>
+                          <option value="kmm_daerah">KMM Daerah</option>
+                          <option value="tim_pnkb">Tim PNKB</option>
+                          <option value="admin_romantic_room">Admin Romantic Room</option>
+                          <option value="admin_keuangan">Admin Keuangan</option>
+                          <option value="admin_kegiatan">Admin Kegiatan</option>
+                        </select>
+                        <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+                          <button 
+                            className="btn btn-secondary" 
+                            onClick={() => handleOpenEditUser(user)} 
+                            style={{ padding: "0 12px", height: "36px", fontSize: "12px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            className="btn btn-danger" 
+                            onClick={() => handleDelete(user.id)} 
+                            style={{ padding: "0 12px", height: "36px", fontSize: "12px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#ef4444", color: "white" }}
+                          >
+                            Hapus
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
 
           {totalPages > 1 && (
             <div className="pagination">

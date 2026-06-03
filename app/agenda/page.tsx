@@ -1,4 +1,3 @@
-export const runtime = "edge";
 import { db } from "@/lib/db";
 import { kegiatan, desa, kelompok } from "@/lib/schema";
 import { eq, desc } from "drizzle-orm";

@@ -3,7 +3,6 @@ if (typeof globalThis.setImmediate === 'undefined') {
   (globalThis as any).setImmediate = (fn: any, ...args: any[]) => setTimeout(fn, 0, ...args);
 }
 
-export const runtime = "edge";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/schema";

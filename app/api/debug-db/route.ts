@@ -1,4 +1,3 @@
-export const runtime = "edge";
 import { NextRequest, NextResponse } from "next/server";
 import { client } from "@/lib/db";
 
@@ -12,9 +11,11 @@ export async function GET(request: NextRequest) {
             tables 
         });
     } catch (error: any) {
+        console.error("DEBUG-DB ERROR:", error);
         return NextResponse.json({ 
             success: false, 
-            error: error.message 
+            error: error.message,
+            stack: error.stack
         }, { status: 500 });
     }
 }

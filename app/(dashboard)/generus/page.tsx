@@ -1,5 +1,4 @@
 "use client";
-export const runtime = "edge";
 
 
 
@@ -455,54 +454,64 @@ export default function GenerusPage() {
             {["admin", "pengurus_daerah", "kmm_daerah"].includes(userRole) && (
               <>
                 <button
-                  className="btn btn-secondary"
+                  className="btn btn-secondary icon-btn"
                   onClick={handleBagikanLink}
+                  title="Bagikan Link Form"
                 >
-                  🔗 Bagikan Link Form
+                  <span className="btn-icon">🔗</span>
+                  <span className="btn-label">Bagikan Link Form</span>
                 </button>
                 <button
-                  className="btn btn-secondary"
+                  className="btn btn-secondary icon-btn"
                   onClick={handleSettings}
+                  title="Atur Pendaftaran"
                 >
-                  ⚙️ Atur Pendaftaran
+                  <span className="btn-icon">⚙️</span>
+                  <span className="btn-label">Atur Pendaftaran</span>
                 </button>
               </>
             )}
             {userRole === "admin" && (
               <>
                 <button
-                  className="btn btn-danger"
+                  className="btn btn-danger icon-btn"
                   onClick={handleDeleteAll}
                   style={{ backgroundColor: "#ef4444", color: "white" }}
+                  title="Hapus Data Semua"
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: "4px" }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16, flexShrink: 0 }}>
                     <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" />
                   </svg>
-                  Hapus Data Semua
+                  <span className="btn-label">Hapus Semua</span>
                 </button>
                 <button
-                  className="btn btn-secondary"
+                  className="btn btn-secondary icon-btn"
                   onClick={handleExportPDF}
                   style={{ backgroundColor: "#10b981", color: "white" }}
+                  title="Database (PDF)"
                 >
-                  📄 Database (PDF)
+                  <span className="btn-icon">📄</span>
+                  <span className="btn-label">Database (PDF)</span>
                 </button>
               </>
             )}
             <button
-              className="btn btn-secondary"
+              className="btn btn-secondary icon-btn"
               onClick={() => setShowImport(true)}
+              title="Import Excel"
             >
-              📥 Import Excel
+              <span className="btn-icon">📥</span>
+              <span className="btn-label">Import Excel</span>
             </button>
             <button
-              className="btn btn-primary"
+              className="btn btn-primary icon-btn"
               onClick={() => { setEditItem(null); setShowModal(true); }}
+              title="Tambah Muda-Mudi"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16, flexShrink: 0 }}>
                 <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
               </svg>
-              Tambah Muda-Mudi
+              <span className="btn-label">Tambah Muda-Mudi</span>
             </button>
           </div>
         </div>
@@ -591,7 +600,7 @@ export default function GenerusPage() {
                     className="btn btn-sm btn-link" 
                     style={{ padding: 0, height: "auto" }}
                     onClick={() => { setStatusNikahFilter("all"); setKategoriFilter("all"); setDesaFilter(""); setKelompokFilter(""); setSearch(""); }}
-                 >
+               >
                     Reset Filter
                  </button>
                )}
@@ -611,26 +620,125 @@ export default function GenerusPage() {
                 <p>Klik &quot;Tambah Muda-Mudi&quot; untuk menambahkan data</p>
               </div>
             ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>Foto</th>
-                    <th>No. Unik</th>
-                    <th>Nama</th>
-                    <th>JK</th>
-                    <th>TTL / Umur</th>
-                    <th>Kategori</th>
-                    <th>Pend / Pekerjaan</th>
-                    <th>Desa</th>
-                    <th>Kelompok</th>
-                    <th>Alamat</th>
-                    <th>No. Telp</th>
-                    <th>Status</th>
-                    <th>Akun Login</th>
-                    <th>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <>
+                {/* 🖥️ Desktop Table View */}
+                <div className="table-wrapper desktop-only">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Foto</th>
+                        <th>No. Unik</th>
+                        <th>Nama</th>
+                        <th>JK</th>
+                        <th>TTL / Umur</th>
+                        <th>Kategori</th>
+                        <th>Pend / Pekerjaan</th>
+                        <th>Desa</th>
+                        <th>Kelompok</th>
+                        <th>Alamat</th>
+                        <th>No. Telp</th>
+                        <th>Status</th>
+                        <th>Akun Login</th>
+                        <th>Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.map((item) => {
+                        let umur = "-";
+                        if (item.tanggalLahir) {
+                          const diff = Date.now() - new Date(item.tanggalLahir).getTime();
+                          const age = Math.abs(new Date(diff).getUTCFullYear() - 1970);
+                          if (age >= 0) umur = `${age} Thn`;
+                        }
+                        return (
+                          <tr key={item.id}>
+                            <td>
+                              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#f1f5f9", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>
+                                {item.foto ? (
+                                  <img src={item.foto} alt="Avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                ) : (
+                                  item.nama.charAt(0)
+                                )}
+                              </div>
+                            </td>
+                            <td>
+                              <span style={{ fontFamily: "monospace", fontSize: 12 }}>{item.nomorUnik}</span>
+                            </td>
+                            <td style={{ fontWeight: 500 }}>{item.nama}</td>
+                            <td>{item.jenisKelamin === "L" ? "Laki-laki" : "Perempuan"}</td>
+                            <td>
+                              <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                                {item.tempatLahir ? item.tempatLahir + ", " : ""}{item.tanggalLahir || "-"}
+                              </div>
+                              <div style={{ fontWeight: 500 }}>{umur}</div>
+                            </td>
+                            <td>
+                              <span className={`badge ${item.kategori === "Usia Mandiri" ? "badge-purple" : "badge-blue"}`}>
+                                {item.kategori === "Generus" ? "Muda-Mudi" : (item.kategori || "Muda-Mudi")}
+                              </span>
+                            </td>
+                            <td style={{ maxWidth: "150px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              <span className={`badge ${kategoriColor[item.kategoriUsia] || "badge-gray"}`} style={{ display: "inline-block", marginBottom: (item.pendidikan || item.pekerjaan) ? "4px" : "0" }}>
+                                {item.kategoriUsia}
+                              </span>
+                              {(item.pendidikan || item.pekerjaan) && (
+                                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px", fontWeight: 500 }}>
+                                  {item.pendidikan || item.pekerjaan}
+                                </div>
+                              )}
+                            </td>
+                            <td>{item.desaNama || "-"}</td>
+                            <td>{item.kelompokNama || "-"}</td>
+                            <td style={{ maxWidth: "150px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.alamat || "-"}>
+                              {item.alamat || "-"}
+                            </td>
+                            <td style={{ fontSize: "11px" }}>
+                              <div style={{ color: "var(--text-main)", fontWeight: 500 }}>{item.noTelp || "-"}</div>
+                              {item.noTelpOrtu && <div style={{ color: "var(--text-muted)", marginTop: "2px" }}>Ortu: {item.noTelpOrtu}</div>}
+                            </td>
+                            <td>
+                              <span className={`badge ${item.statusNikah === "Menikah" ? "badge-green" : "badge-gray"}`}>
+                                {item.statusNikah || "Belum Menikah"}
+                              </span>
+                            </td>
+                            <td style={{ maxWidth: "150px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              <div style={{ fontSize: "11px", fontWeight: 500, color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: "2px" }}>
+                                {item.email ? (
+                                  <>
+                                    <span style={{ color: "var(--text-main)" }} title={item.email}>{item.email}</span>
+                                    <span style={{ color: "var(--color-primary)" }}>P: {item.passwordPlain || "***"}</span>
+                                  </>
+                                ) : (
+                                  <span>-</span>
+                                )}
+                              </div>
+                            </td>
+                            <td>
+                              <div className="flex gap-2">
+                                <button
+                                  className="btn btn-sm btn-secondary"
+                                  onClick={() => setShowQR(item)}
+                                  title="Lihat QR"
+                                >QR</button>
+                                <button
+                                  className="btn btn-sm btn-secondary"
+                                  onClick={() => { setEditItem(item); setShowModal(true); }}
+                                >Edit</button>
+                                <button
+                                  className="btn btn-sm btn-danger"
+                                  onClick={() => handleDelete(item.id)}
+                                >Hapus</button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* 📱 Mobile Card View */}
+                <div className="mobile-only" style={{ display: "flex", flexDirection: "column", gap: "14px", padding: "12px 0px" }}>
                   {data.map((item) => {
                     let umur = "-";
                     if (item.tanggalLahir) {
@@ -639,90 +747,117 @@ export default function GenerusPage() {
                       if (age >= 0) umur = `${age} Thn`;
                     }
                     return (
-                    <tr key={item.id}>
-                      <td>
-                        <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#f1f5f9", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>
-                          {item.foto ? (
-                            <img src={item.foto} alt="Avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                          ) : (
-                            item.nama.charAt(0)
+                      <div 
+                        key={item.id} 
+                        style={{ 
+                          padding: "16px", 
+                          display: "flex", 
+                          flexDirection: "column", 
+                          gap: "12px", 
+                          border: "1px solid var(--border)", 
+                          borderRadius: "14px", 
+                          background: "var(--bg-card)",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.02)"
+                        }}
+                      >
+                        {/* Header: Avatar, Name & Categories */}
+                        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                          <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#f1f5f9", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 600, flexShrink: 0 }}>
+                            {item.foto ? (
+                              <img src={item.foto} alt="Avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            ) : (
+                              item.nama.charAt(0)
+                            )}
+                          </div>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <h4 style={{ margin: "0 0 2px 0", fontSize: "14.5px", fontWeight: 600, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.nama}</h4>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "2px" }}>
+                              <span className={`badge ${item.kategori === "Usia Mandiri" ? "badge-purple" : "badge-blue"}`} style={{ fontSize: "8.5px", padding: "1px 5px" }}>
+                                {item.kategori === "Generus" ? "Muda-Mudi" : (item.kategori || "Muda-Mudi")}
+                              </span>
+                              <span className={`badge ${kategoriColor[item.kategoriUsia] || "badge-gray"}`} style={{ fontSize: "8.5px", padding: "1px 5px" }}>
+                                {item.kategoriUsia}
+                              </span>
+                              <span className={`badge ${item.statusNikah === "Menikah" ? "badge-green" : "badge-gray"}`} style={{ fontSize: "8.5px", padding: "1px 5px" }}>
+                                {item.statusNikah || "Belum Menikah"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Info Details Section */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", padding: "10px 12px", background: "var(--bg-light)", borderRadius: "10px", fontSize: "12px" }}>
+                          <div>
+                            <span style={{ color: "var(--text-muted)", display: "block", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", marginBottom: "2px" }}>No. Unik</span>
+                            <span style={{ fontFamily: "monospace", fontWeight: 600 }}>{item.nomorUnik}</span>
+                          </div>
+                          <div>
+                            <span style={{ color: "var(--text-muted)", display: "block", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", marginBottom: "2px" }}>Jenis Kelamin</span>
+                            <span>{item.jenisKelamin === "L" ? "Laki-laki" : "Perempuan"}</span>
+                          </div>
+                          <div>
+                            <span style={{ color: "var(--text-muted)", display: "block", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", marginBottom: "2px" }}>TTL / Umur</span>
+                            <span>{item.tempatLahir ? item.tempatLahir + ", " : ""}{item.tanggalLahir || "-"} ({umur})</span>
+                          </div>
+                          <div>
+                            <span style={{ color: "var(--text-muted)", display: "block", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", marginBottom: "2px" }}>Desa / Kelompok</span>
+                            <span>{item.desaNama || "-"} • {item.kelompokNama || "-"}</span>
+                          </div>
+                          {(item.pendidikan || item.pekerjaan) && (
+                            <div style={{ gridColumn: "span 2" }}>
+                              <span style={{ color: "var(--text-muted)", display: "block", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", marginBottom: "2px" }}>Pendidikan & Pekerjaan</span>
+                              <span>{item.pendidikan || "-"} / {item.pekerjaan || "-"}</span>
+                            </div>
+                          )}
+                          {item.noTelp && (
+                            <div style={{ gridColumn: "span 2" }}>
+                              <span style={{ color: "var(--text-muted)", display: "block", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", marginBottom: "2px" }}>Nomor Telepon</span>
+                              <span>{item.noTelp} {item.noTelpOrtu ? `(Ortu: ${item.noTelpOrtu})` : ""}</span>
+                            </div>
+                          )}
+                          {item.email && (
+                            <div style={{ gridColumn: "span 2" }}>
+                              <span style={{ color: "var(--text-muted)", display: "block", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", marginBottom: "2px" }}>Akun Login</span>
+                              <span style={{ wordBreak: "break-all" }}>{item.email} (P: {item.passwordPlain || "***"})</span>
+                            </div>
+                          )}
+                          {item.alamat && (
+                            <div style={{ gridColumn: "span 2" }}>
+                              <span style={{ color: "var(--text-muted)", display: "block", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", marginBottom: "2px" }}>Alamat</span>
+                              <span style={{ lineHeight: 1.4 }}>{item.alamat}</span>
+                            </div>
                           )}
                         </div>
-                      </td>
-                      <td>
-                        <span style={{ fontFamily: "monospace", fontSize: 12 }}>{item.nomorUnik}</span>
-                      </td>
-                      <td style={{ fontWeight: 500 }}>{item.nama}</td>
-                      <td>{item.jenisKelamin === "L" ? "Laki-laki" : "Perempuan"}</td>
-                      <td>
-                        <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                          {item.tempatLahir ? item.tempatLahir + ", " : ""}{item.tanggalLahir || "-"}
-                        </div>
-                        <div style={{ fontWeight: 500 }}>{umur}</div>
-                      </td>
-                      <td>
-                        <span className={`badge ${item.kategori === "Usia Mandiri" ? "badge-purple" : "badge-blue"}`}>
-                          {item.kategori === "Generus" ? "Muda-Mudi" : (item.kategori || "Muda-Mudi")}
-                        </span>
-                      </td>
-                      <td style={{ maxWidth: "150px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        <span className={`badge ${kategoriColor[item.kategoriUsia] || "badge-gray"}`} style={{ display: "inline-block", marginBottom: (item.pendidikan || item.pekerjaan) ? "4px" : "0" }}>
-                          {item.kategoriUsia}
-                        </span>
-                        {(item.pendidikan || item.pekerjaan) && (
-                          <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px", fontWeight: 500 }}>
-                            {item.pendidikan || item.pekerjaan}
-                          </div>
-                        )}
-                      </td>
-                      <td>{item.desaNama || "-"}</td>
-                      <td>{item.kelompokNama || "-"}</td>
-                      <td style={{ maxWidth: "150px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.alamat || "-"}>
-                        {item.alamat || "-"}
-                      </td>
-                      <td style={{ fontSize: "11px" }}>
-                        <div style={{ color: "var(--text-main)", fontWeight: 500 }}>{item.noTelp || "-"}</div>
-                        {item.noTelpOrtu && <div style={{ color: "var(--text-muted)", marginTop: "2px" }}>Ortu: {item.noTelpOrtu}</div>}
-                      </td>
-                      <td>
-                        <span className={`badge ${item.statusNikah === "Menikah" ? "badge-green" : "badge-gray"}`}>
-                          {item.statusNikah || "Belum Menikah"}
-                        </span>
-                      </td>
-                      <td style={{ maxWidth: "150px", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        <div style={{ fontSize: "11px", fontWeight: 500, color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: "2px" }}>
-                           {item.email ? (
-                             <>
-                               <span style={{ color: "var(--text-main)" }} title={item.email}>{item.email}</span>
-                               <span style={{ color: "var(--color-primary)" }}>P: {item.passwordPlain || "***"}</span>
-                             </>
-                           ) : (
-                             <span>-</span>
-                           )}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="flex gap-2">
+
+                        {/* Action buttons */}
+                        <div style={{ display: "flex", gap: "8px", borderTop: "1px solid var(--border)", paddingTop: "12px", justifyContent: "flex-end" }}>
                           <button
-                            className="btn btn-sm btn-secondary"
+                            className="btn btn-secondary"
                             onClick={() => setShowQR(item)}
-                            title="Lihat QR"
-                          >QR</button>
+                            style={{ padding: "6px 12px", fontSize: "11.5px", borderRadius: "8px" }}
+                          >
+                            QR
+                          </button>
                           <button
-                            className="btn btn-sm btn-secondary"
+                            className="btn btn-secondary"
                             onClick={() => { setEditItem(item); setShowModal(true); }}
-                          >Edit</button>
+                            style={{ padding: "6px 12px", fontSize: "11.5px", borderRadius: "8px" }}
+                          >
+                            Edit
+                          </button>
                           <button
-                            className="btn btn-sm btn-danger"
+                            className="btn btn-danger"
                             onClick={() => handleDelete(item.id)}
-                          >Hapus</button>
+                            style={{ padding: "6px 12px", fontSize: "11.5px", borderRadius: "8px", backgroundColor: "#ef4444", color: "white" }}
+                          >
+                            Hapus
+                          </button>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                </tbody>
-              </table>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </div>
 

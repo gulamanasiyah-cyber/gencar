@@ -1,4 +1,4 @@
-export const runtime = "edge";
+
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { mandiriKunjungan, generus, mandiriPemilihan, mandiriRooms, formPanitiaDanPengurus, mandiri, mandiriDesa } from "@/lib/schema";

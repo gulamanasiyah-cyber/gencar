@@ -13,7 +13,7 @@ function findRouteFiles(dir, fileList = []) {
     const fullPath = path.join(dir, file);
     if (fs.statSync(fullPath).isDirectory()) {
       findRouteFiles(fullPath, fileList);
-    } else if (file === 'page.tsx' || file === 'layout.tsx') {
+    } else if (file === 'page.tsx' || file === 'layout.tsx' || file === 'route.ts' || file === 'route.js') {
       fileList.push(fullPath);
     }
   }
@@ -25,8 +25,8 @@ let modifiedCount = 0;
 
 for (const route of routes) {
   let content = fs.readFileSync(route, 'utf-8');
-  if (content.includes('export const runtime = "edge";')) {
-    content = content.replace(/export const runtime = "edge";\n?/g, '');
+  if (content.includes('runtime = "edge"') || content.includes("runtime = 'edge'")) {
+    content = content.replace(/export const runtime = ['"]edge['"];?\n?/g, '');
     fs.writeFileSync(route, content, 'utf-8');
     modifiedCount++;
     console.log(`Removed edge runtime from: ${route}`);

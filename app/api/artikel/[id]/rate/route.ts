@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { artikel } from "@/lib/schema";
 import { eq, sql } from "drizzle-orm";
 
-export const runtime = "edge";
+
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
