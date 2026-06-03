@@ -5,7 +5,10 @@ import { mandiriKegiatan, settings } from "@/lib/schema";
 import { eq, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-real-ip") || "unknown";
+  const userAgent = request.headers.get("user-agent") || "unknown";
+  console.log(`[API_SETTINGS] GET from IP: ${ip}, UA: ${userAgent}`);
   try {
     // Explicitly select columns to avoid potential schema mismatch or reserved word issues
     const data = await db
