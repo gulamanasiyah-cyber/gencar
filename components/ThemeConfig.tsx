@@ -12,16 +12,19 @@ export default function ThemeConfig() {
         const data = await res.json();
         
         if (data.site_logo) {
-            setLogo(data.site_logo);
-            // Also update favicon if possible
-            const favicon = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
-            if (favicon) favicon.href = data.site_logo;
-            
-            // Set global logo for components to use
-            (window as any).__SITE_LOGO__ = data.site_logo;
-            
-            // Dispatch event for components to re-render logo
-            window.dispatchEvent(new Event('site-logo-updated'));
+            const hasChanged = data.site_logo !== (window as any).__SITE_LOGO__;
+            if (hasChanged) {
+                setLogo(data.site_logo);
+                // Also update favicon if possible
+                const favicon = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
+                if (favicon) favicon.href = data.site_logo;
+                
+                // Set global logo for components to use
+                (window as any).__SITE_LOGO__ = data.site_logo;
+                
+                // Dispatch event for components to re-render logo
+                window.dispatchEvent(new Event('site-logo-updated'));
+            }
         }
       } catch (e) {
         console.error("Theme apply error:", e);
