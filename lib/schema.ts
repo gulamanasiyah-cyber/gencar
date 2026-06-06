@@ -216,7 +216,7 @@ export const mandiriAbsensi = sqliteTable("mandiri_absensi", {
     .notNull()
     .references(() => generus.id),
   timestamp: text("timestamp").default(sql`(datetime('now'))`),
-  keterangan: text("keterangan", { enum: ["hadir", "izin", "alpha"] }).default("hadir"),
+  keterangan: text("keterangan", { enum: ["hadir", "izin", "alpha", "pulang"] }).default("hadir"),
 }, (table) => ({
   kegiatanIdIdx: index("mandiri_absensi_kegiatan_id_idx").on(table.kegiatanId),
   generusIdIdx: index("mandiri_absensi_generus_id_idx").on(table.generusId),
@@ -261,6 +261,7 @@ export const mandiriRooms = sqliteTable("mandiri_rooms", {
   nama: text("nama").notNull(),
   pemilihanId: text("pemilihan_id").references(() => mandiriPemilihan.id, { onDelete: "set null" }),
   status: text("status", { enum: ["Kosong", "Terisi"] }).default("Kosong"),
+  startedAt: text("started_at"),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 });
@@ -440,6 +441,17 @@ export const organisasiPengurus = sqliteTable("organisasi_pengurus", {
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 });
 
+export const saranMasukan = sqliteTable("saran_masukan", {
+  id: text("id").primaryKey(),
+  untuk: text("untuk").notNull(),
+  saran: text("saran").notNull(),
+  nama: text("nama"),
+  isAnonim: integer("is_anonim").default(0),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type SaranMasukan = typeof saranMasukan.$inferSelect;
+
 export type NewDesa = typeof desa.$inferInsert;
 export type NewKelompok = typeof kelompok.$inferInsert;
 export type NewUser = typeof users.$inferInsert;
@@ -467,3 +479,4 @@ export type NewIdCardBuilderData = typeof idCardBuilderData.$inferInsert;
 export type NewFormPanitiaDanPengurus = typeof formPanitiaDanPengurus.$inferInsert;
 export type NewMandiriKomentar = typeof mandiriKomentar.$inferInsert;
 export type NewOrganisasiPengurus = typeof organisasiPengurus.$inferInsert;
+export type NewSaranMasukan = typeof saranMasukan.$inferInsert;

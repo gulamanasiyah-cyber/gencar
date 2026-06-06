@@ -78,7 +78,7 @@ export default function AdminLogoPage() {
         <div className="page-header">
           <div className="page-header-left">
             <h2>Pengaturan Logo Situs</h2>
-            <p>Kelola logo resmi website GENCAR BERKARYA</p>
+            <p>Kelola logo resmi website GENCAR</p>
           </div>
         </div>
 

@@ -128,7 +128,7 @@ export default function MaintenanceView() {
         
         <h1>Kami Akan Segera Kembali</h1>
         <p>
-          Mohon maaf atas ketidaknyamanannya. Saat ini website GENCAR BERKARYA sedang dalam proses pemeliharaan sistem rutin untuk meningkatkan layanan kami.
+          Mohon maaf atas ketidaknyamanannya. Saat ini website GENCAR sedang dalam proses pemeliharaan sistem rutin untuk meningkatkan layanan kami.
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>

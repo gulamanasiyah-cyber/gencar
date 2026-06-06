@@ -1,8 +1,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriRooms, mandiriPemilihan, mandiriKunjungan } from "@/lib/schema";
-import { eq, sql } from "drizzle-orm";
+import { mandiriRooms, mandiriPemilihan, mandiriKunjungan, mandiriKegiatan, mandiriAbsensi } from "@/lib/schema";
+import { eq, sql, and, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 
 export async function PATCH(
@@ -26,6 +26,34 @@ export async function PATCH(
             const pemilihan = await db.query.mandiriPemilihan.findFirst({
                 where: eq(mandiriPemilihan.id, pemilihanId)
             });
+
+            if (!pemilihan) {
+                return NextResponse.json({ error: "Data Pemilihan tidak ditemukan" }, { status: 404 });
+            }
+
+            // 0.1 Check if either participant has logged out/gone home
+            const latestActivity = await db.select({ id: mandiriKegiatan.id })
+                .from(mandiriKegiatan)
+                .orderBy(desc(mandiriKegiatan.tanggal))
+                .limit(1);
+            const kegiatanId = latestActivity[0]?.id;
+
+            if (kegiatanId) {
+                const checkAttendance = await db.select({
+                    generusId: mandiriAbsensi.generusId,
+                    keterangan: mandiriAbsensi.keterangan
+                })
+                .from(mandiriAbsensi)
+                .where(and(
+                    eq(mandiriAbsensi.kegiatanId, kegiatanId),
+                    sql`${mandiriAbsensi.generusId} IN (${pemilihan.pengirimId}, ${pemilihan.penerimaId})`
+                ));
+
+                const goneHomeParticipant = checkAttendance.find(a => a.keterangan === "pulang");
+                if (goneHomeParticipant) {
+                    return NextResponse.json({ error: "Salah satu peserta sudah logout/pulang dan tidak dapat masuk ruangan." }, { status: 400 });
+                }
+            }
 
             if (pemilihan) {
                 // Insert history for both pengirim and penerima
@@ -55,6 +83,7 @@ export async function PATCH(
                 .set({ 
                     pemilihanId, 
                     status: "Terisi",
+                    startedAt: null,
                     updatedAt: sql`(datetime('now'))`
                 })
                 .where(eq(mandiriRooms.id, roomId));
@@ -83,6 +112,7 @@ export async function PATCH(
                 .set({ 
                     pemilihanId: null, 
                     status: "Kosong",
+                    startedAt: null,
                     updatedAt: sql`(datetime('now'))`
                 })
                 .where(eq(mandiriRooms.id, roomId));
@@ -110,6 +140,16 @@ export async function PATCH(
                 .set({ 
                     pemilihanId: null, 
                     status: "Kosong",
+                    startedAt: null,
+                    updatedAt: sql`(datetime('now'))`
+                })
+                .where(eq(mandiriRooms.id, roomId));
+
+            return NextResponse.json({ success: true });
+        } else if (action === "start") {
+            await db.update(mandiriRooms)
+                .set({
+                    startedAt: sql`(datetime('now'))`,
                     updatedAt: sql`(datetime('now'))`
                 })
                 .where(eq(mandiriRooms.id, roomId));

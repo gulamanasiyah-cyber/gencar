@@ -33,7 +33,7 @@ const montserrat = Montserrat({
 export const metadata: Metadata = {
   title: {
     template: "%s | GENCAR",
-    default: "GENCAR - Sistem Manajemen Generus Cengkareng Berkarya",
+    default: "GENCAR - Sistem Manajemen Generus Cengkareng",
   },
   description: "Sistem Manajemen Generus Cengkareng, Kegiatan, dan Absensi",
 };

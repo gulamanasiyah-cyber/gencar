@@ -110,6 +110,19 @@ export default function AdminPengurusPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validasi ukuran file (maksimal 2MB)
+    const MAX_SIZE = 2 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      Swal.fire({
+        icon: "error",
+        title: "Ukuran File Terlalu Besar",
+        text: `Ukuran file foto (${(file.size / 1024 / 1024).toFixed(1)} MB) melebihi batas maksimal 2 MB. Silakan pilih file lain atau kompres foto Anda terlebih dahulu.`,
+        confirmButtonColor: "#ef4444",
+      });
+      e.target.value = ""; // Reset input file
+      return;
+    }
+
     const formData = new FormData();
     formData.append("file", file);
 

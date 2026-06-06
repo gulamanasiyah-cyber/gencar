@@ -50,7 +50,7 @@ export default function HomeHeader({ session }: { session: any }) {
                 </div>
               )}
               <div className="hh-brand-text">
-                <div className="hh-brand-name">GENCAR BERKARYA</div>
+                <div className="hh-brand-name">GENCAR</div>
                 <div className="hh-brand-tagline">Portal Berita & Informasi Generus Muda Cengkareng</div>
               </div>
             </div>

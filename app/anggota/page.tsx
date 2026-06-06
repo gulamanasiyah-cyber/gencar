@@ -142,7 +142,7 @@ export default async function MembersPage() {
 
       <footer style={{ background: '#0f172a', padding: '60px 0', color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>
         <div className="wrap">
-          <div style={{ fontWeight: 800, color: '#fff', fontSize: 20, marginBottom: 24 }}>GENCAR BERKARYA</div>
+          <div style={{ fontWeight: 800, color: '#fff', fontSize: 20, marginBottom: 24 }}>GENCAR</div>
           <p>© 2026 Jakarta Barat 2 — Semua profil verified oleh sistem.</p>
         </div>
       </footer>

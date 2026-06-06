@@ -536,7 +536,7 @@ export default function MandiriDaftarPage() {
             <img src={siteLogo} alt="Logo" style={{ width: "40px", height: "40px", objectFit: "contain" }} />
           )}
           <div style={{ textAlign: 'left' }}>
-            <h1 style={{ margin: 0, lineHeight: 1 }}>GENCAR BERKARYA</h1>
+            <h1 style={{ margin: 0, lineHeight: 1 }}>GENCAR</h1>
             <p style={{ margin: 0, fontSize: '11px' }}>Sistem Manajemen Mandiri JB2</p>
           </div>
         </div>
@@ -624,7 +624,7 @@ export default function MandiriDaftarPage() {
                 <label className="form-label">No. Telepon / WhatsApp <span className="required">*</span></label>
                 <input name="noTelp" className="form-control" value={form.noTelp} onChange={handleChange} required placeholder="08xx-xxxx-xxxx" />
                 <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px", lineHeight: "1.3" }}>
-                  Minimal 11 atau 12 angka. Nomor ini tidak akan disebarluaskan, hanya digunakan untuk keperluan kordinasi antara panitia dengan peserta.
+                  Minimal 11 atau 12 angka. Nomor ini tidak akan disebarluaskan, hanya untuk keperluan komunikasi antara muda/i dengan pengurus.
                 </p>
               </div>
               <div className="form-group">

@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: `Ukuran file terlalu besar (${(file.size / 1024 / 1024).toFixed(1)} MB). Maksimal 8 MB.` },
+        { error: `Ukuran file terlalu besar (${(file.size / 1024 / 1024).toFixed(1)} MB). Maksimal 2 MB.` },
         { status: 400 }
       );
     }
@@ -85,9 +85,14 @@ export async function POST(request: NextRequest) {
       throw new Error(result.error?.message || "Gagal mengupload foto");
     }
 
+    let secureUrl = result.secure_url;
+    if (secureUrl && /\.(heic|heif)$/i.test(secureUrl)) {
+      secureUrl = secureUrl.replace(/\.(heic|heif)$/i, ".jpg");
+    }
+
     return NextResponse.json({
       success: true,
-      url: result.secure_url,
+      url: secureUrl,
       public_id: result.public_id,
     });
   } catch (error: any) {

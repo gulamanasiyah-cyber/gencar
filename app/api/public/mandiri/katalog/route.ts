@@ -2,8 +2,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, settings, formPanitiaDanPengurus, mandiriKegiatan, mandiriAbsensi } from "@/lib/schema";
-import { eq, and, or, like, sql, isNull, isNotNull, desc } from "drizzle-orm";
+import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, settings, formPanitiaDanPengurus, mandiriKegiatan, mandiriAbsensi, mandiriPemilihan } from "@/lib/schema";
+import { eq, and, or, like, sql, isNull, isNotNull, desc, inArray } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,9 +12,11 @@ export async function GET(request: NextRequest) {
     const sToken = searchParams.get("sessionToken");
 
     let isAuthorizedModifier = false;
+    let currentParticipantId: string | null = null;
     if (nUnik && sToken) {
       const authCheck = await db.select({ 
-        role: formPanitiaDanPengurus.dapukan 
+        role: formPanitiaDanPengurus.dapukan,
+        generusId: generus.id
       })
       .from(generus)
       .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
@@ -22,8 +24,22 @@ export async function GET(request: NextRequest) {
       .where(and(eq(generus.nomorUnik, nUnik), eq(mandiri.lastSessionToken, sToken)))
       .limit(1);
 
-      if (authCheck[0]?.role === "Panitia" || authCheck[0]?.role === "Pengurus") {
-        isAuthorizedModifier = true;
+      if (authCheck.length > 0) {
+        currentParticipantId = authCheck[0].generusId;
+        if (authCheck[0].role === "Panitia" || authCheck[0].role === "Pengurus") {
+          isAuthorizedModifier = true;
+        }
+      }
+    }
+    
+    // Robust fallback to find participant ID by nomorUnik if token query fails
+    if (!currentParticipantId && nUnik) {
+      const fallbackCheck = await db.select({ id: generus.id })
+        .from(generus)
+        .where(eq(generus.nomorUnik, nUnik))
+        .limit(1);
+      if (fallbackCheck.length > 0) {
+        currentParticipantId = fallbackCheck[0].id;
       }
     }
 
@@ -53,6 +69,7 @@ export async function GET(request: NextRequest) {
     const mandiriDesaId = searchParams.get("mandiriDesaId") || "all";
     const desaId = searchParams.get("desaId") || "all";
     const kota = searchParams.get("kota") || "all";
+    const onlyChosen = searchParams.get("onlyChosen") === "true";
 
     // Build conditions
     const conditions: any[] = [];
@@ -126,6 +143,22 @@ export async function GET(request: NextRequest) {
     // Only show those who have attended
     conditions.push(eq(mandiriAbsensi.kegiatanId, kegiatanId));
 
+    if (onlyChosen) {
+      if (currentParticipantId) {
+        const chosenIdsQuery = await db.select({ id: mandiriPemilihan.penerimaId })
+          .from(mandiriPemilihan)
+          .where(eq(mandiriPemilihan.pengirimId, currentParticipantId));
+        const chosenIds = chosenIdsQuery.map(c => c.id);
+        if (chosenIds.length > 0) {
+          conditions.push(inArray(generus.id, chosenIds));
+        } else {
+          conditions.push(eq(generus.id, "none"));
+        }
+      } else {
+        conditions.push(eq(generus.id, "none"));
+      }
+    }
+
     const finalWhere = conditions.length > 0 ? and(...conditions) : undefined;
 
     // Fetch Data
@@ -156,11 +189,12 @@ export async function GET(request: NextRequest) {
         role: users.role,
         nomorUrut: mandiri.nomorUrut,
         panitiaStatus: formPanitiaDanPengurus.dapukan,
+        keterangan: mandiriAbsensi.keterangan,
         selectedCount: sql<number>`(
           SELECT count(*) 
           FROM mandiri_pemilihan 
           WHERE mandiri_pemilihan.penerima_id = ${generus.id} 
-          AND (mandiri_pemilihan.status = 'Menunggu' OR mandiri_pemilihan.status = 'Diterima')
+          AND (mandiri_pemilihan.status = 'Menunggu' OR mandiri_pemilihan.status = 'Diterima' OR mandiri_pemilihan.status = 'Selesai')
         )`.mapWith(Number)
       })
       .from(generus)

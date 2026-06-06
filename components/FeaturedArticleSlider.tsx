@@ -319,7 +319,7 @@ export default function FeaturedArticleSlider({ articles }: Props) {
               <div className="fas-placeholder-icon-wrap">
                 <span className="fas-placeholder-icon">🕌</span>
               </div>
-              <span className="fas-placeholder-logo-text">Gencar Berkarya</span>
+              <span className="fas-placeholder-logo-text">Gencar</span>
             </div>
           )}
         </div>

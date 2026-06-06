@@ -183,7 +183,7 @@ export default function GenerusDaftarPage() {
             <img src={siteLogo} alt="Logo" style={{ width: "40px", height: "40px", objectFit: "contain" }} />
           )}
           <div style={{ textAlign: 'left' }}>
-            <h1 style={{ margin: 0, lineHeight: 1 }}>GENCAR BERKARYA</h1>
+            <h1 style={{ margin: 0, lineHeight: 1 }}>GENCAR</h1>
             <p style={{ margin: 0, fontSize: '11px' }}>Sistem Manajemen Muda-Mudi JB2</p>
           </div>
         </div>

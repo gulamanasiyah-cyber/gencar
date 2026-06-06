@@ -197,7 +197,7 @@ export default async function PublicArtikelDetailPage({ params }: { params: { id
 
       <HomeHeader session={session} />
       <HomeNavbar session={session} />
-      <NewsTicker customText="Pusat informasi dan berita kegiatan GENCAR BERKARYA. Punya karya tulis atau info kegiatan terbaru? Yuk, kontribusi! Hubungi Admin untuk memuat artikel atau berita Kamu di sini." />
+      <NewsTicker customText="Pusat informasi dan berita kegiatan GENCAR. Punya karya tulis atau info kegiatan terbaru? Yuk, kontribusi! Hubungi Admin untuk memuat artikel atau berita Kamu di sini." />
 
       <main style={{ background: '#fff' }}>
         <div className="journal-wrap">
@@ -208,7 +208,7 @@ export default async function PublicArtikelDetailPage({ params }: { params: { id
               
               <div className="journal-meta">
                 <div className="author-info">
-                  Oleh <span className="author-name">{author?.name || "Redaksi GENCAR BERKARYA"}</span>
+                  Oleh <span className="author-name">{author?.name || "Redaksi GENCAR"}</span>
                 </div>
                 <div>
                   {data.publishedAt ? new Date(data.publishedAt).toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' }) : "-"}
@@ -270,9 +270,9 @@ export default async function PublicArtikelDetailPage({ params }: { params: { id
         <div className="wrap">
           <div className="footer-main">
             <div>
-              <span className="footer-logo-name">GENCAR BERKARYA</span>
+              <span className="footer-logo-name">GENCAR</span>
               <p className="footer-desc">
-                Portal berita dan sistem manajemen digital resmi GENCAR BERKARYA.
+                Portal berita dan sistem manajemen digital resmi GENCAR.
                 Membangun generasi Profesional yang Religius.
               </p>
             </div>
@@ -294,7 +294,7 @@ export default async function PublicArtikelDetailPage({ params }: { params: { id
           </div>
           <hr className="footer-sep" />
           <div className="footer-bottom">
-            <span className="footer-copy">© 2026 GENCAR BERKARYA — Hak Cipta Dilindungi</span>
+            <span className="footer-copy">© 2026 GENCAR — Hak Cipta Dilindungi</span>
             <div className="footer-bottom-right">
               <span className="footer-bottom-link">Kebijakan Privasi</span>
               <span className="footer-bottom-link">Syarat & Ketentuan</span>

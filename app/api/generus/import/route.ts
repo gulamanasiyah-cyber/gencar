@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
         });
 
         // --- AUTOMATIC USER ACCOUNT CREATION ---
-        let email = emailRaw ? String(emailRaw).toLowerCase().trim() : `${nomorUnik.toLowerCase()}@gencarberkarya.id`;
+        let email = emailRaw ? String(emailRaw).toLowerCase().trim() : `${nomorUnik.toLowerCase()}@gencar.com`;
         const passwordPlain = passRaw ? String(passRaw) : nomorUnik;
         const passwordHash = await bcrypt.hash(passwordPlain, 10);
 

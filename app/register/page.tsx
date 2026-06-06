@@ -173,7 +173,7 @@ export default function RegisterPage() {
             <img src={siteLogo} alt="Logo" style={{ width: "40px", height: "40px", objectFit: "contain" }} />
           )}
           <div style={{ textAlign: 'left' }}>
-            <h1 style={{ margin: 0, lineHeight: 1, color: '#000' }}>GENCAR BERKARYA</h1>
+            <h1 style={{ margin: 0, lineHeight: 1, color: '#000' }}>GENCAR</h1>
             <p style={{ margin: 0, fontSize: '11px' }}>Sistem Manajemen Generus Cengkareng</p>
           </div>
         </div>
@@ -341,6 +341,9 @@ export default function RegisterPage() {
               placeholder="Contoh: 081234567890"
               required
             />
+            <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px", lineHeight: "1.3" }}>
+              Nomor ini tidak akan disebarluaskan, hanya untuk keperluan komunikasi antara muda/i dengan pengurus.
+            </p>
           </div>
 
           <div className="form-group">
@@ -357,6 +360,9 @@ export default function RegisterPage() {
               placeholder="Contoh: 081234567891"
               required
             />
+            <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px", lineHeight: "1.3" }}>
+              Nomor ini tidak akan disebarluaskan, hanya untuk keperluan komunikasi antara muda/i dengan pengurus.
+            </p>
           </div>
 
           <div className="form-group">

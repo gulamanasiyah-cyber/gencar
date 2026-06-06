@@ -358,7 +358,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: an
             <p className="db-hero-subtitle">
               {isUser
                 ? "Berikut ringkasan profil dan aktivitas Anda hari ini"
-                : "Selamat datang di sistem GENCAR BERKARYA. Berikut ringkasan data terkini."}
+                : "Selamat datang di sistem GENCAR. Berikut ringkasan data terkini."}
             </p>
             <div className="db-hero-pills">
               <span className="db-hero-pill">

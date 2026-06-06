@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiri, generus, desa, kelompok, mandiriDesa, mandiriKelompok, users } from "@/lib/schema";
+import { mandiri, generus, desa, kelompok, mandiriDesa, mandiriKelompok, users, mandiriKegiatan, mandiriAbsensi } from "@/lib/schema";
 import { eq, and, or, like, sql, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
@@ -51,6 +51,10 @@ export async function GET(request: NextRequest) {
       orderClause = sql`${mandiri.nomorUrut} DESC`;
     }
 
+    // Get the latest activity
+    const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
+    const kegiatanId = latestActivity[0]?.id || "";
+
     // Optimized Data Query - Based on MANDIRI table
     const dataQuery = db
       .select({
@@ -70,6 +74,9 @@ export async function GET(request: NextRequest) {
         foto: generus.foto,
         createdAt: mandiri.createdAt,
         userId: users.id,
+        isHadir: sql<number>`CASE WHEN ${mandiriAbsensi.id} IS NOT NULL THEN 1 ELSE 0 END`,
+        waktuHadir: mandiriAbsensi.timestamp,
+        keterangan: mandiriAbsensi.keterangan,
       })
       .from(mandiri)
       .innerJoin(generus, eq(mandiri.generusId, generus.id))
@@ -78,17 +85,26 @@ export async function GET(request: NextRequest) {
       .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
       .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id))
+      .leftJoin(mandiriAbsensi, and(
+        eq(generus.id, mandiriAbsensi.generusId),
+        eq(mandiriAbsensi.kegiatanId, kegiatanId)
+      ))
       .where(whereClause)
       .limit(limit)
       .offset(offset)
       .orderBy(orderClause);
 
     // Optimized Count Query
-    const countResult = await db
+    const countQuery = db
       .select({ count: sql<number>`count(*)` })
       .from(mandiri)
-      .innerJoin(generus, eq(mandiri.generusId, generus.id))
-      .where(whereClause);
+      .innerJoin(generus, eq(mandiri.generusId, generus.id));
+
+    if (search && !/^\d+$/.test(search)) {
+      countQuery.leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id));
+    }
+
+    const countResult = await countQuery.where(whereClause);
 
     const data = await dataQuery;
 
@@ -190,7 +206,7 @@ export async function POST(request: NextRequest) {
         await db.insert(users).values({
           id: uuidv4(),
           name: genData.nama,
-          email: `${genData.nomorUnik.toLowerCase()}@gencarberkarya.id`, // Default email since admin may not have it
+          email: `${genData.nomorUnik.toLowerCase()}@gencar.com`, // Default email since admin may not have it
           passwordHash,
           role: "peserta",
           generusId: generusId,

@@ -458,7 +458,7 @@ export default function AdminKatalogPage() {
           doc.setFontSize(8);
           doc.setTextColor(100, 116, 139);
           doc.text(`Halaman ${data.pageNumber} dari ${pageCount}`, pageWidth / 2, doc.internal.pageSize.height - 10, { align: "center" });
-          doc.text("Sistem Informasi Katalog Peserta - gencarberkarya.id", 15, doc.internal.pageSize.height - 10);
+          doc.text("Sistem Informasi Katalog Peserta - gencar.com", 15, doc.internal.pageSize.height - 10);
         }
       });
 
@@ -1030,7 +1030,7 @@ export default function AdminKatalogPage() {
                   <span>{selectedParticipant.mandiriDesaKota || "-"} &bull; {selectedParticipant.mandiriDesaNama || selectedParticipant.desaNama || "-"}</span>
                 </div>
                 <div className="id-footer-right">
-                  GENCAR BERKARYA &copy; 2026
+                  GENCAR &copy; 2026
                 </div>
               </div>
               <div className="id-card-seal" />
@@ -1125,7 +1125,7 @@ export default function AdminKatalogPage() {
                 <MapPin size={14} />
                 <span>{exportParticipant.mandiriDesaKota || "-"} &bull; {exportParticipant.mandiriDesaNama || exportParticipant.desaNama || "-"}</span>
               </div>
-              <div className="id-footer-right">GENCAR BERKARYA &copy; 2026</div>
+              <div className="id-footer-right">GENCAR &copy; 2026</div>
             </div>
           </div>
         )}

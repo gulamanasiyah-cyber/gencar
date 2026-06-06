@@ -263,7 +263,7 @@ export default function KatalogDetailPage({ params }: { params: { id: string } }
               </div>
             </div>
             <div className="footer-copyright">
-              &copy; 2026 GENCAR BERKARYA - Personal Branding Analytics
+              &copy; 2026 GENCAR - Personal Branding Analytics
             </div>
           </div>
         </div>
@@ -347,7 +347,7 @@ export default function KatalogDetailPage({ params }: { params: { id: string } }
               <span>{data.desaNama} &bull; {data.kelompokNama}</span>
             </div>
             <div className="id-footer-right">
-              GENCAR BERKARYA &copy; 2026
+              GENCAR &copy; 2026
             </div>
           </div>
           <div className="id-card-seal" />

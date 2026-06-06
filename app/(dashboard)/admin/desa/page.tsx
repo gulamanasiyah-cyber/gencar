@@ -157,14 +157,14 @@ export default function AdminDesaPage() {
             {/* Desa */}
             <div className="card">
               <div className="card-header">
-                <span className="card-title">Daftar Kelompok</span>
+                <span className="card-title">Daftar Desa</span>
                 <span className="badge badge-blue">{desaList.length}</span>
               </div>
               <div className="card-body">
                 <form onSubmit={handleAddDesa} className="flex gap-2 mb-4" style={{ marginBottom: 16 }}>
                   <input
                     className="form-control"
-                    placeholder="Nama kelompok baru..."
+                    placeholder="Nama desa baru..."
                     value={newDesa}
                     onChange={(e) => setNewDesa(e.target.value)}
                     required

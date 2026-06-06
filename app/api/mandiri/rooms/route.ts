@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
             penerimaNama: g2.nama,
             penerimaNo: g2.nomorUnik,
             penerimaNomorUrut: m2.nomorUrut,
+            startedAt: mandiriRooms.startedAt,
             updatedAt: mandiriRooms.updatedAt,
         })
         .from(mandiriRooms)

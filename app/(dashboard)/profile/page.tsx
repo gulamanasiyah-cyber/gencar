@@ -338,7 +338,7 @@ export default function ProfilePage() {
                     <line x1="12" y1="16" x2="12" y2="12"></line>
                     <line x1="12" y1="8" x2="12.01" y2="8"></line>
                   </svg>
-                  <span>Data profil ini akan ditampilkan pada sistem administrasi GENCAR BERKARYA.</span>
+                  <span>Data profil ini akan ditampilkan pada sistem administrasi GENCAR.</span>
                 </div>
 
                 <div className="form-group" style={{ textAlign: "center", marginBottom: 28 }}>
@@ -614,7 +614,7 @@ export default function ProfilePage() {
               <span>{data.desaNama || "Daerah"} &bull; {data.kelompokNama || "Jakarta Barat 2"}</span>
             </div>
             <div className="id-footer-right">
-              GENCAR BERKARYA &copy; 2026
+              GENCAR &copy; 2026
             </div>
           </div>
           <div className="id-card-seal" />

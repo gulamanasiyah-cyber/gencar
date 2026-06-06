@@ -30,7 +30,7 @@ export default function GlobalLoading() {
           color: "transparent",
           fontWeight: 900
         }}>
-          GENCAR BERKARYA INDONESIA
+          GENCAR
         </span>
       </div>
       <div className="loader-dots">

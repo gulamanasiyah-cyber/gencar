@@ -28,7 +28,8 @@ import {
   Palette,
   FileEdit,
   ClipboardList,
-  CreditCard
+  CreditCard,
+  MessageSquare
 } from "lucide-react";
 
 interface SidebarProps {
@@ -82,6 +83,7 @@ const navItems = [
       { href: "/admin/desa", label: "Kelola Desa", icon: "map", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
       { href: "/admin/berita", label: "Moderasi Berita", icon: "news", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
       { href: "/admin/artikel", label: "Moderasi Artikel", icon: "artikel", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
+      { href: "/admin/saran", label: "Saran & Masukan", icon: "message-square", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
       { href: "/admin/maintenance", label: "Mode Maintenance", icon: "settings", roles: ["admin"] },
       { href: "/katalog", label: "Katalog Mandiri", icon: "katalog", roles: ["admin_romantic_room"] },
       { href: "/mandiri/romantic-room", label: "Romantic Room", icon: "romantic", roles: ["admin_romantic_room"] },
@@ -221,6 +223,7 @@ const icons: Record<string, React.ReactNode> = {
   settings: <Settings2 size={18} />,
   logo: <Palette size={18} />,
   logout: <LogOut size={18} />,
+  "message-square": <MessageSquare size={18} />,
   user: <User size={18} />,
   "book-open": <BookOpen size={18} />,
   sparkles: <Sparkles size={18} />,
@@ -310,7 +313,7 @@ export default function Sidebar({ user }: SidebarProps) {
             <img src={siteLogo} alt="Logo" className="sidebar-logo-img" />
           )}
           <div>
-            <h1>GENCAR BERKARYA</h1>
+            <h1>GENCAR</h1>
             <p style={{ fontSize: "9px" }}>Sistem Manajemen Generus JB2</p>
           </div>
         </div>

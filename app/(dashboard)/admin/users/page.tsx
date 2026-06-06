@@ -8,6 +8,8 @@ import Link from "next/link";
 import React, { useState, useEffect, useCallback } from "react";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const MySwal = withReactContent(Swal);
 
@@ -164,6 +166,7 @@ export default function AdminUsersPage() {
   
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState("");
+  const [filterDesa, setFilterDesa] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [userRole, setUserRole] = useState("");
@@ -197,6 +200,7 @@ export default function AdminUsersPage() {
         limit: String(limit) 
       });
       if (filterRole) uParams.append("role", filterRole);
+      if (filterDesa) uParams.append("desaId", filterDesa);
       const uRes = await fetch(`/api/admin/users?${uParams}`);
       const uJson = await uRes.json();
       setData(uJson.data || []);
@@ -205,7 +209,7 @@ export default function AdminUsersPage() {
       console.error("Failed to fetch user data:", error);
     }
     setLoading(false);
-  }, [search, filterRole, page]);
+  }, [search, filterRole, filterDesa, page]);
 
   useEffect(() => {
     fetchStaticData();
@@ -281,6 +285,179 @@ export default function AdminUsersPage() {
       } else {
         Swal.fire({ icon: 'error', title: 'Gagal', text: 'Terjadi kesalahan saat menghapus data.' });
       }
+    }
+  };
+
+  const handleExportPDF = async () => {
+    // Show SweetAlert role selector modal for multiple roles selection
+    const { value: selectedRoles } = await Swal.fire({
+      title: "Pilih Role Pengurus untuk PDF",
+      html: `
+        <div style="text-align: left; display: grid; grid-template-columns: 1fr; gap: 8px; font-size: 14px; padding: 10px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="role-desa" value="desa" checked style="width: 16px; height: 16px;" />
+            <span>Pengurus Desa</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="role-kelompok" value="kelompok" checked style="width: 16px; height: 16px;" />
+            <span>Pengurus Kelompok</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="role-pengurus_daerah" value="pengurus_daerah" style="width: 16px; height: 16px;" />
+            <span>Pengurus Daerah</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="role-kmm_daerah" value="kmm_daerah" style="width: 16px; height: 16px;" />
+            <span>KMM Daerah</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="role-admin" value="admin" style="width: 16px; height: 16px;" />
+            <span>Admin Utama</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="role-tim_pnkb" value="tim_pnkb" style="width: 16px; height: 16px;" />
+            <span>Tim PNKB</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="role-admin_romantic_room" value="admin_romantic_room" style="width: 16px; height: 16px;" />
+            <span>Admin Romantic Room</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="role-admin_keuangan" value="admin_keuangan" style="width: 16px; height: 16px;" />
+            <span>Admin Keuangan</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="role-admin_kegiatan" value="admin_kegiatan" style="width: 16px; height: 16px;" />
+            <span>Admin Kegiatan</span>
+          </label>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: "Export PDF",
+      cancelButtonText: "Batal",
+      preConfirm: () => {
+        const roles = [];
+        if ((document.getElementById("role-desa")).checked) roles.push("desa");
+        if ((document.getElementById("role-kelompok")).checked) roles.push("kelompok");
+        if ((document.getElementById("role-pengurus_daerah")).checked) roles.push("pengurus_daerah");
+        if ((document.getElementById("role-kmm_daerah")).checked) roles.push("kmm_daerah");
+        if ((document.getElementById("role-admin")).checked) roles.push("admin");
+        if ((document.getElementById("role-tim_pnkb")).checked) roles.push("tim_pnkb");
+        if ((document.getElementById("role-admin_romantic_room")).checked) roles.push("admin_romantic_room");
+        if ((document.getElementById("role-admin_keuangan")).checked) roles.push("admin_keuangan");
+        if ((document.getElementById("role-admin_kegiatan")).checked) roles.push("admin_kegiatan");
+        return roles;
+      }
+    });
+
+    if (!selectedRoles) return; // cancelled
+
+    if (selectedRoles.length === 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "Peringatan",
+        text: "Pilih minimal satu role pengurus untuk diekspor.",
+      });
+      return;
+    }
+
+    Swal.fire({
+      title: "Menyiapkan PDF Pengurus...",
+      text: "Mengambil data pengurus",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+
+    try {
+      const uParams = new URLSearchParams({ all: "true" });
+      if (filterDesa) uParams.append("desaId", filterDesa);
+      const res = await fetch(`/api/admin/users?${uParams}`);
+      const json = await res.json();
+      const exportData = json.data || [];
+
+      // Filter only selected roles
+      const filteredData = exportData.filter((item) =>
+        selectedRoles.includes(item.role)
+      );
+
+      if (filteredData.length === 0) {
+        Swal.fire({
+          icon: "info",
+          title: "Tidak ada data",
+          text: "Tidak ada data Pengurus dengan role terpilih ditemukan.",
+        });
+        return;
+      }
+
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+      doc.text("Daftar Pengurus Sistem", 14, 15);
+
+      const selectedDesaObj = desaList.find(
+        (d) => String(d.id) === String(filterDesa)
+      );
+      const desaName = selectedDesaObj ? selectedDesaObj.nama : "Semua Desa";
+      
+      const roleLabels = {
+        desa: "Pengurus Desa",
+        kelompok: "Pengurus Kelompok",
+        pengurus_daerah: "Pengurus Daerah",
+        kmm_daerah: "KMM Daerah",
+        admin: "Admin Utama",
+        tim_pnkb: "Tim PNKB",
+        admin_romantic_room: "Admin Romantic Room",
+        admin_keuangan: "Admin Keuangan",
+        admin_kegiatan: "Admin Kegiatan",
+      };
+
+      const selectedRoleLabels = selectedRoles.map((r) => roleLabels[r] || r).join(", ");
+
+      doc.setFontSize(9);
+      doc.setTextColor(100);
+      doc.text(`Desa: ${desaName} | Waktu: ${new Date().toLocaleString("id-ID")} | Total: ${filteredData.length}`, 14, 21);
+      
+      const splitRoles = doc.splitTextToSize(`Role: ${selectedRoleLabels}`, 180);
+      doc.text(splitRoles, 14, 26);
+
+      const startY = 28 + (splitRoles.length * 4);
+
+      const tableRows = filteredData.map((item, index) => [
+        index + 1,
+        item.name,
+        roleLabels[item.role] || item.role,
+        item.desaNama || "-",
+        item.kelompokNama || "-",
+        item.email,
+      ]);
+
+      autoTable(doc, {
+        head: [["No", "Nama Lengkap", "Role", "Desa", "Kelompok", "Email"]],
+        body: tableRows,
+        startY: startY,
+        theme: "striped",
+        headStyles: { fillColor: [30, 41, 59] }, // Elegant dark slate
+        styles: { fontSize: 8, cellPadding: 3 },
+        margin: { top: 27 },
+      });
+
+      doc.save(`Daftar_Pengurus_${new Date().getTime()}.pdf`);
+
+      Swal.fire({
+        icon: "success",
+        title: "Selesai!",
+        text: "File PDF berhasil dibuat.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } catch (error) {
+      console.error(error);
+      Swal.fire({
+        icon: "error",
+        title: "Gagal",
+        text: "Terjadi kesalahan saat mengekspor PDF.",
+      });
     }
   };
 
@@ -363,7 +540,18 @@ export default function AdminUsersPage() {
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               />
             </div>
-            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+              <select
+                className="form-control"
+                style={{ width: "auto" }}
+                value={filterDesa}
+                onChange={(e) => { setFilterDesa(e.target.value); setPage(1); }}
+              >
+                <option value="">Semua Desa</option>
+                {desaList.map(d => (
+                  <option key={d.id} value={d.id}>{d.nama}</option>
+                ))}
+              </select>
               <select
                 className="form-control"
                 style={{ width: "auto" }}
@@ -391,6 +579,16 @@ export default function AdminUsersPage() {
                   Hapus ({filterRole})
                 </button>
               )}
+              <button 
+                className="btn btn-secondary" 
+                onClick={handleExportPDF} 
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', backgroundColor: "#10b981", color: "white" }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                </svg>
+                Export PDF Pengurus
+              </button>
             </div>
           </div>
 
@@ -424,7 +622,7 @@ export default function AdminUsersPage() {
                           {["pengurus_daerah", "desa", "kelompok"].includes(user.role) ? (
                             <span className="text-gray-400" style={{ fontSize: 10 }}>-</span>
                           ) : (
-                            <div className="flex flex-col gap-1">
+                            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                               {user.generusNomorUnik ? (
                                 <span className="badge badge-purple" style={{ fontSize: 10, padding: "2px 4px" }}>
                                   Generus: #{user.generusNomorUnik}
@@ -446,7 +644,7 @@ export default function AdminUsersPage() {
                           </span>
                         </td>
                         <td>
-                          <div className="flex flex-col gap-1">
+                          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                             {["desa", "kelompok", "creator", "generus", "usia_mandiri", "peserta", "tim_pnkb"].includes(user.role) ? (
                               <>
                                 <select className="form-control" style={{ padding: "4px 8px", fontSize: 11, minWidth: 120 }} value={user.desaId || ""} onChange={(e) => updateUser(user.id, { desaId: Number(e.target.value) })}>

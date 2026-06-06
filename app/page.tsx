@@ -1143,7 +1143,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
               <div className="lp-video-wrap">
                 <iframe
                   src="https://www.youtube.com/embed/kkDN69-4zco?autoplay=1&mute=1&loop=1&playlist=kkDN69-4zco&controls=0&modestbranding=1&rel=0&vq=hd720"
-                  title="GENCAR BERKARYA Hero Video"
+                  title="GENCAR Hero Video"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                 />
@@ -1326,7 +1326,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                 Mewujudkan Generasi Penerus Profesional & Religius
               </h2>
               <p className="lp-about-desc">
-                GENCAR BERKARYA adalah portal digital resmi bagi generasi muda Cengkareng yang berkomitmen
+                GENCAR adalah portal digital resmi bagi generasi muda Cengkareng yang berkomitmen
                 menumbuhkan karakter islami, intelektualitas tinggi, dan profesionalisme dalam kehidupan bermasyarakat.
               </p>
               <div className="lp-about-actions">
@@ -1363,10 +1363,10 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                 ) : (
                   <div className="lp-footer-logo">G</div>
                 )}
-                <span className="lp-footer-logo-name">GENCAR BERKARYA</span>
+                <span className="lp-footer-logo-name">GENCAR</span>
               </div>
               <p className="lp-footer-desc">
-                Portal berita dan sistem manajemen digital resmi GENCAR BERKARYA Indonesia.
+                Portal berita dan sistem manajemen digital resmi GENCAR Indonesia.
                 Mewujudkan Generasi Penerus Profesional Religius.
               </p>
             </div>
@@ -1391,7 +1391,7 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
           </div>
           <hr className="lp-footer-sep" />
           <div className="lp-footer-bottom" suppressHydrationWarning>
-            <span className="lp-footer-copy" suppressHydrationWarning>© {new Date().getFullYear()} GENCAR BERKARYA — Hak Cipta Dilindungi</span>
+            <span className="lp-footer-copy" suppressHydrationWarning>© {new Date().getFullYear()} GENCAR — Hak Cipta Dilindungi</span>
             <div className="lp-footer-links-right">
               <span className="lp-footer-bl">Kebijakan Privasi</span>
               <span className="lp-footer-bl">Syarat & Ketentuan</span>

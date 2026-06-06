@@ -135,12 +135,13 @@ export default function PublicKatalogPage() {
         page: String(page),
         limit: String(limit),
         jenisKelamin: gender,
-        status: category,
+        status: category === "pilihan" ? "all" : category,
         pendidikan,
         mandiriDesaId: desaFilter,
         kota: selectedKota,
         nomorUnik: storedUnik || "",
         sessionToken: storedToken || "",
+        onlyChosen: category === "pilihan" ? "true" : "",
       });
 
       const res = await fetch(`/api/public/mandiri/katalog?${qs}`);
@@ -320,11 +321,45 @@ export default function PublicKatalogPage() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const { isConfirmed } = await Swal.fire({
+      title: "Keluar dari Katalog?",
+      text: "Anda akan keluar dan status Anda akan diubah menjadi 'Pulang'. Anda tidak dapat dimasukkan ke dalam ruangan setelah ini.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Ya, Keluar",
+      cancelButtonText: "Batal",
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#64748b"
+    });
+
+    if (!isConfirmed) return;
+
+    Swal.fire({
+      title: "Sedang keluar...",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
+    const storedUnik = localStorage.getItem("attended_nomor_unik");
+    if (storedUnik) {
+      try {
+        await fetch("/api/public/mandiri/katalog/logout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nomorUnik: storedUnik })
+        });
+      } catch (e) {
+        console.error("Failed to perform logout API request:", e);
+      }
+    }
     localStorage.removeItem("attended_nomor_unik");
     localStorage.removeItem("attended_session_token");
     setHasAttended(false);
     unlockBodyScroll();
+    Swal.close();
     window.location.reload();
   };
 
@@ -478,6 +513,60 @@ export default function PublicKatalogPage() {
         }
 
         Swal.fire({ title: 'Berhasil!', text: 'Pilihan Anda telah dikirim. Sedang dalam antrean admin Romantic Room.', icon: 'success', timer: 3000, showConfirmButton: false });
+        closeDetail();
+      } catch (err: any) {
+        Swal.fire("Gagal", err.message, "error");
+      }
+    }
+  };
+
+  const handleCancelSelection = async (targetId: string, targetName: string) => {
+    const nomorUnik = localStorage.getItem("attended_nomor_unik");
+    const token = localStorage.getItem("attended_session_token");
+
+    const result = await Swal.fire({
+      title: 'Batalkan Pilihan?',
+      text: `Apakah Anda yakin ingin membatalkan pilihan Anda untuk ${targetName}?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Ya, Batalkan!',
+      cancelButtonText: 'Kembali',
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const qs = buildQuery({
+          targetId,
+          nomorUnik: nomorUnik || "",
+          token: token || "",
+        });
+        const res = await fetch(`/api/mandiri/pilih?${qs}`, {
+          method: "DELETE",
+        });
+
+        const text = await res.text();
+        if (!text) throw new Error("Server tidak mengembalikan data. Coba lagi.");
+        let json: any;
+        try { json = JSON.parse(text); } catch { throw new Error("Respons server tidak valid. Coba lagi."); }
+        if (!res.ok) throw new Error(json.error || "Gagal membatalkan pemilihan");
+
+        if (json.selections) {
+          setSelections(json.selections);
+          setSelectedIds(json.selections.map((s: any) => String(s.penerimaId)));
+          setStatusQueue(json.selections.find((s: any) => s.status === "Menunggu") || null);
+        }
+
+        setData(prev => prev.map(item =>
+          item.id === targetId ? { ...item, selectedCount: Math.max(0, (item.selectedCount || 0) - 1) } : item
+        ));
+
+        if (selectedParticipant && selectedParticipant.id === targetId) {
+          setSelectedParticipant((prev: any) => ({ ...prev, selectedCount: Math.max(0, (prev.selectedCount || 0) - 1) }));
+        }
+
+        Swal.fire({ title: 'Dibatalkan!', text: 'Pilihan Anda telah berhasil dibatalkan.', icon: 'success', timer: 3000, showConfirmButton: false });
         closeDetail();
       } catch (err: any) {
         Swal.fire("Gagal", err.message, "error");
@@ -846,16 +935,28 @@ export default function PublicKatalogPage() {
         </div>
       </div>
 
-      <div className="selection-banner">
+      <div 
+        className={`selection-banner ${category === "pilihan" ? "active-filter" : ""}`}
+        onClick={() => {
+          setCategory(category === "pilihan" ? "all" : "pilihan");
+          setPage(1);
+        }}
+        style={{ cursor: "pointer" }}
+        title={category === "pilihan" ? "Klik untuk menampilkan semua" : "Klik untuk menyaring pilihan saya"}
+      >
         <div className="banner-left">
           <div className="banner-icon"><CheckCircle2 size={24} /></div>
           <div className="banner-text">
-            <span className="banner-label">PILIHAN SAYA</span>
+            <span className="banner-label">
+              {category === "pilihan" ? "💝 MENAMPILKAN PILIHAN SAYA (Klik untuk Reset)" : "PILIHAN SAYA (Klik untuk Menyaring)"}
+            </span>
             <p className="banner-value">{selectedNames.length > 0 ? selectedNames.join(", ") : "Pilih peserta favorit Anda (Maks. 3)"}</p>
           </div>
         </div>
         <div className="banner-right">
-          <div className={`pilihan-pill ${selectedIds.length >= 3 ? "full" : ""}`}>{selectedIds.length}/3 Terpilih</div>
+          <div className={`pilihan-pill ${selectedIds.length >= 3 ? "full" : ""} ${category === "pilihan" ? "active" : ""}`}>
+            {selectedIds.length}/3 Terpilih
+          </div>
         </div>
       </div>
 
@@ -879,66 +980,116 @@ export default function PublicKatalogPage() {
         {loading && data.length === 0 ? (
           [...Array(6)].map((_, i) => <div key={i} className="skeleton-card" />)
         ) : (
-          data.map((item) => (
-            <div key={item.id} className="participant-card">
-              <div className="card-image-wrapper">
-                <img
-                  src={item.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.nama)}&background=random`}
-                  alt={item.nama}
-                  className="card-image"
-                  loading="lazy"
-                />
-                <div className="floating-badge id-badge">#{item.nomorUrut || "-"}</div>
-                {item.selectedCount >= 5 && (
-                  <div className="floating-badge full-badge">PENUH (5/5)</div>
-                )}
-                <div className={`floating-badge label-badge ${item.panitiaStatus ? "status-panitia" : ""}`}>
-                  {item.panitiaStatus ? "PANITIA" : "PESERTA"}
-                </div>
-              </div>
-
-              <div className="card-content">
-                <h2 className="card-name">{item.nama}</h2>
-                <div className="card-location">
-                  <MapPin size={14} />
-                  <span>{item.mandiriDesaKota || "-"} • {item.mandiriDesaNama || item.desaNama || "-"}</span>
-                </div>
-
-                <div className="card-stats-grid">
-                  <div className="stat-pill"><Calendar size={14} /><span>{item.tanggalLahir ? `${new Date().getFullYear() - new Date(item.tanggalLahir).getFullYear()} Tahun` : "-"}</span></div>
-                  <div className="stat-pill"><GraduationCap size={14} /><span>{item.pendidikan || "-"}</span></div>
-                  <div className="stat-pill"><Heart size={14} /><span>{item.statusNikah || "Belum Menikah"}</span></div>
-                  <div className="stat-pill"><Briefcase size={14} /><span>{item.pekerjaan || "Swasta"}</span></div>
-                  <div className="stat-pill"><Globe size={14} /><span>{item.suku || "-"}</span></div>
-                  <div className="stat-pill">
-                    <Instagram size={14} />
-                    {item.instagram ? (
-                      <a href={`https://instagram.com/${item.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="card-instagram-link">
-                        @{item.instagram.replace('@', '')}
-                      </a>
-                    ) : <span>-</span>}
-                  </div>
-                  <div className="stat-pill selection-count"><UserCheck size={14} /><span>Dipilih: {item.selectedCount || 0}/5</span></div>
-                </div>
-
-                <div className="card-passions-mini">
-                  <div className="pass-pill"><Music size={12} /><span>Hobi: {item.hobi || "-"}</span></div>
-                  <div className="pass-pill"><Utensils size={12} /><span>Makan/Minuman: {item.makananMinumanFavorit || "-"}</span></div>
-                </div>
-
-                <div className="card-actions">
-                  <button className="btn-secondary" onClick={() => openDetail(item)}>Detail Profil</button>
-                  {item.nomorUrut !== currentUser?.nomorUrut && (
-                    <button
-                      className={`btn-primary ${selectedIds.includes(String(item.id)) ? "selected" : ""} ${(selectedIds.length >= 3 && !selectedIds.includes(String(item.id))) || ((item.selectedCount || 0) >= 5 && !selectedIds.includes(String(item.id))) ? "disabled" : ""}`}
-                      onClick={() => handleConfirmSelection(String(item.id), item.nama)}
-                      disabled={selectedIds.includes(String(item.id)) || (selectedIds.length >= 3 && !selectedIds.includes(String(item.id))) || ((item.selectedCount || 0) >= 5 && !selectedIds.includes(String(item.id)))}
-                    >
-                      {selectedIds.includes(String(item.id)) ? <CheckCircle2 size={16} /> : <Heart size={16} />}
-                      <span>{selectedIds.includes(String(item.id)) ? "Terpilih" : ((item.selectedCount || 0) >= 5 ? "Penuh" : (selectedIds.length >= 3 ? "Batas Tercapai" : "Pilih"))}</span>
-                    </button>
+          data.map((item) => {
+            const isPulang = item.keterangan?.toLowerCase() === "pulang";
+            return (
+              <div key={item.id} className={`participant-card ${isPulang ? "is-pulang" : ""}`}>
+                <div className="card-image-wrapper">
+                  <img
+                    src={item.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.nama)}&background=random`}
+                    alt={item.nama}
+                    className="card-image"
+                    loading="lazy"
+                  />
+                  <div className="floating-badge id-badge">#{item.nomorUrut || "-"}</div>
+                  {item.selectedCount >= 5 && (
+                    <div className="floating-badge full-badge" style={isPulang ? { top: '50px' } : undefined}>PENUH (5/5)</div>
                   )}
+                  {isPulang && (
+                    <div className="floating-badge pulang-badge">PULANG</div>
+                  )}
+                  <div className={`floating-badge label-badge ${item.panitiaStatus ? "status-panitia" : ""}`}>
+                    {item.panitiaStatus ? "PANITIA" : "PESERTA"}
+                  </div>
                 </div>
+
+                <div className="card-content">
+                  <h2 className="card-name">{item.nama}</h2>
+                  <div className="card-location">
+                    <MapPin size={14} />
+                    <span>{item.mandiriDesaKota || "-"} • {item.mandiriDesaNama || item.desaNama || "-"}</span>
+                  </div>
+
+                  <div className="card-stats-grid">
+                    <div className="stat-pill"><Calendar size={14} /><span>{item.tanggalLahir ? `${new Date().getFullYear() - new Date(item.tanggalLahir).getFullYear()} Tahun` : "-"}</span></div>
+                    <div className="stat-pill"><GraduationCap size={14} /><span>{item.pendidikan || "-"}</span></div>
+                    <div className="stat-pill"><Heart size={14} /><span>{item.statusNikah || "Belum Menikah"}</span></div>
+                    <div className="stat-pill"><Briefcase size={14} /><span>{item.pekerjaan || "Swasta"}</span></div>
+                    <div className="stat-pill"><Globe size={14} /><span>{item.suku || "-"}</span></div>
+                    <div className="stat-pill">
+                      <Instagram size={14} />
+                      {item.instagram ? (
+                        <a href={`https://instagram.com/${item.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="card-instagram-link">
+                          @{item.instagram.replace('@', '')}
+                        </a>
+                      ) : <span>-</span>}
+                    </div>
+                    <div className="stat-pill selection-count"><UserCheck size={14} /><span>Dipilih: {item.selectedCount || 0}/5</span></div>
+                  </div>
+
+                  <div className="card-passions-mini">
+                    <div className="pass-pill"><Music size={12} /><span>Hobi: {item.hobi || "-"}</span></div>
+                    <div className="pass-pill"><Utensils size={12} /><span>Makan/Minuman: {item.makananMinumanFavorit || "-"}</span></div>
+                  </div>
+
+                  <div className="card-actions">
+                    <button className="btn-secondary" onClick={() => openDetail(item)}>Detail Profil</button>
+                    {item.nomorUrut !== currentUser?.nomorUrut && (() => {
+                      if (isPulang) {
+                        return (
+                          <button
+                            className="btn-primary disabled"
+                            disabled
+                          >
+                            <LogOut size={16} />
+                            <span>Pulang</span>
+                          </button>
+                        );
+                      }
+                      const isSelected = selectedIds.includes(String(item.id));
+                      const sel = selections.find((s: any) => String(s.penerimaId) === String(item.id));
+                      const isWaiting = sel && sel.status === "Menunggu";
+
+                      if (isSelected) {
+                        if (isWaiting) {
+                          return (
+                            <button
+                              className="btn-danger"
+                              onClick={() => handleCancelSelection(String(item.id), item.nama)}
+                            >
+                              <X size={16} />
+                              <span>Batalkan Pilihan</span>
+                            </button>
+                          );
+                        } else {
+                          return (
+                            <button
+                              className="btn-primary selected disabled"
+                              disabled
+                            >
+                              <CheckCircle2 size={16} />
+                              <span>Terpilih</span>
+                            </button>
+                          );
+                        }
+                      }
+
+                      const isFull = (item.selectedCount || 0) >= 5;
+                      const isMaxed = selectedIds.length >= 3;
+                      const isDisabled = isFull || isMaxed;
+
+                      return (
+                        <button
+                          className={`btn-primary ${isDisabled ? "disabled" : ""}`}
+                          onClick={() => handleConfirmSelection(String(item.id), item.nama)}
+                          disabled={isDisabled}
+                        >
+                          <Heart size={16} />
+                          <span>{isFull ? "Penuh" : (isMaxed ? "Batas Tercapai" : "Pilih")}</span>
+                        </button>
+                      );
+                    })()}
+                  </div>
 
                 {item.id !== currentUser?.id && (
                   <div className="commentary-box">
@@ -985,7 +1136,8 @@ export default function PublicKatalogPage() {
                 )}
               </div>
             </div>
-          ))
+          );
+        })
         )}
       </main>
 
@@ -1043,9 +1195,23 @@ export default function PublicKatalogPage() {
               <div className="dm-cta">
                 {isMe ? (
                   <button className="dm-btn dm-btn-disabled" disabled>Ini Profil Anda</button>
-                ) : isSelected ? (
-                  <button className="dm-btn dm-btn-selected" disabled><CheckCircle2 size={18}/>Sudah Terpilih</button>
-                ) : isFull ? (
+                ) : sp.keterangan?.toLowerCase() === "pulang" ? (
+                  <button className="dm-btn dm-btn-disabled" disabled>Peserta Sudah Pulang</button>
+                ) : isSelected ? (() => {
+                  const sel = selections.find((s: any) => String(s.penerimaId) === String(sp.id));
+                  const isWaiting = sel && sel.status === "Menunggu";
+                  if (isWaiting) {
+                    return (
+                      <button className="dm-btn dm-btn-danger" onClick={() => handleCancelSelection(String(sp.id), sp.nama)}>
+                        <X size={18}/>Batalkan Pilihan
+                      </button>
+                    );
+                  } else {
+                    return (
+                      <button className="dm-btn dm-btn-selected" disabled><CheckCircle2 size={18}/>Sudah Terpilih</button>
+                    );
+                  }
+                })() : isFull ? (
                   <button className="dm-btn dm-btn-disabled" disabled>Peserta Penuh (5/5)</button>
                 ) : isMaxed ? (
                   <button className="dm-btn dm-btn-disabled" disabled>Batas Pilihan Tercapai (3/3)</button>
@@ -1275,7 +1441,10 @@ export default function PublicKatalogPage() {
         .btn-logout { margin-left:auto; display:flex; align-items:center; gap:8px; background:#fef2f2; color:#ef4444; border:1px solid #fee2e2; padding:10px 18px; border-radius:14px; font-size:13px; font-weight:700; cursor:pointer; transition:0.2s; }
         .btn-logout:hover { background:#fee2e2; }
 
-        .selection-banner { background:#232d3f; padding:24px 32px; border-radius:28px; display:flex; justify-content:space-between; align-items:center; color:white; margin-bottom:32px; box-shadow:0 15px 30px rgba(35,45,63,0.2); }
+        .selection-banner { background:#232d3f; transition: all 0.2s ease; border: 2px solid transparent; }
+        .selection-banner:hover { transform: translateY(-2px); box-shadow: 0 20px 40px rgba(35,45,63,0.35); }
+        .selection-banner.active-filter { border-color: #3b82f6; background: #1e293b; }
+        .selection-banner { padding:24px 32px; border-radius:28px; display:flex; justify-content:space-between; align-items:center; color:white; margin-bottom:32px; box-shadow:0 15px 30px rgba(35,45,63,0.2); }
         .banner-left { display:flex; align-items:center; gap:20px; }
         .banner-icon { background:rgba(255,255,255,0.1); padding:14px; border-radius:18px; color:#60a5fa; }
         .banner-text { display:flex; flex-direction:column; gap:2px; }
@@ -1292,6 +1461,10 @@ export default function PublicKatalogPage() {
 
         .participant-card { background:white; border-radius:32px; border:1px solid #f1f5f9; overflow:hidden; transition:0.3s cubic-bezier(0.4,0,0.2,1); box-shadow:0 4px 20px rgba(0,0,0,0.02); }
         .participant-card:hover { transform:translateY(-8px); box-shadow:0 20px 40px rgba(0,0,0,0.08); border-color:#3b82f644; }
+        .participant-card.is-pulang { opacity:0.65; filter:grayscale(0.3); background:#f8fafc; border-color:#cbd5e1; }
+        .participant-card.is-pulang:hover { transform:none; box-shadow:0 4px 20px rgba(0,0,0,0.02); border-color:#cbd5e1; }
+        .participant-card.is-pulang .card-image { filter: grayscale(100%); -webkit-filter: grayscale(100%); }
+        .pulang-badge { top:16px; right:16px; background:#64748b; color:white; box-shadow:0 4px 12px rgba(100,116,139,0.4); }
         .card-image-wrapper { height:380px; position:relative; overflow:hidden; }
         .card-image { width:100%; height:100%; object-fit:cover; transition:0.5s; }
         .participant-card:hover .card-image { transform:scale(1.05); }
@@ -1322,6 +1495,8 @@ export default function PublicKatalogPage() {
         .btn-primary.selected { background:#10b981; }
         .btn-primary.disabled { background:#f1f5f9; color:#94a3b8; cursor:not-allowed; border:1px solid #e2e8f0; }
         .btn-primary.disabled:hover { transform:none; background:#f1f5f9; }
+        .btn-danger { flex:1; display:flex; align-items:center; justify-content:center; gap:8px; background:#fef2f2; color:#ef4444; border:1px solid #fee2e2; padding:12px; border-radius:14px; font-size:13px; font-weight:700; cursor:pointer; transition:0.2s; }
+        .btn-danger:hover { background:#fee2e2; border-color:#fca5a5; transform:translateY(-2px); }
 
         .pagination { margin-top:48px; display:flex; align-items:center; justify-content:center; gap:24px; }
         .pagination button { background:white; border:1px solid #e2e8f0; padding:10px 20px; border-radius:12px; font-size:14px; font-weight:600; cursor:pointer; }
@@ -1456,6 +1631,8 @@ export default function PublicKatalogPage() {
         .dm-btn:not(:disabled):active { transform:scale(0.98); }
         .dm-btn-selected { background:#10b981 !important; cursor:default; }
         .dm-btn-disabled { background:#e2e8f0 !important; color:#94a3b8 !important; cursor:not-allowed; }
+        .dm-btn-danger { background:#fef2f2 !important; color:#ef4444 !important; border:1px solid #fee2e2 !important; }
+        .dm-btn-danger:hover { background:#fee2e2 !important; border-color:#fca5a5 !important; transform:translateY(-2px); }
 
         @keyframes fadeIn { from{opacity:0} to{opacity:1} }
         @keyframes slideUp { from{transform:translateY(40px) scale(0.98);opacity:0} to{transform:translateY(0) scale(1);opacity:1} }

@@ -21,6 +21,9 @@ interface MandiriItem {
    noTelp: string;
    foto: string;
    createdAt: string;
+   nomorUnik: string;
+   isHadir?: number;
+   waktuHadir?: string;
 }
 
 export default function MandiriPage() {
@@ -316,55 +319,201 @@ export default function MandiriPage() {
                            <p>Belum ada peserta mandiri yang terdaftar.</p>
                         </div>
                      ) : (
-                        <table>
-                           <thead>
-                              <tr>
-                                 <th>No. Peserta</th>
-                                 <th>Foto</th>
-                                 <th>Nama</th>
-                                 <th>JK</th>
-                                 <th>Kategori</th>
-                                 <th>Daerah / Desa</th>
-                                 <th>Status Mandiri</th>
-                                 <th>Catatan</th>
-                                 <th>Aksi</th>
-                              </tr>
-                           </thead>
-                           <tbody>
+                        <>
+                           <div className="desktop-only-table">
+                              <table>
+                                 <thead>
+                                    <tr>
+                                       <th>No. Peserta</th>
+                                       <th>No. Unik</th>
+                                       <th>Foto</th>
+                                       <th>Nama</th>
+                                       <th>JK</th>
+                                       <th>Kategori</th>
+                                       <th>Daerah / Desa</th>
+                                       <th style={{ textAlign: "center" }}>Kehadiran</th>
+                                       <th>Status Mandiri</th>
+                                       <th>Catatan</th>
+                                       <th>Aksi</th>
+                                    </tr>
+                                 </thead>
+                                 <tbody>
+                                    {data.map((item) => (
+                                       <tr key={item.id}>
+                                          <td data-label="No. Peserta">
+                                             <span style={{ fontWeight: "700", color: "var(--primary)" }}>{item.nomorUrut}</span>
+                                          </td>
+                                          <td data-label="No. Unik">
+                                             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                                <span style={{ fontFamily: "monospace", fontSize: 14, fontWeight: "700", color: "var(--primary)" }}>{item.nomorUnik}</span>
+                                                <button 
+                                                   onClick={() => {
+                                                      navigator.clipboard.writeText(item.nomorUnik);
+                                                      Swal.fire({ icon: "success", title: "Disalin!", text: `Nomor unik ${item.nomorUnik} berhasil disalin.`, timer: 1000, showConfirmButton: false });
+                                                   }}
+                                                   style={{ background: "none", border: "none", cursor: "pointer", padding: "4px", display: "inline-flex", alignItems: "center", color: "#64748b", borderRadius: "4px" }}
+                                                   title="Salin Nomor Unik"
+                                                   onMouseOver={(e) => e.currentTarget.style.background = "#f1f5f9"}
+                                                   onMouseOut={(e) => e.currentTarget.style.background = "none"}
+                                                >
+                                                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 13, height: 13 }}>
+                                                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                                   </svg>
+                                                </button>
+                                             </div>
+                                          </td>
+                                          <td data-label="Foto">
+                                             <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#f1f5f9", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>
+                                                {item.foto ? <img src={item.foto} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : item.nama.charAt(0)}
+                                             </div>
+                                          </td>
+                                          <td data-label="Nama" style={{ fontWeight: 500 }}>{item.nama}</td>
+                                          <td data-label="JK">{item.jenisKelamin}</td>
+                                          <td data-label="Kategori">{item.kategoriUsia}</td>
+                                          <td data-label="Daerah / Desa" style={{ fontSize: 12, opacity: 0.8 }}>
+                                             {item.desaKota} / {item.desaNama}
+                                          </td>
+                                          <td data-label="Kehadiran" style={{ textAlign: "center" }}>
+                                             {item.keterangan === "pulang" ? (
+                                                <span className="badge" style={{ background: '#fee2e2', color: '#ef4444', border: '1px solid #fca5a5', padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>Pulang</span>
+                                             ) : item.isHadir === 1 ? (
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                                   <span className="badge badge-green">Hadir</span>
+                                                   {item.waktuHadir && (
+                                                      <span style={{ fontSize: '10px', opacity: 0.6 }}>
+                                                         {new Date(item.waktuHadir).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                                                      </span>
+                                                   )}
+                                                </div>
+                                             ) : (
+                                                <span className="badge badge-gray">Belum Hadir</span>
+                                             )}
+                                          </td>
+                                          <td data-label="Status Mandiri">
+                                             <span className={`badge ${item.statusMandiri === "Aktif" ? "badge-blue" : "badge-gray"}`}>
+                                                {item.statusMandiri}
+                                             </span>
+                                          </td>
+                                          <td data-label="Catatan" style={{ fontSize: 12, maxWidth: "150px", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                                             {item.catatan || "-"}
+                                          </td>
+                                          <td data-label="Aksi">
+                                             <div className="flex gap-2">
+                                                <button className="btn btn-sm btn-secondary" onClick={() => handleUpdate(item)}>Edit</button>
+                                                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(item.id)}>Hapus</button>
+                                             </div>
+                                          </td>
+                                       </tr>
+                                    ))}
+                                 </tbody>
+                              </table>
+                           </div>
+
+                           <div className="mobile-only-cards">
                               {data.map((item) => (
-                                 <tr key={item.id}>
-                                    <td>
-                                       <span style={{ fontWeight: "700", color: "var(--primary)" }}>{item.nomorUrut}</span>
-                                    </td>
-                                    <td>
-                                       <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#f1f5f9", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>
-                                          {item.foto ? <img src={item.foto} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : item.nama.charAt(0)}
+                                 <div key={item.id} className="mobile-card">
+                                    <div className="card-top-row">
+                                       <span className="no-urut-badge">#{item.nomorUrut}</span>
+                                       <div className="unik-badge-container">
+                                          <span className="unik-label">ID:</span>
+                                          <span className="unik-value">{item.nomorUnik}</span>
+                                          <button 
+                                             onClick={() => {
+                                                navigator.clipboard.writeText(item.nomorUnik);
+                                                Swal.fire({ icon: "success", title: "Disalin!", text: `Nomor unik ${item.nomorUnik} berhasil disalin.`, timer: 1000, showConfirmButton: false });
+                                             }}
+                                             className="btn-copy-unik"
+                                             title="Salin Nomor Unik"
+                                          >
+                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 12, height: 12 }}>
+                                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                             </svg>
+                                          </button>
                                        </div>
-                                    </td>
-                                    <td style={{ fontWeight: 500 }}>{item.nama}</td>
-                                    <td>{item.jenisKelamin}</td>
-                                    <td>{item.kategoriUsia}</td>
-                                    <td style={{ fontSize: 12, opacity: 0.8 }}>
-                                       {item.desaKota} / {item.desaNama}
-                                    </td>
-                                    <td>
-                                       <span className={`badge ${item.statusMandiri === "Aktif" ? "badge-blue" : "badge-gray"}`}>
-                                          {item.statusMandiri}
-                                       </span>
-                                    </td>
-                                    <td style={{ fontSize: 12, maxWidth: "150px", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-                                       {item.catatan || "-"}
-                                    </td>
-                                    <td>
-                                       <div className="flex gap-2">
-                                          <button className="btn btn-sm btn-secondary" onClick={() => handleUpdate(item)}>Edit</button>
-                                          <button className="btn btn-sm btn-danger" onClick={() => handleDelete(item.id)}>Hapus</button>
+                                    </div>
+
+                                    <div className="profile-row">
+                                       <div className="avatar-wrapper">
+                                          {item.foto ? (
+                                             <img src={item.foto} alt={item.nama} className="avatar-img" />
+                                          ) : (
+                                             <span className="avatar-initial">{item.nama.charAt(0).toUpperCase()}</span>
+                                          )}
                                        </div>
-                                    </td>
-                                 </tr>
+                                       <div className="profile-info">
+                                          <h3 className="profile-name">{item.nama}</h3>
+                                          <div className="profile-badges">
+                                             <span className={`gender-badge ${item.jenisKelamin === 'L' ? 'male' : 'female'}`}>
+                                                {item.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan'}
+                                             </span>
+                                             <span className="category-badge">{item.kategoriUsia}</span>
+                                          </div>
+                                       </div>
+                                    </div>
+
+                                    <div className="location-row">
+                                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="loc-icon">
+                                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                                          <circle cx="12" cy="10" r="3" />
+                                       </svg>
+                                       <span className="location-text">{item.desaKota} / {item.desaNama}</span>
+                                    </div>
+
+                                    <div className="status-row">
+                                       <div className="status-item">
+                                          <span className="status-label">Kehadiran</span>
+                                          {item.keterangan === "pulang" ? (
+                                             <span className="badge-red">Pulang</span>
+                                          ) : item.isHadir === 1 ? (
+                                             <div className="attendance-present">
+                                                <span className="badge badge-green">Hadir</span>
+                                                {item.waktuHadir && (
+                                                   <span className="attendance-time">
+                                                      {new Date(item.waktuHadir).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                                                   </span>
+                                                )}
+                                             </div>
+                                          ) : (
+                                             <span className="badge badge-gray">Belum Hadir</span>
+                                          )}
+                                       </div>
+
+                                       <div className="status-item">
+                                          <span className="status-label">Status Mandiri</span>
+                                          <span className={`badge ${item.statusMandiri === "Aktif" ? "badge-blue" : "badge-gray"}`}>
+                                             {item.statusMandiri}
+                                          </span>
+                                       </div>
+                                    </div>
+
+                                    {item.catatan && (
+                                       <div className="notes-box">
+                                          <span className="notes-title">Catatan:</span>
+                                          <p className="notes-content">{item.catatan}</p>
+                                       </div>
+                                    )}
+
+                                    <div className="card-actions">
+                                       <button className="btn btn-sm btn-secondary flex-grow" onClick={() => handleUpdate(item)}>
+                                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14, marginRight: 6 }}>
+                                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                             <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                          </svg>
+                                          Edit Status
+                                       </button>
+                                       <button className="btn btn-sm btn-danger-outline" onClick={() => handleDelete(item.id)}>
+                                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
+                                             <polyline points="3 6 5 6 21 6" />
+                                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                          </svg>
+                                       </button>
+                                    </div>
+                                 </div>
                               ))}
-                           </tbody>
-                        </table>
+                           </div>
+                        </>
                      )}
                   </div>
 
@@ -410,14 +559,508 @@ export default function MandiriPage() {
             </div>
          </div>
          <style jsx>{`
+            .desktop-only-table {
+               display: block;
+            }
+            .mobile-only-cards {
+               display: none;
+            }
             .badge-blue { background: #eff6ff; color: #1d4ed8; }
-            .badge-gray { background: #f1f5f9; color: #475569; }
+            .badge-gray {
+               background: #f8fafc;
+               color: #64748b;
+               padding: 4px 8px;
+               border-radius: 6px;
+               font-size: 11px;
+               font-weight: 700;
+            }
+            .badge-green {
+               background: #f0fdf4;
+               color: #16a34a;
+               padding: 4px 8px;
+               border-radius: 6px;
+               font-size: 11px;
+               font-weight: 700;
+            }
             table thead th {
                position: sticky;
                top: 0;
                background: #f8fafc;
                z-index: 10;
                box-shadow: 0 1px 0 #e2e8f0;
+            }
+            @media (max-width: 768px) {
+               .desktop-only-table {
+                  display: none;
+               }
+               .mobile-only-cards {
+                  display: flex;
+                  flex-direction: column;
+                  gap: 14px;
+                  padding: 4px 0;
+               }
+               .mobile-card {
+                  background: #ffffff;
+                  border: 1px solid #e2e8f0;
+                  border-radius: 12px;
+                  padding: 14px;
+                  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+                  display: flex;
+                  flex-direction: column;
+                  gap: 12px;
+                  transition: transform 0.2s, box-shadow 0.2s;
+               }
+               .mobile-card:hover {
+                  transform: translateY(-1px);
+                  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+               }
+               .card-top-row {
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  border-bottom: 1px solid #f1f5f9;
+                  padding-bottom: 8px;
+               }
+               .no-urut-badge {
+                  background: #f1f5f9;
+                  color: #475569;
+                  font-weight: 700;
+                  font-size: 12px;
+                  padding: 4px 8px;
+                  border-radius: 6px;
+               }
+               .unik-badge-container {
+                  display: flex;
+                  align-items: center;
+                  gap: 4px;
+                  background: #f0fdf4;
+                  border: 1px solid #bbf7d0;
+                  padding: 2px 8px;
+                  border-radius: 6px;
+               }
+               .unik-label {
+                  font-size: 10px;
+                  font-weight: 600;
+                  color: #16a34a;
+                  text-transform: uppercase;
+               }
+               .unik-value {
+                  font-family: monospace;
+                  font-size: 13px;
+                  font-weight: 700;
+                  color: #15803d;
+               }
+               .btn-copy-unik {
+                  background: none;
+                  border: none;
+                  padding: 2px;
+                  cursor: pointer;
+                  color: #16a34a;
+                  display: inline-flex;
+                  align-items: center;
+                  border-radius: 4px;
+               }
+               .btn-copy-unik:hover {
+                  background: #dcfce7;
+               }
+               .profile-row {
+                  display: flex;
+                  gap: 12px;
+                  align-items: center;
+               }
+               .avatar-wrapper {
+                  width: 48px;
+                  height: 48px;
+                  border-radius: 50%;
+                  overflow: hidden;
+                  background: #f1f5f9;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  border: 2px solid #e2e8f0;
+                  flex-shrink: 0;
+               }
+               .avatar-img {
+                  width: 100%;
+                  height: 100%;
+                  object-fit: cover;
+               }
+               .avatar-initial {
+                  font-size: 18px;
+                  font-weight: 700;
+                  color: #64748b;
+               }
+               .profile-info {
+                  display: flex;
+                  flex-direction: column;
+                  gap: 4px;
+               }
+               .profile-name {
+                  margin: 0;
+                  font-size: 15px;
+                  font-weight: 700;
+                  color: #1e293b;
+               }
+               .profile-badges {
+                  display: flex;
+                  gap: 6px;
+                  flex-wrap: wrap;
+               }
+               .gender-badge {
+                  font-size: 11px;
+                  padding: 2px 6px;
+                  border-radius: 4px;
+                  font-weight: 500;
+               }
+               .gender-badge.male {
+                  background: #e0f2fe;
+                  color: #0369a1;
+               }
+               .gender-badge.female {
+                  background: #fce7f3;
+                  color: #be185d;
+               }
+               .category-badge {
+                  background: #f3f4f6;
+                  color: #4b5563;
+                  font-size: 11px;
+                  padding: 2px 6px;
+                  border-radius: 4px;
+                  font-weight: 500;
+               }
+               .location-row {
+                  display: flex;
+                  align-items: center;
+                  gap: 6px;
+                  color: #64748b;
+                  font-size: 12.5px;
+               }
+               .loc-icon {
+                  width: 14px;
+                  height: 14px;
+                  color: #94a3b8;
+                  flex-shrink: 0;
+               }
+               .location-text {
+                  font-weight: 500;
+               }
+               .status-row {
+                  display: grid;
+                  grid-template-columns: 1fr 1fr;
+                  gap: 12px;
+                  background: #f8fafc;
+                  padding: 10px;
+                  border-radius: 10px;
+               }
+               .status-item {
+                  display: flex;
+                  flex-direction: column;
+                  gap: 4px;
+               }
+               .status-label {
+                  font-size: 10px;
+                  font-weight: 600;
+                  color: #94a3b8;
+                  text-transform: uppercase;
+                  letter-spacing: 0.5px;
+               }
+               .attendance-present {
+                  display: flex;
+                  flex-direction: column;
+                  gap: 2px;
+               }
+               .attendance-time {
+                  font-size: 9.5px;
+                  color: #64748b;
+                  font-weight: 500;
+                  padding-left: 2px;
+               }
+               .notes-box {
+                  background: #fffbeb;
+                  border: 1px dashed #fef3c7;
+                  border-radius: 8px;
+                  padding: 8px 12px;
+               }
+               .notes-title {
+                  font-size: 10px;
+                  font-weight: 700;
+                  color: #b45309;
+                  text-transform: uppercase;
+                  display: block;
+                  margin-bottom: 2px;
+               }
+               .notes-content {
+                  margin: 0;
+                  font-size: 12px;
+                  color: #78350f;
+                  line-height: 1.4;
+               }
+               .card-actions {
+                  display: flex;
+                  gap: 8px;
+                  padding: 14px;
+                  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+                  display: flex;
+                  flex-direction: column;
+gap: 12px;
+                  transition: transform 0.2s, box-shadow 0.2s;
+               }
+               .mobile-card:hover {
+                  transform: translateY(-1px);
+                  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+               }
+               .card-top-row {
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  border-bottom: 1px solid #f1f5f9;
+                  padding-bottom: 8px;
+               }
+               .no-urut-badge {
+                  background: #f1f5f9;
+                  color: #475569;
+                  font-weight: 700;
+                  font-size: 12px;
+                  padding: 4px 8px;
+                  border-radius: 6px;
+               }
+               .unik-badge-container {
+                  display: flex;
+                  align-items: center;
+                  gap: 4px;
+                  background: #f0fdf4;
+                  border: 1px solid #bbf7d0;
+                  padding: 2px 8px;
+                  border-radius: 6px;
+               }
+               .unik-label {
+                  font-size: 10px;
+                  font-weight: 600;
+                  color: #16a34a;
+                  text-transform: uppercase;
+               }
+               .unik-value {
+                  font-family: monospace;
+                  font-size: 13px;
+                  font-weight: 700;
+                  color: #15803d;
+               }
+               .btn-copy-unik {
+                  background: none;
+                  border: none;
+                  padding: 2px;
+                  cursor: pointer;
+                  color: #16a34a;
+                  display: inline-flex;
+                  align-items: center;
+                  border-radius: 4px;
+               }
+               .btn-copy-unik:hover {
+                  background: #dcfce7;
+               }
+               .profile-row {
+                  display: flex;
+                  gap: 12px;
+                  align-items: center;
+               }
+               .avatar-wrapper {
+                  width: 48px;
+                  height: 48px;
+                  border-radius: 50%;
+                  overflow: hidden;
+                  background: #f1f5f9;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  border: 2px solid #e2e8f0;
+                  flex-shrink: 0;
+               }
+               .avatar-img {
+                  width: 100%;
+                  height: 100%;
+                  object-fit: cover;
+               }
+               .avatar-initial {
+                  font-size: 18px;
+                  font-weight: 700;
+                  color: #64748b;
+               }
+               .profile-info {
+                  display: flex;
+                  flex-direction: column;
+                  gap: 4px;
+               }
+               .profile-name {
+                  margin: 0;
+                  font-size: 15px;
+                  font-weight: 700;
+                  color: #1e293b;
+               }
+               .profile-badges {
+                  display: flex;
+                  gap: 6px;
+                  flex-wrap: wrap;
+               }
+               .gender-badge {
+                  font-size: 11px;
+                  padding: 2px 6px;
+                  border-radius: 4px;
+                  font-weight: 500;
+               }
+               .gender-badge.male {
+                  background: #e0f2fe;
+                  color: #0369a1;
+               }
+               .gender-badge.female {
+                  background: #fce7f3;
+                  color: #be185d;
+               }
+               .category-badge {
+                  background: #f3f4f6;
+                  color: #4b5563;
+                  font-size: 11px;
+                  padding: 2px 6px;
+                  border-radius: 4px;
+                  font-weight: 500;
+               }
+               .location-row {
+                  display: flex;
+                  align-items: center;
+                  gap: 6px;
+                  color: #64748b;
+                  font-size: 12.5px;
+               }
+               .loc-icon {
+                  width: 14px;
+                  height: 14px;
+                  color: #94a3b8;
+                  flex-shrink: 0;
+               }
+               .location-text {
+                  font-weight: 500;
+               }
+               .status-row {
+                  display: grid;
+                  grid-template-columns: 1fr 1fr;
+                  gap: 12px;
+                  background: #f8fafc;
+                  padding: 10px;
+                  border-radius: 10px;
+               }
+               .status-item {
+                  display: flex;
+                  flex-direction: column;
+                  gap: 4px;
+               }
+               .status-label {
+                  font-size: 10px;
+                  font-weight: 600;
+                  color: #94a3b8;
+                  text-transform: uppercase;
+                  letter-spacing: 0.5px;
+               }
+               .attendance-present {
+                  display: flex;
+                  flex-direction: column;
+                  gap: 2px;
+               }
+               .attendance-time {
+                  font-size: 9.5px;
+                  color: #64748b;
+                  font-weight: 500;
+                  padding-left: 2px;
+               }
+               .notes-box {
+                  background: #fffbeb;
+                  border: 1px dashed #fef3c7;
+                  border-radius: 8px;
+                  padding: 8px 12px;
+               }
+               .notes-title {
+                  font-size: 10px;
+                  font-weight: 700;
+                  color: #b45309;
+                  text-transform: uppercase;
+                  display: block;
+                  margin-bottom: 2px;
+               }
+               .notes-content {
+                  margin: 0;
+                  font-size: 12px;
+                  color: #78350f;
+                  line-height: 1.4;
+               }
+               .card-actions {
+                  display: flex;
+                  gap: 8px;
+                  margin-top: 4px;
+               }
+               .flex-grow {
+                  flex-grow: 1;
+               }
+               .btn-danger-outline {
+                  background: #fff5f5;
+                  border: 1px solid #fee2e2;
+                  color: #ef4444;
+                  padding: 6px 12px;
+                  border-radius: 6px;
+                  cursor: pointer;
+                  display: inline-flex;
+                  align-items: center;
+                  justify-content: center;
+                  transition: all 0.2s;
+               }
+               .btn-danger-outline:hover {
+                  background: #fee2e2;
+                  border-color: #fca5a5;
+               }
+               .badge-red {
+                  background: #fee2e2;
+                  color: #ef4444;
+                  border: 1px solid #fca5a5;
+                  padding: 3px 8px;
+                  border-radius: 4px;
+                  font-size: 11px;
+                  font-weight: bold;
+                  display: inline-block;
+                  width: fit-content;
+               }
+               
+               /* Make page header and card search-bar stack nicely on mobile */
+               .page-header {
+                  flex-direction: column;
+                  align-items: stretch !important;
+                  gap: 12px !important;
+               }
+               .page-header-left {
+                  margin-bottom: 4px;
+               }
+               .page-header > div {
+                  display: flex;
+                  width: 100%;
+                  gap: 8px;
+                  flex-wrap: wrap;
+               }
+               .page-header > div > .btn {
+                  flex: 1;
+                  justify-content: center;
+                  font-size: 13px;
+                  padding: 8px 12px;
+                  white-space: nowrap;
+               }
+               .card-header {
+                  flex-direction: column;
+                  align-items: stretch !important;
+                  gap: 12px !important;
+               }
+               .card-header > div {
+                  width: 100%;
+                  justify-content: space-between;
+               }
+               .search-bar {
+                  max-width: none !important;
+                  flex-grow: 1;
+               }
             }
          `}</style>
       </div>

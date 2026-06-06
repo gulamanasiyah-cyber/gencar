@@ -20,7 +20,10 @@ function RoomTimer({ startTime }: { startTime: string }) {
 
     useEffect(() => {
         const calculateTime = () => {
-            if (!startTime) return;
+            if (!startTime) {
+                setTimeLeft("Belum Dimulai");
+                return;
+            }
 
             // SQLite datetime('now') returns "YYYY-MM-DD HH:mm:ss" in UTC
             // We need to format it to "YYYY-MM-DDTHH:mm:ssZ" for JS to parse it reliably as UTC
@@ -39,7 +42,7 @@ function RoomTimer({ startTime }: { startTime: string }) {
 
             if (remaining <= 0) {
                 setIsOver(true);
-                setTimeLeft("0");
+                setTimeLeft("Selesai");
             } else {
                 setIsOver(false);
                 const mins = Math.floor(remaining / 60000);
@@ -52,6 +55,15 @@ function RoomTimer({ startTime }: { startTime: string }) {
         const timer = setInterval(calculateTime, 1000);
         return () => clearInterval(timer);
     }, [startTime]);
+
+    if (!startTime) {
+        return (
+            <div className="room-timer-badge not-started">
+                <Timer size={12} />
+                <span>Belum Dimulai</span>
+            </div>
+        );
+    }
 
     return (
         <div className={`room-timer-badge ${isOver ? 'over' : ''}`}>
@@ -288,7 +300,16 @@ export default function RomanticRoomPage() {
         }
     };
 
-    const handleAssignToRoom = async (pemilihanId: string, pengirim: string, penerima: string) => {
+    const handleAssignToRoom = async (pemilihanId: string, pengirim: string, penerima: string, pengirimKeterangan?: string, penerimaKeterangan?: string) => {
+        if (pengirimKeterangan === "pulang") {
+            Swal.fire("Gagal Masuk Room", `${pengirim} sudah logout (pulang). Tidak dapat memasukkan pasangan ini ke dalam ruangan.`, "error");
+            return;
+        }
+        if (penerimaKeterangan === "pulang") {
+            Swal.fire("Gagal Masuk Room", `${penerima} sudah logout (pulang). Tidak dapat memasukkan pasangan ini ke dalam ruangan.`, "error");
+            return;
+        }
+
         const availableRooms = allRooms.filter(r => r.status === "Kosong");
         if (availableRooms.length === 0) {
             Swal.fire("Penuh", "Tidak ada ruangan kosong tersedia. Silakan buat ruangan baru.", "warning");
@@ -313,6 +334,9 @@ export default function RomanticRoomPage() {
                 if (res.ok) {
                     Swal.fire("Berhasil", `${pengirim} & ${penerima} telah masuk ke ruangan.`, "success");
                     fetchData();
+                } else {
+                    const errData = await res.json();
+                    Swal.fire("Error", errData.error || "Gagal memproses validasi", "error");
                 }
             } catch (err) {
                 Swal.fire("Error", "Gagal memproses validasi", "error");
@@ -481,6 +505,46 @@ export default function RomanticRoomPage() {
                 } else {
                     const err = await res.json();
                     throw new Error(err.error || "Gagal melakukan undo");
+                }
+            } catch (err: any) {
+                Swal.fire("Error", err.message, "error");
+            }
+        }
+    };
+
+    const handleStartRoom = async (id: string) => {
+        const room = allRooms.find(r => r.id === id);
+        if (!room) return;
+
+        const result = await Swal.fire({
+            title: 'Mulai Sesi Waktu?',
+            text: `Apakah Anda yakin ingin memulai sesi waktu 15 menit untuk ${room.pengirimNama} & ${room.penerimaNama}?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#22c55e',
+            confirmButtonText: 'Ya, Mulai!',
+            cancelButtonText: 'Batal'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const res = await fetch(`/api/mandiri/rooms/${id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "start" })
+                });
+                if (res.ok) {
+                    Swal.fire({
+                        title: "Sesi Dimulai",
+                        text: "Timer 15 menit telah diaktifkan.",
+                        icon: "success",
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                    fetchData();
+                } else {
+                    const err = await res.json();
+                    throw new Error(err.error || "Gagal memulai sesi");
                 }
             } catch (err: any) {
                 Swal.fire("Error", err.message, "error");
@@ -957,7 +1021,10 @@ export default function RomanticRoomPage() {
                                                     <div className="p-role-tag caller">Pemanggil</div>
                                                     <div className="p-main-box">
                                                         <span className="p-number-badge">{item.pengirimNomorUrut || item.pengirimNo || '-'}</span>
-                                                        <span className="p-name">{item.pengirimNama}</span>
+                                                        <span className="p-name">
+                                                            {item.pengirimNama}
+                                                            {item.pengirimKeterangan === 'pulang' && <span className="p-pulang-badge"> (Pulang)</span>}
+                                                        </span>
                                                     </div>
                                                     <div className="p-meta-list">
                                                         <div className="p-sub-info">
@@ -980,7 +1047,10 @@ export default function RomanticRoomPage() {
                                                     <div className="p-role-tag called">Dipanggil</div>
                                                     <div className="p-main-box">
                                                         <span className="p-number-badge">{item.penerimaNomorUrut || item.penerimaNo || '-'}</span>
-                                                        <span className="p-name">{item.penerimaNama}</span>
+                                                        <span className="p-name">
+                                                            {item.penerimaNama}
+                                                            {item.penerimaKeterangan === 'pulang' && <span className="p-pulang-badge"> (Pulang)</span>}
+                                                        </span>
                                                     </div>
                                                     <div className="p-meta-list">
                                                         <div className="p-sub-info">
@@ -993,7 +1063,10 @@ export default function RomanticRoomPage() {
                                                 </div>
                                             </div>
                                             <div className="queue-actions">
-                                                <button className="btn-validate" onClick={() => handleAssignToRoom(item.id, item.pengirimNama, item.penerimaNama)}>
+                                                <button 
+                                                    className={`btn-validate ${(item.pengirimKeterangan === 'pulang' || item.penerimaKeterangan === 'pulang') ? 'btn-disabled' : ''}`} 
+                                                    onClick={() => handleAssignToRoom(item.id, item.pengirimNama, item.penerimaNama, item.pengirimKeterangan, item.penerimaKeterangan)}
+                                                >
                                                     Validasi & Masuk Room
                                                 </button>
                                                 <button className="btn-delete-queue" onClick={() => handleDeleteQueue(item)} title="Hapus Antrean">
@@ -1039,11 +1112,11 @@ export default function RomanticRoomPage() {
                                 <div className="empty-state" style={{ gridColumn: '1/-1' }}>Tidak ada ruangan yang ditemukan</div>
                             ) : (
                                 filteredRooms.map((room) => (
-                                    <div key={room.id} className={`room-tile ${room.status?.toLowerCase()}`}>
+                                    <div key={room.id} className={`room-tile ${room.status?.toLowerCase()} ${room.status === "Terisi" && !room.startedAt ? "not-started" : ""}`}>
                                         <div className="room-top">
                                             <span className="room-name">{room.nama}</span>
-                                            {room.status === "Terisi" && room.updatedAt && (
-                                                <RoomTimer startTime={room.updatedAt} />
+                                            {room.status === "Terisi" && room.startedAt && (
+                                                <RoomTimer startTime={room.startedAt} />
                                             )}
                                             <button className="btn-delete-room" onClick={() => handleDeleteRoom(room.id)}>
                                                 <Trash2 size={14} />
@@ -1063,10 +1136,16 @@ export default function RomanticRoomPage() {
                                                             <span className="room-p-name">{room.penerimaNama}</span>
                                                         </div>
                                                     </div>
-                                                    <div style={{ display: 'flex', gap: '4px', width: '100%' }}>
-                                                        <button className="btn-clear" onClick={() => handleClearRoom(room.id)} style={{ flex: 1 }}>
-                                                            <LogOut size={12} /> Selesaikan
-                                                        </button>
+                                                    <div style={{ display: 'flex', gap: '4px', width: '100%', marginTop: '6px' }}>
+                                                        {room.startedAt ? (
+                                                            <button className="btn-clear" onClick={() => handleClearRoom(room.id)} style={{ flex: 1 }}>
+                                                                <LogOut size={12} /> Selesaikan
+                                                            </button>
+                                                        ) : (
+                                                            <button className="btn-start-timer" onClick={() => handleStartRoom(room.id)}>
+                                                                <Timer size={12} fill="white" /> Mulai
+                                                            </button>
+                                                        )}
                                                         <button className="btn-undo-room" onClick={() => handleUndoRoom(room.id)} title="Undo / Kembalikan ke Antrean">
                                                             <Undo2 size={12} />
                                                         </button>
@@ -1150,86 +1229,171 @@ export default function RomanticRoomPage() {
                             {filteredData.length === 0 ? (
                                 <div className="empty-state">Tidak ada data yang sesuai dengan filter</div>
                             ) : (
-                                <table className="history-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Nomor Peserta Pemilih</th>
-                                            <th>Nama Pemilih</th>
-                                            <th>Daerah / Desa Pemilih</th>
-                                            <th>WhatsApp Pemilih</th>
-                                            <th>Status Pemilih</th>
-                                            <th>Hasil Pemilih</th>
-                                            <th>Nomor Peserta Terpilih</th>
-                                            <th>Nama Terpilih</th>
-                                            <th>Daerah / Desa Terpilih</th>
-                                            <th>WhatsApp Terpilih</th>
-                                            <th>Status Terpilih</th>
-                                            <th>Hasil Terpilih</th>
-                                            <th className="text-center">Status</th>
-                                            <th className="text-center">Nomor Room</th>
-                                            <th className="text-center">Aksi</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
+                                <>
+                                    {/* Desktop View */}
+                                    <div className="desktop-only" style={{ overflowX: 'auto' }}>
+                                        <table className="history-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Nomor Peserta Pemilih</th>
+                                                    <th>Nama Pemilih</th>
+                                                    <th>Daerah / Desa Pemilih</th>
+                                                    <th>WhatsApp Pemilih</th>
+                                                    <th>Status Pemilih</th>
+                                                    <th>Hasil Pemilih</th>
+                                                    <th>Nomor Peserta Terpilih</th>
+                                                    <th>Nama Terpilih</th>
+                                                    <th>Daerah / Desa Terpilih</th>
+                                                    <th>WhatsApp Terpilih</th>
+                                                    <th>Status Terpilih</th>
+                                                    <th>Hasil Terpilih</th>
+                                                    <th className="text-center">Status</th>
+                                                    <th className="text-center">Nomor Room</th>
+                                                    <th className="text-center">Aksi</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {filteredData.map((item: any, idx) => (
+                                                    <tr key={idx}>
+                                                        <td>{item.pemilihNomorUrut || item.pemilihNo || '-'}</td>
+                                                        <td className="font-bold">{item.pemilihNama}</td>
+                                                        <td style={{ fontSize: '11px' }}>{item.pemilihKota || '-'} / {item.pemilihDesa || '-'}</td>
+                                                        <td style={{ fontSize: '11px' }}>{item.pemilihWa || '-'}</td>
+                                                        <td>{item.pemilihStatus}</td>
+                                                        <td>
+                                                            {item.pemilihHasil && (
+                                                                <span className={`result-badge ${item.pemilihHasil === 'Lanjut' ? 'badge-success' :
+                                                                    item.pemilihHasil === 'Ragu-ragu' ? 'badge-warning' :
+                                                                        item.pemilihHasil === 'Menunggu' ? 'badge-info' :
+                                                                            'badge-danger'
+                                                                    }`}>
+                                                                    {item.pemilihHasil}
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td>{item.terpilihNomorUrut || item.terpilihNo || '-'}</td>
+                                                        <td className="font-bold">{item.terpilihNama}</td>
+                                                        <td style={{ fontSize: '11px' }}>{item.terpilihKota || '-'} / {item.terpilihDesa || '-'}</td>
+                                                        <td style={{ fontSize: '11px' }}>{item.terpilihWa || '-'}</td>
+                                                        <td>{item.terpilihStatus}</td>
+                                                        <td>
+                                                            {item.terpilihHasil && (
+                                                                <span className={`result-badge ${item.terpilihHasil === 'Lanjut' ? 'badge-success' :
+                                                                    item.terpilihHasil === 'Ragu-ragu' ? 'badge-warning' :
+                                                                        item.terpilihHasil === 'Menunggu' ? 'badge-info' :
+                                                                            'badge-danger'
+                                                                    }`}>
+                                                                    {item.terpilihHasil}
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="text-center">
+                                                            <span className={`status-badge-inline ${item.status === 'Menunggu' ? 'waiting' : 'finished'}`}>
+                                                                {item.status}
+                                                            </span>
+                                                        </td>
+                                                        <td className="text-center">
+                                                            <span className="visit-count">{item.roomNama}</span>
+                                                        </td>
+                                                        <td className="text-center">
+                                                            <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                                                {!item.isQueue && (
+                                                                    <>
+                                                                        <button className="btn-act btn-edit" onClick={() => handleEditRecord(item)} title="Edit Hasil">✏️</button>
+                                                                        <button className="btn-act btn-del" onClick={() => handleDeleteRecord(item)} title="Hapus Permanen">🗑️</button>
+                                                                    </>
+                                                                )}
+                                                                {item.isQueue && (
+                                                                    <button className="btn-act btn-del" onClick={() => handleDeleteQueue(item)} title="Hapus Antrean">🗑️</button>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    {/* Mobile Card View */}
+                                    <div className="mobile-only">
                                         {filteredData.map((item: any, idx) => (
-                                            <tr key={idx}>
-                                                <td>{item.pemilihNomorUrut || item.pemilihNo || '-'}</td>
-                                                <td className="font-bold">{item.pemilihNama}</td>
-                                                <td style={{ fontSize: '11px' }}>{item.pemilihKota || '-'} / {item.pemilihDesa || '-'}</td>
-                                                <td style={{ fontSize: '11px' }}>{item.pemilihWa || '-'}</td>
-                                                <td>{item.pemilihStatus}</td>
-                                                <td>
-                                                    {item.pemilihHasil && (
-                                                        <span className={`result-badge ${item.pemilihHasil === 'Lanjut' ? 'badge-success' :
-                                                            item.pemilihHasil === 'Ragu-ragu' ? 'badge-warning' :
-                                                                item.pemilihHasil === 'Menunggu' ? 'badge-info' :
-                                                                    'badge-danger'
-                                                            }`}>
-                                                            {item.pemilihHasil}
-                                                        </span>
-                                                    )}
-                                                </td>
-                                                <td>{item.terpilihNomorUrut || item.terpilihNo || '-'}</td>
-                                                <td className="font-bold">{item.terpilihNama}</td>
-                                                <td style={{ fontSize: '11px' }}>{item.terpilihKota || '-'} / {item.terpilihDesa || '-'}</td>
-                                                <td style={{ fontSize: '11px' }}>{item.terpilihWa || '-'}</td>
-                                                <td>{item.terpilihStatus}</td>
-                                                <td>
-                                                    {item.terpilihHasil && (
-                                                        <span className={`result-badge ${item.terpilihHasil === 'Lanjut' ? 'badge-success' :
-                                                            item.terpilihHasil === 'Ragu-ragu' ? 'badge-warning' :
-                                                                item.terpilihHasil === 'Menunggu' ? 'badge-info' :
-                                                                    'badge-danger'
-                                                            }`}>
-                                                            {item.terpilihHasil}
-                                                        </span>
-                                                    )}
-                                                </td>
-                                                <td className="text-center">
+                                            <div key={idx} className="mobile-history-card">
+                                                <div className="card-top-row">
                                                     <span className={`status-badge-inline ${item.status === 'Menunggu' ? 'waiting' : 'finished'}`}>
                                                         {item.status}
                                                     </span>
-                                                </td>
-                                                <td className="text-center">
                                                     <span className="visit-count">{item.roomNama}</span>
-                                                </td>
-                                                <td className="text-center">
-                                                    <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                                                        {!item.isQueue && (
-                                                            <>
-                                                                <button className="btn-act btn-edit" onClick={() => handleEditRecord(item)} title="Edit Hasil">✏️</button>
-                                                                <button className="btn-act btn-del" onClick={() => handleDeleteRecord(item)} title="Hapus Permanen">🗑️</button>
-                                                            </>
-                                                        )}
-                                                        {item.isQueue && (
-                                                            <button className="btn-act btn-del" onClick={() => handleDeleteQueue(item)} title="Hapus Antrean">🗑️</button>
-                                                        )}
+                                                </div>
+
+                                                <div className="member-section voter">
+                                                    <div className="member-label">Pemilih</div>
+                                                    <div className="member-details">
+                                                        <div className="member-header">
+                                                            <span className="member-no">#{item.pemilihNomorUrut || item.pemilihNo || '-'}</span>
+                                                            <span className="member-name">{item.pemilihNama}</span>
+                                                            <span className="member-status-tag">{item.pemilihStatus}</span>
+                                                        </div>
+                                                        <div className="member-subtext">{item.pemilihKota || '-'} / {item.pemilihDesa || '-'}</div>
+                                                        <div className="member-subtext">WA: {item.pemilihWa || '-'}</div>
+                                                        <div className="member-result">
+                                                            {item.pemilihHasil && (
+                                                                <span className={`result-badge ${item.pemilihHasil === 'Lanjut' ? 'badge-success' :
+                                                                    item.pemilihHasil === 'Ragu-ragu' ? 'badge-warning' :
+                                                                        item.pemilihHasil === 'Menunggu' ? 'badge-info' :
+                                                                            'badge-danger'
+                                                                    }`}>
+                                                                    Hasil: {item.pemilihHasil}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                </td>
-                                            </tr>
+                                                </div>
+
+                                                <div className="heart-divider" style={{ margin: '8px 0' }}>
+                                                    <div className="line"></div>
+                                                    <span style={{ fontSize: '12px' }}>❤️</span>
+                                                    <div className="line"></div>
+                                                </div>
+
+                                                <div className="member-section voted">
+                                                    <div className="member-label">Terpilih</div>
+                                                    <div className="member-details">
+                                                        <div className="member-header">
+                                                            <span className="member-no">#{item.terpilihNomorUrut || item.terpilihNo || '-'}</span>
+                                                            <span className="member-name">{item.terpilihNama}</span>
+                                                            <span className="member-status-tag">{item.terpilihStatus}</span>
+                                                        </div>
+                                                        <div className="member-subtext">{item.terpilihKota || '-'} / {item.terpilihDesa || '-'}</div>
+                                                        <div className="member-subtext">WA: {item.terpilihWa || '-'}</div>
+                                                        <div className="member-result">
+                                                            {item.terpilihHasil && (
+                                                                <span className={`result-badge ${item.terpilihHasil === 'Lanjut' ? 'badge-success' :
+                                                                    item.terpilihHasil === 'Ragu-ragu' ? 'badge-warning' :
+                                                                        item.terpilihHasil === 'Menunggu' ? 'badge-info' :
+                                                                            'badge-danger'
+                                                                    }`}>
+                                                                    Hasil: {item.terpilihHasil}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="card-actions-row">
+                                                    {!item.isQueue && (
+                                                        <>
+                                                            <button className="btn-act-mobile btn-edit-mobile" onClick={() => handleEditRecord(item)}>✏️ Edit Hasil</button>
+                                                            <button className="btn-act-mobile btn-del-mobile" onClick={() => handleDeleteRecord(item)}>🗑️ Hapus</button>
+                                                        </>
+                                                    )}
+                                                    {item.isQueue && (
+                                                        <button className="btn-act-mobile btn-del-mobile" style={{ width: '100%' }} onClick={() => handleDeleteQueue(item)}>🗑️ Hapus Antrean</button>
+                                                    )}
+                                                </div>
+                                            </div>
                                         ))}
-                                    </tbody>
-                                </table>
+                                    </div>
+                                </>
                             )}
                         </div>
                     </div>
@@ -1269,6 +1433,7 @@ export default function RomanticRoomPage() {
                     .admin-grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
                     .admin-card { background: white; border-radius: 16px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.03); transition: all 0.3s; }
                     .admin-card:hover { box-shadow: 0 10px 30px rgba(0,0,0,0.05); border-color: #fecdd3; }
+                    .queue-box { height: 0; min-height: 100%; }
                     
                     .card-header { padding: 15px 20px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fff; }
                     .header-title { display: flex; align-items: center; gap: 10px; color: #1e293b; }
@@ -1285,6 +1450,8 @@ export default function RomanticRoomPage() {
                     .scrollable { max-height: 600px; overflow-y: auto; padding-right: 5px; }
                     .scrollable::-webkit-scrollbar { width: 4px; }
                     .scrollable::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+                    .queue-box .card-body { display: flex; flex-direction: column; min-height: 0; }
+                    .queue-box .scrollable { flex: 1; max-height: none; }
                     
                     .empty-state { text-align: center; color: #94a3b8; padding: 40px 20px; font-style: italic; font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 
@@ -1317,6 +1484,8 @@ export default function RomanticRoomPage() {
                     .queue-actions { display: flex; gap: 8px; border-top: 1px solid #f1f5f9; padding-top: 15px; margin-top: 5px; }
                     .btn-validate { flex: 1; background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%); color: white; border: none; padding: 8px; border-radius: 8px; font-size: 11px; font-weight: 800; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(244, 63, 94, 0.2); }
                     .btn-validate:hover { transform: translateY(-1px); box-shadow: 0 6px 15px rgba(244, 63, 94, 0.3); }
+                    .btn-validate.btn-disabled { background: #cbd5e1 !important; color: #94a3b8 !important; cursor: not-allowed !important; box-shadow: none !important; transform: none !important; }
+                    .p-pulang-badge { color: #ef4444; font-size: 11px; font-weight: 800; margin-left: 4px; }
                     .btn-delete-queue { background: #fef2f2; color: #dc2626; border: 1px solid #fee2e2; padding: 8px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
                     .btn-delete-queue:hover { background: #fee2e2; color: #b91c1c; }
                     
@@ -1335,6 +1504,7 @@ export default function RomanticRoomPage() {
                     
                     .room-tile { min-width: 0; border-radius: 12px; border: 1px solid #e2e8f0; padding: 12px; display: flex; flex-direction: column; gap: 10px; transition: all 0.3s; background: white; }
                     .room-tile.terisi { background: #f0fdf4; border-color: #bbf7d0; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.05); }
+                    .room-tile.terisi.not-started { background: #fffbeb; border-color: #fde68a; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.04); }
                     .room-tile.kosong { background: #fff1f2; border-color: #fecdd3; opacity: 0.8; }
                     .room-tile:hover { transform: scale(1.02); }
                     
@@ -1354,6 +1524,8 @@ export default function RomanticRoomPage() {
                     
                     .btn-clear { background: #166534; color: white; border: none; border-radius: 6px; padding: 4px 8px; font-size: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; transition: all 0.2s; }
                     .btn-clear:hover { background: #14532d; transform: scale(1.02); }
+                    .btn-start-timer { background: #d97706; color: white; border: none; border-radius: 6px; padding: 4px 8px; font-size: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; transition: all 0.2s; }
+                    .btn-start-timer:hover { background: #b45309; transform: scale(1.02); }
                     
                     .btn-undo-room { background: #64748b; color: white; border: none; border-radius: 6px; padding: 4px 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
                     .btn-undo-room:hover { background: #475569; transform: scale(1.05); }
@@ -1371,6 +1543,126 @@ export default function RomanticRoomPage() {
                     .history-table tr:last-child td { border: none; }
                     
                     .visit-count { background: #f0f9ff; color: #0369a1; padding: 2px 8px; border-radius: 12px; font-weight: 800; font-size: 11px; border: 1px solid #bae6fd; }
+
+                    .desktop-only { display: block; }
+                    .mobile-only { display: none; }
+
+                    .mobile-history-card {
+                        background: white;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 12px;
+                        padding: 16px;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 12px;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                        text-align: left;
+                    }
+
+                    .card-top-row {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    }
+
+                    .member-section {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 6px;
+                    }
+
+                    .member-label {
+                        font-size: 10px;
+                        font-weight: 800;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                        color: #94a3b8;
+                    }
+
+                    .member-details {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 4px;
+                    }
+
+                    .member-header {
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        flex-wrap: wrap;
+                    }
+
+                    .member-no {
+                        background: #f1f5f9;
+                        color: #475569;
+                        padding: 1px 6px;
+                        border-radius: 4px;
+                        font-size: 11px;
+                        font-weight: 800;
+                    }
+
+                    .member-name {
+                        font-size: 14px;
+                        font-weight: 700;
+                        color: #1e293b;
+                    }
+
+                    .member-status-tag {
+                        background: #f8fafc;
+                        border: 1px solid #e2e8f0;
+                        color: #64748b;
+                        padding: 1px 6px;
+                        border-radius: 4px;
+                        font-size: 9px;
+                        font-weight: 700;
+                    }
+
+                    .member-subtext {
+                        font-size: 12px;
+                        color: #64748b;
+                    }
+
+                    .member-result {
+                        margin-top: 4px;
+                    }
+
+                    .card-actions-row {
+                        display: flex;
+                        gap: 8px;
+                        border-top: 1px solid #f1f5f9;
+                        padding-top: 12px;
+                    }
+
+                    .btn-act-mobile {
+                        flex: 1;
+                        border: none;
+                        border-radius: 8px;
+                        padding: 8px;
+                        font-size: 12px;
+                        font-weight: 700;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 4px;
+                        transition: background 0.2s;
+                    }
+
+                    .btn-edit-mobile {
+                        background: #eff6ff;
+                        color: #2563eb;
+                    }
+                    .btn-edit-mobile:hover {
+                        background: #dbeafe;
+                    }
+
+                    .btn-del-mobile {
+                        background: #fef2f2;
+                        color: #dc2626;
+                    }
+                    .btn-del-mobile:hover {
+                        background: #fee2e2;
+                    }
                     .font-bold { font-weight: 700; color: #1e293b; }
                     
                     .manual-record-box { display: flex; align-items: center; gap: 12px; }
@@ -1388,6 +1680,16 @@ export default function RomanticRoomPage() {
                         .history-box { grid-column: span 1; }
                         .header-top { flex-direction: column; }
                         .stats-row { width: 100%; overflow-x: auto; padding-bottom: 5px; }
+                        .queue-box { height: auto; min-height: 0; }
+                        .queue-box .scrollable { max-height: 600px; }
+                    }
+
+                    @media (max-width: 768px) {
+                        .desktop-only { display: none; }
+                        .mobile-only { display: flex; flex-direction: column; gap: 12px; }
+                        .manual-record-box { flex-direction: column; align-items: stretch; width: 100%; gap: 8px; }
+                        .manual-record-box select, .manual-record-box button { width: 100%; margin-right: 0 !important; }
+                        .card-header { flex-direction: column; align-items: flex-start; gap: 12px; }
                     }
                     .btn-record-manual { background: #1e293b; color: white; border: none; padding: 4px 10px; border-radius: 6px; display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
                     .btn-record-manual:hover { background: #334155; }
@@ -1442,6 +1744,11 @@ export default function RomanticRoomPage() {
                         font-weight: 950;
                         box-shadow: 0 0 12px rgba(220, 38, 38, 0.4);
                     }
+                    .room-timer-badge.not-started {
+                        background: #f8fafc;
+                        color: #64748b !important;
+                        border-color: #cbd5e1;
+                    }
                     @keyframes pulse {
                         0% { opacity: 1; }
                         50% { opacity: 0.5; }
@@ -1485,12 +1792,12 @@ export default function RomanticRoomPage() {
                 <header className="room-header">
                     <h1>Romantic <span>Room</span> <Sparkles size={24} color="#f43f5e" /></h1>
                     <p>Selamat! Anda telah masuk ke ruangan <b>{myRoom.nama}</b></p>
-                    {myRoom.updatedAt && (
-                        <div className="user-timer-wrapper">
-                            <RoomTimer startTime={myRoom.updatedAt} />
-                            <span className="timer-label">Sisa Waktu Sesi</span>
-                        </div>
-                    )}
+                    <div className="user-timer-wrapper">
+                        <RoomTimer startTime={myRoom.startedAt} />
+                        <span className="timer-label">
+                            {myRoom.startedAt ? "Sisa Waktu Sesi" : "Menunggu Admin Memulai Sesi"}
+                        </span>
+                    </div>
                 </header>
 
                 <div className="room-card">
