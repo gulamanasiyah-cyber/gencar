@@ -4,7 +4,7 @@ import { Metadata } from "next";
 export const metadata: Metadata = { title: "Dashboard" };
 
 import { db } from "@/lib/db";
-import { generus, kegiatan, artikel, users, mandiriKegiatan, mandiri, mandiriAbsensi, formPanitiaDanPengurus, mandiriDesa, mandiriKunjungan, mandiriPemilihan } from "@/lib/schema";
+import { generus, kegiatan, artikel, users, mandiriKegiatan, mandiri, mandiriAbsensi, formPanitiaDanPengurus, mandiriDesa, mandiriKunjungan, mandiriPemilihan, settings } from "@/lib/schema";
 import { eq, and, sql, or, isNull, not, notInArray, desc, inArray, aliasedTable, isNotNull } from "drizzle-orm";
 
 async function getStats(session: any, searchParams?: any) {
@@ -36,9 +36,14 @@ async function getStats(session: any, searchParams?: any) {
 
     const finalGenerusFilter = generusFilter ? and(generusFilter, roleExclusion) : roleExclusion as any;
 
-    // Latest Mandiri Activity for Attendance Stats
-    const latestMandiriKegiatan = await db.select().from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-    const currentActivityId = latestMandiriKegiatan[0]?.id;
+    // Active Mandiri Kegiatan from settings, fallback to latest by date
+    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id"));
+    const activeIdFromSetting = activeSetting[0]?.value;
+    let currentActivityId = activeIdFromSetting || undefined;
+    if (!currentActivityId) {
+      const latestMandiriKegiatan = await db.select().from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
+      currentActivityId = latestMandiriKegiatan[0]?.id;
+    }
     const attendanceFilter = (extra?: any) => {
       const base = [eq(mandiriAbsensi.keterangan, "hadir")];
       if (currentActivityId) base.push(eq(mandiriAbsensi.kegiatanId, currentActivityId));

@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriPemilihan, users, generus, mandiriAntrean, mandiri, formPanitiaDanPengurus, mandiriDesa, mandiriAbsensi, mandiriKegiatan } from "@/lib/schema";
+import { mandiriPemilihan, users, generus, mandiriAntrean, mandiri, formPanitiaDanPengurus, mandiriDesa, mandiriAbsensi, mandiriKegiatan, settings } from "@/lib/schema";
 import { eq, and, or, count, desc, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { getSession } from "@/lib/auth";
@@ -40,8 +40,13 @@ export async function GET(request: NextRequest) {
         }
 
         if (isAdmin && searchParams.get("all") === "true") {
-            const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-            const kegiatanId = latestActivity[0]?.id || "";
+            const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+            let kegiatanId = activeSetting[0]?.value || "";
+
+            if (!kegiatanId) {
+                const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
+                kegiatanId = latestActivity[0]?.id || "";
+            }
 
             const g1 = alias(generus, "g1");
             const g2 = alias(generus, "g2");
@@ -148,8 +153,13 @@ export async function POST(request: NextRequest) {
         if (pengirimId === targetId) return NextResponse.json({ error: "Tidak dapat memilih diri sendiri" }, { status: 400 });
 
         // Block selection if target is logged out (pulang)
-        const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-        const kegiatanId = latestActivity[0]?.id;
+        const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+        let kegiatanId = activeSetting[0]?.value || "";
+
+        if (!kegiatanId) {
+            const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
+            kegiatanId = latestActivity[0]?.id || "";
+        }
         if (kegiatanId) {
             const targetAbs = await db.select({ keterangan: mandiriAbsensi.keterangan })
                 .from(mandiriAbsensi)

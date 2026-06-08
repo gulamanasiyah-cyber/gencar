@@ -26,18 +26,36 @@ export async function GET(request: NextRequest) {
     });
 
     // Priority for Mandiri if Activity exists
-    const latestKegiatan = await db
-      .select({ judul: mandiriKegiatan.judul, deskripsi: mandiriKegiatan.deskripsi })
-      .from(mandiriKegiatan)
-      .orderBy(desc(mandiriKegiatan.tanggal))
-      .limit(1);
-
-    if (latestKegiatan.length > 0) {
-      if (latestKegiatan[0].judul) {
-        settingsObj["mandiri_registration_title"] = latestKegiatan[0].judul;
+    const activeKegiatanId = settingsObj["mandiri_active_kegiatan_id"];
+    let activeKegiatan = null;
+    if (activeKegiatanId) {
+      const result = await db
+        .select({ judul: mandiriKegiatan.judul, deskripsi: mandiriKegiatan.deskripsi })
+        .from(mandiriKegiatan)
+        .where(eq(mandiriKegiatan.id, activeKegiatanId))
+        .limit(1);
+      if (result.length > 0) {
+        activeKegiatan = result[0];
       }
-      if (latestKegiatan[0].deskripsi) {
-        settingsObj["mandiri_registration_description"] = latestKegiatan[0].deskripsi;
+    }
+
+    if (!activeKegiatan) {
+      const latestKegiatan = await db
+        .select({ judul: mandiriKegiatan.judul, deskripsi: mandiriKegiatan.deskripsi })
+        .from(mandiriKegiatan)
+        .orderBy(desc(mandiriKegiatan.tanggal))
+        .limit(1);
+      if (latestKegiatan.length > 0) {
+        activeKegiatan = latestKegiatan[0];
+      }
+    }
+
+    if (activeKegiatan) {
+      if (activeKegiatan.judul) {
+        settingsObj["mandiri_registration_title"] = activeKegiatan.judul;
+      }
+      if (activeKegiatan.deskripsi) {
+        settingsObj["mandiri_registration_description"] = activeKegiatan.deskripsi;
       }
     }
 

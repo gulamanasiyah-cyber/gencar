@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriAbsensi, mandiriKegiatan, generus, mandiri, mandiriDesa, formPanitiaDanPengurus } from "@/lib/schema";
+import { mandiriAbsensi, mandiriKegiatan, generus, mandiri, mandiriDesa, formPanitiaDanPengurus, settings } from "@/lib/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 
@@ -18,13 +18,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Nomor identitas diperlukan" }, { status: 400 });
     }
 
-    // 1. Get the latest activity
-    const latestActivity = await db.select().from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-    if (latestActivity.length === 0) {
-      return NextResponse.json({ status: "no_activity" });
+    // 1. Get the active kegiatan from settings
+    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+    let kegiatanId = activeSetting[0]?.value || "";
+    let activeKegiatan = null;
+
+    if (kegiatanId) {
+      const result = await db.select().from(mandiriKegiatan).where(eq(mandiriKegiatan.id, kegiatanId)).limit(1);
+      if (result.length > 0) {
+        activeKegiatan = result[0];
+      }
     }
 
-    const kegiatanId = latestActivity[0].id;
+    if (!activeKegiatan) {
+      // Get the latest activity fallback
+      const fallbackActivity = await db.select().from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
+      if (fallbackActivity.length === 0) {
+        return NextResponse.json({ status: "no_activity" });
+      }
+      activeKegiatan = fallbackActivity[0];
+      kegiatanId = activeKegiatan.id;
+    }
+
+    const latestActivity = [activeKegiatan];
 
     // 2. Find the generus by nomorPeserta OR nomorUnik
     let generusId = null;

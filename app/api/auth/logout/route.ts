@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession, clearSession } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { mandiriAbsensi, mandiriKegiatan } from "@/lib/schema";
+import { mandiriAbsensi, mandiriKegiatan, settings } from "@/lib/schema";
 import { eq, desc, and } from "drizzle-orm";
 
 export async function POST() {
@@ -9,13 +9,21 @@ export async function POST() {
     const session = await getSession();
     if (session && session.generusId) {
       const generusId = session.generusId;
-      const latestActivity = await db.select({ id: mandiriKegiatan.id })
-        .from(mandiriKegiatan)
-        .orderBy(desc(mandiriKegiatan.tanggal))
-        .limit(1);
       
-      if (latestActivity.length > 0) {
-        const kegiatanId = latestActivity[0].id;
+      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+      let kegiatanId = activeSetting[0]?.value || "";
+      
+      if (!kegiatanId) {
+        const latestActivity = await db.select({ id: mandiriKegiatan.id })
+          .from(mandiriKegiatan)
+          .orderBy(desc(mandiriKegiatan.tanggal))
+          .limit(1);
+        if (latestActivity.length > 0) {
+          kegiatanId = latestActivity[0].id;
+        }
+      }
+      
+      if (kegiatanId) {
         await db.update(mandiriAbsensi)
           .set({ keterangan: "pulang" })
           .where(and(

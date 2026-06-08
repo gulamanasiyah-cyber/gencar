@@ -66,14 +66,22 @@ function AbsensiContent() {
   useEffect(() => {
     const init = async () => {
       try {
-        const [kegRes, profRes] = await Promise.all([
+        const [kegRes, profRes, activeRes] = await Promise.all([
           fetch("/api/mandiri/kegiatan"),
-          fetch("/api/profile")
+          fetch("/api/profile"),
+          fetch("/api/mandiri/settings?key=mandiri_active_kegiatan_id")
         ]);
         
         if (kegRes.ok) {
           const d = await kegRes.json();
           setKegiatan(Array.isArray(d) ? d : []);
+        }
+        
+        if (activeRes.ok) {
+          const active = await activeRes.json();
+          if (active.value && !searchParams.get("kegiatanId")) {
+            setSelectedKegiatan(active.value);
+          }
         }
         
         if (profRes.ok) {

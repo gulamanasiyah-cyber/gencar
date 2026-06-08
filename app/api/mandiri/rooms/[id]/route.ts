@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriRooms, mandiriPemilihan, mandiriKunjungan, mandiriKegiatan, mandiriAbsensi } from "@/lib/schema";
+import { mandiriRooms, mandiriPemilihan, mandiriKunjungan, mandiriKegiatan, mandiriAbsensi, settings } from "@/lib/schema";
 import { eq, sql, and, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 
@@ -32,11 +32,16 @@ export async function PATCH(
             }
 
             // 0.1 Check if either participant has logged out/gone home
-            const latestActivity = await db.select({ id: mandiriKegiatan.id })
-                .from(mandiriKegiatan)
-                .orderBy(desc(mandiriKegiatan.tanggal))
-                .limit(1);
-            const kegiatanId = latestActivity[0]?.id;
+            const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+            let kegiatanId = activeSetting[0]?.value || "";
+
+            if (!kegiatanId) {
+                const latestActivity = await db.select({ id: mandiriKegiatan.id })
+                    .from(mandiriKegiatan)
+                    .orderBy(desc(mandiriKegiatan.tanggal))
+                    .limit(1);
+                kegiatanId = latestActivity[0]?.id || "";
+            }
 
             if (kegiatanId) {
                 const checkAttendance = await db.select({

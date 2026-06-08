@@ -51,9 +51,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Katalog sedang tidak dibuka untuk publik." }, { status: 403 });
     }
 
-    // 2. Get latest activity to filter by attendance
-    const latestActivity = await db.select().from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-    const kegiatanId = latestActivity[0]?.id;
+    // Get the active kegiatan from settings
+    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+    let kegiatanId = activeSetting[0]?.value || "";
+
+    if (!kegiatanId) {
+      // Get latest activity fallback to filter by attendance
+      const latestActivity = await db.select().from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
+      kegiatanId = latestActivity[0]?.id || "";
+    }
 
     if (!kegiatanId) {
       return NextResponse.json({ data: [], total: 0, page: Number(searchParams.get("page") || "1"), limit: Number(searchParams.get("limit") || "20") });

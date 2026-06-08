@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { formPanitiaDanPengurus, mandiriDesa, mandiriKelompok, generus, mandiriAbsensi, mandiriKegiatan } from "@/lib/schema";
+import { formPanitiaDanPengurus, mandiriDesa, mandiriKelompok, generus, mandiriAbsensi, mandiriKegiatan, settings } from "@/lib/schema";
 import { eq, and, or, like, sql, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 
@@ -22,9 +22,15 @@ export async function GET(request: NextRequest) {
     const limit = Number(searchParams.get("limit") || "200"); // Use larger limit for now as panitia list is usually small
     const offset = (page - 1) * limit;
 
-    // 1. Get the latest activity
-    const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-    const kegiatanId = latestActivity[0]?.id || "";
+    // 1. Get the active kegiatan from settings
+    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+    let kegiatanId = activeSetting[0]?.value || "";
+
+    if (!kegiatanId) {
+      // Get the latest activity fallback
+      const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
+      kegiatanId = latestActivity[0]?.id || "";
+    }
 
     const conditions = [];
 

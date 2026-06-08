@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiri, generus, desa, kelompok, mandiriDesa, mandiriKelompok, users, mandiriKegiatan, mandiriAbsensi } from "@/lib/schema";
+import { mandiri, generus, desa, kelompok, mandiriDesa, mandiriKelompok, users, mandiriKegiatan, mandiriAbsensi, settings } from "@/lib/schema";
 import { eq, and, or, like, sql, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
@@ -51,9 +51,15 @@ export async function GET(request: NextRequest) {
       orderClause = sql`${mandiri.nomorUrut} DESC`;
     }
 
-    // Get the latest activity
-    const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-    const kegiatanId = latestActivity[0]?.id || "";
+    // Get the active kegiatan from settings
+    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+    let kegiatanId = activeSetting[0]?.value || "";
+
+    if (!kegiatanId) {
+      // Get the latest activity fallback
+      const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
+      kegiatanId = latestActivity[0]?.id || "";
+    }
 
     // Optimized Data Query - Based on MANDIRI table
     const dataQuery = db
