@@ -59,6 +59,16 @@ export async function GET(request: NextRequest) {
       .limit(1);
 
     if (attendance.length > 0) {
+      // If currently "pulang" (went home/logged out), reset to "hadir" since they are entering/logging in again
+      if (attendance[0].keterangan === "pulang") {
+        await db.update(mandiriAbsensi)
+          .set({ keterangan: "hadir", timestamp: new Date().toISOString() })
+          .where(and(
+            eq(mandiriAbsensi.kegiatanId, kegiatanId),
+            eq(mandiriAbsensi.generusId, generusId)
+          ));
+      }
+
       // Find the user's name and last session token
       const user = await db.select({ 
           id: generus.id,
@@ -87,8 +97,8 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({ status: "multi_login" });
       }
 
-      // If logging in via nomorPeserta (explicit login)
-      if (nomorPeserta) {
+      // If logging in via nomorPeserta or nomorUnik explicitly (without sessionToken)
+      if (nomorPeserta || !sessionToken) {
         // Generate new token to invalidate other sessions (except for admins)
         const finalSessionToken = isAdminRole && user[0]?.lastSessionToken ? user[0].lastSessionToken : uuidv4();
         

@@ -146,6 +146,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (existing) {
+      if (existing.keterangan === "pulang") {
+        await db.update(mandiriAbsensi)
+          .set({ keterangan: "hadir", timestamp: new Date().toISOString() })
+          .where(eq(mandiriAbsensi.id, existing.id));
+        return NextResponse.json({ success: true, id: existing.id, generusNama: resolvedGenerusNama });
+      }
       return NextResponse.json({ error: "Sudah diabsen", existing }, { status: 409 });
     }
 

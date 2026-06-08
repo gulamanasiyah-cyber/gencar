@@ -162,7 +162,7 @@ export default function PublicKatalogPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, page, gender, category, pendidikan, selectedKota, desaFilter]);
+  }, [search, page, gender, category, pendidikan, selectedKota, desaFilter, hasAttended]);
 
   useEffect(() => {
     async function init() {

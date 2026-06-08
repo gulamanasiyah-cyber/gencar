@@ -1,7 +1,5 @@
 "use client";
 
-
-
 import Topbar from "@/components/Topbar";
 
 import { useState, useEffect, useCallback } from "react";
@@ -30,6 +28,17 @@ export default function MandiriKegiatanPage() {
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<MandiriKegiatanItem | null>(null);
   const [userRole, setUserRole] = useState("");
+  const [activeKegiatanId, setActiveKegiatanId] = useState("");
+
+  const fetchActiveKegiatan = async () => {
+    try {
+      const res = await fetch("/api/mandiri/settings?key=mandiri_active_kegiatan_id");
+      const json = await res.json();
+      setActiveKegiatanId(json.value || "");
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -46,8 +55,29 @@ export default function MandiriKegiatanPage() {
 
   useEffect(() => { 
     fetchData(); 
+    fetchActiveKegiatan();
     fetch("/api/profile").then(r => r.json()).then(d => setUserRole(d.role || ""));
   }, [fetchData]);
+
+  const setActiveKegiatan = async (id: string) => {
+    try {
+      await fetch("/api/mandiri/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "mandiri_active_kegiatan_id", value: id }),
+      });
+      setActiveKegiatanId(id);
+      Swal.fire({
+        icon: 'success',
+        title: 'Berhasil',
+        text: 'Kegiatan aktif berhasil diubah!',
+        timer: 1500,
+        showConfirmButton: false
+      });
+    } catch {
+      Swal.fire("Error", "Gagal mengubah kegiatan aktif", "error");
+    }
+  };
 
   const handleDelete = async (id: string) => {
     const res = await Swal.fire({
@@ -92,6 +122,31 @@ export default function MandiriKegiatanPage() {
           </button>
         </div>
 
+        {/* Active Kegiatan Selector Card */}
+        <div className="card" style={{ marginBottom: "20px", padding: "20px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "15px" }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#1e293b" }}>Kegiatan Aktif Saat Ini</h3>
+              <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#64748b" }}>Pilih kegiatan yang sedang berlangsung untuk absensi dan katalog publik</p>
+            </div>
+            <div style={{ minWidth: "250px" }}>
+              <select
+                className="form-control"
+                value={activeKegiatanId}
+                onChange={(e) => setActiveKegiatan(e.target.value)}
+                style={{ fontWeight: 600 }}
+              >
+                <option value="">-- Pilih Kegiatan Aktif --</option>
+                {data.map(item => (
+                  <option key={item.id} value={item.id}>
+                    {item.judul} ({item.kota})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
         <div className="card">
           {loading ? (
             <div className="loading"><div className="spinner" /></div>
@@ -110,6 +165,7 @@ export default function MandiriKegiatanPage() {
               <table>
                 <thead>
                   <tr>
+                    <th style={{ width: 100 }}>Status</th>
                     <th>Kegiatan</th>
                     <th>Kota</th>
                     <th>Tanggal</th>
@@ -119,34 +175,50 @@ export default function MandiriKegiatanPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.map((item) => (
-                    <tr key={item.id}>
-                      <td>
-                        <div style={{ fontWeight: 500 }}>{item.judul}</div>
-                        {item.deskripsi && (
-                          <div className="text-sm text-muted" style={{ marginTop: 2, maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {item.deskripsi}
+                  {data.map((item) => {
+                    const isActive = item.id === activeKegiatanId;
+                    return (
+                      <tr key={item.id} style={isActive ? { background: "#f0fdf4", borderLeft: "3px solid #22c55e" } : undefined}>
+                        <td>
+                          {isActive ? (
+                            <span className="badge badge-green" style={{ fontSize: 11, padding: "4px 8px", borderRadius: 6, fontWeight: 700, background: "#dcfce7", color: "#15803d", display: "inline-block" }}>Aktif</span>
+                          ) : (
+                            <button
+                              className="btn btn-sm btn-outline"
+                              style={{ fontSize: 11, padding: "2px 8px" }}
+                              onClick={() => setActiveKegiatan(item.id)}
+                            >
+                              Set Aktif
+                            </button>
+                          )}
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 500 }}>{item.judul}</div>
+                          {item.deskripsi && (
+                            <div className="text-sm text-muted" style={{ marginTop: 2, maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {item.deskripsi}
+                            </div>
+                          )}
+                        </td>
+                        <td>{item.kota}</td>
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          {formatDate(item.tanggal)}
+                        </td>
+                        <td>{item.lokasi || "-"}</td>
+                        <td>
+                          {item.kelompokNama && <div className="text-sm">{item.kelompokNama}</div>}
+                          {item.desaNama && <div className="text-sm text-muted">{item.desaNama}</div>}
+                          {!item.desaNama && "-"}
+                        </td>
+                        <td>
+                          <div className="flex gap-2">
+                            <button className="btn btn-sm btn-secondary" onClick={() => { setEditItem(item); setShowModal(true); }}>Edit</button>
+                            <button className="btn btn-sm btn-danger" onClick={() => handleDelete(item.id)}>Hapus</button>
                           </div>
-                        )}
-                      </td>
-                      <td>{item.kota}</td>
-                      <td style={{ whiteSpace: "nowrap" }}>
-                        {formatDate(item.tanggal)}
-                      </td>
-                      <td>{item.lokasi || "-"}</td>
-                      <td>
-                        {item.kelompokNama && <div className="text-sm">{item.kelompokNama}</div>}
-                        {item.desaNama && <div className="text-sm text-muted">{item.desaNama}</div>}
-                        {!item.desaNama && "-"}
-                      </td>
-                      <td>
-                        <div className="flex gap-2">
-                          <button className="btn btn-sm btn-secondary" onClick={() => { setEditItem(item); setShowModal(true); }}>Edit</button>
-                          <button className="btn btn-sm btn-danger" onClick={() => handleDelete(item.id)}>Hapus</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
