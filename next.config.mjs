@@ -6,6 +6,9 @@ const nextConfig = {
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
+  outputFileTracingIncludes: {
+    '/**/*': ['./node_modules/@libsql/isomorphic-ws/**/*'],
+  },
   experimental: {
     serverComponentsExternalPackages: ["@libsql/isomorphic-ws"],
   },

@@ -10,7 +10,7 @@
     "db:push": "npx tsx -r dotenv/config node_modules/drizzle-kit/bin.cjs push",
     "db:studio": "drizzle-kit studio",
     "seed": "npx tsx scripts/seed.ts",
-    "build:cf": "npx @opennextjs/cloudflare build --dangerouslyUseUnsupportedNextVersion",
+    "build:cf": "npx @opennextjs/cloudflare build --dangerouslyUseUnsupportedNextVersion --node-externals @libsql/isomorphic-ws",
     "pages:build": "npx @cloudflare/next-on-pages",
     "pages:dev": "npm run pages:build && wrangler pages dev .vercel/output/static",
     "pages:deploy": "npm run pages:build && wrangler pages deploy .vercel/output/static"
