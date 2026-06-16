@@ -7,3 +7,7 @@ compatibility_flags = [ "nodejs_compat" ]
 directory = ".open-next/assets"
 binding = "ASSETS"
 
+[build]
+command = "npm run build:cf"
+
+
