@@ -21,6 +21,20 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+
+    // 2. Fetch active activity
+    const activeSetting = await db.query.settings.findFirst({
+        where: eq(settings.key, "mandiri_active_kegiatan_id")
+    });
+    let activeKegiatanId = activeSetting?.value;
+    
+    if (!activeKegiatanId) {
+        const mandiriKegiatan = (await import("@/lib/schema")).mandiriKegiatan;
+        const latestActivity = await db.query.mandiriKegiatan.findFirst({
+            orderBy: desc(mandiriKegiatan.tanggal)
+        });
+        activeKegiatanId = latestActivity?.id || null;
+    }
     const { 
         nama, jenisKelamin, tempatLahir, tanggalLahir, 
         alamat, noTelp, pendidikan, pekerjaan, statusNikah, 
@@ -97,6 +111,7 @@ export async function POST(request: NextRequest) {
             id: uuidv4(),
             generusId: duplicate.id,
             nomorUrut: nextNr,
+            kegiatanId: activeKegiatanId,
             statusMandiri: "Aktif",
             catatan: "Pendaftaran mandiri (Public - Existing Generus)"
         });
@@ -179,6 +194,7 @@ export async function POST(request: NextRequest) {
       id: uuidv4(),
       generusId,
       nomorUrut: nextNr,
+      kegiatanId: activeKegiatanId,
       statusMandiri: "Aktif",
       catatan: "Pendaftaran mandiri (Public - New User)"
     });

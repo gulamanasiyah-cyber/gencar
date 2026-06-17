@@ -200,6 +200,7 @@ export async function GET(request: NextRequest) {
           SELECT count(*) 
           FROM mandiri_pemilihan 
           WHERE mandiri_pemilihan.penerima_id = ${generus.id} 
+          AND mandiri_pemilihan.kegiatan_id = ${kegiatanId}
           AND (mandiri_pemilihan.status = 'Menunggu' OR mandiri_pemilihan.status = 'Diterima' OR mandiri_pemilihan.status = 'Selesai')
         )`.mapWith(Number)
       })

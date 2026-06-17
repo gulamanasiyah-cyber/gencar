@@ -1,8 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, formPanitiaDanPengurus } from "@/lib/schema";
-import { eq, and, or, like, sql, not, isNull, isNotNull, ne, inArray, notInArray } from "drizzle-orm";
+import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, formPanitiaDanPengurus, settings, mandiriKegiatan, mandiriAbsensi } from "@/lib/schema";
+import { eq, and, or, like, sql, not, isNull, isNotNull, ne, inArray, notInArray, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 
@@ -159,6 +159,19 @@ export async function GET(request: NextRequest) {
     const isGenerusPage = searchParams.get("isGenerus") === "true";
     let filterIsGenerus = false;
 
+    let kegiatanId = "";
+    if (mandiriOnly) {
+      kegiatanId = searchParams.get("kegiatanId") || "";
+      if (!kegiatanId) {
+        const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+        kegiatanId = activeSetting[0]?.value || "";
+      }
+      if (!kegiatanId) {
+        const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
+        kegiatanId = latestActivity[0]?.id || "";
+      }
+    }
+
     if ((!all && !mandiriOnly) || isGenerusPage) {
       filterIsGenerus = true;
     }
@@ -235,7 +248,9 @@ export async function GET(request: NextRequest) {
         .leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId));
 
       if (mandiriOnly) {
-        query = (query as any).innerJoin(mandiri, eq(generus.id, mandiri.generusId));
+        query = (query as any)
+          .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
+          .innerJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId)));
       } else {
         query = (query as any).leftJoin(mandiri, eq(generus.id, mandiri.generusId));
       }
@@ -259,7 +274,9 @@ export async function GET(request: NextRequest) {
       .leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId));
 
     if (mandiriOnly) {
-      dataQuery = (dataQuery as any).innerJoin(mandiri, eq(generus.id, mandiri.generusId));
+      dataQuery = (dataQuery as any)
+        .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
+        .innerJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId)));
     } else {
       dataQuery = (dataQuery as any).leftJoin(mandiri, eq(generus.id, mandiri.generusId));
     }
@@ -286,7 +303,9 @@ export async function GET(request: NextRequest) {
     }
 
     if (mandiriOnly) {
-      countQuery.innerJoin(mandiri, eq(generus.id, mandiri.generusId));
+      countQuery
+        .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
+        .innerJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId)));
     }
 
     const [data, countResult] = await Promise.all([

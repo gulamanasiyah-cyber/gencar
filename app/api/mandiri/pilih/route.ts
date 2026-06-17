@@ -40,9 +40,11 @@ export async function GET(request: NextRequest) {
         }
 
         if (isAdmin && searchParams.get("all") === "true") {
-            const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-            let kegiatanId = activeSetting[0]?.value || "";
-
+            let kegiatanId = searchParams.get("kegiatanId") || "";
+            if (!kegiatanId) {
+                const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+                kegiatanId = activeSetting[0]?.value || "";
+            }
             if (!kegiatanId) {
                 const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
                 kegiatanId = latestActivity[0]?.id || "";
@@ -93,6 +95,7 @@ export async function GET(request: NextRequest) {
             .leftJoin(md2, eq(sql`COALESCE(${g2.mandiriDesaId}, ${pan2.mandiriDesaId})`, md2.id))
             .leftJoin(abs1, and(eq(g1.id, abs1.generusId), eq(abs1.kegiatanId, kegiatanId)))
             .leftJoin(abs2, and(eq(g2.id, abs2.generusId), eq(abs2.kegiatanId, kegiatanId)))
+            .where(eq(mandiriPemilihan.kegiatanId, kegiatanId))
             .orderBy(desc(mandiriPemilihan.createdAt));
 
             return NextResponse.json(allSelections);
@@ -100,6 +103,14 @@ export async function GET(request: NextRequest) {
 
         const targetPengirimId = searchParams.get("pengirimId") || currentGenerusId;
         if (!targetPengirimId) return NextResponse.json({ error: "Identitas tidak ditemukan" }, { status: 400 });
+
+        const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+        let kegiatanId = activeSetting[0]?.value || "";
+
+        if (!kegiatanId) {
+            const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
+            kegiatanId = latestActivity[0]?.id || "";
+        }
 
         const selections = await db.select({
             id: mandiriPemilihan.id,
@@ -113,7 +124,10 @@ export async function GET(request: NextRequest) {
         .from(mandiriPemilihan)
         .innerJoin(generus, eq(mandiriPemilihan.penerimaId, generus.id))
         .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
-        .where(eq(mandiriPemilihan.pengirimId, targetPengirimId))
+        .where(and(
+            eq(mandiriPemilihan.pengirimId, targetPengirimId),
+            eq(mandiriPemilihan.kegiatanId, kegiatanId)
+        ))
         .orderBy(desc(mandiriPemilihan.createdAt));
 
         return NextResponse.json(selections);
@@ -172,13 +186,21 @@ export async function POST(request: NextRequest) {
 
         // Check if already selected
         const existing = await db.query.mandiriPemilihan.findFirst({
-            where: and(eq(mandiriPemilihan.pengirimId, pengirimId), eq(mandiriPemilihan.penerimaId, targetId))
+            where: and(
+                eq(mandiriPemilihan.pengirimId, pengirimId), 
+                eq(mandiriPemilihan.penerimaId, targetId),
+                eq(mandiriPemilihan.kegiatanId, kegiatanId)
+            )
         });
         if (existing) return NextResponse.json({ error: "Anda sudah memilih peserta ini" }, { status: 400 });
 
         // Count active selections from this sender (max 3)
         const activeCount = await db.select({ value: count() }).from(mandiriPemilihan)
-            .where(and(eq(mandiriPemilihan.pengirimId, pengirimId), or(eq(mandiriPemilihan.status, "Menunggu"), eq(mandiriPemilihan.status, "Diterima"))));
+            .where(and(
+                eq(mandiriPemilihan.pengirimId, pengirimId), 
+                eq(mandiriPemilihan.kegiatanId, kegiatanId),
+                or(eq(mandiriPemilihan.status, "Menunggu"), eq(mandiriPemilihan.status, "Diterima"))
+            ));
         
         const countVal = Number(activeCount[0]?.value || 0);
         if (countVal >= 3) {
@@ -187,7 +209,11 @@ export async function POST(request: NextRequest) {
 
         // Count how many times the target has been selected by others (max 5)
         const targetActiveCount = await db.select({ value: count() }).from(mandiriPemilihan)
-            .where(and(eq(mandiriPemilihan.penerimaId, targetId), or(eq(mandiriPemilihan.status, "Menunggu"), eq(mandiriPemilihan.status, "Diterima"), eq(mandiriPemilihan.status, "Selesai"))));
+            .where(and(
+                eq(mandiriPemilihan.penerimaId, targetId), 
+                eq(mandiriPemilihan.kegiatanId, kegiatanId),
+                or(eq(mandiriPemilihan.status, "Menunggu"), eq(mandiriPemilihan.status, "Diterima"), eq(mandiriPemilihan.status, "Selesai"))
+            ));
         
         const targetCountVal = Number(targetActiveCount[0]?.value || 0);
         if (targetCountVal >= 5) {
@@ -199,6 +225,7 @@ export async function POST(request: NextRequest) {
             id,
             pengirimId,
             penerimaId: targetId,
+            kegiatanId,
             status: "Menunggu"
         });
 
@@ -215,7 +242,10 @@ export async function POST(request: NextRequest) {
         .from(mandiriPemilihan)
         .innerJoin(generus, eq(mandiriPemilihan.penerimaId, generus.id))
         .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
-        .where(eq(mandiriPemilihan.pengirimId, pengirimId))
+        .where(and(
+            eq(mandiriPemilihan.pengirimId, pengirimId),
+            eq(mandiriPemilihan.kegiatanId, kegiatanId)
+        ))
         .orderBy(desc(mandiriPemilihan.createdAt));
 
         return NextResponse.json({ success: true, id, selections: updatedSelections });
@@ -254,8 +284,20 @@ export async function DELETE(request: NextRequest) {
         if (!pengirimId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         if (!targetId) return NextResponse.json({ error: "Target pilihan tidak valid" }, { status: 400 });
 
+        const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+        let kegiatanId = activeSetting[0]?.value || "";
+
+        if (!kegiatanId) {
+            const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
+            kegiatanId = latestActivity[0]?.id || "";
+        }
+
         const selection = await db.query.mandiriPemilihan.findFirst({
-            where: and(eq(mandiriPemilihan.pengirimId, pengirimId), eq(mandiriPemilihan.penerimaId, targetId))
+            where: and(
+                eq(mandiriPemilihan.pengirimId, pengirimId), 
+                eq(mandiriPemilihan.penerimaId, targetId),
+                eq(mandiriPemilihan.kegiatanId, kegiatanId)
+            )
         });
 
         if (!selection) return NextResponse.json({ error: "Data pilihan tidak ditemukan" }, { status: 404 });
@@ -265,7 +307,11 @@ export async function DELETE(request: NextRequest) {
         }
 
         await db.delete(mandiriPemilihan)
-            .where(and(eq(mandiriPemilihan.pengirimId, pengirimId), eq(mandiriPemilihan.penerimaId, targetId)));
+            .where(and(
+                eq(mandiriPemilihan.pengirimId, pengirimId), 
+                eq(mandiriPemilihan.penerimaId, targetId),
+                eq(mandiriPemilihan.kegiatanId, kegiatanId)
+            ));
 
         const updatedSelections = await db.select({
             id: mandiriPemilihan.id,
@@ -279,7 +325,10 @@ export async function DELETE(request: NextRequest) {
         .from(mandiriPemilihan)
         .innerJoin(generus, eq(mandiriPemilihan.penerimaId, generus.id))
         .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
-        .where(eq(mandiriPemilihan.pengirimId, pengirimId))
+        .where(and(
+            eq(mandiriPemilihan.pengirimId, pengirimId),
+            eq(mandiriPemilihan.kegiatanId, kegiatanId)
+        ))
         .orderBy(desc(mandiriPemilihan.createdAt));
 
         return NextResponse.json({ success: true, selections: updatedSelections });

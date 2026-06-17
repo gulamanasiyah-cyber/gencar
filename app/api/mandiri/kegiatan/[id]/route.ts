@@ -1,7 +1,17 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriKegiatan } from "@/lib/schema";
+import { 
+  mandiriKegiatan, 
+  mandiriAbsensi, 
+  mandiriPemilihan, 
+  mandiriKunjungan,
+  rab,
+  rabApproval,
+  rundown,
+  rundownApproval,
+  idCardBuilderData
+} from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 
@@ -75,6 +85,18 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     const id = params.id;
     if (!id) return NextResponse.json({ error: "ID diperlukan" }, { status: 400 });
+
+    // Hapus data dependen (cascade manual) untuk mencegah foreign key error
+    await Promise.all([
+      db.delete(mandiriAbsensi).where(eq(mandiriAbsensi.kegiatanId, id)),
+      db.delete(mandiriPemilihan).where(eq(mandiriPemilihan.kegiatanId, id)),
+      db.delete(mandiriKunjungan).where(eq(mandiriKunjungan.kegiatanId, id)),
+      db.delete(rab).where(eq(rab.mandiriKegiatanId, id)),
+      db.delete(rabApproval).where(eq(rabApproval.mandiriKegiatanId, id)),
+      db.delete(rundown).where(eq(rundown.mandiriKegiatanId, id)),
+      db.delete(rundownApproval).where(eq(rundownApproval.mandiriKegiatanId, id)),
+      db.update(idCardBuilderData).set({ kegiatanId: null }).where(eq(idCardBuilderData.kegiatanId, id)),
+    ]);
 
     await db.delete(mandiriKegiatan).where(eq(mandiriKegiatan.id, id));
 

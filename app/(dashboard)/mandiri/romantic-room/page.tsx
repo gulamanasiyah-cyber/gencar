@@ -99,6 +99,8 @@ export default function RomanticRoomPage() {
         tanggapan: "Baik",
         rekomendasi: "Lanjut"
     });
+    const [kegiatanList, setKegiatanList] = useState<{ id: string; judul: string; kota: string }[]>([]);
+    const [selectedKegiatanId, setSelectedKegiatanId] = useState("");
 
     // Helper for independent auth
     const getAuthHeaders = () => {
@@ -115,21 +117,30 @@ export default function RomanticRoomPage() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const h = getAuthHeaders();
-            const profRes = await fetch("/api/profile", { headers: h });
-            const profJson = await profRes.json();
+            // Cek session admin terlebih dahulu (tanpa independent auth headers)
+            // agar admin yang juga punya localStorage tokens tidak ter-redirect ke tampilan peserta
+            const ADMIN_ROLES = ["admin", "kmm_daerah", "admin_romantic_room", "pengurus_daerah", "tim_pnkb"];
+            const sessionRes = await fetch("/api/profile");
+            const sessionJson = sessionRes.ok ? await sessionRes.json() : {};
+            const isSessionAdmin = ADMIN_ROLES.includes(sessionJson.role || "");
 
-            if (profRes.status === 401) {
-                // If not authorized as independent OR session, redirect back
-                Swal.fire("Akses Ditolak", "Silakan login atau masukkan Nomor Peserta di Katalog terlebih dahulu.", "error").then(() => {
-                    window.location.href = "/mandiri/katalog";
-                });
-                return;
-            }
+            const h = isSessionAdmin ? {} : getAuthHeaders();
+            const profJson = isSessionAdmin ? sessionJson : await (async () => {
+                const r = await fetch("/api/profile", { headers: getAuthHeaders() });
+                if (r.status === 401) {
+                    Swal.fire("Akses Ditolak", "Silakan login atau masukkan Nomor Peserta di Katalog terlebih dahulu.", "error").then(() => {
+                        window.location.href = "/mandiri/katalog";
+                    });
+                    return null;
+                }
+                return r.json();
+            })();
+
+            if (!profJson) return;
 
             setMyProfile(profJson);
 
-            const isUserAdmin = ["admin", "kmm_daerah", "admin_romantic_room", "pengurus_daerah", "tim_pnkb"].includes(profJson.role);
+            const isUserAdmin = ADMIN_ROLES.includes(profJson.role || "");
 
             // Fetch Rooms
             const roomsRes = await fetch("/api/mandiri/rooms", { headers: h });
@@ -140,24 +151,48 @@ export default function RomanticRoomPage() {
             setAllRooms(sortedRooms);
 
             if (isUserAdmin) {
+                // Fetch kegiatan list + active setting on first load
+                let activeKgId = selectedKegiatanId;
+                if (kegiatanList.length === 0) {
+                    const [kgRes, sRes] = await Promise.all([
+                        fetch("/api/mandiri/kegiatan"),
+                        fetch("/api/settings"),
+                    ]);
+                    if (kgRes.ok) {
+                        const kList = await kgRes.json();
+                        if (Array.isArray(kList)) {
+                            setKegiatanList(kList);
+                            if (!selectedKegiatanId) {
+                                const s = sRes.ok ? await sRes.json() : {};
+                                activeKgId = s.mandiri_active_kegiatan_id || kList[0]?.id || "";
+                                setSelectedKegiatanId(activeKgId);
+                            }
+                        }
+                    }
+                }
+
+                const kgParam = activeKgId ? `&kegiatanId=${activeKgId}` : "";
+
                 // Fetch All Selections for Queue
-                const qRes = await fetch("/api/mandiri/pilih?all=true");
+                const qRes = await fetch(`/api/mandiri/pilih?all=true${kgParam}`);
                 const qJson = await qRes.json();
                 const waiting = Array.isArray(qJson) ? qJson.filter((q: any) => q.status === "Menunggu") : [];
                 setAllQueue(waiting);
 
                 // Fetch Visit History
-                const histRes = await fetch("/api/mandiri/kunjungan", { headers: h });
+                const histKgParam = activeKgId ? `?kegiatanId=${activeKgId}` : "";
+                const histRes = await fetch(`/api/mandiri/kunjungan${histKgParam}`, { headers: h });
                 const histJson = await histRes.json();
                 setVisitHistory(Array.isArray(histJson) ? histJson : []);
 
-                // Fetch All Participants for Manual Dropdown
-                const pRes = await fetch("/api/mandiri?limit=1000", { headers: h });
+                // Fetch All Participants for Manual Dropdown (only those present/attended)
+                const pRes = await fetch(`/api/mandiri?limit=1000&onlyAttended=true${kgParam}`, { headers: h });
                 const pJson = await pRes.json();
                 setAllParticipants(Array.isArray(pJson.data) ? pJson.data : []);
 
                 // Fetch Attendance Stats
-                const statsRes = await fetch("/api/mandiri/stats/attendance");
+                const statsKgParam = activeKgId ? `?kegiatanId=${activeKgId}` : "";
+                const statsRes = await fetch(`/api/mandiri/stats/attendance${statsKgParam}`);
                 const statsJson = await statsRes.json();
                 setAttendanceCount(statsJson.count || 0);
 
@@ -202,7 +237,8 @@ export default function RomanticRoomPage() {
         fetchData();
         const interval = setInterval(fetchData, 10000); // Poll every 10s for status updates
         return () => clearInterval(interval);
-    }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedKegiatanId]);
 
 
     const handleCreateRoom = async () => {
@@ -906,6 +942,20 @@ export default function RomanticRoomPage() {
                         <div className="title-area">
                             <h1>Management <span>Romantic Room</span> <Sparkles size={24} className="sparkle-icon" /></h1>
                             <p>Pantau antrean, alokasi ruangan, dan hasil pertemuan secara real-time</p>
+                            {kegiatanList.length > 0 && (
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px" }}>
+                                    <label style={{ fontSize: 13, fontWeight: 600, color: "#64748b", whiteSpace: "nowrap" }}>Kegiatan:</label>
+                                    <select
+                                        style={{ fontSize: 13, padding: "5px 10px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer" }}
+                                        value={selectedKegiatanId}
+                                        onChange={e => setSelectedKegiatanId(e.target.value)}
+                                    >
+                                        {kegiatanList.map(k => (
+                                            <option key={k.id} value={k.id}>{k.judul} ({k.kota})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                         </div>
                         <div className="stats-row">
                             <div className="mini-stat">

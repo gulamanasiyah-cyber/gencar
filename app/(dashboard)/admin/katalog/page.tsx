@@ -39,6 +39,8 @@ export default function AdminKatalogPage() {
   const [authorizedChecked, setAuthorizedChecked] = useState(false);
   const [latestActivity, setLatestActivity] = useState<any>(null);
   const [publicStatus, setPublicStatus] = useState<string>("closed");
+  const [kegiatanList, setKegiatanList] = useState<{ id: string; judul: string; kota: string }[]>([]);
+  const [selectedKegiatanId, setSelectedKegiatanId] = useState("");
   const [boxLoveStatus, setBoxLoveStatus] = useState<string>("closed");
   const [selectedParticipant, setSelectedParticipant] = useState<GenerusItem | null>(null);
   const cardCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -70,7 +72,8 @@ export default function AdminKatalogPage() {
         mandiriDesaId: selectedRegion,
         desaId: selectedDesa,
         sortBy: "nomorUrut",
-        order: sortOrder
+        order: sortOrder,
+        ...(selectedKegiatanId ? { kegiatanId: selectedKegiatanId } : {}),
       });
       const res = await fetch(`/api/generus?${params}`, { cache: "no-store" });
       const json = await res.json();
@@ -81,7 +84,7 @@ export default function AdminKatalogPage() {
     } finally {
       setLoading(false);
     }
-  }, [isAuthorized, search, page, gender, status, pendidikan, selectedRegion, selectedDesa, sortOrder]);
+  }, [isAuthorized, search, page, gender, status, pendidikan, selectedRegion, selectedDesa, sortOrder, selectedKegiatanId]);
 
   useEffect(() => {
     async function init() {
@@ -92,11 +95,25 @@ export default function AdminKatalogPage() {
         setMyProfile(profileJson);
         setIsAuthorized(!!profileJson.isInPdkt || ["admin", "tim_pnkb", "admin_romantic_room", "kmm_daerah", "pengurus_daerah", "admin_pdkt"].includes(profileJson.role));
 
-        // Fetch activity info
-        const activityRes = await fetch("/api/mandiri/kegiatan?limit=1", { cache: "no-store" });
+        // Fetch activity info + kegiatan list + active setting
+        const [activityRes, kegiatanRes, settingsRes] = await Promise.all([
+          fetch("/api/mandiri/kegiatan?limit=1", { cache: "no-store" }),
+          fetch("/api/mandiri/kegiatan", { cache: "no-store" }),
+          fetch("/api/settings", { cache: "no-store" }),
+        ]);
         if (activityRes.ok) {
           const activities = await activityRes.json();
           if (activities.length > 0) setLatestActivity(activities[0]);
+        }
+        if (kegiatanRes.ok) {
+          const kList = await kegiatanRes.json();
+          if (Array.isArray(kList)) {
+            setKegiatanList(kList);
+            const s = settingsRes.ok ? await settingsRes.json() : {};
+            const activeId = s.mandiri_active_kegiatan_id || "";
+            if (activeId) setSelectedKegiatanId(activeId);
+            else if (kList.length > 0) setSelectedKegiatanId(kList[0].id);
+          }
         }
         // Fetch public status
         const statusRes = await fetch("/api/mandiri/settings?key=mandiri_katalog_public_status", { cache: "no-store" });
@@ -553,7 +570,7 @@ export default function AdminKatalogPage() {
         <h1>
           KATALOG <span style={{ color: 'inherit' }}>PESERTA</span>
         </h1>
-        <span className="subtitle">{latestActivity?.judul || "Daftar Peserta Aktif"}</span>
+        <span className="subtitle">{kegiatanList.find(k => k.id === selectedKegiatanId)?.judul || latestActivity?.judul || "Daftar Peserta Aktif"}</span>
 
       </header>
       <div className="toolbar-section">
@@ -670,6 +687,24 @@ export default function AdminKatalogPage() {
                 <ChevronDown size={14} className="dropdown-arrow" />
               </div>
             </div>
+
+            {kegiatanList.length > 0 && (
+              <div className="filter-group">
+                <label>Kegiatan</label>
+                <div className="select-box-wrapper">
+                  <select
+                    className="dropdown-box"
+                    value={selectedKegiatanId}
+                    onChange={(e) => { setSelectedKegiatanId(e.target.value); setPage(1); }}
+                  >
+                    {kegiatanList.map(k => (
+                      <option key={k.id} value={k.id}>{k.judul} ({k.kota})</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} className="dropdown-arrow" />
+                </div>
+              </div>
+            )}
 
             <div className="filter-group">
               <label>Urutan No</label>

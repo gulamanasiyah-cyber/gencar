@@ -166,6 +166,7 @@ export const mandiri = sqliteTable("mandiri", {
   generusId: text("generus_id")
     .notNull()
     .references(() => generus.id, { onDelete: "cascade" }),
+  kegiatanId: text("kegiatan_id").references(() => mandiriKegiatan.id, { onDelete: "cascade" }),
   nomorUrut: integer("nomor_urut"),
   statusMandiri: text("status_pdkt", { enum: ["Aktif", "Selesai", "Batal"] }).default("Aktif"),
   catatan: text("catatan"),
@@ -247,6 +248,7 @@ export const mandiriPemilihan = sqliteTable("mandiri_pemilihan", {
   id: text("id").primaryKey(),
   pengirimId: text("pengirim_id").notNull().references(() => generus.id, { onDelete: "cascade" }),
   penerimaId: text("penerima_id").notNull().references(() => generus.id, { onDelete: "cascade" }),
+  kegiatanId: text("kegiatan_id").references(() => mandiriKegiatan.id),
   status: text("status", { enum: ["Menunggu", "Diterima", "Ditolak", "Selesai"] }).default("Menunggu"),
   hasilPengirim: text("hasil_pengirim"), // Lanjut / Tidak Lanjut
   hasilPenerima: text("hasil_penerima"), // Lanjut / Tidak Lanjut
@@ -282,6 +284,7 @@ export const mandiriKunjungan = sqliteTable("mandiri_kunjungan", {
   generusId: text("generus_id").notNull().references(() => generus.id, { onDelete: "cascade" }),
   roomId: text("room_id").notNull().references(() => mandiriRooms.id, { onDelete: "cascade" }),
   pemilihanId: text("pemilihan_id").references(() => mandiriPemilihan.id, { onDelete: "set null" }),
+  kegiatanId: text("kegiatan_id").references(() => mandiriKegiatan.id),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
 }, (table) => ({
   generusIdIdx: index("mandiri_kunjungan_generus_id_idx").on(table.generusId),
@@ -323,6 +326,7 @@ export const idCardBuilderData = sqliteTable("id_card_builder_data", {
 export const formPanitiaDanPengurus = sqliteTable("form_panitia_dan_pengurus", {
   id: text("id").primaryKey(),
   generusId: text("generus_id").references(() => generus.id, { onDelete: "cascade" }),
+  kegiatanId: text("kegiatan_id").references(() => mandiriKegiatan.id, { onDelete: "cascade" }),
   nama: text("nama").notNull(),
   jenisKelamin: text("jenis_kelamin", { enum: ["L", "P"] }),
   tempatLahir: text("tempat_lahir"),

@@ -33,6 +33,8 @@ export default function GenerusKatalogPage() {
   const [latestActivity, setLatestActivity] = useState<any>(null);
   const [selections, setSelections] = useState<any[]>([]);
   const [publicStatus, setPublicStatus] = useState<string>("closed");
+  const [kegiatanList, setKegiatanList] = useState<{ id: string; judul: string; kota: string }[]>([]);
+  const [selectedKegiatanId, setSelectedKegiatanId] = useState("");
 
   const limit = 12;
   const router = useRouter();
@@ -52,7 +54,8 @@ export default function GenerusKatalogPage() {
         pendidikan: pendidikan,
         mandiriDesaId: selectedRegion,
         mandiriOnly: "true",
-        ...(isAdminRole ? { all: "true" } : {})
+        ...(isAdminRole ? { all: "true" } : {}),
+        ...(selectedKegiatanId ? { kegiatanId: selectedKegiatanId } : {}),
       });
       const res = await fetch(`/api/generus?${params}`, { cache: "no-store" });
 
@@ -75,7 +78,7 @@ export default function GenerusKatalogPage() {
     } finally {
       setLoading(false);
     }
-  }, [isAuthorized, search, page, gender, status, pendidikan, selectedRegion, myProfile]);
+  }, [isAuthorized, search, page, gender, status, pendidikan, selectedRegion, myProfile, selectedKegiatanId]);
 
   useEffect(() => {
     async function init() {
@@ -86,11 +89,25 @@ export default function GenerusKatalogPage() {
         setMyProfile(profileJson);
         setIsAuthorized(!!profileJson.isInPdkt || ["generus", "tim_pnkb", "admin", "kmm_daerah", "pengurus_daerah", "admin_romantic_room", "desa", "kelompok", "admin_keuangan", "admin_kegiatan"].includes(profileJson.role));
 
-        // Fetch activity info
-        const activityRes = await fetch("/api/mandiri/kegiatan?limit=1", { cache: "no-store" });
+        // Fetch activity info + kegiatan list
+        const [activityRes, kegiatanRes, settingsRes] = await Promise.all([
+          fetch("/api/mandiri/kegiatan?limit=1", { cache: "no-store" }),
+          fetch("/api/mandiri/kegiatan", { cache: "no-store" }),
+          fetch("/api/settings", { cache: "no-store" }),
+        ]);
         if (activityRes.ok) {
           const activities = await activityRes.json();
           if (activities.length > 0) setLatestActivity(activities[0]);
+        }
+        if (kegiatanRes.ok) {
+          const kList = await kegiatanRes.json();
+          if (Array.isArray(kList)) {
+            setKegiatanList(kList);
+            const s = settingsRes.ok ? await settingsRes.json() : {};
+            const activeId = s.mandiri_active_kegiatan_id || "";
+            if (activeId) setSelectedKegiatanId(activeId);
+            else if (kList.length > 0) setSelectedKegiatanId(kList[0].id);
+          }
         }
 
         // Fetch public status
@@ -196,7 +213,7 @@ export default function GenerusKatalogPage() {
           <span>DATA PESERTA</span>
         </div>
         <h1>PESERTA <span>MANDIRI</span></h1>
-        <p className="subtitle">{latestActivity?.judul || "PDKT 2.0 (Persiapan Nikah Ke Daerah)"}</p>
+        <p className="subtitle">{kegiatanList.find(k => k.id === selectedKegiatanId)?.judul || latestActivity?.judul || "PDKT 2.0 (Persiapan Nikah Ke Daerah)"}</p>
 
         {publicStatus === "closed" && (
           <div className="katalog-status-badge">
@@ -261,6 +278,20 @@ export default function GenerusKatalogPage() {
               ))}
             </select>
           </div>
+
+          {kegiatanList.length > 1 && (
+            <div className="select-box-wrapper">
+              <select
+                className="dropdown-box"
+                value={selectedKegiatanId}
+                onChange={(e) => { setSelectedKegiatanId(e.target.value); setPage(1); }}
+              >
+                {kegiatanList.map(k => (
+                  <option key={k.id} value={k.id}>{k.judul} ({k.kota})</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="total-badge">
             <Users size={14} />

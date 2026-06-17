@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriKunjungan, generus, mandiriPemilihan, mandiriRooms, formPanitiaDanPengurus, mandiri, mandiriDesa } from "@/lib/schema";
+import { mandiriKunjungan, generus, mandiriPemilihan, mandiriRooms, formPanitiaDanPengurus, mandiri, mandiriDesa, settings, mandiriKegiatan } from "@/lib/schema";
 import { eq, sql, desc, isNotNull, and, or } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { aliasedTable } from "drizzle-orm";
@@ -11,6 +11,17 @@ export async function GET(request: NextRequest) {
         const session = await getSession();
         if (!session || !["admin", "admin_romantic_room", "tim_pnkb", "pengurus_daerah", "kmm_daerah"].includes(session.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { searchParams } = new URL(request.url);
+        let kegiatanId = searchParams.get("kegiatanId") || "";
+        if (!kegiatanId) {
+            const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+            kegiatanId = activeSetting[0]?.value || "";
+        }
+        if (!kegiatanId) {
+            const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
+            kegiatanId = latestActivity[0]?.id || "";
         }
 
         const g1 = aliasedTable(generus, "g1");
@@ -66,7 +77,7 @@ export async function GET(request: NextRequest) {
         // Join MandiriDesa using COALESCE to check both generus and panitia table
         .leftJoin(md1, eq(sql`COALESCE(${g1.mandiriDesaId}, ${pan1.mandiriDesaId})`, md1.id))
         .leftJoin(md2, eq(sql`COALESCE(${g2.mandiriDesaId}, ${pan2.mandiriDesaId})`, md2.id))
-        .where(isNotNull(mandiriKunjungan.pemilihanId))
+        .where(and(isNotNull(mandiriKunjungan.pemilihanId), eq(mandiriKunjungan.kegiatanId, kegiatanId)))
         .groupBy(mandiriKunjungan.pemilihanId)
         .orderBy(desc(mandiriKunjungan.createdAt));
 
@@ -91,11 +102,20 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Generus ID dan Room ID wajib diisi" }, { status: 400 });
         }
 
+        const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+        let kegiatanId = activeSetting[0]?.value || "";
+
+        if (!kegiatanId) {
+            const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
+            kegiatanId = latestActivity[0]?.id || "";
+        }
+
         const id = crypto.randomUUID();
         await db.insert(mandiriKunjungan).values({
             id,
             generusId,
             roomId,
+            kegiatanId,
             createdAt: sql`(datetime('now'))`
         });
 

@@ -2,8 +2,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, idCardBuilderData, settings, formPanitiaDanPengurus, mandiriDesa, mandiri, kelompok, desa } from "@/lib/schema";
-import { eq, and, or, sql } from "drizzle-orm";
+import { generus, idCardBuilderData, settings, formPanitiaDanPengurus, mandiriDesa, mandiri, kelompok, desa, mandiriKegiatan } from "@/lib/schema";
+import { eq, and, or, sql, desc } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 
 function generateNomorUnik() {
@@ -21,6 +21,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+
+    // 2. Fetch active activity
+    const activeSetting = await db.query.settings.findFirst({
+        where: eq(settings.key, "mandiri_active_kegiatan_id")
+    });
+    let activeKegiatanId = activeSetting?.value;
+    
+    if (!activeKegiatanId) {
+        const latestActivity = await db.query.mandiriKegiatan.findFirst({
+            orderBy: desc(mandiriKegiatan.tanggal)
+        });
+        activeKegiatanId = latestActivity?.id || null;
+    }
     const { 
         nama, jenisKelamin, tempatLahir, tanggalLahir,
         alamat, noTelp, foto, 
@@ -121,6 +134,7 @@ export async function POST(request: NextRequest) {
             id: uuidv4(),
             generusId: gId!,
             nomorUrut: nextNr,
+            kegiatanId: activeKegiatanId,
             statusMandiri: "Aktif",
             catatan: "Pendaftaran Panitia (System Generated Participant Number)"
         });
@@ -154,6 +168,7 @@ export async function POST(request: NextRequest) {
             foto,
             mandiriDesaId: mandiriDesaId ? Number(mandiriDesaId) : null,
             mandiriKelompokId: mandiriKelompokId ? Number(mandiriKelompokId) : null,
+            kegiatanId: activeKegiatanId,
             dapukan,
             nomorUnik: nomorUnik!
         });
@@ -178,6 +193,7 @@ export async function POST(request: NextRequest) {
             dapukan, role: dapukan.toUpperCase(), foto, jenisKelamin,
             daerah: desaData?.kota || null,
             desa: desaData?.nama || null,
+            kegiatanId: activeKegiatanId,
             createdBy: "FORM_PANITIA"
         });
     }

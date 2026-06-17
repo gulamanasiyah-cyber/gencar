@@ -24,7 +24,10 @@ interface MandiriItem {
    nomorUnik: string;
    isHadir?: number;
    waktuHadir?: string;
+   keterangan?: string;
 }
+
+interface KegiatanOption { id: string; judul: string; kota: string; }
 
 export default function MandiriPage() {
    const [data, setData] = useState<MandiriItem[]>([]);
@@ -38,23 +41,34 @@ export default function MandiriPage() {
    const [regTitle, setRegTitle] = useState("");
    const [regDesc, setRegDesc] = useState("");
    const [isClosed, setIsClosed] = useState(false);
-
+   const [kegiatanList, setKegiatanList] = useState<KegiatanOption[]>([]);
+   const [selectedKegiatanId, setSelectedKegiatanId] = useState("");
 
    const limit = 10;
 
    useEffect(() => {
       fetch("/api/profile").then(r => r.json()).then(d => setUserRole(d.role || ""));
 
-      // Fetch individual settings
       const fetchSettings = async () => {
          try {
-            const res = await fetch("/api/settings");
-            const s = await res.json();
+            const [settingsRes, kegiatanRes] = await Promise.all([
+               fetch("/api/settings"),
+               fetch("/api/mandiri/kegiatan"),
+            ]);
+            const s = await settingsRes.json();
             const statusVal = s.mandiri_registration_status || "1";
             setRegStatus(statusVal);
             setIsClosed(statusVal === "0");
             setRegTitle(s.mandiri_registration_title || "");
             setRegDesc(s.mandiri_registration_description || "");
+
+            const kList = await kegiatanRes.json();
+            if (Array.isArray(kList)) {
+               setKegiatanList(kList);
+               const activeId = s.mandiri_active_kegiatan_id || "";
+               if (activeId) setSelectedKegiatanId(activeId);
+               else if (kList.length > 0) setSelectedKegiatanId(kList[0].id);
+            }
          } catch (e) {
             console.error("Failed to fetch unified settings:", e);
          }
@@ -64,12 +78,34 @@ export default function MandiriPage() {
 
 
    const handleSettings = async () => {
+      // Fetch kegiatan list
+      let kegiatanOptions = "";
+      try {
+         const res = await fetch("/api/mandiri/kegiatan");
+         const kegiatanList = await res.json();
+         if (Array.isArray(kegiatanList)) {
+            kegiatanOptions = kegiatanList.map((k: any) => {
+               const descSafe = (k.deskripsi || "").replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '&#10;');
+               return `<option value="${k.id}" data-judul="${k.judul}" data-desc="${descSafe}" ${regTitle === k.judul ? "selected" : ""}>${k.judul} (${k.kota})</option>`;
+            }).join("");
+         }
+      } catch (e) {
+         console.error("Gagal mengambil kegiatan:", e);
+      }
+
+      if (!kegiatanOptions) {
+          kegiatanOptions = `<option value="">-- Belum ada kegiatan --</option>`;
+      }
+
       const { value: formValues } = await Swal.fire({
          title: "Pengaturan Pendaftaran",
          html: `
         <div style="text-align: left">
           <label class="form-label">Nama Kegiatan / Judul Form</label>
-          <input id="swal-title" class="form-control" value="${regTitle}" placeholder="Contoh: Pra-Nikah Daerah 2024" style="margin-bottom: 12px">
+          <select id="swal-title" class="form-control" style="margin-bottom: 12px" onchange="document.getElementById('swal-desc').value = this.options[this.selectedIndex].getAttribute('data-desc') || ''">
+             <option value="" data-desc="">-- Pilih Kegiatan --</option>
+             ${kegiatanOptions}
+          </select>
           <label class="form-label">Deskripsi Kegiatan</label>
           <textarea id="swal-desc" class="form-control" rows="3" placeholder="Contoh: Diikuti oleh seluruh usia mandiri..." style="margin-bottom: 12px">${regDesc}</textarea>
           <label class="form-label">Status Pendaftaran</label>
@@ -83,8 +119,13 @@ export default function MandiriPage() {
          showCancelButton: true,
          confirmButtonText: "Simpan",
          preConfirm: () => {
+            const selectEl = document.getElementById("swal-title") as HTMLSelectElement;
+            const selectedOption = selectEl.options[selectEl.selectedIndex];
+            const titleText = selectedOption && selectEl.value !== "" ? (selectedOption.getAttribute("data-judul") || selectedOption.text) : "";
+            
             return {
-               title: (document.getElementById("swal-title") as HTMLInputElement).value,
+               id: selectEl.value,
+               title: titleText,
                desc: (document.getElementById("swal-desc") as HTMLTextAreaElement).value,
                status: (document.getElementById("swal-status") as HTMLSelectElement).value,
             };
@@ -94,7 +135,7 @@ export default function MandiriPage() {
 
       if (formValues) {
          try {
-            await Promise.all([
+            const updatePromises = [
                fetch("/api/mandiri/settings", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
@@ -110,11 +151,26 @@ export default function MandiriPage() {
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ key: "mandiri_registration_status", value: formValues.status }),
                })
-            ]);
+            ];
+
+            // Also update active kegiatan id if an activity was selected
+            if (formValues.id) {
+               updatePromises.push(
+                  fetch("/api/mandiri/settings", {
+                     method: "POST",
+                     headers: { "Content-Type": "application/json" },
+                     body: JSON.stringify({ key: "mandiri_active_kegiatan_id", value: formValues.id }),
+                  })
+               );
+            }
+
+            await Promise.all(updatePromises);
+
             setRegTitle(formValues.title);
             setRegDesc(formValues.desc);
             setRegStatus(formValues.status);
-            setIsClosed(formValues.status === "Waktu Habis");
+            setIsClosed(formValues.status === "0");
+            if (formValues.id) setSelectedKegiatanId(formValues.id);
             Swal.fire({ icon: "success", title: "Berhasil disimpan", timer: 1000, showConfirmButton: false });
          } catch (e: any) {
             Swal.fire({ icon: "error", title: "Error", text: e.message });
@@ -125,12 +181,13 @@ export default function MandiriPage() {
    const fetchData = useCallback(async () => {
       setLoading(true);
       try {
-         const params = new URLSearchParams({ 
-            search, 
-            page: String(page), 
+         const params = new URLSearchParams({
+            search,
+            page: String(page),
             limit: String(limit),
-            sort: sort 
+            sort: sort
          });
+         if (selectedKegiatanId) params.set("kegiatanId", selectedKegiatanId);
          const res = await fetch(`/api/mandiri?${params}`);
          const json = await res.json();
          setData(json.data || []);
@@ -140,12 +197,12 @@ export default function MandiriPage() {
       } finally {
          setLoading(false);
       }
-   }, [search, page, sort]);
+   }, [search, page, sort, selectedKegiatanId]);
 
 
    useEffect(() => {
       setPage(1);
-   }, [search, sort]);
+   }, [search, sort, selectedKegiatanId]);
 
 
    useEffect(() => {
@@ -277,6 +334,22 @@ export default function MandiriPage() {
                      </button>
                   </div>
                </div>
+
+               {kegiatanList.length > 0 && (
+                  <div style={{ marginBottom: "16px", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                     <label style={{ fontWeight: 600, fontSize: 14, color: "#475569", whiteSpace: "nowrap" }}>Pilih Kegiatan:</label>
+                     <select
+                        className="form-control"
+                        style={{ maxWidth: 320 }}
+                        value={selectedKegiatanId}
+                        onChange={e => setSelectedKegiatanId(e.target.value)}
+                     >
+                        {kegiatanList.map(k => (
+                           <option key={k.id} value={k.id}>{k.judul} ({k.kota})</option>
+                        ))}
+                     </select>
+                  </div>
+               )}
 
                <div className="card">
                   <div className="card-header" style={{ justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>

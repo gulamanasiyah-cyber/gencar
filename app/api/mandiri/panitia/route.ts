@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { formPanitiaDanPengurus, mandiriDesa, mandiriKelompok, generus, mandiriAbsensi, mandiriKegiatan, settings } from "@/lib/schema";
+import { formPanitiaDanPengurus, mandiriDesa, mandiriAbsensi, mandiriKegiatan, settings } from "@/lib/schema";
 import { eq, and, or, like, sql, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 
@@ -19,15 +19,18 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = (searchParams.get("search") || "").trim();
     const page = Number(searchParams.get("page") || "1");
-    const limit = Number(searchParams.get("limit") || "200"); // Use larger limit for now as panitia list is usually small
+    const limit = Number(searchParams.get("limit") || "200");
     const offset = (page - 1) * limit;
 
-    // 1. Get the active kegiatan from settings
-    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-    let kegiatanId = activeSetting[0]?.value || "";
+    // Gunakan kegiatanId dari query param jika ada, lalu dari settings, lalu fallback ke terbaru
+    let kegiatanId = searchParams.get("kegiatanId") || "";
 
     if (!kegiatanId) {
-      // Get the latest activity fallback
+      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+      kegiatanId = activeSetting[0]?.value || "";
+    }
+
+    if (!kegiatanId) {
       const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
       kegiatanId = latestActivity[0]?.id || "";
     }
@@ -42,6 +45,10 @@ export async function GET(request: NextRequest) {
           like(formPanitiaDanPengurus.dapukan, `%${search}%`)
         )
       );
+    }
+
+    if (kegiatanId) {
+      conditions.push(eq(formPanitiaDanPengurus.kegiatanId, kegiatanId));
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;

@@ -30,6 +30,8 @@ interface PanitiaItem {
   createdAt: string;
 }
 
+interface KegiatanOption { id: string; judul: string; kota: string; }
+
 export default function MandiriPanitiaPage() {
   const [data, setData] = useState<PanitiaItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -37,6 +39,8 @@ export default function MandiriPanitiaPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [userRole, setUserRole] = useState("");
+  const [kegiatanList, setKegiatanList] = useState<KegiatanOption[]>([]);
+  const [selectedKegiatanId, setSelectedKegiatanId] = useState("");
   const limit = 200;
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -44,12 +48,37 @@ export default function MandiriPanitiaPage() {
     fetch("/api/profile")
       .then((r) => r.json())
       .then((d) => setUserRole(d.role || ""));
+
+    const fetchInit = async () => {
+      try {
+        const [settingsRes, kegiatanRes] = await Promise.all([
+          fetch("/api/settings"),
+          fetch("/api/mandiri/kegiatan"),
+        ]);
+        const s = await settingsRes.json();
+        const kList = await kegiatanRes.json();
+        if (Array.isArray(kList)) {
+          setKegiatanList(kList);
+          const activeId = s.mandiri_active_kegiatan_id || "";
+          if (activeId) setSelectedKegiatanId(activeId);
+          else if (kList.length > 0) setSelectedKegiatanId(kList[0].id);
+        }
+      } catch (e) {
+        console.error("Failed to fetch init data:", e);
+      }
+    };
+    fetchInit();
   }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, selectedKegiatanId]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ search, page: String(page), limit: String(limit) });
+      if (selectedKegiatanId) params.set("kegiatanId", selectedKegiatanId);
       const res = await fetch(`/api/mandiri/panitia?${params}`);
       const json = await res.json();
       setData(json.data || []);
@@ -59,7 +88,7 @@ export default function MandiriPanitiaPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, page]);
+  }, [search, page, selectedKegiatanId]);
 
   useEffect(() => {
     fetchData();
@@ -255,6 +284,22 @@ export default function MandiriPanitiaPage() {
               </button>
             </div>
           </div>
+
+          {kegiatanList.length > 0 && (
+            <div style={{ marginBottom: "16px", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+              <label style={{ fontWeight: 600, fontSize: 14, color: "#475569", whiteSpace: "nowrap" }}>Pilih Kegiatan:</label>
+              <select
+                className="form-control"
+                style={{ maxWidth: 320 }}
+                value={selectedKegiatanId}
+                onChange={e => setSelectedKegiatanId(e.target.value)}
+              >
+                {kegiatanList.map(k => (
+                  <option key={k.id} value={k.id}>{k.judul} ({k.kota})</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="card">
             <div className="card-header" style={{ justifyContent: "space-between" }}>

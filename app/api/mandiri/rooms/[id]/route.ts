@@ -67,13 +67,15 @@ export async function PATCH(
                         id: crypto.randomUUID(),
                         generusId: pemilihan.pengirimId,
                         roomId: roomId,
-                        pemilihanId: pemilihanId
+                        pemilihanId: pemilihanId,
+                        kegiatanId: kegiatanId
                     },
                     {
                         id: crypto.randomUUID(),
                         generusId: pemilihan.penerimaId,
                         roomId: roomId,
-                        pemilihanId: pemilihanId
+                        pemilihanId: pemilihanId,
+                        kegiatanId: kegiatanId
                     }
                 ]);
             }

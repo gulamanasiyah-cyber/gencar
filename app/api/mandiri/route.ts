@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiri, generus, desa, kelompok, mandiriDesa, mandiriKelompok, users, mandiriKegiatan, mandiriAbsensi, settings } from "@/lib/schema";
+import { mandiri, generus, desa, kelompok, mandiriDesa, mandiriKelompok, users, mandiriKegiatan, mandiriAbsensi, absensi, settings } from "@/lib/schema";
 import { eq, and, or, like, sql, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     const page = Number(searchParams.get("page") || "1");
     const limit = Number(searchParams.get("limit") || "20");
     const offset = (page - 1) * limit;
+    const onlyAttended = searchParams.get("onlyAttended") === "true";
 
     const conditions = [];
 
@@ -41,6 +42,23 @@ export async function GET(request: NextRequest) {
 
     const sort = searchParams.get("sort") || ""; // "asc" or "desc"
 
+    // Gunakan kegiatanId dari query param jika ada, lalu dari settings, lalu fallback ke terbaru
+    let kegiatanId = searchParams.get("kegiatanId") || "";
+
+    if (!kegiatanId) {
+      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+      kegiatanId = activeSetting[0]?.value || "";
+    }
+
+    if (!kegiatanId) {
+      const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
+      kegiatanId = latestActivity[0]?.id || "";
+    }
+
+    if (kegiatanId) {
+      conditions.push(eq(mandiri.kegiatanId, kegiatanId));
+    }
+
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
     // Determine order
@@ -51,18 +69,8 @@ export async function GET(request: NextRequest) {
       orderClause = sql`${mandiri.nomorUrut} DESC`;
     }
 
-    // Get the active kegiatan from settings
-    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-    let kegiatanId = activeSetting[0]?.value || "";
-
-    if (!kegiatanId) {
-      // Get the latest activity fallback
-      const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-      kegiatanId = latestActivity[0]?.id || "";
-    }
-
     // Optimized Data Query - Based on MANDIRI table
-    const dataQuery = db
+    let dataQuery = db
       .select({
         id: mandiri.id, 
         nomorUrut: mandiri.nomorUrut,
@@ -90,11 +98,21 @@ export async function GET(request: NextRequest) {
       .leftJoin(desa, eq(generus.desaId, desa.id))
       .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
-      .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id))
-      .leftJoin(mandiriAbsensi, and(
+      .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id));
+
+    if (onlyAttended) {
+      dataQuery = (dataQuery as any).innerJoin(mandiriAbsensi, and(
         eq(generus.id, mandiriAbsensi.generusId),
         eq(mandiriAbsensi.kegiatanId, kegiatanId)
-      ))
+      ));
+    } else {
+      dataQuery = (dataQuery as any).leftJoin(mandiriAbsensi, and(
+        eq(generus.id, mandiriAbsensi.generusId),
+        eq(mandiriAbsensi.kegiatanId, kegiatanId)
+      ));
+    }
+
+    const data = await dataQuery
       .where(whereClause)
       .limit(limit)
       .offset(offset)
@@ -106,13 +124,18 @@ export async function GET(request: NextRequest) {
       .from(mandiri)
       .innerJoin(generus, eq(mandiri.generusId, generus.id));
 
+    if (onlyAttended) {
+      countQuery.innerJoin(mandiriAbsensi, and(
+        eq(generus.id, mandiriAbsensi.generusId),
+        eq(mandiriAbsensi.kegiatanId, kegiatanId)
+      ));
+    }
+
     if (search && !/^\d+$/.test(search)) {
       countQuery.leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id));
     }
 
     const countResult = await countQuery.where(whereClause);
-
-    const data = await dataQuery;
 
     return NextResponse.json({
       data,
@@ -190,10 +213,15 @@ export async function POST(request: NextRequest) {
         nextNr = Math.max(lastRes[0]?.maxNr || 199, 199) + 1;
     }
 
+    // Ambil kegiatan aktif agar peserta yang ditambah manual juga terasosiasi
+    const activeKegiatanSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+    const activeKegiatanId = activeKegiatanSetting[0]?.value || null;
+
     const id = uuidv4();
     await db.insert(mandiri).values({
       id,
       generusId,
+      kegiatanId: activeKegiatanId,
       nomorUrut: nextNr,
       statusMandiri: statusMandiri || "Aktif",
       catatan,
@@ -278,7 +306,12 @@ export async function DELETE(request: NextRequest) {
     const entry = await db.query.mandiri.findFirst({ where: eq(mandiri.id, mandiriId) });
     if (!entry) return NextResponse.json({ error: "Data tidak ditemukan" }, { status: 404 });
 
-    // Hapus data generus (otomatis menghapus dari daftar mandiri & akun user via cascade)
+    // Hapus dulu record yg tidak punya onDelete cascade dari generus
+    await Promise.all([
+      db.delete(mandiriAbsensi).where(eq(mandiriAbsensi.generusId, entry.generusId)),
+      db.delete(absensi).where(eq(absensi.generusId, entry.generusId)),
+    ]);
+    // Hapus data generus (otomatis menghapus mandiri & users via cascade)
     await db.delete(generus).where(eq(generus.id, entry.generusId));
 
     return NextResponse.json({ success: true });
