@@ -42,3 +42,7 @@ local.db-journal
 /open-next-assets
 /.open-next/
 /.wrangler/
+
+*.tsbuildinfo
+.next/
+node_modules/
