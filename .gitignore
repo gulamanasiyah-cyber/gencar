@@ -37,3 +37,8 @@ next-env.d.ts
 # database
 local.db
 local.db-journal
+
+# opennext & wrangler
+/open-next-assets
+/.open-next/
+/.wrangler/

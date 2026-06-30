@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiri, generus, desa, kelompok, mandiriDesa, mandiriKelompok, users, mandiriKegiatan, mandiriAbsensi, absensi, settings } from "@/lib/schema";
+import { mandiri, generus, desa, kelompok, mandiriDesa, mandiriKelompok, users, mandiriKegiatan, mandiriAbsensi, absensi, settings, mandiriDaerah } from "@/lib/schema";
 import { eq, and, or, like, sql, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
             like(generus.nama, `%${search}%`),
             like(generus.nomorUnik, `%${search}%`),
             like(mandiriDesa.nama, `%${search}%`),
-            like(mandiriDesa.kota, `%${search}%`)
+            like(mandiriDaerah.nama, `%${search}%`)
           )
         );
       }
@@ -48,11 +48,6 @@ export async function GET(request: NextRequest) {
     if (!kegiatanId) {
       const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
       kegiatanId = activeSetting[0]?.value || "";
-    }
-
-    if (!kegiatanId) {
-      const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-      kegiatanId = latestActivity[0]?.id || "";
     }
 
     if (kegiatanId) {
@@ -81,7 +76,7 @@ export async function GET(request: NextRequest) {
         nomorUnik: generus.nomorUnik,
         jenisKelamin: generus.jenisKelamin,
         kategoriUsia: generus.kategoriUsia,
-        desaKota: sql<string>`COALESCE(${mandiriDesa.kota}, 'Luar JB2')`,
+        desaKota: sql<string>`COALESCE(${mandiriDaerah.nama}, 'Luar JB2')`,
         desaNama: sql<string>`COALESCE(${mandiriDesa.nama}, ${desa.nama}, 'N/A')`,
         kelompokNama: sql<string>`COALESCE(${mandiriKelompok.nama}, ${kelompok.nama}, 'N/A')`,
         noTelp: generus.noTelp,
@@ -98,6 +93,7 @@ export async function GET(request: NextRequest) {
       .leftJoin(desa, eq(generus.desaId, desa.id))
       .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
+      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
       .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id));
 
     if (onlyAttended) {
@@ -133,6 +129,7 @@ export async function GET(request: NextRequest) {
 
     if (search && !/^\d+$/.test(search)) {
       countQuery.leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id));
+      countQuery.leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id));
     }
 
     const countResult = await countQuery.where(whereClause);
@@ -198,24 +195,30 @@ export async function POST(request: NextRequest) {
 
     const { jenisKelamin } = genData;
 
-    // Calculate next nomorUrut based on gender
+    // Ambil kegiatan aktif agar peserta yang ditambah manual juga terasosiasi
+    const activeKegiatanSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+    const activeKegiatanId = activeKegiatanSetting[0]?.value || null;
+
+    // Calculate next nomorUrut based on gender and active activity
     // Laki-laki: 1-199, Perempuan: 200+
     let nextNr;
     if (jenisKelamin === "L") {
         const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
             .from(mandiri)
-            .where(sql`${mandiri.nomorUrut} < 200`);
+            .where(and(
+                sql`${mandiri.nomorUrut} < 200`,
+                activeKegiatanId ? eq(mandiri.kegiatanId, activeKegiatanId) : sql`1=1`
+            ));
         nextNr = (lastRes[0]?.maxNr || 0) + 1;
     } else {
         const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
             .from(mandiri)
-            .where(sql`${mandiri.nomorUrut} >= 200`);
+            .where(and(
+                sql`${mandiri.nomorUrut} >= 200`,
+                activeKegiatanId ? eq(mandiri.kegiatanId, activeKegiatanId) : sql`1=1`
+            ));
         nextNr = Math.max(lastRes[0]?.maxNr || 199, 199) + 1;
     }
-
-    // Ambil kegiatan aktif agar peserta yang ditambah manual juga terasosiasi
-    const activeKegiatanSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-    const activeKegiatanId = activeKegiatanSetting[0]?.value || null;
 
     const id = uuidv4();
     await db.insert(mandiri).values({

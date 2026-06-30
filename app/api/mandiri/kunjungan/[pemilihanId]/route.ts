@@ -30,6 +30,14 @@ export async function PATCH(
       .set({ hasilPengirim, hasilPenerima })
       .where(eq(mandiriPemilihan.id, params.pemilihanId));
 
+    // Clean up matched participants if both chose 'Lanjut'
+    try {
+      const { handleMatchCleanup } = await import("@/lib/matchCleanup");
+      await handleMatchCleanup(params.pemilihanId);
+    } catch (cleanupErr) {
+      console.error("Failed to run match cleanup in kunjungan:", cleanupErr);
+    }
+
     if (roomId) {
       await db.update(mandiriKunjungan)
         .set({ roomId })

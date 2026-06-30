@@ -10,7 +10,7 @@
     "db:push": "npx tsx -r dotenv/config node_modules/drizzle-kit/bin.cjs push",
     "db:studio": "drizzle-kit studio",
     "seed": "npx tsx scripts/seed.ts",
-    "build:cf": "npx @opennextjs/cloudflare build --dangerouslyUseUnsupportedNextVersion --node-externals @libsql/isomorphic-ws",
+    "build:cf": "npx @opennextjs/cloudflare build --dangerouslyUseUnsupportedNextVersion --node-externals @libsql/isomorphic-ws && mkdir -p open-next-assets && rsync -a --delete .open-next/assets/ open-next-assets/",
     "pages:build": "npx @cloudflare/next-on-pages",
     "pages:dev": "npm run pages:build && wrangler pages dev .vercel/output/static",
     "pages:deploy": "npm run pages:build && wrangler pages deploy .vercel/output/static"
@@ -31,8 +31,9 @@
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.577.0",
     "next": "^14.2.23",
-
     "pino": "^10.3.1",
+    "pusher": "^5.3.4",
+    "pusher-js": "^8.5.0",
     "qrcode": "^1.5.3",
     "qrcode.react": "^4.2.0",
     "react": "^18.3.0",

@@ -1,0 +1,438 @@
+"use client";
+
+import Topbar from "@/components/Topbar";
+import { useState, useEffect, useCallback } from "react";
+import Swal from "sweetalert2";
+import { Search, UserPlus, Edit2, Trash2, Shield } from "lucide-react";
+
+interface TimGambuhItem {
+  id: string;
+  nama: string;
+  daerahId: number | null;
+  daerahNama: string | null;
+  desaId: number | null;
+  desaNama: string | null;
+  tipe: "PNKB" | "Ibu Gambuh";
+  createdAt: string | null;
+}
+
+interface DaerahItem {
+  id: number;
+  nama: string;
+}
+
+interface DesaItem {
+  id: number;
+  nama: string;
+  mandiriDaerahId: number;
+}
+
+export default function AdminTimGambuhPage() {
+  const [members, setMembers] = useState<TimGambuhItem[]>([]);
+  const [daerahList, setDaerahList] = useState<DaerahItem[]>([]);
+  const [desaList, setDesaList] = useState<DesaItem[]>([]);
+  const [filteredDesaList, setFilteredDesaList] = useState<DesaItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState("");
+
+  // Search & Filter
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState<"All" | "PNKB" | "Ibu Gambuh">("All");
+
+  // Form State
+  const [showModal, setShowModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editId, setEditId] = useState("");
+  const [form, setForm] = useState({
+    nama: "",
+    daerahId: "",
+    desaId: "",
+    tipe: "PNKB" as "PNKB" | "Ibu Gambuh",
+  });
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [membersRes, daerahsRes, desasRes] = await Promise.all([
+        fetch("/api/admin/tim-gambuh").then((r) => r.json()),
+        fetch("/api/public/mandiri/daerah").then((r) => r.json()),
+        fetch("/api/public/mandiri/desa").then((r) => r.json()),
+      ]);
+
+      setMembers(Array.isArray(membersRes) ? membersRes : []);
+      setDaerahList(Array.isArray(daerahsRes) ? daerahsRes : []);
+      setDesaList(Array.isArray(desasRes) ? desasRes : []);
+    } catch (err) {
+      console.error("Error fetching Tim Gambuh data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+    fetch("/api/profile")
+      .then((r) => r.json())
+      .then((d) => setUserRole(d.role || ""));
+  }, [fetchData]);
+
+  // Filter Desa (mandiriDesa) based on selected Daerah (mandiriDaerah)
+  useEffect(() => {
+    if (form.daerahId) {
+      const filtered = desaList.filter((d) => d.mandiriDaerahId === Number(form.daerahId));
+      setFilteredDesaList(filtered);
+    } else {
+      setFilteredDesaList([]);
+    }
+  }, [form.daerahId, desaList]);
+
+  const handleOpenAdd = () => {
+    setIsEditing(false);
+    setEditId("");
+    setForm({
+      nama: "",
+      daerahId: "",
+      desaId: "",
+      tipe: "PNKB",
+    });
+    setFilteredDesaList([]);
+    setShowModal(true);
+  };
+
+  const handleOpenEdit = (member: TimGambuhItem) => {
+    setIsEditing(true);
+    setEditId(member.id);
+    setForm({
+      nama: member.nama,
+      daerahId: member.daerahId ? String(member.daerahId) : "",
+      desaId: member.desaId ? String(member.desaId) : "",
+      tipe: member.tipe,
+    });
+    if (member.daerahId) {
+      setFilteredDesaList(desaList.filter((d) => d.mandiriDaerahId === Number(member.daerahId)));
+    } else {
+      setFilteredDesaList([]);
+    }
+    setShowModal(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.nama.trim() || !form.tipe) {
+      Swal.fire({ icon: "warning", title: "Data Tidak Lengkap", text: "Nama dan Tipe wajib diisi" });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const url = isEditing ? `/api/admin/tim-gambuh/${editId}` : "/api/admin/tim-gambuh";
+      const method = isEditing ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nama: form.nama,
+          daerahId: form.daerahId ? Number(form.daerahId) : null,
+          desaId: form.desaId ? Number(form.desaId) : null,
+          tipe: form.tipe,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Gagal menyimpan data");
+      }
+
+      Swal.fire({
+        icon: "success",
+        title: "Berhasil",
+        text: isEditing ? "Data berhasil diperbarui" : "Anggota berhasil ditambahkan",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+      setShowModal(false);
+      fetchData();
+    } catch (err: any) {
+      Swal.fire({ icon: "error", title: "Error", text: err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    const confirm = await Swal.fire({
+      title: "Hapus Anggota?",
+      text: `Apakah Anda yakin ingin menghapus "${name}" dari Tim Gambuh?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#64748b",
+      confirmButtonText: "Ya, Hapus!",
+      cancelButtonText: "Batal",
+    });
+
+    if (confirm.isConfirmed) {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/admin/tim-gambuh/${id}`, { method: "DELETE" });
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "Gagal menghapus data");
+        }
+
+        Swal.fire({
+          icon: "success",
+          title: "Terhapus",
+          text: "Anggota berhasil dihapus",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+
+        fetchData();
+      } catch (err: any) {
+        Swal.fire({ icon: "error", title: "Error", text: err.message });
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  // Filter & Search Logic
+  const filteredMembers = members.filter((member) => {
+    const matchesSearch = member.nama.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesType = filterType === "All" || member.tipe === filterType;
+    return matchesSearch && matchesType;
+  });
+
+  return (
+    <div>
+      <Topbar title="Admin - Kelola Tim Gambuh" role={userRole} />
+      <div className="page-content">
+        <div className="page-header">
+          <div className="page-header-left">
+            <h2>Kelola Tim Gambuh</h2>
+            <p>Tambah dan kelola anggota Tim Gambuh (PNKB / Ibu Gambuh) untuk kegiatan aktif</p>
+          </div>
+          <button onClick={handleOpenAdd} className="btn btn-primary" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <UserPlus size={16} /> Tambah Anggota
+          </button>
+        </div>
+
+        {/* Filters Card */}
+        <div className="card" style={{ marginBottom: "20px", padding: "16px" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", alignItems: "center" }}>
+            <div style={{ flex: 1, minWidth: "250px", position: "relative" }}>
+              <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}>
+                <Search size={18} />
+              </span>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Cari nama anggota..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ paddingLeft: "40px", margin: 0 }}
+              />
+            </div>
+            <div style={{ width: "200px" }}>
+              <select
+                className="form-control"
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value as any)}
+                style={{ margin: 0 }}
+              >
+                <option value="All">Semua Tipe</option>
+                <option value="PNKB">PNKB</option>
+                <option value="Ibu Gambuh">Ibu Gambuh</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Data Table */}
+        <div className="card" style={{ padding: 0, overflowX: "auto" }}>
+          {loading ? (
+            <div style={{ padding: "40px", textAlign: "center", color: "#64748b" }}>Memuat data...</div>
+          ) : filteredMembers.length === 0 ? (
+            <div style={{ padding: "40px", textAlign: "center", color: "#64748b" }}>
+              Tidak ada data anggota Tim Gambuh yang terdaftar di aktivitas ini.
+            </div>
+          ) : (
+            <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #e2e8f0", backgroundColor: "#f8fafc" }}>
+                  <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: "#64748b" }}>NAMA</th>
+                  <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: "#64748b" }}>TIPE</th>
+                  <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: "#64748b" }}>DAERAH</th>
+                  <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: "#64748b" }}>DESA</th>
+                  <th style={{ padding: "12px 16px", textAlign: "right", fontSize: "12px", fontWeight: "700", color: "#64748b" }}>AKSI</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredMembers.map((member) => (
+                  <tr key={member.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                    <td style={{ padding: "16px", fontWeight: "600", color: "#0f172a" }}>{member.nama}</td>
+                    <td style={{ padding: "16px" }}>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          padding: "2px 10px",
+                          borderRadius: "20px",
+                          fontSize: "12px",
+                          fontWeight: "700",
+                          backgroundColor: member.tipe === "PNKB" ? "#eff6ff" : "#fef2f2",
+                          color: member.tipe === "PNKB" ? "#2563eb" : "#dc2626",
+                        }}
+                      >
+                        <Shield size={12} /> {member.tipe}
+                      </span>
+                    </td>
+                    <td style={{ padding: "16px", color: "#334155" }}>{member.daerahNama || "-"}</td>
+                    <td style={{ padding: "16px", color: "#334155" }}>{member.desaNama || "-"}</td>
+                    <td style={{ padding: "16px", textAlign: "right" }}>
+                      <div style={{ display: "inline-flex", gap: "8px" }}>
+                        <button
+                          onClick={() => handleOpenEdit(member)}
+                          className="btn btn-outline"
+                          style={{ padding: "6px 12px", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                        >
+                          <Edit2 size={14} /> Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(member.id, member.nama)}
+                          className="btn btn-outline"
+                          style={{
+                            padding: "6px 12px",
+                            color: "#ef4444",
+                            borderColor: "#fecaca",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                          }}
+                        >
+                          <Trash2 size={14} /> Hapus
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* Add / Edit Modal */}
+      {showModal && (
+        <div
+          style={{
+            position: "fixed",
+            left: 0,
+            top: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(15, 23, 42, 0.6)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+          }}
+        >
+          <div
+            className="card animate-fade-in"
+            style={{
+              width: "100%",
+              maxWidth: "500px",
+              margin: "20px",
+              padding: "24px",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+            }}
+          >
+            <h3 style={{ fontSize: "18px", fontWeight: "800", marginBottom: "20px", color: "#0f172a" }}>
+              {isEditing ? "Edit Anggota Tim" : "Tambah Anggota Tim"}
+            </h3>
+            <form onSubmit={handleSubmit}>
+              <div className="form-group" style={{ marginBottom: "16px" }}>
+                <label className="form-label">Nama Lengkap *</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Masukkan nama lengkap"
+                  value={form.nama}
+                  onChange={(e) => setForm({ ...form, nama: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "16px" }}>
+                <label className="form-label">Tipe Tim Gambuh *</label>
+                <select
+                  className="form-control"
+                  value={form.tipe}
+                  onChange={(e) => setForm({ ...form, tipe: e.target.value as any })}
+                  required
+                >
+                  <option value="PNKB">PNKB</option>
+                  <option value="Ibu Gambuh">Ibu Gambuh</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "16px" }}>
+                <label className="form-label">Daerah (Mandiri Daerah)</label>
+                <select
+                  className="form-control"
+                  value={form.daerahId}
+                  onChange={(e) => setForm({ ...form, daerahId: e.target.value, desaId: "" })}
+                >
+                  <option value="">-- Pilih Daerah --</option>
+                  {daerahList.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.nama}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "24px" }}>
+                <label className="form-label">Desa (Mandiri Desa)</label>
+                <select
+                  className="form-control"
+                  value={form.desaId}
+                  onChange={(e) => setForm({ ...form, desaId: e.target.value })}
+                  disabled={!form.daerahId}
+                >
+                  <option value="">-- Pilih Desa --</option>
+                  {filteredDesaList.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.nama}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="btn btn-outline"
+                  style={{ margin: 0 }}
+                >
+                  Batal
+                </button>
+                <button type="submit" className="btn btn-primary" style={{ margin: 0 }}>
+                  Simpan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

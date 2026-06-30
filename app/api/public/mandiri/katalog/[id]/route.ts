@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, settings, mandiriKegiatan, mandiriAbsensi } from "@/lib/schema";
+import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, settings, mandiriKegiatan, mandiriAbsensi, mandiriDaerah } from "@/lib/schema";
 import { eq, sql, and, desc } from "drizzle-orm";
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
@@ -15,9 +15,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Katalog sedang tidak dibuka untuk publik." }, { status: 403 });
     }
 
-    // 2. Get latest activity to filter by attendance
-    const latestActivity = await db.select().from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-    const kegiatanId = latestActivity[0]?.id;
+    // 2. Get active activity to filter by attendance
+    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+    const kegiatanId = activeSetting[0]?.value;
 
     if (!kegiatanId) {
       return NextResponse.json({ error: "Data tidak ditemukan (Belum absensi)" }, { status: 404 });
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         desaNama: desa.nama,
         kelompokNama: kelompok.nama,
         mandiriDesaNama: mandiriDesa.nama,
-        mandiriDesaKota: mandiriDesa.kota,
+        mandiriDesaKota: mandiriDaerah.nama,
         mandiriKelompokNama: mandiriKelompok.nama,
         createdAt: generus.createdAt,
         tempatLahir: generus.tempatLahir,
@@ -58,6 +58,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
       .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id))
+      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
       .leftJoin(users, eq(generus.id, users.generusId))
       .where(and(
         eq(generus.id, id),

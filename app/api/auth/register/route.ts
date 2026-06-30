@@ -1,12 +1,11 @@
-
 // Polyfill setImmediate for Edge Runtime
 if (typeof globalThis.setImmediate === 'undefined') {
   (globalThis as any).setImmediate = (fn: any, ...args: any[]) => setTimeout(fn, 0, ...args);
 }
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { users, generus, mandiri } from "@/lib/schema";
-import { eq, and } from "drizzle-orm";
+import { users, generus } from "@/lib/schema";
+import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import { registerSchema } from "@/lib/validation";
@@ -73,7 +72,7 @@ export async function POST(request: NextRequest) {
       generusId: generusId,
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, nomorUnik });
   } catch (error) {
     console.error("Register error:", error);
     return NextResponse.json({ error: "Terjadi kesalahan server" }, { status: 500 });

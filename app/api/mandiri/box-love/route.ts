@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { settings, generus, mandiri, mandiriDesa, mandiriPemilihan, mandiriKegiatan, mandiriAbsensi } from "@/lib/schema";
+import { settings, generus, mandiri, mandiriDesa, mandiriPemilihan, mandiriKegiatan, mandiriAbsensi, mandiriDaerah } from "@/lib/schema";
 import { eq, and, or, like, sql, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
@@ -41,13 +41,7 @@ export async function GET(request: NextRequest) {
 
       // Get the active kegiatan from settings
       const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-      let kegiatanId = activeSetting[0]?.value || "";
-
-      if (!kegiatanId) {
-        // Get latest activity fallback to filter by attendance
-        const latestActivity = await db.select().from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-        kegiatanId = latestActivity[0]?.id || "";
-      }
+      const kegiatanId = activeSetting[0]?.value || "";
 
       if (!kegiatanId) return NextResponse.json([]);
 
@@ -66,7 +60,7 @@ export async function GET(request: NextRequest) {
           conditions.push(
             or(
               like(generus.nama, `%${search}%`),
-              like(mandiriDesa.kota, `%${search}%`),
+              like(mandiriDaerah.nama, `%${search}%`),
               like(mandiriDesa.nama, `%${search}%`)
             )
           );
@@ -90,12 +84,13 @@ export async function GET(request: NextRequest) {
         nomorUrut: mandiri.nomorUrut,
         nomorUnik: generus.nomorUnik,
         mandiriDesaNama: mandiriDesa.nama,
-        mandiriDesaKota: mandiriDesa.kota,
+        mandiriDesaKota: mandiriDaerah.nama,
       })
         .from(generus)
         .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
         .innerJoin(mandiriAbsensi, eq(generus.id, mandiriAbsensi.generusId))
         .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
+        .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
         .where(finalWhere)
         .orderBy(mandiri.nomorUrut)
         .limit(10);

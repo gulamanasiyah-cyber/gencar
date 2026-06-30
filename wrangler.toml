@@ -1,10 +1,10 @@
 name = "mudamudicengkareng"
 main = ".open-next/worker.js"
-compatibility_date = "2024-09-23"
+compatibility_date = "2025-05-05"
 compatibility_flags = [ "nodejs_compat" ]
 
 [assets]
-directory = ".open-next/assets"
+directory = "open-next-assets"
 binding = "ASSETS"
 
 [build]

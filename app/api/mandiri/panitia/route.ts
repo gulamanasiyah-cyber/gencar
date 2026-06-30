@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { formPanitiaDanPengurus, mandiriDesa, mandiriAbsensi, mandiriKegiatan, settings } from "@/lib/schema";
+import { formPanitiaDanPengurus, mandiriDesa, mandiriAbsensi, mandiriKegiatan, settings, mandiriDaerah } from "@/lib/schema";
 import { eq, and, or, like, sql, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 
@@ -28,11 +28,6 @@ export async function GET(request: NextRequest) {
     if (!kegiatanId) {
       const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
       kegiatanId = activeSetting[0]?.value || "";
-    }
-
-    if (!kegiatanId) {
-      const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-      kegiatanId = latestActivity[0]?.id || "";
     }
 
     const conditions = [];
@@ -63,13 +58,14 @@ export async function GET(request: NextRequest) {
         noTelp: formPanitiaDanPengurus.noTelp,
         foto: formPanitiaDanPengurus.foto,
         createdAt: formPanitiaDanPengurus.createdAt,
-        desaKota: sql<string>`COALESCE(${mandiriDesa.kota}, 'N/A')`,
+        desaKota: sql<string>`COALESCE(${mandiriDaerah.nama}, 'N/A')`,
         desaNama: sql<string>`COALESCE(${mandiriDesa.nama}, 'N/A')`,
         isHadir: sql<number>`CASE WHEN ${mandiriAbsensi.id} IS NOT NULL THEN 1 ELSE 0 END`,
         waktuHadir: mandiriAbsensi.timestamp,
       })
       .from(formPanitiaDanPengurus)
       .leftJoin(mandiriDesa, eq(formPanitiaDanPengurus.mandiriDesaId, mandiriDesa.id))
+      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
       .leftJoin(mandiriAbsensi, and(
         eq(formPanitiaDanPengurus.generusId, mandiriAbsensi.generusId),
         eq(mandiriAbsensi.kegiatanId, kegiatanId)

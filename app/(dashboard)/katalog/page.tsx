@@ -21,6 +21,7 @@ export default function GenerusKatalogPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
   const [gender, setGender] = useState("all");
   const [status, setStatus] = useState("all");
   const [page, setPage] = useState(1);
@@ -234,82 +235,87 @@ export default function GenerusKatalogPage() {
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             />
           </div>
-          <button className="btn-advanced-search">
+          <button 
+            className={`btn-advanced-search ${showFilters ? "active" : ""}`}
+            onClick={() => setShowFilters(!showFilters)}
+          >
             <Settings2 size={16} />
-            <span>Cari Lanjut</span>
+            <span>Filter</span>
           </button>
         </div>
 
-        <div className="filters-group">
-          <div className="pill-group">
-            <button className={gender === "all" ? "active" : ""} onClick={() => { setGender("all"); setPage(1); }}>Semua JK</button>
-            <button className={gender === "L" ? "active" : ""} onClick={() => { setGender("L"); setPage(1); }}>Laki-Laki</button>
-            <button className={gender === "P" ? "active" : ""} onClick={() => { setGender("P"); setPage(1); }}>Perempuan</button>
-          </div>
+        {showFilters && (
+          <div className="filters-group">
+            <div className="pill-group">
+              <button className={gender === "all" ? "active" : ""} onClick={() => { setGender("all"); setPage(1); }}>Semua JK</button>
+              <button className={gender === "L" ? "active" : ""} onClick={() => { setGender("L"); setPage(1); }}>Laki-Laki</button>
+              <button className={gender === "P" ? "active" : ""} onClick={() => { setGender("P"); setPage(1); }}>Perempuan</button>
+            </div>
 
-          <div className="pill-group">
-            <button className={status === "all" ? "active" : ""} onClick={() => { setStatus("all"); setPage(1); }}>Semua Status</button>
-            <button className={status === "peserta" ? "active" : ""} onClick={() => { setStatus("peserta"); setPage(1); }}>Peserta</button>
-            <button className={status === "unlinked" ? "active" : ""} onClick={() => { setStatus("unlinked"); setPage(1); }}>Belum Sinkron</button>
-          </div>
+            <div className="pill-group">
+              <button className={status === "all" ? "active" : ""} onClick={() => { setStatus("all"); setPage(1); }}>Semua Status</button>
+              <button className={status === "peserta" ? "active" : ""} onClick={() => { setStatus("peserta"); setPage(1); }}>Peserta</button>
+              <button className={status === "unlinked" ? "active" : ""} onClick={() => { setStatus("unlinked"); setPage(1); }}>Belum Sinkron</button>
+            </div>
 
-          <div className="select-box-wrapper">
-            <select 
-              className="dropdown-box"
-              value={pendidikan}
-              onChange={(e) => { setPendidikan(e.target.value); setPage(1); }}
-            >
-              <option value="all">Semua Pendidikan</option>
-              {pendidikanList.map(p => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="select-box-wrapper">
-            <select 
-              className="dropdown-box"
-              value={selectedRegion}
-              onChange={(e) => { setSelectedRegion(e.target.value); setPage(1); }}
-            >
-              <option value="all">Semua Wilayah</option>
-              {regionList.map(r => (
-                <option key={r.id} value={r.id}>{r.kota} - {r.nama}</option>
-              ))}
-            </select>
-          </div>
-
-          {kegiatanList.length > 1 && (
             <div className="select-box-wrapper">
-              <select
+              <select 
                 className="dropdown-box"
-                value={selectedKegiatanId}
-                onChange={(e) => { setSelectedKegiatanId(e.target.value); setPage(1); }}
+                value={pendidikan}
+                onChange={(e) => { setPendidikan(e.target.value); setPage(1); }}
               >
-                {kegiatanList.map(k => (
-                  <option key={k.id} value={k.id}>{k.judul} ({k.kota})</option>
+                <option value="all">Semua Pendidikan</option>
+                {pendidikanList.map(p => (
+                  <option key={p} value={p}>{p}</option>
                 ))}
               </select>
             </div>
-          )}
 
-          <div className="total-badge">
-            <Users size={14} />
-            <span>Total: <b>{total} Generus</b></span>
+            <div className="select-box-wrapper">
+              <select 
+                className="dropdown-box"
+                value={selectedRegion}
+                onChange={(e) => { setSelectedRegion(e.target.value); setPage(1); }}
+              >
+                <option value="all">Semua Wilayah</option>
+                {regionList.map(r => (
+                  <option key={r.id} value={r.id}>{r.kota} - {r.nama}</option>
+                ))}
+              </select>
+            </div>
+
+            {kegiatanList.length > 1 && (
+              <div className="select-box-wrapper">
+                <select
+                  className="dropdown-box"
+                  value={selectedKegiatanId}
+                  onChange={(e) => { setSelectedKegiatanId(e.target.value); setPage(1); }}
+                >
+                  {kegiatanList.map(k => (
+                    <option key={k.id} value={k.id}>{k.judul} ({k.kota})</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="total-badge">
+              <Users size={14} />
+              <span>Total: <b>{total} Generus</b></span>
+            </div>
+
+            <button className="btn-export" onClick={() => window.print()}>
+              <Download size={16} />
+              <span>Export PDF</span>
+            </button>
           </div>
-
-          <button className="btn-export" onClick={() => window.print()}>
-            <Download size={16} />
-            <span>Export PDF</span>
-          </button>
-        </div>
+        )}
       </div>
 
       <div className="grid-section">
         {loading && data.length === 0 ? (
           [...Array(6)].map((_, i) => <div key={i} className="skeleton-card" />)
         ) : (
-          data.map((item) => (
+          data.filter(item => item.id !== myProfile?.generusId && item.id !== myProfile?.id).map((item) => (
             <div key={item.id} className={`participant-card gender-${item.jenisKelamin?.toLowerCase()}`}>
               <div className="card-top">
                 <div className="avatar-side">
@@ -519,9 +525,10 @@ export default function GenerusKatalogPage() {
           flex-direction: column;
           gap: 16px;
         }
-        .search-group { display: flex; gap: 12px; }
+        .search-group { display: flex; gap: 12px; width: 100%; }
         .search-input-wrapper {
           flex: 1;
+          min-width: 0;
           display: flex;
           align-items: center;
           gap: 12px;
@@ -535,6 +542,7 @@ export default function GenerusKatalogPage() {
           background: transparent;
           outline: none;
           width: 100%;
+          min-width: 0;
           font-size: 14px;
           font-weight: 500;
         }
@@ -551,6 +559,17 @@ export default function GenerusKatalogPage() {
           font-weight: 600;
           cursor: pointer;
           transition: 0.2s;
+          color: #475569;
+          flex-shrink: 0;
+        }
+        .btn-advanced-search:hover {
+          background: #f8fafc;
+          border-color: #cbd5e1;
+        }
+        .btn-advanced-search.active {
+          background: #eff6ff;
+          border-color: #3b82f6;
+          color: #1d4ed8;
         }
 
         .filters-group {
@@ -817,11 +836,19 @@ export default function GenerusKatalogPage() {
         .skeleton-card { height: 600px; background: white; border-radius: 32px; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
-        @media (max-width: 768px) {
+        @media (max-width: 1024px) {
            .pdkt-admin-container { padding: 20px; }
            .toolbar-section { border-radius: 16px; }
            .grid-section { grid-template-columns: 1fr; }
            .btn-export { width: 100%; justify-content: center; margin-top: 10px; }
+           .btn-advanced-search span { display: none; }
+           .btn-advanced-search { padding: 12px; }
+           .filters-group { display: flex; flex-direction: column; gap: 10px; align-items: stretch; width: 100%; }
+           .filters-group .pill-group { display: flex; width: 100%; }
+           .filters-group .pill-group button { flex: 1; text-align: center; }
+           .filters-group .select-box-wrapper { width: 100%; }
+           .filters-group .dropdown-box { width: 100%; min-width: 0; }
+           .filters-group .total-badge { width: 100%; justify-content: center; }
         }
       `}</style>
     </div>

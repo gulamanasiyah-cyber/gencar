@@ -9,9 +9,10 @@ import {
   Sparkles, Search, User, MapPin, Heart, Calendar,
   GraduationCap, Briefcase, Lock, LogOut, ChevronDown,
   Settings2, CheckCircle2, UserCheck, Users, Globe, Music, Utensils,
-  X, ShieldCheck, Star, UtilityPole as UtensilsIcon, ArrowLeft, Instagram, Timer, MessageSquare
+  X, ShieldCheck, Star, UtilityPole as UtensilsIcon, ArrowLeft, Instagram, Timer, MessageSquare, Clock
 } from "lucide-react";
 import Link from "next/link";
+import { getPusherClient } from "@/lib/pusher";
 
 export default function PublicKatalogPage() {
   const [data, setData] = useState<any[]>([]);
@@ -56,6 +57,12 @@ export default function PublicKatalogPage() {
   const [sentComments, setSentComments] = useState<any[]>([]);
   const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false);
   const [hasNewComments, setHasNewComments] = useState(false);
+  const [activeTab, setActiveTab] = useState<"katalog" | "cart" | "profile">("katalog");
+  const [myFullProfile, setMyFullProfile] = useState<any>(null);
+  const [loadingProfile, setLoadingProfile] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+
+
 
   // ─── HELPER: Safely build a query string with encoded params ──────────────
   // FIX: Prevents "The string did not match the expected pattern" DOMException
@@ -261,6 +268,27 @@ export default function PublicKatalogPage() {
   }, []);
 
   useEffect(() => {
+    if (!currentUser?.id) return;
+    async function fetchMyProfile() {
+      setLoadingProfile(true);
+      try {
+        const res = await fetch(`/api/public/mandiri/katalog/${currentUser.id}`);
+        if (res.ok) {
+          const json = await res.json();
+          setMyFullProfile(json);
+        }
+      } catch (err) {
+        console.error("fetchMyProfile error:", err);
+      } finally {
+        setLoadingProfile(false);
+      }
+    }
+    fetchMyProfile();
+  }, [currentUser?.id]);
+
+
+
+  useEffect(() => {
     const timer = setTimeout(() => {
       setSearch(searchTerm);
       setPage(1);
@@ -271,6 +299,28 @@ export default function PublicKatalogPage() {
   useEffect(() => {
     const timer = setTimeout(fetchData, 100);
     return () => clearTimeout(timer);
+  }, [fetchData]);
+
+  // Realtime updates using Pusher
+  useEffect(() => {
+    const pusher = getPusherClient();
+    if (!pusher) return;
+
+    const channel = pusher.subscribe("taaruf-channel");
+
+    const handleUpdate = () => {
+      // Trigger data refetching
+      fetchData();
+    };
+
+    channel.bind("taaruf-changed", handleUpdate);
+    channel.bind("room-changed", handleUpdate);
+
+    return () => {
+      channel.unbind("taaruf-changed", handleUpdate);
+      channel.unbind("room-changed", handleUpdate);
+      pusher.unsubscribe("taaruf-channel");
+    };
   }, [fetchData]);
 
   const handleSendKomentar = async (penerimaId: string, itemNama: string, komentar: string) => {
@@ -323,13 +373,13 @@ export default function PublicKatalogPage() {
 
   const handleLogout = async () => {
     const { isConfirmed } = await Swal.fire({
-      title: "Keluar dari Katalog?",
-      text: "Anda akan keluar dan status Anda akan diubah menjadi 'Pulang'. Anda tidak dapat dimasukkan ke dalam ruangan setelah ini.",
-      icon: "warning",
+      title: "Keluar dari Akun?",
+      text: "Anda akan keluar dari perangkat ini. Status Anda tidak akan diubah.",
+      icon: "question",
       showCancelButton: true,
       confirmButtonText: "Ya, Keluar",
       cancelButtonText: "Batal",
-      confirmButtonColor: "#ef4444",
+      confirmButtonColor: "#3b82f6",
       cancelButtonColor: "#64748b"
     });
 
@@ -353,6 +403,61 @@ export default function PublicKatalogPage() {
         });
       } catch (e) {
         console.error("Failed to perform logout API request:", e);
+      }
+    }
+    localStorage.removeItem("attended_nomor_unik");
+    localStorage.removeItem("attended_session_token");
+    setHasAttended(false);
+    unlockBodyScroll();
+    Swal.close();
+    window.location.reload();
+  };
+
+  const handlePulang = async () => {
+    const { value: alasan, isConfirmed } = await Swal.fire({
+      title: "Konfirmasi Pulang",
+      text: "Apakah Anda yakin ingin pulang? Masukkan alasan pulang Anda:",
+      input: "text",
+      inputPlaceholder: "Contoh: Keperluan keluarga, lelah, dll.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Ya, Saya Pulang",
+      cancelButtonText: "Batal",
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#64748b",
+      inputValidator: (value) => {
+        if (!value || !value.trim()) {
+          return "Alasan pulang wajib diisi!";
+        }
+      }
+    });
+
+    if (!isConfirmed) return;
+
+    Swal.fire({
+      title: "Sedang memproses...",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
+    const storedUnik = localStorage.getItem("attended_nomor_unik");
+    if (storedUnik) {
+      try {
+        const res = await fetch("/api/public/mandiri/katalog/pulang", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nomorUnik: storedUnik, alasanPulang: alasan })
+        });
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Gagal memproses");
+        }
+      } catch (e: any) {
+        console.error("Failed to perform pulang API request:", e);
+        Swal.fire("Gagal", e.message || "Gagal memproses data", "error");
+        return;
       }
     }
     localStorage.removeItem("attended_nomor_unik");
@@ -828,15 +933,42 @@ export default function PublicKatalogPage() {
   const selectedNames = selections.map(item => `${item.penerimaNama} (#${item.penerimaNoUrut || item.penerimaNo})`);
 
   return (
-    <div className="container">
+    <div className="container pb-24">
+
+      {/* Desktop Tabs */}
+      <div className="desktop-tab-nav">
+        <button className={activeTab === "katalog" ? "active" : ""} onClick={() => setActiveTab("katalog")}>
+          <Users size={16} />
+          <span>Katalog</span>
+        </button>
+        <button className={activeTab === "cart" ? "active" : ""} onClick={() => setActiveTab("cart")}>
+          <div className="badge-icon-wrapper">
+            <Heart size={16} fill={activeTab === "cart" ? "#f43f5e" : "transparent"} color={activeTab === "cart" ? "#f43f5e" : "#64748b"} />
+            {selectedIds.length > 0 && (
+              <span className="badge-count-bubble">{selectedIds.length}</span>
+            )}
+          </div>
+          <span>Pilihanku</span>
+        </button>
+        <button className={activeTab === "profile" ? "active" : ""} onClick={() => setActiveTab("profile")}>
+          <User size={16} />
+          <span>Profil Saya</span>
+        </button>
+      </div>
 
       {/* HEADER */}
       <header className="page-header">
         <div className="badge-top">
           <Sparkles size={12} />
-          KATALOG PESERTA
+          {activeTab === "katalog" && "KATALOG PESERTA"}
+          {activeTab === "cart" && "PILIHAN SAYA"}
+          {activeTab === "profile" && "PROFIL SAYA"}
         </div>
-        <h1>DATA <span>PESERTA</span></h1>
+        <h1>
+          {activeTab === "katalog" && <>DATA <span>PESERTA</span></>}
+          {activeTab === "cart" && <>LOVE <span>LETTER</span></>}
+          {activeTab === "profile" && <>PROFIL <span>SAYA</span></>}
+        </h1>
         <div className="header-actions">
           <p className="welcome-msg">Selamat datang kembali, {currentUser?.nama || "User"}</p>
           <button
@@ -853,293 +985,539 @@ export default function PublicKatalogPage() {
         </div>
       </header>
 
-      <div className="toolbar">
-        <div className="search-group">
-          <div className="search-bar">
-            <Search size={18} className="search-icon" />
-            <input
-              type="text"
-              inputMode="search"
-              autoCorrect="off"
-              autoComplete="off"
-              placeholder="Cari nama, no. urut, kota, atau desa..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            {searchTerm && (
+      {/* TAB CONTENT: KATALOG */}
+      {activeTab === "katalog" && (
+        <>
+          <div className="toolbar" style={{ width: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
+            <div className="search-group" style={{ display: 'grid', gridTemplateColumns: '1fr 44px', gap: '8px', width: '100%' }}>
+              <div className="search-bar" style={{ minWidth: 0, overflow: 'hidden' }}>
+                <Search size={18} className="search-icon" />
+                <input
+                  type="text"
+                  inputMode="search"
+                  autoCorrect="off"
+                  autoComplete="off"
+                  placeholder="Cari nama, no. urut, kota, atau desa..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{ minWidth: 0, width: '100%' }}
+                />
+                {searchTerm && (
+                  <button 
+                    className="clear-search-btn"
+                    onClick={() => setSearchTerm("")}
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
               <button 
-                className="clear-search-btn"
-                onClick={() => setSearchTerm("")}
+                className={`btn-filter-toggle ${showFilters ? "active" : ""}`} 
+                onClick={() => setShowFilters(!showFilters)}
+                title="Filter"
+                style={{ width: '44px', height: '44px', padding: 0 }}
               >
-                <X size={14} />
+                <Settings2 size={16} />
               </button>
+            </div>
+
+            <div className="toolbar-status-row">
+              <div className="status-badge">
+                <Users size={14} />
+                <span>{total} Peserta</span>
+              </div>
+            </div>
+
+            {showFilters && (
+              <div className="filter-controls">
+                <div className="toggle-group">
+                  {(["all", "peserta", "panitia"] as const).map(cat => (
+                    <button key={cat} className={category === cat ? "active" : ""} onClick={() => { setCategory(cat); setPage(1); }}>
+                      {cat === "all" ? "Semua" : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="select-container">
+                  <select className="select-box" value={pendidikan} onChange={(e) => { setPendidikan(e.target.value); setPage(1); }}>
+                    <option value="all">Semua Pendidikan</option>
+                    {pendidikanList.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  <ChevronDown size={14} className="select-arrow" />
+                </div>
+
+                <div className="select-container">
+                  <select className="select-box" value={selectedKota} onChange={(e) => { setSelectedKota(e.target.value); setDesaFilter("all"); setPage(1); }}>
+                    <option value="all">Semua Daerah</option>
+                    {kotaList.map(k => <option key={k} value={k}>{k}</option>)}
+                  </select>
+                  <ChevronDown size={14} className="select-arrow" />
+                </div>
+
+                <div className="select-container">
+                  <select className="select-box" value={desaFilter} onChange={(e) => { setDesaFilter(e.target.value); setPage(1); }} disabled={selectedKota === "all"}>
+                    <option value="all">Semua Desa</option>
+                    {wilayahList.filter(w => w.kota === selectedKota).map(w => <option key={w.id} value={w.id}>{w.nama}</option>)}
+                  </select>
+                  <ChevronDown size={14} className="select-arrow" />
+                </div>
+
+                <button className="btn-reset-filters" onClick={() => {
+                  setSearch("");
+                  setSearchTerm("");
+                  setGender(currentUser?.jenisKelamin === "L" ? "P" : (currentUser?.jenisKelamin === "P" ? "L" : "all"));
+                  setCategory("all");
+                  setPendidikan("all");
+                  setSelectedKota("all");
+                  setDesaFilter("all");
+                  setPage(1);
+                  setShowFilters(false);
+                }}>
+                  <X size={14} />
+                  <span>Reset</span>
+                </button>
+              </div>
             )}
           </div>
-          <button className="btn-advanced" onClick={() => {
-            setSearch("");
-            setSearchTerm("");
-            setGender(currentUser?.jenisKelamin === "L" ? "P" : (currentUser?.jenisKelamin === "P" ? "L" : "all"));
-            setCategory("all");
-            setPendidikan("all");
-            setSelectedKota("all");
-            setDesaFilter("all");
-            setPage(1);
-          }}>
-            <X size={16} />
-            <span>Reset Filter</span>
-          </button>
-        </div>
 
-        <div className="filter-controls">
-          <div className="toggle-group">
-            {(["all", "peserta", "panitia"] as const).map(cat => (
-              <button key={cat} className={category === cat ? "active" : ""} onClick={() => { setCategory(cat); setPage(1); }}>
-                {cat === "all" ? "Semua" : cat.charAt(0).toUpperCase() + cat.slice(1)}
+          <div className="user-title-context">
+            <h3>{currentUser?.nama || "User Profile"}</h3>
+            <div className="user-meta">
+              <span>No. Urut Peserta : {currentUser?.nomorUrut || "-"}</span>
+              {currentUser?.mandiriDesaKota && (
+                <span className="location">@{currentUser?.mandiriDesaKota} • {currentUser?.mandiriDesaNama}</span>
+              )}
+            </div>
+            {statusQueue && (
+              <div className="status-queue-banner">
+                <Timer size={14} />
+                <span>Sedang dalam antrean admin Romantic Room</span>
+              </div>
+            )}
+          </div>
+
+          <main className="grid-container">
+            {loading && data.length === 0 ? (
+              [...Array(6)].map((_, i) => <div key={i} className="skeleton-card" />)
+            ) : (
+              data.filter(item => item.id !== currentUser?.id && item.nomorUrut !== currentUser?.nomorUrut).map((item) => {
+                const isPulang = item.keterangan?.toLowerCase() === "pulang";
+                return (
+                  <div key={item.id} className={`participant-card ${isPulang ? "is-pulang" : ""}`}>
+                    <div className="card-image-wrapper">
+                      <img
+                        src={item.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.nama)}&background=random`}
+                        alt={item.nama}
+                        className="card-image"
+                        loading="lazy"
+                      />
+                      <div className="floating-badge id-badge">#{item.nomorUrut || "-"}</div>
+                      {item.selectedCount >= 5 && (
+                        <div className="floating-badge full-badge" style={isPulang ? { top: '50px' } : undefined}>PENUH (5/5)</div>
+                      )}
+                      {isPulang && (
+                        <div className="floating-badge pulang-badge">PULANG</div>
+                      )}
+                      <div className={`floating-badge label-badge ${item.panitiaStatus ? "status-panitia" : ""}`}>
+                        {item.panitiaStatus ? "PANITIA" : "PESERTA"}
+                      </div>
+                    </div>
+
+                    <div className="card-content">
+                      <h2 className="card-name">{item.nama}</h2>
+                      <div className="card-location">
+                        <MapPin size={14} />
+                        <span>{item.mandiriDesaKota || "-"} • {item.mandiriDesaNama || item.desaNama || "-"}</span>
+                      </div>
+
+                      <div className="card-stats-grid">
+                        <div className="stat-pill"><Calendar size={14} /><span>{item.tanggalLahir ? `${new Date().getFullYear() - new Date(item.tanggalLahir).getFullYear()} Tahun` : "-"}</span></div>
+                        <div className="stat-pill"><GraduationCap size={14} /><span>{item.pendidikan || "-"}</span></div>
+                        <div className="stat-pill"><Heart size={14} /><span>{item.statusNikah || "Belum Menikah"}</span></div>
+                        <div className="stat-pill"><Briefcase size={14} /><span>{item.pekerjaan || "Swasta"}</span></div>
+                        <div className="stat-pill"><Globe size={14} /><span>{item.suku || "-"}</span></div>
+                        <div className="stat-pill">
+                          <Instagram size={14} />
+                          {item.instagram ? (
+                            <a href={`https://instagram.com/${item.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="card-instagram-link">
+                              @{item.instagram.replace('@', '')}
+                            </a>
+                          ) : <span>-</span>}
+                        </div>
+                        <div className="stat-pill selection-count"><UserCheck size={14} /><span>Dipilih: {item.selectedCount || 0}/5</span></div>
+                      </div>
+
+                      <div className="card-passions-mini">
+                        <div className="pass-pill"><Music size={12} /><span>Hobi: {item.hobi || "-"}</span></div>
+                        <div className="pass-pill"><Utensils size={12} /><span>Makan/Minuman: {item.makananMinumanFavorit || "-"}</span></div>
+                      </div>
+
+                      <div className="card-actions">
+                        <button className="btn-secondary" onClick={() => openDetail(item)}>Detail Profil</button>
+                        {item.nomorUrut !== currentUser?.nomorUrut && (() => {
+                          if (isPulang) {
+                            return (
+                              <button
+                                className="btn-primary disabled"
+                                disabled
+                              >
+                                <LogOut size={16} />
+                                <span>Pulang</span>
+                              </button>
+                            );
+                          }
+                          const isSelected = selectedIds.includes(String(item.id));
+                          const sel = selections.find((s: any) => String(s.penerimaId) === String(item.id));
+                          const isWaiting = sel && sel.status === "Menunggu";
+
+                          if (item.handshakeStatus) {
+                            if (item.handshakeStatus === "Selesai") {
+                              return (
+                                <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
+                                  <Users size={16} />
+                                  <span>Sudah Bertemu</span>
+                                </button>
+                              );
+                            }
+                            if (item.handshakeStatus === "Diterima") {
+                              return (
+                                <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
+                                  <Users size={16} />
+                                  <span>Dalam Ruangan</span>
+                                </button>
+                              );
+                            }
+                            if (item.handshakeStatus === "Menunggu") {
+                              if (!isSelected) {
+                                return (
+                                  <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
+                                    <Clock size={16} />
+                                    <span>Dalam Antrean</span>
+                                  </button>
+                                );
+                              }
+                            }
+                          }
+
+                          if (isSelected) {
+                            if (isWaiting) {
+                              return (
+                                <button
+                                  className="btn-danger"
+                                  onClick={() => handleCancelSelection(String(item.id), item.nama)}
+                                >
+                                  <X size={16} />
+                                  <span>Batalkan Pilihan</span>
+                                </button>
+                              );
+                            } else {
+                              return (
+                                <button
+                                  className="btn-primary selected disabled"
+                                  disabled
+                                >
+                                  <CheckCircle2 size={16} />
+                                  <span>Terpilih</span>
+                                </button>
+                              );
+                            }
+                          }
+
+                          const isFull = (item.selectedCount || 0) >= 5;
+                          const isMaxed = selectedIds.length >= 3;
+                          const isDisabled = isFull || isMaxed;
+
+                          return (
+                            <button
+                              className={`btn-primary ${isDisabled ? "disabled" : ""}`}
+                              onClick={() => handleConfirmSelection(String(item.id), item.nama)}
+                              disabled={isDisabled}
+                            >
+                              <Heart size={16} />
+                              <span>{isFull ? "Penuh" : (isMaxed ? "Batas Tercapai" : "Pilih")}</span>
+                            </button>
+                          );
+                        })()}
+                      </div>
+
+                      {item.id !== currentUser?.id && (
+                        <div className="commentary-box">
+                          {sentComments.some(sc => sc.penerimaId === item.id) ? (
+                            <div className="comment-sent-indicator">
+                              <MessageSquare size={14} />
+                              <span>Komentar Anda: {sentComments.find(sc => sc.penerimaId === item.id)?.komentar}</span>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="commentary-header">
+                                <div className="anon-toggle">
+                                  <input type="checkbox" id={`anon-${item.id}`} checked={komentarAnon} onChange={(e) => setKomentarAnon(e.target.checked)} />
+                                  <label htmlFor={`anon-${item.id}`}>Anonim</label>
+                                </div>
+                                {!komentarAnon && (
+                                  <input
+                                    type="text"
+                                    className="comment-name-input"
+                                    placeholder="Nama Anda..."
+                                    value={komentarNama}
+                                    onChange={(e) => setKomentarNama(e.target.value)}
+                                    disabled={!!currentUser}
+                                    autoComplete="off"
+                                  />
+                                )}
+                              </div>
+                              <div className="comment-tags-label">Berikan Komentar Singkat:</div>
+                              <div className="comment-buttons">
+                                {["Humble", "Baik", "Pendiam", "Penyabar", "Friendly"].map(tag => (
+                                  <button
+                                    key={tag}
+                                    className={`btn-tag ${submittingKomentar === item.id ? "loading" : ""}`}
+                                    onClick={() => handleSendKomentar(item.id, item.nama, tag)}
+                                    disabled={!!submittingKomentar}
+                                  >
+                                    {tag}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </main>
+
+          {totalPages > 1 && (
+            <div className="pagination">
+              <button disabled={page === 1} onClick={() => setPage(p => p - 1)}>Sebelumnya</button>
+              <div className="page-numbers">
+                {[...Array(Math.min(5, totalPages))].map((_, i) => (
+                  <button key={i} className={page === i + 1 ? "active" : ""} onClick={() => setPage(i + 1)}>{i + 1}</button>
+                ))}
+              </div>
+              <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>Berikutnya</button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* TAB CONTENT: CART / LOVE LETTER */}
+      {activeTab === "cart" && (
+        <div className="cart-container">
+          <div className="selection-info-card">
+            <Heart size={20} fill="#f43f5e" color="#f43f5e" />
+            <span>Pilihan Anda ({selectedIds.length}/3)</span>
+          </div>
+
+          {statusQueue && (
+            <div className="status-queue-banner block mb-6">
+              <Timer size={14} />
+              <span>Sedang dalam antrean admin Romantic Room</span>
+            </div>
+          )}
+
+          {selections.length === 0 ? (
+            <div className="empty-cart-state">
+              <div className="empty-cart-icon">💌</div>
+              <h3>Belum Ada Pilihan</h3>
+              <p>Cari peserta yang cocok di tab Katalog, lalu pilih untuk dikirim ke daftar antrean Romantic Room.</p>
+              <button className="goto-catalog-btn" onClick={() => setActiveTab("katalog")}>Cari Peserta</button>
+            </div>
+          ) : (
+            <div className="cart-list">
+              {selections.map((sel: any) => {
+                const isWaiting = sel.status === "Menunggu";
+                return (
+                  <div key={sel.id} className="cart-item-card">
+                    <div className="cart-item-info">
+                      <div className="cart-item-avatar">
+                        <Heart size={20} fill="#f43f5e" color="#f43f5e" />
+                      </div>
+                      <div>
+                        <div className="cart-item-name">#{sel.penerimaNoUrut || sel.penerimaNo} {sel.penerimaNama}</div>
+                        <div className="cart-item-status">
+                          <span className={`status-badge-pill ${sel.status.toLowerCase()}`}>
+                            {sel.status === "Menunggu" ? "⏳ Menunggu Admin" : `💖 ${sel.status}`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    {isWaiting ? (
+                      <button
+                        className="cart-btn-danger"
+                        onClick={() => handleCancelSelection(String(sel.penerimaId), sel.penerimaNama)}
+                      >
+                        <X size={16} />
+                        <span>Batalkan</span>
+                      </button>
+                    ) : (
+                      <button className="cart-btn-disabled" disabled>
+                        <CheckCircle2 size={16} />
+                        <span>Terpilih</span>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {boxLoveStatus === "open" && (
+            <div className="box-love-section-card">
+              <div className="box-love-section-header">
+                <span className="emoji">💖</span>
+                <div>
+                  <h4>Kirim Box Love 💌</h4>
+                  <p>Punya incaran khusus? Masukkan nomor peserta mereka langsung ke Box Love!</p>
+                </div>
+              </div>
+              <button className="box-love-section-btn" onClick={openBoxLove}>
+                <Heart size={16} fill="white" />
+                <span>Buka Box Love Form</span>
               </button>
-            ))}
-          </div>
-
-          <div className="select-container">
-            <select className="select-box" value={pendidikan} onChange={(e) => { setPendidikan(e.target.value); setPage(1); }}>
-              <option value="all">Semua Pendidikan</option>
-              {pendidikanList.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-            <ChevronDown size={14} className="select-arrow" />
-          </div>
-
-          <div className="select-container">
-            <select className="select-box" value={selectedKota} onChange={(e) => { setSelectedKota(e.target.value); setDesaFilter("all"); setPage(1); }}>
-              <option value="all">Semua Daerah</option>
-              {kotaList.map(k => <option key={k} value={k}>{k}</option>)}
-            </select>
-            <ChevronDown size={14} className="select-arrow" />
-          </div>
-
-          <div className="select-container">
-            <select className="select-box" value={desaFilter} onChange={(e) => { setDesaFilter(e.target.value); setPage(1); }} disabled={selectedKota === "all"}>
-              <option value="all">Semua Desa</option>
-              {wilayahList.filter(w => w.kota === selectedKota).map(w => <option key={w.id} value={w.id}>{w.nama}</option>)}
-            </select>
-            <ChevronDown size={14} className="select-arrow" />
-          </div>
-
-          <div className="status-badge">
-            <Users size={16} />
-            <span>{total} Peserta</span>
-          </div>
-
-          <button className="btn-logout" onClick={handleLogout}>
-            <LogOut size={16} />
-            <span>Keluar</span>
-          </button>
-        </div>
-      </div>
-
-      <div 
-        className={`selection-banner ${category === "pilihan" ? "active-filter" : ""}`}
-        onClick={() => {
-          setCategory(category === "pilihan" ? "all" : "pilihan");
-          setPage(1);
-        }}
-        style={{ cursor: "pointer" }}
-        title={category === "pilihan" ? "Klik untuk menampilkan semua" : "Klik untuk menyaring pilihan saya"}
-      >
-        <div className="banner-left">
-          <div className="banner-icon"><CheckCircle2 size={24} /></div>
-          <div className="banner-text">
-            <span className="banner-label">
-              {category === "pilihan" ? "💝 MENAMPILKAN PILIHAN SAYA (Klik untuk Reset)" : "PILIHAN SAYA (Klik untuk Menyaring)"}
-            </span>
-            <p className="banner-value">{selectedNames.length > 0 ? selectedNames.join(", ") : "Pilih peserta favorit Anda (Maks. 3)"}</p>
-          </div>
-        </div>
-        <div className="banner-right">
-          <div className={`pilihan-pill ${selectedIds.length >= 3 ? "full" : ""} ${category === "pilihan" ? "active" : ""}`}>
-            {selectedIds.length}/3 Terpilih
-          </div>
-        </div>
-      </div>
-
-      <div className="user-title-context">
-        <h3>{currentUser?.nama || "User Profile"}</h3>
-        <div className="user-meta">
-          <span>No. Urut Peserta : {currentUser?.nomorUrut || "-"}</span>
-          {currentUser?.mandiriDesaKota && (
-            <span className="location">@{currentUser?.mandiriDesaKota} • {currentUser?.mandiriDesaNama}</span>
+            </div>
           )}
         </div>
-        {statusQueue && (
-          <div className="status-queue-banner">
-            <Timer size={14} />
-            <span>Sedang dalam antrean admin Romantic Room</span>
-          </div>
-        )}
-      </div>
+      )}
 
-      <main className="grid-container">
-        {loading && data.length === 0 ? (
-          [...Array(6)].map((_, i) => <div key={i} className="skeleton-card" />)
-        ) : (
-          data.map((item) => {
-            const isPulang = item.keterangan?.toLowerCase() === "pulang";
-            return (
-              <div key={item.id} className={`participant-card ${isPulang ? "is-pulang" : ""}`}>
-                <div className="card-image-wrapper">
-                  <img
-                    src={item.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.nama)}&background=random`}
-                    alt={item.nama}
-                    className="card-image"
-                    loading="lazy"
-                  />
-                  <div className="floating-badge id-badge">#{item.nomorUrut || "-"}</div>
-                  {item.selectedCount >= 5 && (
-                    <div className="floating-badge full-badge" style={isPulang ? { top: '50px' } : undefined}>PENUH (5/5)</div>
+      {/* TAB CONTENT: PROFILE */}
+      {activeTab === "profile" && (
+        <div className="profile-tab-container">
+          {loadingProfile ? (
+            <div className="skeleton-profile" />
+          ) : myFullProfile ? (
+            <div className="profile-details-card">
+              <div className="profile-header-main">
+                <div className="profile-avatar-large">
+                  {myFullProfile.foto ? (
+                    <img src={myFullProfile.foto} alt={myFullProfile.nama} />
+                  ) : (
+                    <span>{myFullProfile.nama?.charAt(0) || "?"}</span>
                   )}
-                  {isPulang && (
-                    <div className="floating-badge pulang-badge">PULANG</div>
-                  )}
-                  <div className={`floating-badge label-badge ${item.panitiaStatus ? "status-panitia" : ""}`}>
-                    {item.panitiaStatus ? "PANITIA" : "PESERTA"}
+                </div>
+                <h2>#{myFullProfile.nomorUrut || "-"} {myFullProfile.nama}</h2>
+                <div className="profile-role-badge">{myFullProfile.panitiaStatus || "PESERTA"}</div>
+              </div>
+
+              <div className="profile-info-grid">
+                <div className="profile-info-section">
+                  <h4>Informasi Personal</h4>
+                  <div className="profile-info-row">
+                    <span className="label">Nomor Unik</span>
+                    <span className="value">{myFullProfile.nomorUnik}</span>
+                  </div>
+                  <div className="profile-info-row">
+                    <span className="label">Jenis Kelamin</span>
+                    <span className="value">{myFullProfile.jenisKelamin === "L" ? "Laki-laki" : "Perempuan"}</span>
+                  </div>
+                  <div className="profile-info-row">
+                    <span className="label">Usia</span>
+                    <span className="value">
+                      {myFullProfile.tanggalLahir ? `${new Date().getFullYear() - new Date(myFullProfile.tanggalLahir).getFullYear()} Tahun` : "-"}
+                    </span>
+                  </div>
+                  <div className="profile-info-row">
+                    <span className="label">Suku</span>
+                    <span className="value">{myFullProfile.suku || "-"}</span>
+                  </div>
+                  <div className="profile-info-row">
+                    <span className="label">Pendidikan</span>
+                    <span className="value">{myFullProfile.pendidikan || "-"}</span>
+                  </div>
+                  <div className="profile-info-row">
+                    <span className="label">Pekerjaan</span>
+                    <span className="value">{myFullProfile.pekerjaan || "-"}</span>
+                  </div>
+                  <div className="profile-info-row">
+                    <span className="label">Status Nikah</span>
+                    <span className="value">{myFullProfile.statusNikah || "Belum Menikah"}</span>
                   </div>
                 </div>
 
-                <div className="card-content">
-                  <h2 className="card-name">{item.nama}</h2>
-                  <div className="card-location">
-                    <MapPin size={14} />
-                    <span>{item.mandiriDesaKota || "-"} • {item.mandiriDesaNama || item.desaNama || "-"}</span>
+                <div className="profile-info-section">
+                  <h4>Domisili & Kontak</h4>
+                  <div className="profile-info-row">
+                    <span className="label">Daerah/Kota</span>
+                    <span className="value">{myFullProfile.mandiriDesaKota || "-"}</span>
                   </div>
-
-                  <div className="card-stats-grid">
-                    <div className="stat-pill"><Calendar size={14} /><span>{item.tanggalLahir ? `${new Date().getFullYear() - new Date(item.tanggalLahir).getFullYear()} Tahun` : "-"}</span></div>
-                    <div className="stat-pill"><GraduationCap size={14} /><span>{item.pendidikan || "-"}</span></div>
-                    <div className="stat-pill"><Heart size={14} /><span>{item.statusNikah || "Belum Menikah"}</span></div>
-                    <div className="stat-pill"><Briefcase size={14} /><span>{item.pekerjaan || "Swasta"}</span></div>
-                    <div className="stat-pill"><Globe size={14} /><span>{item.suku || "-"}</span></div>
-                    <div className="stat-pill">
-                      <Instagram size={14} />
-                      {item.instagram ? (
-                        <a href={`https://instagram.com/${item.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="card-instagram-link">
-                          @{item.instagram.replace('@', '')}
+                  <div className="profile-info-row">
+                    <span className="label">Desa</span>
+                    <span className="value">{myFullProfile.mandiriDesaNama || "-"}</span>
+                  </div>
+                  <div className="profile-info-row">
+                    <span className="label">Instagram</span>
+                    <span className="value">
+                      {myFullProfile.instagram ? (
+                        <a href={`https://instagram.com/${myFullProfile.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="profile-insta-link">
+                          @{myFullProfile.instagram.replace('@', '')}
                         </a>
-                      ) : <span>-</span>}
-                    </div>
-                    <div className="stat-pill selection-count"><UserCheck size={14} /><span>Dipilih: {item.selectedCount || 0}/5</span></div>
+                      ) : "-"}
+                    </span>
                   </div>
+                </div>
 
-                  <div className="card-passions-mini">
-                    <div className="pass-pill"><Music size={12} /><span>Hobi: {item.hobi || "-"}</span></div>
-                    <div className="pass-pill"><Utensils size={12} /><span>Makan/Minuman: {item.makananMinumanFavorit || "-"}</span></div>
+                <div className="profile-info-section">
+                  <h4>Hobi & Favorit</h4>
+                  <div className="profile-info-row">
+                    <span className="label">Hobi</span>
+                    <span className="value">{myFullProfile.hobi || "-"}</span>
                   </div>
-
-                  <div className="card-actions">
-                    <button className="btn-secondary" onClick={() => openDetail(item)}>Detail Profil</button>
-                    {item.nomorUrut !== currentUser?.nomorUrut && (() => {
-                      if (isPulang) {
-                        return (
-                          <button
-                            className="btn-primary disabled"
-                            disabled
-                          >
-                            <LogOut size={16} />
-                            <span>Pulang</span>
-                          </button>
-                        );
-                      }
-                      const isSelected = selectedIds.includes(String(item.id));
-                      const sel = selections.find((s: any) => String(s.penerimaId) === String(item.id));
-                      const isWaiting = sel && sel.status === "Menunggu";
-
-                      if (isSelected) {
-                        if (isWaiting) {
-                          return (
-                            <button
-                              className="btn-danger"
-                              onClick={() => handleCancelSelection(String(item.id), item.nama)}
-                            >
-                              <X size={16} />
-                              <span>Batalkan Pilihan</span>
-                            </button>
-                          );
-                        } else {
-                          return (
-                            <button
-                              className="btn-primary selected disabled"
-                              disabled
-                            >
-                              <CheckCircle2 size={16} />
-                              <span>Terpilih</span>
-                            </button>
-                          );
-                        }
-                      }
-
-                      const isFull = (item.selectedCount || 0) >= 5;
-                      const isMaxed = selectedIds.length >= 3;
-                      const isDisabled = isFull || isMaxed;
-
-                      return (
-                        <button
-                          className={`btn-primary ${isDisabled ? "disabled" : ""}`}
-                          onClick={() => handleConfirmSelection(String(item.id), item.nama)}
-                          disabled={isDisabled}
-                        >
-                          <Heart size={16} />
-                          <span>{isFull ? "Penuh" : (isMaxed ? "Batas Tercapai" : "Pilih")}</span>
-                        </button>
-                      );
-                    })()}
+                  <div className="profile-info-row">
+                    <span className="label">Makanan & Minuman Favorit</span>
+                    <span className="value">{myFullProfile.makananMinumanFavorit || "-"}</span>
                   </div>
+                </div>
+              </div>
 
-                {item.id !== currentUser?.id && (
-                  <div className="commentary-box">
-                    {sentComments.some(sc => sc.penerimaId === item.id) ? (
-                      <div className="comment-sent-indicator">
-                        <MessageSquare size={14} />
-                        <span>Komentar Anda: {sentComments.find(sc => sc.penerimaId === item.id)?.komentar}</span>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="commentary-header">
-                          <div className="anon-toggle">
-                            <input type="checkbox" id={`anon-${item.id}`} checked={komentarAnon} onChange={(e) => setKomentarAnon(e.target.checked)} />
-                            <label htmlFor={`anon-${item.id}`}>Anonim</label>
-                          </div>
-                          {!komentarAnon && (
-                            <input
-                              type="text"
-                              className="comment-name-input"
-                              placeholder="Nama Anda..."
-                              value={komentarNama}
-                              onChange={(e) => setKomentarNama(e.target.value)}
-                              disabled={!!currentUser}
-                              autoComplete="off"
-                            />
-                          )}
-                        </div>
-                        <div className="comment-tags-label">Berikan Komentar Singkat:</div>
-                        <div className="comment-buttons">
-                          {["Humble", "Baik", "Pendiam", "Penyabar", "Friendly"].map(tag => (
-                            <button
-                              key={tag}
-                              className={`btn-tag ${submittingKomentar === item.id ? "loading" : ""}`}
-                              onClick={() => handleSendKomentar(item.id, item.nama, tag)}
-                              disabled={!!submittingKomentar}
-                            >
-                              {tag}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
+              <div className="profile-actions-bottom" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <button className="profile-pulang-btn" onClick={handlePulang}>
+                  <LogOut size={18} />
+                  <span>Pulang</span>
+                </button>
+                <button className="profile-logout-btn" onClick={handleLogout}>
+                  <LogOut size={18} />
+                  <span>Keluar dari Akun</span>
+                </button>
               </div>
             </div>
-          );
-        })
-        )}
-      </main>
+          ) : (
+            <div className="profile-error">Gagal memuat profil Anda. Silakan coba lagi.</div>
+          )}
+        </div>
+      )}
+
+      {/* BOTTOM MOBILE NAVIGATION BAR */}
+      <nav className="mobile-nav-bar">
+        <button
+          className={`nav-bar-item ${activeTab === "katalog" ? "active" : ""}`}
+          onClick={() => setActiveTab("katalog")}
+        >
+          <Users size={20} />
+          <span>Katalog</span>
+        </button>
+        <button
+          className={`nav-bar-item ${activeTab === "cart" ? "active" : ""}`}
+          onClick={() => setActiveTab("cart")}
+        >
+          <div className="badge-icon-wrapper">
+            <Heart size={20} fill={activeTab === "cart" ? "#f43f5e" : "transparent"} color={activeTab === "cart" ? "#f43f5e" : "#64748b"} />
+            {selectedIds.length > 0 && (
+              <span className="badge-count-bubble">{selectedIds.length}</span>
+            )}
+          </div>
+          <span>Pilihanku</span>
+        </button>
+        <button
+          className={`nav-bar-item ${activeTab === "profile" ? "active" : ""}`}
+          onClick={() => setActiveTab("profile")}
+        >
+          <User size={20} />
+          <span>Profil</span>
+        </button>
+      </nav>
 
       {/* DETAIL MODAL */}
       {isModalOpen && selectedParticipant && (() => {
@@ -1197,7 +1575,25 @@ export default function PublicKatalogPage() {
                   <button className="dm-btn dm-btn-disabled" disabled>Ini Profil Anda</button>
                 ) : sp.keterangan?.toLowerCase() === "pulang" ? (
                   <button className="dm-btn dm-btn-disabled" disabled>Peserta Sudah Pulang</button>
-                ) : isSelected ? (() => {
+                ) : sp.handshakeStatus ? (() => {
+                  if (sp.handshakeStatus === "Selesai") {
+                    return <button className="dm-btn dm-btn-disabled" disabled><Users size={18}/>Sudah Bertemu</button>;
+                  }
+                  if (sp.handshakeStatus === "Diterima") {
+                    return <button className="dm-btn dm-btn-disabled" disabled><Users size={18}/>Dalam Ruangan</button>;
+                  }
+                  if (sp.handshakeStatus === "Menunggu") {
+                    if (isSelected) {
+                      return (
+                        <button className="dm-btn dm-btn-danger" onClick={() => handleCancelSelection(String(sp.id), sp.nama)}>
+                          <X size={18}/>Batalkan Pilihan
+                        </button>
+                      );
+                    }
+                    return <button className="dm-btn dm-btn-disabled" disabled><Clock size={18}/>Dalam Antrean</button>;
+                  }
+                  return null;
+                })() : isSelected ? (() => {
                   const sel = selections.find((s: any) => String(s.penerimaId) === String(sp.id));
                   const isWaiting = sel && sel.status === "Menunggu";
                   if (isWaiting) {
@@ -1226,14 +1622,6 @@ export default function PublicKatalogPage() {
           </div>
         );
       })()}
-
-      {/* BOX LOVE FAB */}
-      {boxLoveStatus === "open" && (
-        <button className="box-love-fab" onClick={openBoxLove} title="Box Love">
-          <Heart size={24} fill="white" />
-          <span>Box Love</span>
-        </button>
-      )}
 
       {/* BOX LOVE POPUP */}
       {isBoxLoveOpen && (
@@ -1328,18 +1716,6 @@ export default function PublicKatalogPage() {
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="pagination">
-          <button disabled={page === 1} onClick={() => setPage(p => p - 1)}>Sebelumnya</button>
-          <div className="page-numbers">
-            {[...Array(Math.min(5, totalPages))].map((_, i) => (
-              <button key={i} className={page === i + 1 ? "active" : ""} onClick={() => setPage(i + 1)}>{i + 1}</button>
-            ))}
-          </div>
-          <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>Berikutnya</button>
-        </div>
-      )}
-
       {/* COMMENTS MODAL */}
       {isCommentsModalOpen && (
         <div className="modal-overlay" onClick={() => { setIsCommentsModalOpen(false); unlockBodyScroll(); }}>
@@ -1411,7 +1787,7 @@ export default function PublicKatalogPage() {
 
 
       <style jsx>{`
-        .container { max-width:1200px; margin:0 auto; padding:40px 20px; font-family:'Inter',sans-serif; color:#334155; }
+        .container { max-width:1200px; margin:0 auto; padding:40px 20px; font-family:'Inter',sans-serif; color:#334155; overflow-x:hidden; }
 
         .page-header { text-align:center; margin-bottom:40px; display:flex; flex-direction:column; align-items:center; gap:8px; }
         .badge-top { display:inline-flex; align-items:center; gap:6px; background:#f1f5f9; color:#3b82f6; padding:6px 14px; border-radius:20px; font-size:11px; font-weight:800; letter-spacing:0.5px; }
@@ -1419,12 +1795,12 @@ export default function PublicKatalogPage() {
         .page-header h1 span { color:#3b82f6; }
         .welcome-msg { color:#64748b; font-size:16px; margin:0; }
 
-        .toolbar { display:flex; flex-direction:column; gap:16px; background:white; padding:16px; border-radius:24px; box-shadow:0 4px 15px rgba(0,0,0,0.03); border:1px solid #f1f5f9; margin-bottom:24px; }
-        .search-group { display:flex; gap:12px; }
-        .search-bar { flex:1; position:relative; display:flex; align-items:center; gap:12px; background:#f8fafc; border:1px solid #e2e8f0; padding:12px 20px; border-radius:16px; }
-        .search-bar input { border:none; background:transparent; outline:none; width:100%; font-size:14px; font-weight:500; }
-        .search-icon { color:#94a3b8; }
-        .clear-search-btn { background:#e2e8f0; border:none; border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#64748b; transition:0.2s; margin-left:4px; }
+        .toolbar { display:flex; flex-direction:column; gap:16px; background:white; padding:16px; border-radius:24px; box-shadow:0 4px 15px rgba(0,0,0,0.03); border:1px solid #f1f5f9; margin-bottom:24px; box-sizing:border-box; width:100%; overflow:hidden; }
+        .search-group { display:flex; gap:8px; width:100%; overflow:hidden; min-width:0; align-items:center; }
+        .search-bar { flex:1; min-width:0; overflow:hidden; position:relative; display:flex; align-items:center; gap:8px; background:#f8fafc; border:1px solid #e2e8f0; padding:10px 14px; border-radius:14px; }
+        .search-bar input { border:none; background:transparent; outline:none; width:100%; min-width:0; font-size:14px; font-weight:500; }
+        .search-icon { color:#94a3b8; flex-shrink:0; }
+        .clear-search-btn { background:#e2e8f0; border:none; border-radius:50%; width:20px; height:20px; flex-shrink:0; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#64748b; transition:0.2s; margin-left:4px; }
         .clear-search-btn:hover { background:#cbd5e1; color:#1e293b; }
         .btn-advanced { display:flex; align-items:center; gap:8px; background:white; border:1px solid #e2e8f0; padding:0 20px; border-radius:16px; font-size:14px; font-weight:600; cursor:pointer; transition:0.2s; white-space:nowrap; }
         .btn-advanced:hover { background:#f8fafc; }
@@ -1440,6 +1816,53 @@ export default function PublicKatalogPage() {
         .status-badge { display:flex; align-items:center; gap:8px; background:#f8fafc; border:1px solid #e2e8f0; padding:10px 18px; border-radius:14px; font-size:13px; font-weight:700; color:#475569; }
         .btn-logout { margin-left:auto; display:flex; align-items:center; gap:8px; background:#fef2f2; color:#ef4444; border:1px solid #fee2e2; padding:10px 18px; border-radius:14px; font-size:13px; font-weight:700; cursor:pointer; transition:0.2s; }
         .btn-logout:hover { background:#fee2e2; }
+
+        .toolbar-status-row {
+          display: flex;
+          align-items: center;
+          margin-top: 4px;
+        }
+        .btn-filter-toggle {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 44px;
+          height: 44px;
+          flex-shrink: 0;
+          background: white;
+          border: 1px solid #e2e8f0;
+          border-radius: 14px;
+          cursor: pointer;
+          transition: 0.2s;
+          color: #475569;
+        }
+        .btn-filter-toggle:hover {
+          background: #f8fafc;
+          border-color: #cbd5e1;
+        }
+        .btn-filter-toggle.active {
+          background: #eff6ff;
+          border-color: #3b82f6;
+          color: #1d4ed8;
+        }
+        .btn-reset-filters {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: #f1f5f9;
+          border: 1px solid #cbd5e1;
+          color: #475569;
+          padding: 10px 18px;
+          border-radius: 14px;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: 0.2s;
+        }
+        .btn-reset-filters:hover {
+          background: #e2e8f0;
+        }
+
 
         .selection-banner { background:#232d3f; transition: all 0.2s ease; border: 2px solid transparent; }
         .selection-banner:hover { transform: translateY(-2px); box-shadow: 0 20px 40px rgba(35,45,63,0.35); }
@@ -1509,17 +1932,22 @@ export default function PublicKatalogPage() {
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
 
         /* ── Mobile responsive ─────────────────────────────────────────── */
-        @media (max-width:768px) {
-          .container { padding:20px 12px; }
+        @media (max-width:1024px) {
+          .container { padding:20px 12px; overflow-x:hidden; }
           .page-header h1 { font-size:28px; }
-          .toolbar { border-radius:16px; }
+          .toolbar { border-radius:16px; width:100%; box-sizing:border-box; overflow:hidden; }
           .grid-container { grid-template-columns:1fr; }
           .btn-logout { margin-left:0; width:100%; justify-content:center; }
-          .search-group { flex-direction:column; }
+          .search-group { flex-direction:row; width:100%; overflow:hidden; min-width:0; }
+          .search-bar { min-width:0; overflow:hidden; }
           .selection-banner { padding:16px 20px; flex-direction:column; gap:12px; align-items:flex-start; }
           .banner-value { font-size:15px; }
-          .filter-controls { gap:8px; }
-          .select-box { min-width:130px; font-size:12px; }
+          .filter-controls { display:flex; flex-direction:column; gap:10px; align-items:stretch; width:100%; }
+          .filter-controls .toggle-group { display:flex; width:100%; }
+          .filter-controls .toggle-group button { flex:1; text-align:center; }
+          .filter-controls .select-container { width:100%; }
+          .filter-controls .select-box { width:100%; min-width:0; }
+          .btn-reset-filters { width:100%; justify-content:center; }
         }
 
         /* ── DETAIL MODAL ───────────────────────────────────────────── */
@@ -1750,6 +2178,537 @@ export default function PublicKatalogPage() {
         @media (max-width:480px) {
           .comments-modal-box { padding:24px 16px; max-height:90vh; border-radius:20px; }
           .comment-text { font-size:16px; }
+        }
+
+        /* ── DESKTOP TAB NAV ───────────────────────────────────────────── */
+        .desktop-tab-nav {
+          display: flex;
+          justify-content: center;
+          gap: 12px;
+          margin-bottom: 32px;
+        }
+        .desktop-tab-nav button {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: white;
+          border: 1px solid #e2e8f0;
+          padding: 10px 24px;
+          border-radius: 14px;
+          font-size: 14px;
+          font-weight: 750;
+          color: #64748b;
+          cursor: pointer;
+          transition: 0.2s;
+        }
+        .desktop-tab-nav button:hover {
+          background: #f8fafc;
+          border-color: #cbd5e1;
+        }
+        .desktop-tab-nav button.active {
+          background: #1e293b;
+          border-color: #1e293b;
+          color: white;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .desktop-tab-nav button.active :global(svg) {
+          color: white !important;
+        }
+        .mobile-nav-bar {
+          display: none;
+        }
+
+        /* ── BOTTOM MOBILE NAV BAR ─────────────────────────────────────── */
+        @media (max-width: 1024px) {
+          .desktop-tab-nav {
+            display: none;
+          }
+          .mobile-nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            z-index: 500;
+            padding-bottom: env(safe-area-inset-bottom);
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05);
+          }
+          .nav-bar-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            border: none;
+            background: transparent;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+            flex: 1;
+            height: 100%;
+          }
+          .nav-bar-item.active {
+            color: #3b82f6;
+          }
+          .badge-icon-wrapper {
+            position: relative;
+            display: inline-flex;
+          }
+          .badge-count-bubble {
+            position: absolute;
+            top: -6px;
+            right: -10px;
+            background: #ef4444;
+            color: white;
+            font-size: 9px;
+            font-weight: 900;
+            border-radius: 50%;
+            min-width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1.5px solid white;
+            padding: 0 2px;
+          }
+          .pb-24 {
+            padding-bottom: 96px !important;
+          }
+        }
+
+        /* ── MOBILE RESPONSIVE CATALOG GRID & CARDS ─────────────────────── */
+        @media (max-width: 640px) {
+          .grid-container {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 12px !important;
+          }
+          .participant-card {
+            border-radius: 20px !important;
+          }
+          .card-image-wrapper {
+            height: 180px !important;
+          }
+          .card-content {
+            padding: 12px !important;
+          }
+          .card-name {
+            font-size: 14px !important;
+            font-weight: 800 !important;
+            margin-bottom: 2px !important;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .card-location {
+            font-size: 10px !important;
+            margin-bottom: 12px !important;
+            gap: 3px !important;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .card-stats-grid {
+            display: none !important;
+          }
+          .card-passions-mini {
+            display: none !important;
+          }
+          .commentary-box {
+            display: none !important;
+          }
+          .card-actions {
+            flex-direction: column !important;
+            gap: 6px !important;
+          }
+          .btn-secondary, .btn-primary, .btn-danger {
+            padding: 8px 6px !important;
+            font-size: 11px !important;
+            border-radius: 10px !important;
+            width: 100% !important;
+            justify-content: center !important;
+          }
+          .floating-badge {
+            font-size: 10px !important;
+            padding: 4px 8px !important;
+            border-radius: 8px !important;
+          }
+          .id-badge {
+            top: 8px !important;
+            left: 8px !important;
+          }
+          .full-badge {
+            top: 8px !important;
+            right: 8px !important;
+          }
+          .label-badge {
+            bottom: 8px !important;
+            right: 8px !important;
+          }
+          .pulang-badge {
+            top: 8px !important;
+            right: 8px !important;
+          }
+        }
+
+        /* ── CART / LOVE LETTER STYLE ─────────────────────────────────── */
+        .cart-container {
+          max-width: 600px;
+          margin: 0 auto;
+          animation: slideUp 0.3s ease-out;
+        }
+        .selection-info-card {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          background: #fff1f2;
+          color: #e11d48;
+          padding: 16px 20px;
+          border-radius: 16px;
+          font-weight: 800;
+          font-size: 15px;
+          border: 1px solid #ffe4e6;
+          margin-bottom: 20px;
+        }
+        .empty-cart-state {
+          text-align: center;
+          padding: 60px 20px;
+          background: #f8fafc;
+          border: 2px dashed #e2e8f0;
+          border-radius: 24px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          margin-bottom: 20px;
+        }
+        .empty-cart-icon {
+          font-size: 48px;
+          margin-bottom: 16px;
+          filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.05));
+        }
+        .empty-cart-state h3 {
+          font-size: 18px;
+          font-weight: 800;
+          color: #1e293b;
+          margin: 0 0 8px 0;
+        }
+        .empty-cart-state p {
+          font-size: 13px;
+          color: #64748b;
+          margin: 0 0 20px 0;
+          line-height: 1.5;
+          max-width: 280px;
+        }
+        .goto-catalog-btn {
+          background: #3b82f6;
+          color: white;
+          font-weight: 700;
+          font-size: 13px;
+          padding: 10px 24px;
+          border-radius: 12px;
+          border: none;
+          cursor: pointer;
+          transition: 0.2s;
+        }
+        .goto-catalog-btn:hover {
+          background: #2563eb;
+          transform: translateY(-2px);
+        }
+        .cart-list {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          margin-bottom: 24px;
+        }
+        .cart-item-card {
+          background: white;
+          border: 1px solid #e2e8f0;
+          border-radius: 20px;
+          padding: 16px 20px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+          transition: 0.2s;
+        }
+        .cart-item-card:hover {
+          border-color: #cbd5e1;
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.04);
+        }
+        .cart-item-info {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+        .cart-item-avatar {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          background: #fff1f2;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid #ffe4e6;
+        }
+        .cart-item-name {
+          font-size: 14px;
+          font-weight: 800;
+          color: #1e293b;
+          margin-bottom: 4px;
+        }
+        .status-badge-pill {
+          font-size: 11px;
+          font-weight: 700;
+          padding: 2px 8px;
+          border-radius: 6px;
+          text-transform: capitalize;
+        }
+        .status-badge-pill.menunggu {
+          background: #fef3c7;
+          color: #d97706;
+        }
+        .status-badge-pill.diterima {
+          background: #d1fae5;
+          color: #065f46;
+        }
+        .status-badge-pill.selesai {
+          background: #dbeafe;
+          color: #1e40af;
+        }
+        .cart-btn-danger {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: #fef2f2;
+          color: #ef4444;
+          border: 1px solid #fee2e2;
+          padding: 8px 14px;
+          border-radius: 10px;
+          font-size: 12px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: 0.2s;
+        }
+        .cart-btn-danger:hover {
+          background: #fee2e2;
+        }
+        .cart-btn-disabled {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: #f1f5f9;
+          color: #94a3b8;
+          border: 1px solid #e2e8f0;
+          padding: 8px 14px;
+          border-radius: 10px;
+          font-size: 12px;
+          font-weight: 700;
+          cursor: default;
+        }
+
+        .box-love-section-card {
+          background: linear-gradient(135deg, #fff0f6, #fff5f5);
+          border: 1px solid #fce7f3;
+          border-radius: 24px;
+          padding: 24px;
+          box-shadow: 0 4px 15px rgba(252, 231, 243, 0.3);
+        }
+        .box-love-section-header {
+          display: flex;
+          gap: 16px;
+          margin-bottom: 16px;
+        }
+        .box-love-section-header .emoji {
+          font-size: 32px;
+          line-height: 1;
+        }
+        .box-love-section-header h4 {
+          font-size: 15px;
+          font-weight: 800;
+          color: #be185d;
+          margin: 0 0 4px 0;
+        }
+        .box-love-section-header p {
+          font-size: 12px;
+          color: #9d174d;
+          margin: 0;
+          line-height: 1.5;
+        }
+        .box-love-section-btn {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          background: linear-gradient(135deg,#f472b6,#ec4899,#be185d);
+          color: white;
+          border: none;
+          padding: 12px;
+          border-radius: 14px;
+          font-size: 13px;
+          font-weight: 800;
+          cursor: pointer;
+          box-shadow: 0 4px 12px rgba(236,72,153,0.25);
+          transition: 0.2s;
+        }
+        .box-love-section-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 6px 16px rgba(236,72,153,0.35);
+        }
+
+        /* ── PROFILE TAB STYLE ─────────────────────────────────────────── */
+        .profile-tab-container {
+          max-width: 600px;
+          margin: 0 auto;
+          animation: slideUp 0.3s ease-out;
+        }
+        .skeleton-profile {
+          height: 400px;
+          background: #f1f5f9;
+          border-radius: 24px;
+          animation: pulse 1.5s infinite;
+        }
+        .profile-details-card {
+          background: white;
+          border: 1px solid #e2e8f0;
+          border-radius: 28px;
+          padding: 24px;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+        }
+        .profile-header-main {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          margin-bottom: 28px;
+          text-align: center;
+        }
+        .profile-avatar-large {
+          width: 90px;
+          height: 90px;
+          border-radius: 50%;
+          overflow: hidden;
+          background: #eff6ff;
+          color: #3b82f6;
+          font-size: 32px;
+          font-weight: 900;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 12px;
+          border: 3px solid #dbeafe;
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+        }
+        .profile-avatar-large img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .profile-header-main h2 {
+          font-size: 18px;
+          font-weight: 900;
+          color: #1e293b;
+          margin: 0 0 6px 0;
+        }
+        .profile-role-badge {
+          background: #1e293b;
+          color: white;
+          font-size: 9px;
+          font-weight: 800;
+          padding: 3px 8px;
+          border-radius: 6px;
+          letter-spacing: 0.5px;
+        }
+        .profile-info-grid {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+          margin-bottom: 28px;
+        }
+        .profile-info-section {
+          background: #f8fafc;
+          border-radius: 16px;
+          padding: 16px;
+        }
+        .profile-info-section h4 {
+          font-size: 11px;
+          font-weight: 800;
+          color: #94a3b8;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin: 0 0 12px 0;
+          border-bottom: 1px dashed #e2e8f0;
+          padding-bottom: 6px;
+        }
+        .profile-info-row {
+          display: flex;
+          justify-content: space-between;
+          padding: 6px 0;
+          font-size: 13px;
+        }
+        .profile-info-row .label {
+          color: #64748b;
+          font-weight: 600;
+        }
+        .profile-info-row .value {
+          color: #1e293b;
+          font-weight: 750;
+        }
+        .profile-insta-link {
+          color: #3b82f6;
+          text-decoration: none;
+        }
+        .profile-insta-link:hover {
+          color: #ec4899;
+          text-decoration: underline;
+        }
+        .profile-actions-bottom {
+          border-top: 1px solid #f1f5f9;
+          padding-top: 20px;
+        }
+        .profile-pulang-btn {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          background: #fef2f2;
+          color: #ef4444;
+          border: 1px solid #fee2e2;
+          padding: 14px;
+          border-radius: 16px;
+          font-size: 14px;
+          font-weight: 800;
+          cursor: pointer;
+          transition: 0.2s;
+        }
+        .profile-pulang-btn:hover {
+          background: #fee2e2;
+        }
+        .profile-logout-btn {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          background: #f8fafc;
+          color: #64748b;
+          border: 1px solid #e2e8f0;
+          padding: 14px;
+          border-radius: 16px;
+          font-size: 14px;
+          font-weight: 800;
+          cursor: pointer;
+          transition: 0.2s;
+        }
+        .profile-logout-btn:hover {
+          background: #e2e8f0;
         }
 
         /* SweetAlert2 z-index override */

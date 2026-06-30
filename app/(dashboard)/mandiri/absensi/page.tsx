@@ -162,7 +162,7 @@ function AbsensiContent() {
     setSearchQuery(q);
     if (!q) { setSearchResults([]); return; }
     try {
-      const res = await fetch(`/api/mandiri/absensi/search?q=${encodeURIComponent(q)}`);
+      const res = await fetch(`/api/mandiri/absensi/search?q=${encodeURIComponent(q)}&kegiatanId=${selectedKegiatan}`);
       if (!res.ok) throw new Error("Search failed");
       const data = await res.json();
       setSearchResults(Array.isArray(data) ? data : []);

@@ -11,17 +11,7 @@ export async function POST() {
       const generusId = session.generusId;
       
       const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-      let kegiatanId = activeSetting[0]?.value || "";
-      
-      if (!kegiatanId) {
-        const latestActivity = await db.select({ id: mandiriKegiatan.id })
-          .from(mandiriKegiatan)
-          .orderBy(desc(mandiriKegiatan.tanggal))
-          .limit(1);
-        if (latestActivity.length > 0) {
-          kegiatanId = latestActivity[0].id;
-        }
-      }
+      const kegiatanId = activeSetting[0]?.value || "";
       
       if (kegiatanId) {
         await db.update(mandiriAbsensi)

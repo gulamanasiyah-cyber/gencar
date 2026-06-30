@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriKunjungan, generus, mandiriPemilihan, mandiriRooms, formPanitiaDanPengurus, mandiri, mandiriDesa, settings, mandiriKegiatan } from "@/lib/schema";
+import { mandiriKunjungan, generus, mandiriPemilihan, mandiriRooms, formPanitiaDanPengurus, mandiri, mandiriDesa, settings, mandiriKegiatan, mandiriDaerah } from "@/lib/schema";
 import { eq, sql, desc, isNotNull, and, or } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { aliasedTable } from "drizzle-orm";
@@ -19,10 +19,6 @@ export async function GET(request: NextRequest) {
             const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
             kegiatanId = activeSetting[0]?.value || "";
         }
-        if (!kegiatanId) {
-            const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-            kegiatanId = latestActivity[0]?.id || "";
-        }
 
         const g1 = aliasedTable(generus, "g1");
         const g2 = aliasedTable(generus, "g2");
@@ -32,6 +28,8 @@ export async function GET(request: NextRequest) {
         const pan2 = aliasedTable(formPanitiaDanPengurus, "pan2");
         const md1 = aliasedTable(mandiriDesa, "md1");
         const md2 = aliasedTable(mandiriDesa, "md2");
+        const mda1 = aliasedTable(mandiriDaerah, "mda1");
+        const mda2 = aliasedTable(mandiriDaerah, "mda2");
 
         // Get detailed pairing history
         const history = await db.select({
@@ -45,7 +43,7 @@ export async function GET(request: NextRequest) {
             pemilihNama: g1.nama,
             pemilihStatus: sql<string>`CASE WHEN ${pan1.id} IS NOT NULL THEN 'Panitia' ELSE 'Peserta' END`,
             pemilihHasil: mandiriPemilihan.hasilPengirim,
-            pemilihKota: md1.kota,
+            pemilihKota: mda1.nama,
             pemilihDesa: md1.nama,
             // Terpilih (Penerima)
             terpilihNomorUrut: m2.nomorUrut,
@@ -53,7 +51,7 @@ export async function GET(request: NextRequest) {
             terpilihNama: g2.nama,
             terpilihStatus: sql<string>`CASE WHEN ${pan2.id} IS NOT NULL THEN 'Panitia' ELSE 'Peserta' END`,
             terpilihHasil: mandiriPemilihan.hasilPenerima,
-            terpilihKota: md2.kota,
+            terpilihKota: mda2.nama,
             terpilihDesa: md2.nama,
             pemilihWa: sql<string>`COALESCE(${g1.noTelp}, ${pan1.noTelp})`,
             terpilihWa: sql<string>`COALESCE(${g2.noTelp}, ${pan2.noTelp})`,
@@ -77,6 +75,8 @@ export async function GET(request: NextRequest) {
         // Join MandiriDesa using COALESCE to check both generus and panitia table
         .leftJoin(md1, eq(sql`COALESCE(${g1.mandiriDesaId}, ${pan1.mandiriDesaId})`, md1.id))
         .leftJoin(md2, eq(sql`COALESCE(${g2.mandiriDesaId}, ${pan2.mandiriDesaId})`, md2.id))
+        .leftJoin(mda1, eq(md1.mandiriDaerahId, mda1.id))
+        .leftJoin(mda2, eq(md2.mandiriDaerahId, mda2.id))
         .where(and(isNotNull(mandiriKunjungan.pemilihanId), eq(mandiriKunjungan.kegiatanId, kegiatanId)))
         .groupBy(mandiriKunjungan.pemilihanId)
         .orderBy(desc(mandiriKunjungan.createdAt));
@@ -103,12 +103,7 @@ export async function POST(request: NextRequest) {
         }
 
         const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-        let kegiatanId = activeSetting[0]?.value || "";
-
-        if (!kegiatanId) {
-            const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-            kegiatanId = latestActivity[0]?.id || "";
-        }
+        const kegiatanId = activeSetting[0]?.value || "";
 
         const id = crypto.randomUUID();
         await db.insert(mandiriKunjungan).values({

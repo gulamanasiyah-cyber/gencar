@@ -9,7 +9,9 @@ import {
     mandiriDesa,
     mandiriPemilihan,
     mandiriAntrean,
-    mandiri
+    mandiri,
+    settings,
+    mandiriDaerah
 } from "@/lib/schema";
 import { eq, desc, and, sql, or, count } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
@@ -23,18 +25,24 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // 1. Get the latest activity
-        const latestActivity = await db.select().from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-        if (latestActivity.length === 0) {
-            return NextResponse.json({ error: "No activity found" }, { status: 404 });
-        }
-        const kegiatanId = latestActivity[0].id;
+        // 1. Get the active activity from settings
+        const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+        const kegiatanId = activeSetting[0]?.value || "";
 
-        // 2. Get all unique cities (Kota) from mandiriDesa
+        if (!kegiatanId) {
+            return NextResponse.json({ error: "No active activity found" }, { status: 404 });
+        }
+
+        const latestActivity = await db.select().from(mandiriKegiatan).where(eq(mandiriKegiatan.id, kegiatanId)).limit(1);
+        if (latestActivity.length === 0) {
+            return NextResponse.json({ error: "Active activity not found in database" }, { status: 404 });
+        }
+
+        // 2. Get all unique cities (Kota) from mandiriDaerah
         const cities = await db
-            .select({ nama: mandiriDesa.kota })
-            .from(mandiriDesa)
-            .groupBy(mandiriDesa.kota);
+            .select({ nama: mandiriDaerah.nama })
+            .from(mandiriDaerah)
+            .orderBy(mandiriDaerah.nama);
         
         const reports = [];
 
@@ -52,9 +60,10 @@ export async function GET(request: NextRequest) {
                 .innerJoin(generus, eq(mandiriAbsensi.generusId, generus.id))
                 .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
                 .innerJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
+                .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
                 .where(and(
                     eq(mandiriAbsensi.kegiatanId, kegiatanId),
-                    eq(mandiriDesa.kota, city.nama)
+                    eq(mandiriDaerah.nama, city.nama)
                 ));
 
             // b. Committee attendance (in this city)
@@ -67,9 +76,10 @@ export async function GET(request: NextRequest) {
                 .from(mandiriAbsensi)
                 .innerJoin(formPanitiaDanPengurus, eq(mandiriAbsensi.generusId, formPanitiaDanPengurus.generusId))
                 .innerJoin(mandiriDesa, eq(formPanitiaDanPengurus.mandiriDesaId, mandiriDesa.id))
+                .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
                 .where(and(
                     eq(mandiriAbsensi.kegiatanId, kegiatanId),
-                    eq(mandiriDesa.kota, city.nama)
+                    eq(mandiriDaerah.nama, city.nama)
                 ));
 
             // c. Romantic Room Results (in this city)
@@ -82,9 +92,10 @@ export async function GET(request: NextRequest) {
                 .from(mandiriPemilihan)
                 .leftJoin(generus, or(eq(mandiriPemilihan.pengirimId, generus.id), eq(mandiriPemilihan.penerimaId, generus.id)))
                 .innerJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
+                .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
                 .where(and(
                     eq(mandiriPemilihan.status, "Selesai"),
-                    eq(mandiriDesa.kota, city.nama)
+                    eq(mandiriDaerah.nama, city.nama)
                 ))
                 .groupBy(mandiriPemilihan.id);
 
@@ -115,9 +126,10 @@ export async function GET(request: NextRequest) {
                 .from(mandiriPemilihan)
                 .leftJoin(generus, or(eq(mandiriPemilihan.pengirimId, generus.id), eq(mandiriPemilihan.penerimaId, generus.id)))
                 .innerJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
+                .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
                 .where(and(
                     eq(mandiriPemilihan.status, "Menunggu"),
-                    eq(mandiriDesa.kota, city.nama)
+                    eq(mandiriDaerah.nama, city.nama)
                 ));
 
             reports.push({

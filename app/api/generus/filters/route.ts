@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, mandiriDesa, mandiri, mandiriKelompok } from "@/lib/schema";
+import { generus, mandiriDesa, mandiri, mandiriKelompok, mandiriDaerah } from "@/lib/schema";
 import { sql, eq, isNotNull, exists } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 
@@ -53,18 +53,18 @@ export async function GET(request: NextRequest) {
         return a.localeCompare(b);
       });
 
-    // 2. Fetch mandiri regions (Desa/Kota)
     const regionsResult = await db
       .select({ 
         id: mandiriDesa.id,
         nama: mandiriDesa.nama,
-        kota: mandiriDesa.kota
+        kota: mandiriDaerah.nama
       })
       .from(mandiriDesa)
       .innerJoin(generus, eq(generus.mandiriDesaId, mandiriDesa.id))
       .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-      .groupBy(mandiriDesa.id, mandiriDesa.nama, mandiriDesa.kota)
-      .orderBy(mandiriDesa.kota, mandiriDesa.nama);
+      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
+      .groupBy(mandiriDesa.id, mandiriDesa.nama, mandiriDaerah.nama)
+      .orderBy(mandiriDaerah.nama, mandiriDesa.nama);
 
     // 3. Official Desa from database
     const { desa: officialDesaTable } = await import("@/lib/schema");

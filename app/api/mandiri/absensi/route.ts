@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriAbsensi, generus, mandiriKegiatan, mandiriDesa, mandiri, idCardBuilderData, formPanitiaDanPengurus } from "@/lib/schema";
+import { mandiriAbsensi, generus, mandiriKegiatan, mandiriDesa, mandiri, idCardBuilderData, formPanitiaDanPengurus, mandiriDaerah } from "@/lib/schema";
 import { eq, and, or, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
         generusNama: generus.nama,
         generusNomorUnik: generus.nomorUnik,
         desaNama: mandiriDesa.nama,
-        desaKota: mandiriDesa.kota,
+        desaKota: mandiriDaerah.nama,
         nomorPeserta: sql<string>`COALESCE(CAST(${mandiri.nomorUrut} AS TEXT), ${idCardBuilderData.dapukan})`,
       })
       .from(mandiriAbsensi)
@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
       .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
       .leftJoin(idCardBuilderData, eq(generus.nomorUnik, idCardBuilderData.nomorUnik))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
+      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
       .where(eq(mandiriAbsensi.kegiatanId, kegiatanId));
 
     return NextResponse.json(data);

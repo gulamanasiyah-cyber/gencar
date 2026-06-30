@@ -7,7 +7,19 @@ import Swal from "sweetalert2";
 import Link from "next/link";
 import { Calendar, Clock, MapPin, ExternalLink } from "lucide-react";
 import PhotoUpload from "@/components/mandiri/PhotoUpload";
+import jsPDF from "jspdf";
+import JsBarcode from "jsbarcode";
 
+const getBase64ImageFromUrl = async (url: string): Promise<string> => {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+};
 
 interface Desa { id: number; nama: string; kota: string; }
 interface Kelompok { id: number; nama: string; }
@@ -381,6 +393,13 @@ export default function MandiriDaftarPage() {
     const [kegiatanJudul, setKegiatanJudul] = useState<string>("");
 
     useEffect(() => {
+      if (result) {
+        // Automatically download the PDF ticket on successful registration
+        handleDownload();
+      }
+    }, [result]);
+
+    useEffect(() => {
       if (!result?.nomorUnik) return;
 
       const checkStatus = async () => {
@@ -419,21 +438,105 @@ export default function MandiriDaftarPage() {
     }, [result, status]);
 
     const handleDownload = async () => {
-      const url = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${result?.nomorUnik}&margin=10`;
+      Swal.fire({
+        title: "Membuat PDF...",
+        text: "Mohon tunggu sebentar.",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
       try {
-        const response = await fetch(url);
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = blobUrl;
-        link.download = `QR_PESERTA_${result?.nomorUrut}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
+        const doc = new jsPDF({
+          orientation: "portrait",
+          unit: "mm",
+          format: [90, 160]
+        });
+
+        const displayName = result?.nama || form.nama || "Peserta Mandiri";
+        const displayKegiatan = regTitle || "PDKT Cengkareng";
+        const displayNomorUrut = result?.nomorUrut || "";
+        const displayNomorUnik = result?.nomorUnik || "";
+
+        // 1. Header background
+        doc.setFillColor(29, 78, 216); // Royal Blue
+        doc.rect(0, 0, 90, 25, "F");
+
+        // 2. Header Text
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.text("KARTU PESERTA MANDIRI", 45, 10, { align: "center" });
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.text(displayKegiatan.toUpperCase(), 45, 17, { align: "center" });
+
+        // 3. Body Text - Name
+        doc.setTextColor(30, 41, 59); // Slate 800
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.text("NAMA PESERTA", 15, 36);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.text(displayName.toUpperCase(), 15, 41);
+
+        // 4. Sequence Number
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.text("NOMOR URUT", 15, 50);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(22);
+        doc.setTextColor(29, 78, 216); // Primary Color
+        doc.text(`#${displayNomorUrut}`, 15, 59);
+
+        // 5. Login ID
+        doc.setTextColor(30, 41, 59); // Slate 800
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.text("ID LOGIN / KODE UNIK", 15, 68);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.text(displayNomorUnik, 15, 73);
+
+        // 6. Dashed line pattern separator
+        doc.setLineDashPattern([1.5, 1.5], 0);
+        doc.setDrawColor(203, 213, 225); // Slate 300
+        doc.line(10, 81, 80, 81);
+        doc.setLineDashPattern([], 0); // Reset dash pattern
+
+        // 7. QR Code Image
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${displayNomorUnik}&margin=10`;
+        const qrBase64 = await getBase64ImageFromUrl(qrUrl);
+        doc.addImage(qrBase64, "PNG", 27.5, 87, 35, 35);
+
+        // 8. Barcode Image
+        const canvas = document.createElement("canvas");
+        JsBarcode(canvas, displayNomorUnik, {
+          format: "CODE128",
+          width: 2,
+          height: 40,
+          displayValue: true,
+          fontSize: 10,
+          textMargin: 2
+        });
+        const barcodeDataUrl = canvas.toDataURL("image/png");
+        doc.addImage(barcodeDataUrl, "PNG", 15, 130, 60, 18);
+
+        // Save PDF
+        doc.save(`TICKET_MANDIRI_${displayNomorUrut || displayNomorUnik}.pdf`);
+        Swal.close();
       } catch (error) {
-        console.error("Download error:", error);
-        alert("Gagal mengunduh QR Code.");
+        console.error("PDF download error:", error);
+        Swal.fire({
+          icon: "error",
+          title: "Gagal Mengunduh PDF",
+          text: "Terjadi kesalahan saat memproses data PDF."
+        });
       }
     };
 
@@ -451,7 +554,7 @@ export default function MandiriDaftarPage() {
             <h3 style={{ fontSize: "42px", color: "var(--primary)", letterSpacing: "2px", margin: "0 0 5px 0", fontWeight: "900" }}>#{result?.nomorUrut}</h3>
             <p style={{ fontSize: "14px", color: "#3b82f6", fontWeight: "800", marginBottom: "20px", background: "#eff6ff", display: "inline-block", padding: "4px 12px", borderRadius: "20px" }}>ID Login: {result?.nomorUnik}</p>
 
-            {/* QR Code Section */}
+                        {/* QR Code Section */}
             <div style={{
               background: "#f8fafc",
               padding: "20px",
@@ -467,36 +570,62 @@ export default function MandiriDaftarPage() {
                 alt="QR Code Peserta"
                 style={{ width: "220px", height: "220px", borderRadius: "12px", border: "4px solid white" }}
               />
-              <button
-                onClick={handleDownload}
-                style={{
-                  marginTop: "16px",
-                  background: "white",
-                  border: "1px solid #e2e8f0",
-                  padding: "8px 16px",
-                  borderRadius: "8px",
-                  fontSize: "12px",
-                  fontWeight: "700",
-                  color: "#3b82f6",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px"
-                }}
-              >
-                💾 Simpan Kode QR
-              </button>
             </div>
 
-            {status === "attended" ? (
-              <div style={{ marginTop: "20px", fontSize: "14px", background: "#dcfce7", color: "#166534", padding: "10px 20px", borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: "8px", fontWeight: "700" }}>
-                ✅ Terkonfirmasi (Hadir)
-              </div>
-            ) : (
-              <div style={{ marginTop: "20px", fontSize: "12px", background: "#fef3c7", color: "#92400e", padding: "8px 16px", borderRadius: "8px", display: "inline-block" }}>
-                <b>Status:</b> Menunggu Konfirmasi Panitia...
-              </div>
-            )}
+            {/* Big download PDF button */}
+            <button
+              onClick={handleDownload}
+              style={{
+                marginTop: "20px",
+                width: "100%",
+                background: "#3b82f6",
+                color: "white",
+                border: "none",
+                padding: "12px 24px",
+                borderRadius: "10px",
+                fontSize: "14px",
+                fontWeight: "700",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                boxShadow: "0 4px 6px -1px rgba(59, 130, 246, 0.1)"
+              }}
+            >
+              📥 Simpan PDF Tiket
+            </button>
+          </div>
+
+          <div style={{ background: "#f8fafc", padding: "20px", borderRadius: "16px", border: "1px solid #e2e8f0", marginBottom: "20px", textAlign: "center" }}>
+            <p style={{ fontSize: "14px", color: "var(--text-muted)", marginBottom: "12px", lineHeight: "1.5" }}>
+              Silakan verifikasi pendaftaran Anda via WhatsApp agar akun dapat aktif dan terverifikasi di sistem.
+            </p>
+            <a 
+              href={`https://wa.me/${process.env.NEXT_PUBLIC_FONNTE_DEVICE || '6285119776224'}?text=${encodeURIComponent(`Saya ${result?.nama || form.nama || 'Peserta'}, siap hadir dalam acara taaruf kubro`)}`} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                backgroundColor: "#25D366",
+                color: "white",
+                textDecoration: "none",
+                padding: "12px 24px",
+                borderRadius: "10px",
+                fontWeight: "700",
+                fontSize: "14px",
+                width: "100%",
+                boxShadow: "0 4px 12px rgba(37, 211, 102, 0.2)"
+              }}
+            >
+              💬 Konfirmasi ke WhatsApp
+            </a>
+            <p style={{ fontSize: "11px", color: "#64748b", marginTop: "8px", marginBottom: 0 }}>
+              Kirim pesan otomatis yang terisi di WhatsApp Anda tanpa mengubah isinya.
+            </p>
           </div>
 
           <p style={{ fontSize: "14px", color: "var(--text-muted)", background: "#f8fafc", padding: "16px", borderRadius: "12px", lineHeight: "1.6", border: "1px solid #e2e8f0" }}>

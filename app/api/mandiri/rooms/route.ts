@@ -2,11 +2,12 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriRooms, mandiriPemilihan, generus, mandiri } from "@/lib/schema";
+import { mandiriRooms, mandiriPemilihan, generus, mandiri, settings, timGambuh } from "@/lib/schema";
 import { eq, and, or, count, desc, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 import { alias } from "drizzle-orm/sqlite-core";
+import { pusherServer } from "@/lib/pusher";
 
 export async function GET(request: NextRequest) {
     try {
@@ -29,6 +30,18 @@ export async function GET(request: NextRequest) {
 
         if (!authorized) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+        const { searchParams } = new URL(request.url);
+        let kegiatanId = searchParams.get("kegiatanId") || "";
+
+        if (!kegiatanId) {
+            const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+            kegiatanId = activeSetting[0]?.value || "";
+        }
+
+        if (!kegiatanId) {
+            return NextResponse.json([]);
+        }
+
         const g1 = alias(generus, "g1");
         const g2 = alias(generus, "g2");
         const m1 = alias(mandiri, "m1");
@@ -39,6 +52,8 @@ export async function GET(request: NextRequest) {
             nama: mandiriRooms.nama,
             status: mandiriRooms.status,
             pemilihanId: mandiriRooms.pemilihanId,
+            timGambuhId: mandiriRooms.timGambuhId,
+            timGambuhNama: timGambuh.nama,
             pengirimNama: g1.nama,
             pengirimNo: g1.nomorUnik,
             pengirimNomorUrut: m1.nomorUrut,
@@ -50,10 +65,12 @@ export async function GET(request: NextRequest) {
         })
         .from(mandiriRooms)
         .leftJoin(mandiriPemilihan, eq(mandiriRooms.pemilihanId, mandiriPemilihan.id))
+        .leftJoin(timGambuh, eq(mandiriRooms.timGambuhId, timGambuh.id))
         .leftJoin(g1, eq(mandiriPemilihan.pengirimId, g1.id))
         .leftJoin(g2, eq(mandiriPemilihan.penerimaId, g2.id))
         .leftJoin(m1, eq(g1.id, m1.generusId))
         .leftJoin(m2, eq(g2.id, m2.generusId))
+        .where(eq(mandiriRooms.kegiatanId, kegiatanId))
         .orderBy(mandiriRooms.nama);
 
         return NextResponse.json(rooms);
@@ -75,12 +92,30 @@ export async function POST(request: NextRequest) {
 
         if (!nama) return NextResponse.json({ error: "Nama ruangan wajib diisi" }, { status: 400 });
 
+        const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+        const activeKegiatanId = activeSetting[0]?.value || "";
+
+        if (!activeKegiatanId) {
+            return NextResponse.json({ error: "Tidak ada kegiatan mandiri yang sedang aktif" }, { status: 400 });
+        }
+
         const id = uuidv4();
         await db.insert(mandiriRooms).values({
             id,
             nama,
+            kegiatanId: activeKegiatanId,
             status: "Kosong"
         });
+
+        // Trigger Pusher update
+        try {
+            await pusherServer.trigger("taaruf-channel", "room-changed", {
+                roomId: id,
+                action: "create-room",
+            });
+        } catch (pusherErr) {
+            console.error("Pusher trigger error:", pusherErr);
+        }
 
         return NextResponse.json({ success: true, id });
     } catch (error) {
@@ -91,12 +126,24 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
     try {
-        const session = await getSession();
-        if (!session || !["admin", "admin_romantic_room", "tim_pnkb"].includes(session.role)) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+        const activeKegiatanId = activeSetting[0]?.value || "";
+
+        if (!activeKegiatanId) {
+            return NextResponse.json({ error: "Tidak ada kegiatan mandiri yang sedang aktif" }, { status: 400 });
         }
 
-        await db.delete(mandiriRooms);
+        await db.delete(mandiriRooms).where(eq(mandiriRooms.kegiatanId, activeKegiatanId));
+
+        // Trigger Pusher update
+        try {
+            await pusherServer.trigger("taaruf-channel", "room-changed", {
+                action: "delete-all-rooms",
+            });
+        } catch (pusherErr) {
+            console.error("Pusher trigger error:", pusherErr);
+        }
+
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("DELETE all rooms error:", error);

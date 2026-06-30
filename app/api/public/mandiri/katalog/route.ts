@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, settings, formPanitiaDanPengurus, mandiriKegiatan, mandiriAbsensi, mandiriPemilihan } from "@/lib/schema";
+import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, settings, formPanitiaDanPengurus, mandiriKegiatan, mandiriAbsensi, mandiriPemilihan, mandiriDaerah } from "@/lib/schema";
 import { eq, and, or, like, sql, isNull, isNotNull, desc, inArray } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
@@ -53,13 +53,7 @@ export async function GET(request: NextRequest) {
 
     // Get the active kegiatan from settings
     const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-    let kegiatanId = activeSetting[0]?.value || "";
-
-    if (!kegiatanId) {
-      // Get latest activity fallback to filter by attendance
-      const latestActivity = await db.select().from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-      kegiatanId = latestActivity[0]?.id || "";
-    }
+    const kegiatanId = activeSetting[0]?.value || "";
 
     if (!kegiatanId) {
       return NextResponse.json({ data: [], total: 0, page: Number(searchParams.get("page") || "1"), limit: Number(searchParams.get("limit") || "20") });
@@ -89,7 +83,7 @@ export async function GET(request: NextRequest) {
             like(generus.nama, `%${search}%`),
             like(generus.nomorUnik, `%${search}%`),
             like(mandiri.nomorUrut, `%${search}%`),
-            like(mandiriDesa.kota, `%${search}%`),
+            like(mandiriDaerah.nama, `%${search}%`),
             like(mandiriDesa.nama, `%${search}%`),
             like(desa.nama, `%${search}%`),
             like(kelompok.nama, `%${search}%`),
@@ -139,7 +133,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (kota && kota !== "all") {
-      conditions.push(eq(mandiriDesa.kota, kota));
+      conditions.push(eq(mandiriDaerah.nama, kota));
     }
 
     if (desaId && desaId !== "all") {
@@ -165,6 +159,15 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Exclude matched participants (where both results are 'Lanjut')
+    conditions.push(sql`${generus.id} NOT IN (
+      SELECT pengirim_id FROM mandiri_pemilihan 
+      WHERE status = 'Selesai' AND hasil_pengirim = 'Lanjut' AND hasil_penerima = 'Lanjut'
+      UNION
+      SELECT penerima_id FROM mandiri_pemilihan 
+      WHERE status = 'Selesai' AND hasil_pengirim = 'Lanjut' AND hasil_penerima = 'Lanjut'
+    )`);
+
     const finalWhere = conditions.length > 0 ? and(...conditions) : undefined;
 
     // Fetch Data
@@ -181,7 +184,7 @@ export async function GET(request: NextRequest) {
         desaNama: desa.nama,
         kelompokNama: kelompok.nama,
         mandiriDesaNama: mandiriDesa.nama,
-        mandiriDesaKota: mandiriDesa.kota,
+        mandiriDesaKota: mandiriDaerah.nama,
         mandiriKelompokNama: mandiriKelompok.nama,
         createdAt: generus.createdAt,
         tempatLahir: generus.tempatLahir,
@@ -202,7 +205,19 @@ export async function GET(request: NextRequest) {
           WHERE mandiri_pemilihan.penerima_id = ${generus.id} 
           AND mandiri_pemilihan.kegiatan_id = ${kegiatanId}
           AND (mandiri_pemilihan.status = 'Menunggu' OR mandiri_pemilihan.status = 'Diterima' OR mandiri_pemilihan.status = 'Selesai')
-        )`.mapWith(Number)
+        )`.mapWith(Number),
+        handshakeStatus: currentParticipantId ? sql<string>`(
+          SELECT status 
+          FROM mandiri_pemilihan 
+          WHERE mandiri_pemilihan.kegiatan_id = ${kegiatanId}
+          AND mandiri_pemilihan.status != 'Ditolak'
+          AND (
+            (mandiri_pemilihan.pengirim_id = ${currentParticipantId} AND mandiri_pemilihan.penerima_id = ${generus.id})
+            OR
+            (mandiri_pemilihan.pengirim_id = ${generus.id} AND mandiri_pemilihan.penerima_id = ${currentParticipantId})
+          )
+          LIMIT 1
+        )` : sql<string>`NULL`
       })
       .from(generus)
       .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
@@ -211,6 +226,7 @@ export async function GET(request: NextRequest) {
       .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
       .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id))
+      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
       .leftJoin(users, eq(generus.id, users.generusId))
       .leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId));
 
@@ -228,6 +244,7 @@ export async function GET(request: NextRequest) {
     }
     if (search || mandiriDesaId !== "all" || kota !== "all") {
         countQuery.leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id));
+        countQuery.leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id));
     }
     if (search || desaId !== "all") {
         countQuery.leftJoin(desa, eq(generus.desaId, desa.id));

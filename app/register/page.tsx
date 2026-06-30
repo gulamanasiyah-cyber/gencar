@@ -144,14 +144,32 @@ export default function RegisterPage() {
         return;
       }
 
+      const nomorUnik = data.nomorUnik || "G-XXXXXX";
+      const waNumber = process.env.NEXT_PUBLIC_FONNTE_DEVICE || "6285119776224";
+      const waText = encodeURIComponent(`Saya ${form.name || 'Peserta'}, siap hadir dalam acara taaruf kubro`);
+      const waUrl = `https://wa.me/${waNumber}?text=${waText}`;
+
       Swal.fire({
         icon: 'success',
-        title: 'Berhasil!',
-        text: 'Registrasi berhasil! Silakan menunggu persetujuan admin atau login.',
-        timer: 3000,
-        showConfirmButton: false
+        title: 'Registrasi Berhasil!',
+        html: `
+          <p style="margin-bottom: 16px;">Silakan verifikasi pendaftaran Anda via WhatsApp agar akun dapat aktif.</p>
+          <div style="background-color: #f3f4f6; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 18px; color: #1f2937; margin-bottom: 20px;">
+            Kode Unik Anda: ${nomorUnik}
+          </div>
+          <a href="${waUrl}" target="_blank" class="swal2-confirm swal2-styled" style="display: inline-block; background-color: #25D366; color: white; text-decoration: none; padding: 12px 24px; border-radius: 4px; font-weight: 500;">
+            💬 Konfirmasi ke WhatsApp
+          </a>
+          <p style="font-size: 12px; color: #6b7280; margin-top: 16px;">Kirim pesan otomatis yang terisi di WhatsApp Anda tanpa mengubah isinya.</p>
+        `,
+        showConfirmButton: true,
+        confirmButtonText: 'Sudah Kirim & Lanjutkan',
+        confirmButtonColor: '#3085d6',
+        allowOutsideClick: false,
+        allowEscapeKey: false
+      }).then(() => {
+        router.push("/login?success=registered");
       });
-      router.push("/login?success=registered");
     } catch {
       Swal.fire({
         icon: 'error',

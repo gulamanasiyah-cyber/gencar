@@ -69,11 +69,17 @@ export async function POST(request: NextRequest) {
         }
     } else if (key.startsWith("mandiri_registration_")) {
         const field = key.replace("mandiri_registration_", "");
-        const latestArr = await db.select().from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-        if (latestArr[0]) {
+        const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+        const activeKegiatanId = activeSetting[0]?.value;
+        let targetActivityId = activeKegiatanId;
+        if (!targetActivityId) {
+            const latestArr = await db.select().from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
+            targetActivityId = latestArr[0]?.id;
+        }
+        if (targetActivityId) {
             const updateField = field === "title" ? { judul: value } : field === "description" ? { deskripsi: value } : null;
             if (updateField) {
-                await db.update(mandiriKegiatan).set(updateField).where(eq(mandiriKegiatan.id, latestArr[0].id));
+                await db.update(mandiriKegiatan).set(updateField).where(eq(mandiriKegiatan.id, targetActivityId));
             }
         }
     }

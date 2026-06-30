@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriAbsensi, mandiriKegiatan, generus, mandiri, mandiriDesa, formPanitiaDanPengurus, settings } from "@/lib/schema";
+import { mandiriAbsensi, mandiriKegiatan, generus, mandiri, mandiriDesa, formPanitiaDanPengurus, settings, mandiriDaerah } from "@/lib/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 
@@ -31,13 +31,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!activeKegiatan) {
-      // Get the latest activity fallback
-      const fallbackActivity = await db.select().from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-      if (fallbackActivity.length === 0) {
-        return NextResponse.json({ status: "no_activity" });
-      }
-      activeKegiatan = fallbackActivity[0];
-      kegiatanId = activeKegiatan.id;
+      return NextResponse.json({ status: "no_activity" });
     }
 
     const latestActivity = [activeKegiatan];
@@ -94,13 +88,14 @@ export async function GET(request: NextRequest) {
           lastSessionToken: mandiri.lastSessionToken,
           deviceId: mandiri.deviceId,
           mandiriDesaNama: mandiriDesa.nama,
-          mandiriDesaKota: mandiriDesa.kota,
+          mandiriDesaKota: mandiriDaerah.nama,
           jenisKelamin: generus.jenisKelamin,
           role: formPanitiaDanPengurus.dapukan
       })
       .from(generus)
       .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
+      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
       .leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId))
       .where(eq(generus.id, generusId))
       .limit(1);

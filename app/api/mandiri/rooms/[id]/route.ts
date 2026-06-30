@@ -1,9 +1,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriRooms, mandiriPemilihan, mandiriKunjungan, mandiriKegiatan, mandiriAbsensi, settings } from "@/lib/schema";
+import { mandiriRooms, mandiriPemilihan, mandiriKunjungan, mandiriKegiatan, mandiriAbsensi, settings, generus, mandiri, timGambuh } from "@/lib/schema";
 import { eq, sql, and, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { pusherServer } from "@/lib/pusher";
 
 export async function PATCH(
     request: NextRequest,
@@ -11,13 +12,23 @@ export async function PATCH(
 ) {
     try {
         const session = await getSession();
-        if (!session || !["admin", "admin_romantic_room", "tim_pnkb"].includes(session.role)) {
+        if (!session || !["admin", "admin_romantic_room", "tim_pnkb", "tim_gambuh"].includes(session.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         const roomId = params.id;
         const body = await request.json();
-        const { pemilihanId, action } = body; // action can be 'assign' or 'clear'
+        const { pemilihanId, action, timGambuhId, operatorCompanionId } = body;
+
+        // If user is tim_gambuh, they can only perform start/clear on rooms assigned to them
+        if (session.role === "tim_gambuh" && (action === "start" || action === "clear")) {
+            const room = await db.query.mandiriRooms.findFirst({
+                where: eq(mandiriRooms.id, roomId)
+            });
+            if (room && room.timGambuhId !== operatorCompanionId) {
+                return NextResponse.json({ error: "Anda tidak memiliki wewenang untuk memproses ruangan ini karena bukan pendamping Anda." }, { status: 403 });
+            }
+        }
 
         if (action === "assign") {
             if (!pemilihanId) return NextResponse.json({ error: "ID Pemilihan wajib diisi" }, { status: 400 });
@@ -33,15 +44,7 @@ export async function PATCH(
 
             // 0.1 Check if either participant has logged out/gone home
             const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-            let kegiatanId = activeSetting[0]?.value || "";
-
-            if (!kegiatanId) {
-                const latestActivity = await db.select({ id: mandiriKegiatan.id })
-                    .from(mandiriKegiatan)
-                    .orderBy(desc(mandiriKegiatan.tanggal))
-                    .limit(1);
-                kegiatanId = latestActivity[0]?.id || "";
-            }
+            const kegiatanId = activeSetting[0]?.value || "";
 
             if (kegiatanId) {
                 const checkAttendance = await db.select({
@@ -56,7 +59,23 @@ export async function PATCH(
 
                 const goneHomeParticipant = checkAttendance.find(a => a.keterangan === "pulang");
                 if (goneHomeParticipant) {
-                    return NextResponse.json({ error: "Salah satu peserta sudah logout/pulang dan tidak dapat masuk ruangan." }, { status: 400 });
+                    return NextResponse.json({ error: "Salah satu peserta sudah logout/pulang and tidak dapat masuk ruangan." }, { status: 400 });
+                }
+            }
+
+            if (timGambuhId) {
+                // Check if this tim_gambuh member is already active/busy in another room
+                const busyRoom = await db.select({ id: mandiriRooms.id })
+                    .from(mandiriRooms)
+                    .where(and(
+                        eq(mandiriRooms.timGambuhId, timGambuhId),
+                        eq(mandiriRooms.status, "Terisi"),
+                        sql`${mandiriRooms.id} != ${roomId}`
+                    ))
+                    .limit(1);
+
+                if (busyRoom.length > 0) {
+                    return NextResponse.json({ error: "Anggota Tim Gambuh ini sedang bertugas di ruangan lain." }, { status: 400 });
                 }
             }
 
@@ -89,11 +108,132 @@ export async function PATCH(
             await db.update(mandiriRooms)
                 .set({ 
                     pemilihanId, 
+                    timGambuhId: timGambuhId || null,
                     status: "Terisi",
                     startedAt: null,
                     updatedAt: sql`(datetime('now'))`
                 })
                 .where(eq(mandiriRooms.id, roomId));
+
+            // Trigger Pusher update
+            try {
+                const { alias } = await import("drizzle-orm/sqlite-core");
+                const g1 = alias(generus, "g1");
+                const g2 = alias(generus, "g2");
+                const m1 = alias(mandiri, "m1");
+                const m2 = alias(mandiri, "m2");
+
+                const rDetails = await db.select({
+                    roomNama: mandiriRooms.nama,
+                    timGambuhNama: timGambuh.nama,
+                    pengirimNama: g1.nama,
+                    pengirimNoUrut: m1.nomorUrut,
+                    penerimaNama: g2.nama,
+                    penerimaNoUrut: m2.nomorUrut,
+                })
+                .from(mandiriRooms)
+                .leftJoin(mandiriPemilihan, eq(mandiriRooms.pemilihanId, mandiriPemilihan.id))
+                .leftJoin(timGambuh, eq(mandiriRooms.timGambuhId, timGambuh.id))
+                .leftJoin(g1, eq(mandiriPemilihan.pengirimId, g1.id))
+                .leftJoin(g2, eq(mandiriPemilihan.penerimaId, g2.id))
+                .leftJoin(m1, eq(g1.id, m1.generusId))
+                .leftJoin(m2, eq(g2.id, m2.generusId))
+                .where(eq(mandiriRooms.id, roomId))
+                .limit(1);
+
+                const rd = rDetails[0];
+
+                await pusherServer.trigger("taaruf-channel", "room-changed", {
+                    roomId,
+                    action: "assign",
+                    pemilihanId,
+                    roomNama: rd?.roomNama || "",
+                    timGambuhNama: rd?.timGambuhNama || "Belum ditentukan",
+                    pengirimNama: rd?.pengirimNama || "",
+                    pengirimNoUrut: rd?.pengirimNoUrut || "",
+                    penerimaNama: rd?.penerimaNama || "",
+                    penerimaNoUrut: rd?.penerimaNoUrut || "",
+                });
+            } catch (pusherErr) {
+                console.error("Pusher trigger error:", pusherErr);
+            }
+
+            // 3. Send WhatsApp notifications to both participants via Fonnte
+            try {
+                // Fetch room name
+                const roomDetails = await db.query.mandiriRooms.findFirst({
+                    where: eq(mandiriRooms.id, roomId)
+                });
+                const roomName = roomDetails?.nama || "Ruang Taaruf";
+
+                // Fetch pengirim (pemilih) details
+                const pengirimData = await db.select({
+                    nama: generus.nama,
+                    noTelp: generus.noTelp,
+                    nomorUrut: mandiri.nomorUrut
+                })
+                .from(generus)
+                .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
+                .where(eq(generus.id, pemilihan.pengirimId))
+                .limit(1);
+
+                // Fetch penerima (terpilih) details
+                const penerimaData = await db.select({
+                    nama: generus.nama,
+                    noTelp: generus.noTelp,
+                    nomorUrut: mandiri.nomorUrut
+                })
+                .from(generus)
+                .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
+                .where(eq(generus.id, pemilihan.penerimaId))
+                .limit(1);
+
+                const pengirim = pengirimData[0];
+                const penerima = penerimaData[0];
+
+                if (pengirim && penerima) {
+                    const sendWhatsApp = async (target: string, msg: string) => {
+                        const fonnteToken = process.env.FONNTE_TOKEN;
+                        if (!fonnteToken || !target) return;
+                        
+                        let cleanTarget = target.replace(/\D/g, "");
+                        if (cleanTarget.startsWith("0")) {
+                            cleanTarget = "62" + cleanTarget.slice(1);
+                        }
+                        if (!cleanTarget.startsWith("62")) return;
+                        
+                        try {
+                            const res = await fetch("https://api.fonnte.com/send", {
+                                method: "POST",
+                                headers: {
+                                    Authorization: fonnteToken,
+                                    "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                    target: cleanTarget,
+                                    message: msg,
+                                }),
+                            });
+                            const resData = await res.json();
+                            console.log(`Fonnte room notification sent to ${cleanTarget}:`, resData);
+                        } catch (err) {
+                            console.error(`Failed to send WhatsApp notification to ${cleanTarget}:`, err);
+                        }
+                    };
+
+                    const msgToPengirim = `Amal sholihnya untuk *${pengirim.nama}* (*#${pengirim.nomorUrut || '-'}*), dimintai amal sholih untuk ke *${roomName}* dengan *${penerima.nama}* (*#${penerima.nomorUrut || '-'}*).`;
+                    const msgToPenerima = `Amal sholihnya untuk *${penerima.nama}* (*#${penerima.nomorUrut || '-'}*), dimintai amal sholih untuk ke *${roomName}* dengan *${pengirim.nama}* (*#${pengirim.nomorUrut || '-'}*).`;
+
+                    if (pengirim.noTelp) {
+                        await sendWhatsApp(pengirim.noTelp, msgToPengirim);
+                    }
+                    if (penerima.noTelp) {
+                        await sendWhatsApp(penerima.noTelp, msgToPenerima);
+                    }
+                }
+            } catch (notifyErr) {
+                console.error("Failed to send room assignment WA notification:", notifyErr);
+            }
 
             return NextResponse.json({ success: true });
         } else if (action === "clear") {
@@ -113,28 +253,56 @@ export async function PATCH(
                         hasilPenerima: hasilPenerima || null
                     })
                     .where(eq(mandiriPemilihan.id, room.pemilihanId));
+
+                // Clean up matched participants if both chose 'Lanjut'
+                try {
+                    const { handleMatchCleanup } = await import("@/lib/matchCleanup");
+                    await handleMatchCleanup(room.pemilihanId);
+                } catch (cleanupErr) {
+                    console.error("Failed to run match cleanup:", cleanupErr);
+                }
             }
 
             await db.update(mandiriRooms)
                 .set({ 
                     pemilihanId: null, 
+                    timGambuhId: null,
                     status: "Kosong",
                     startedAt: null,
                     updatedAt: sql`(datetime('now'))`
                 })
                 .where(eq(mandiriRooms.id, roomId));
 
+            // Trigger Pusher update
+            try {
+                await pusherServer.trigger("taaruf-channel", "room-changed", {
+                    roomId,
+                    action: "clear",
+                });
+            } catch (pusherErr) {
+                console.error("Pusher trigger error:", pusherErr);
+            }
+
             return NextResponse.json({ success: true });
         } else if (action === "undo") {
+            // Only admin, admin_romantic_room, and tim_pnkb are allowed to undo
+            if (!["admin", "admin_romantic_room", "tim_pnkb"].includes(session.role)) {
+                return NextResponse.json({ error: "Anda tidak memiliki wewenang untuk mengembalikan pasangan ke antrean." }, { status: 403 });
+            }
+
             // Find current pemilihanId
             const room = await db.query.mandiriRooms.findFirst({
                 where: eq(mandiriRooms.id, roomId)
             });
 
+            if (room?.startedAt) {
+                return NextResponse.json({ error: "Sesi sudah dimulai, tidak dapat dikembalikan ke antrean." }, { status: 400 });
+            }
+
             if (room?.pemilihanId) {
-                // 1. Reset selection status to "Menunggu"
+                // 1. Reset selection status to "Menunggu" and statusTunggu to "antrean"
                 await db.update(mandiriPemilihan)
-                    .set({ status: "Menunggu" })
+                    .set({ status: "Menunggu", statusTunggu: "antrean" })
                     .where(eq(mandiriPemilihan.id, room.pemilihanId));
 
                 // 2. Delete kunjungan records for this specific pemilihan
@@ -146,11 +314,22 @@ export async function PATCH(
             await db.update(mandiriRooms)
                 .set({ 
                     pemilihanId: null, 
+                    timGambuhId: null,
                     status: "Kosong",
                     startedAt: null,
                     updatedAt: sql`(datetime('now'))`
                 })
                 .where(eq(mandiriRooms.id, roomId));
+
+            // Trigger Pusher update
+            try {
+                await pusherServer.trigger("taaruf-channel", "room-changed", {
+                    roomId,
+                    action: "undo",
+                });
+            } catch (pusherErr) {
+                console.error("Pusher trigger error:", pusherErr);
+            }
 
             return NextResponse.json({ success: true });
         } else if (action === "start") {
@@ -160,6 +339,16 @@ export async function PATCH(
                     updatedAt: sql`(datetime('now'))`
                 })
                 .where(eq(mandiriRooms.id, roomId));
+
+            // Trigger Pusher update
+            try {
+                await pusherServer.trigger("taaruf-channel", "room-changed", {
+                    roomId,
+                    action: "start",
+                });
+            } catch (pusherErr) {
+                console.error("Pusher trigger error:", pusherErr);
+            }
 
             return NextResponse.json({ success: true });
         }
@@ -182,6 +371,17 @@ export async function DELETE(
         }
 
         await db.delete(mandiriRooms).where(eq(mandiriRooms.id, params.id));
+
+        // Trigger Pusher update
+        try {
+            await pusherServer.trigger("taaruf-channel", "room-changed", {
+                roomId: params.id,
+                action: "delete-room",
+            });
+        } catch (pusherErr) {
+            console.error("Pusher trigger error:", pusherErr);
+        }
+
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("DELETE room error:", error);

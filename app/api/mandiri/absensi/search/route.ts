@@ -1,11 +1,11 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, mandiri, mandiriDesa, idCardBuilderData, formPanitiaDanPengurus } from "@/lib/schema";
+import { generus, mandiri, mandiriDesa, idCardBuilderData, formPanitiaDanPengurus, settings, mandiriDaerah } from "@/lib/schema";
 import { eq, or, like, and, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 
-// Search specifically for generus who are in the mandiri list
+// Search specifically for generus who are in the mandiri list for the specified kegiatan
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
@@ -13,8 +13,16 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const q = searchParams.get("q") || "";
+    let kegiatanId = searchParams.get("kegiatanId") || "";
 
     if (!q) return NextResponse.json([]);
+
+    if (!kegiatanId) {
+      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+      kegiatanId = activeSetting[0]?.value || "";
+    }
+
+    if (!kegiatanId) return NextResponse.json([]);
 
     const dataGenerus = await db
       .select({
@@ -22,13 +30,14 @@ export async function GET(request: NextRequest) {
         nama: generus.nama,
         nomorUnik: generus.nomorUnik,
         desaNama: mandiriDesa.nama,
-        desaKota: mandiriDesa.kota,
+        desaKota: mandiriDaerah.nama,
         nomorPeserta: sql<string>`COALESCE(CAST(${mandiri.nomorUrut} AS TEXT), ${idCardBuilderData.dapukan})`,
       })
       .from(generus)
-      .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
-      .leftJoin(idCardBuilderData, eq(generus.nomorUnik, idCardBuilderData.nomorUnik))
+      .leftJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, kegiatanId)))
+      .leftJoin(idCardBuilderData, and(eq(generus.nomorUnik, idCardBuilderData.nomorUnik), eq(idCardBuilderData.kegiatanId, kegiatanId)))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
+      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
       .where(
         and(
           or(
@@ -50,16 +59,20 @@ export async function GET(request: NextRequest) {
         nama: formPanitiaDanPengurus.nama,
         nomorUnik: formPanitiaDanPengurus.nomorUnik,
         desaNama: mandiriDesa.nama,
-        desaKota: mandiriDesa.kota,
+        desaKota: mandiriDaerah.nama,
         nomorPeserta: formPanitiaDanPengurus.dapukan,
       })
       .from(formPanitiaDanPengurus)
       .leftJoin(mandiriDesa, eq(formPanitiaDanPengurus.mandiriDesaId, mandiriDesa.id))
+      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
       .where(
-        or(
-          like(formPanitiaDanPengurus.nama, `%${q}%`),
-          like(formPanitiaDanPengurus.nomorUnik, `%${q}%`),
-          like(formPanitiaDanPengurus.noTelp, `%${q}%`)
+        and(
+          eq(formPanitiaDanPengurus.kegiatanId, kegiatanId),
+          or(
+            like(formPanitiaDanPengurus.nama, `%${q}%`),
+            like(formPanitiaDanPengurus.nomorUnik, `%${q}%`),
+            like(formPanitiaDanPengurus.noTelp, `%${q}%`)
+          )
         )
       )
       .limit(10);

@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, users, desa, kelompok, absensi, mandiri, mandiriDesa, mandiriKelompok } from "@/lib/schema";
+import { generus, users, desa, kelompok, absensi, mandiri, mandiriDesa, mandiriKelompok, mandiriDaerah } from "@/lib/schema";
 import { eq, or } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         nomorUrut: mandiri.nomorUrut,
         mandiriDesaNama: mandiriDesa.nama,
         mandiriKelompokNama: mandiriKelompok.nama,
-        kota: mandiriDesa.kota,
+        kota: mandiriDaerah.nama,
       })
       .from(generus)
       .leftJoin(desa, eq(generus.desaId, desa.id))
@@ -53,6 +53,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
       .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id))
+      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
       .where(or(eq(generus.id, id), eq(generus.nomorUnik, id)))
       .limit(1);
 

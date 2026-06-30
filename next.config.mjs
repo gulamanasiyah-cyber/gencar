@@ -54,7 +54,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://res.cloudinary.com https://api.qrserver.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.qrserver.com; frame-src 'self' https://www.youtube.com https://*.youtube.com https://www.google.com https://maps.google.com; frame-ancestors 'none';",
+            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://res.cloudinary.com https://api.qrserver.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.qrserver.com wss://*.pusher.com https://*.pusher.com; frame-src 'self' https://www.youtube.com https://*.youtube.com https://www.google.com https://maps.google.com; frame-ancestors 'none';",
           },
           {
             key: 'X-Frame-Options',

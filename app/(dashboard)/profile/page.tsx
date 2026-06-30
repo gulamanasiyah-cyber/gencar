@@ -247,6 +247,8 @@ export default function ProfilePage() {
                    data.role === "admin" ? "Administrator" :
                    data.role === "desa" ? "Pengurus Desa" :
                    data.role === "kelompok" ? "Pengurus Kelompok" :
+                   data.role === "tim_gambuh" ? "Tim Gambuh" :
+                   data.role === "tim_jepret" ? "Tim Jepret" :
                    data.kategoriUsia}
                 </div>
               </div>
@@ -540,23 +542,23 @@ export default function ProfilePage() {
       <div className="pdkt-id-card-print">
         <div className={`id-card-comprehensive role-${
           data.role === "pengurus_daerah" || data.role === "desa" || data.role === "kelompok" ? "pengurus" : 
-          data.role === "kmm_daerah" || data.role === "admin" || data.role === "tim_pnkb" ? "panitia" : 
+          data.role === "kmm_daerah" || data.role === "admin" || data.role === "tim_pnkb" || data.role === "tim_gambuh" || data.role === "tim_jepret" ? "panitia" : 
           "peserta"
         } gender-${data?.jenisKelamin?.toLowerCase()}`}>
           <div className="id-watermark-container">
             <div className="id-watermark wm-1">
               {data.role === "pengurus_daerah" || data.role === "desa" || data.role === "kelompok" ? "PENGURUS" : 
-               data.role === "kmm_daerah" || data.role === "admin" || data.role === "tim_pnkb" ? "PANITIA" : 
+               data.role === "kmm_daerah" || data.role === "admin" || data.role === "tim_pnkb" || data.role === "tim_gambuh" || data.role === "tim_jepret" ? "PANITIA" : 
                "PESERTA"}
             </div>
             <div className="id-watermark wm-2">
               {data.role === "pengurus_daerah" || data.role === "desa" || data.role === "kelompok" ? "PENGURUS" : 
-               data.role === "kmm_daerah" || data.role === "admin" || data.role === "tim_pnkb" ? "PANITIA" : 
+               data.role === "kmm_daerah" || data.role === "admin" || data.role === "tim_pnkb" || data.role === "tim_gambuh" || data.role === "tim_jepret" ? "PANITIA" : 
                "PESERTA"}
             </div>
             <div className="id-watermark wm-3">
               {data.role === "pengurus_daerah" || data.role === "desa" || data.role === "kelompok" ? "PENGURUS" : 
-               data.role === "kmm_daerah" || data.role === "admin" || data.role === "tim_pnkb" ? "PANITIA" : 
+               data.role === "kmm_daerah" || data.role === "admin" || data.role === "tim_pnkb" || data.role === "tim_gambuh" || data.role === "tim_jepret" ? "PANITIA" : 
                "PESERTA"}
             </div>
           </div>
@@ -564,7 +566,7 @@ export default function ProfilePage() {
             <div className="id-logo-box">
               <Sparkles size={24} />
               <span>{data.role === "pengurus_daerah" || data.role === "desa" || data.role === "kelompok" ? "PENGURUS" : 
-                    data.role === "kmm_daerah" || data.role === "admin" || data.role === "tim_pnkb" ? "PANITIA" : 
+                    data.role === "kmm_daerah" || data.role === "admin" || data.role === "tim_pnkb" || data.role === "tim_gambuh" || data.role === "tim_jepret" ? "PANITIA" : 
                     "PESERTA"}</span>
             </div>
             <div className="id-org-name" style={{ textTransform: "uppercase" }}>
@@ -578,7 +580,7 @@ export default function ProfilePage() {
                 {data.foto ? <img src={data.foto} alt={data.nama} /> : <div className="id-initials">{(data.nama || "??").charAt(0).toUpperCase()}</div>}
                 <div className="id-kategori-sticker">
                   {data.role === "pengurus_daerah" || data.role === "desa" || data.role === "kelompok" ? "Pengurus" : 
-                   data.role === "kmm_daerah" || data.role === "admin" || data.role === "tim_pnkb" ? "Panitia" : 
+                   data.role === "kmm_daerah" || data.role === "admin" || data.role === "tim_pnkb" || data.role === "tim_gambuh" || data.role === "tim_jepret" ? "Panitia" : 
                    "Peserta"}
                 </div>
               </div>

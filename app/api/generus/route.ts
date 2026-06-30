@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, formPanitiaDanPengurus, settings, mandiriKegiatan, mandiriAbsensi } from "@/lib/schema";
+import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, formPanitiaDanPengurus, settings, mandiriKegiatan, mandiriAbsensi, mandiriDaerah } from "@/lib/schema";
 import { eq, and, or, like, sql, not, isNull, isNotNull, ne, inArray, notInArray, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
@@ -103,7 +103,7 @@ function buildWhereClause(
           like(generus.nama, `%${trimmedSearch}%`),
           like(generus.nomorUnik, `%${trimmedSearch}%`),
           like(mandiri.nomorUrut, `%${trimmedSearch}%`),
-          like(mandiriDesa.kota, `%${trimmedSearch}%`),
+          like(mandiriDaerah.nama, `%${trimmedSearch}%`),
           like(mandiriDesa.nama, `%${trimmedSearch}%`),
           like(desa.nama, `%${trimmedSearch}%`),
           like(kelompok.nama, `%${trimmedSearch}%`),
@@ -166,10 +166,6 @@ export async function GET(request: NextRequest) {
         const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
         kegiatanId = activeSetting[0]?.value || "";
       }
-      if (!kegiatanId) {
-        const latestActivity = await db.select({ id: mandiriKegiatan.id }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-        kegiatanId = latestActivity[0]?.id || "";
-      }
     }
 
     if ((!all && !mandiriOnly) || isGenerusPage) {
@@ -189,6 +185,18 @@ export async function GET(request: NextRequest) {
       jenisKelamin, status, kategoriUsia, notInMandiri, filterIsGenerus,
       pendidikan, mandiriDesaId
     );
+
+    let whereClause = finalWhere;
+    if (mandiriOnly) {
+      const matchExclude = sql`${generus.id} NOT IN (
+        SELECT pengirim_id FROM mandiri_pemilihan 
+        WHERE status = 'Selesai' AND hasil_pengirim = 'Lanjut' AND hasil_penerima = 'Lanjut'
+        UNION
+        SELECT penerima_id FROM mandiri_pemilihan 
+        WHERE status = 'Selesai' AND hasil_pengirim = 'Lanjut' AND hasil_penerima = 'Lanjut'
+      )`;
+      whereClause = whereClause ? and(whereClause, matchExclude) : matchExclude;
+    }
 
     const isExport = all === true;
     const canSeePrivateData = ["admin", "kmm_daerah", "admin_romantic_room", "pengurus_daerah", "tim_pnkb", "admin_pdkt"].includes(session.role);
@@ -212,7 +220,7 @@ export async function GET(request: NextRequest) {
         jenisKelamin: generus.jenisKelamin,
         nomorUrut: mandiri.nomorUrut,
         mandiriDesaNama: mandiriDesa.nama,
-        mandiriDesaKota: mandiriDesa.kota,
+        mandiriDesaKota: mandiriDaerah.nama,
         mandiriKelompokNama: mandiriKelompok.nama,
         // Added missing fields for Katalog view
         noTelp: canSeePrivateData ? generus.noTelp : sql`NULL`,
@@ -245,12 +253,12 @@ export async function GET(request: NextRequest) {
         .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
         .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
         .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id))
+        .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
         .leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId));
 
       if (mandiriOnly) {
         query = (query as any)
-          .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-          .innerJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId)));
+          .innerJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, kegiatanId)));
       } else {
         query = (query as any).leftJoin(mandiri, eq(generus.id, mandiri.generusId));
       }
@@ -271,12 +279,12 @@ export async function GET(request: NextRequest) {
       .leftJoin(users, eq(generus.id, users.generusId))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
       .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id))
+      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
       .leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId));
 
     if (mandiriOnly) {
       dataQuery = (dataQuery as any)
-        .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-        .innerJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId)));
+        .innerJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, kegiatanId)));
     } else {
       dataQuery = (dataQuery as any).leftJoin(mandiri, eq(generus.id, mandiri.generusId));
     }
@@ -295,6 +303,7 @@ export async function GET(request: NextRequest) {
       countQuery.leftJoin(desa, eq(generus.desaId, desa.id));
       countQuery.leftJoin(kelompok, eq(generus.kelompokId, kelompok.id));
       countQuery.leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id));
+      countQuery.leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id));
       countQuery.leftJoin(mandiri, eq(generus.id, mandiri.generusId));
     }
 
@@ -304,17 +313,16 @@ export async function GET(request: NextRequest) {
 
     if (mandiriOnly) {
       countQuery
-        .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-        .innerJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId)));
+        .innerJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, kegiatanId)));
     }
 
     const [data, countResult] = await Promise.all([
       dataQuery
-        .where(finalWhere)
+        .where(whereClause)
         .orderBy(...orderByClause)
         .limit(limit)
         .offset(offset),
-      countQuery.where(finalWhere),
+      countQuery.where(whereClause),
     ]);
 
     return NextResponse.json(

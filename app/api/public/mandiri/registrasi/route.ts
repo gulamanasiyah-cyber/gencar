@@ -26,14 +26,10 @@ export async function POST(request: NextRequest) {
     const activeSetting = await db.query.settings.findFirst({
         where: eq(settings.key, "mandiri_active_kegiatan_id")
     });
-    let activeKegiatanId = activeSetting?.value;
+    const activeKegiatanId = activeSetting?.value;
     
     if (!activeKegiatanId) {
-        const mandiriKegiatan = (await import("@/lib/schema")).mandiriKegiatan;
-        const latestActivity = await db.query.mandiriKegiatan.findFirst({
-            orderBy: desc(mandiriKegiatan.tanggal)
-        });
-        activeKegiatanId = latestActivity?.id || null;
+        return NextResponse.json({ error: "Pendaftaran tidak dapat diproses karena tidak ada kegiatan mandiri yang sedang aktif." }, { status: 400 });
     }
     const { 
         nama, jenisKelamin, tempatLahir, tanggalLahir, 
@@ -60,15 +56,20 @@ export async function POST(request: NextRequest) {
         : null;
 
     if (duplicate) {
-        // Check if already in mandiri list
+        // Check if already in mandiri list for the active event
         const existingMandiri = await db.query.mandiri.findFirst({
-            where: eq(mandiri.generusId, duplicate.id)
+            where: and(
+                eq(mandiri.generusId, duplicate.id),
+                eq(mandiri.kegiatanId, activeKegiatanId)
+            )
         });
 
         if (existingMandiri) {
             return NextResponse.json({ 
                 isAlreadyRegistered: true,
                 nomorUnik: duplicate.nomorUnik,
+                nomorUrut: existingMandiri.nomorUrut,
+                nama: duplicate.nama,
                 message: "Peserta sudah terdaftar sebelumnya."
             });
         }
@@ -91,18 +92,24 @@ export async function POST(request: NextRequest) {
         // Hapus akun generus lama (users) agar tidak duplikat role
         await db.delete(users).where(eq(users.generusId, duplicate.id));
 
-        // Calculate next nomorUrut based on gender
+        // Calculate next nomorUrut based on gender and active activity
         // Laki-laki: 1-199, Perempuan: 200+
         let nextNr;
         if (jenisKelamin === "L") {
             const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
                 .from(mandiri)
-                .where(sql`${mandiri.nomorUrut} < 200`);
+                .where(and(
+                    sql`${mandiri.nomorUrut} < 200`,
+                    eq(mandiri.kegiatanId, activeKegiatanId)
+                ));
             nextNr = (lastRes[0]?.maxNr || 0) + 1;
         } else {
             const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
                 .from(mandiri)
-                .where(sql`${mandiri.nomorUrut} >= 200`);
+                .where(and(
+                    sql`${mandiri.nomorUrut} >= 200`,
+                    eq(mandiri.kegiatanId, activeKegiatanId)
+                ));
             nextNr = Math.max(lastRes[0]?.maxNr || 199, 199) + 1;
         }
 
@@ -174,18 +181,24 @@ export async function POST(request: NextRequest) {
 
     await db.insert(generus).values(generusData);
 
-    // Calculate next nomorUrut based on gender
+    // Calculate next nomorUrut based on gender and active activity
     // Laki-laki: 1-199, Perempuan: 200+
     let nextNr;
     if (jenisKelamin === "L") {
         const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
             .from(mandiri)
-            .where(sql`${mandiri.nomorUrut} < 200`);
+            .where(and(
+                sql`${mandiri.nomorUrut} < 200`,
+                eq(mandiri.kegiatanId, activeKegiatanId)
+            ));
         nextNr = (lastRes[0]?.maxNr || 0) + 1;
     } else {
         const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
             .from(mandiri)
-            .where(sql`${mandiri.nomorUrut} >= 200`);
+            .where(and(
+                sql`${mandiri.nomorUrut} >= 200`,
+                eq(mandiri.kegiatanId, activeKegiatanId)
+            ));
         nextNr = Math.max(lastRes[0]?.maxNr || 199, 199) + 1;
     }
 

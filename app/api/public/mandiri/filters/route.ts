@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, mandiri, mandiriDesa, desa } from "@/lib/schema";
+import { generus, mandiri, mandiriDesa, desa, mandiriDaerah } from "@/lib/schema";
 import { eq, isNotNull, sql } from "drizzle-orm";
 
 export const dynamic = 'force-dynamic';
@@ -43,16 +43,16 @@ export async function GET(request: NextRequest) {
         return a.localeCompare(b);
       });
 
-    // Fetch unique kota from mandiriDesa
     const kotaResult = await db
       .select({ 
-        kota: mandiriDesa.kota 
+        kota: mandiriDaerah.nama 
       })
       .from(mandiriDesa)
       .innerJoin(generus, eq(generus.mandiriDesaId, mandiriDesa.id))
       .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-      .groupBy(mandiriDesa.kota)
-      .orderBy(mandiriDesa.kota);
+      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
+      .groupBy(mandiriDaerah.nama)
+      .orderBy(mandiriDaerah.nama);
 
     const kota = kotaResult.map(r => r.kota).filter(Boolean);
 
@@ -61,12 +61,13 @@ export async function GET(request: NextRequest) {
       .select({ 
         id: mandiriDesa.id, 
         nama: mandiriDesa.nama,
-        kota: mandiriDesa.kota
+        kota: mandiriDaerah.nama
       })
       .from(mandiriDesa)
       .innerJoin(generus, eq(generus.mandiriDesaId, mandiriDesa.id))
       .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-      .groupBy(mandiriDesa.id, mandiriDesa.nama, mandiriDesa.kota)
+      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
+      .groupBy(mandiriDesa.id, mandiriDesa.nama, mandiriDaerah.nama)
       .orderBy(mandiriDesa.nama);
 
     return NextResponse.json({

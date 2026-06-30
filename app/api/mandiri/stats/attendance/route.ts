@@ -23,17 +23,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (!kegiatanId) {
-      // Get the latest activity fallback
-      const latestActivity = await db.select().from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-      if (latestActivity.length === 0) {
-        return NextResponse.json({ count: 0 });
-      }
-      kegiatanId = latestActivity[0].id;
-      kegiatanJudul = latestActivity[0].judul;
-    } else {
-      const act = await db.select().from(mandiriKegiatan).where(eq(mandiriKegiatan.id, kegiatanId)).limit(1);
-      kegiatanJudul = act[0]?.judul || "Kegiatan Aktif";
+      return NextResponse.json({ count: 0 });
     }
+    const act = await db.select().from(mandiriKegiatan).where(eq(mandiriKegiatan.id, kegiatanId)).limit(1);
+    kegiatanJudul = act[0]?.judul || "Kegiatan Aktif";
 
     // 2. Count distinct committee members in attendance
     const attendanceCount = await db

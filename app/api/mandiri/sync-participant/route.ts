@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, mandiri, mandiriAbsensi, mandiriDesa, idCardBuilderData } from "@/lib/schema";
+import { generus, mandiri, mandiriAbsensi, mandiriDesa, idCardBuilderData, mandiriDaerah } from "@/lib/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
@@ -54,10 +54,13 @@ export async function POST(request: NextRequest) {
       // Try to find mandiriDesaId based on daerah name
       let mDesaId = null;
       if (daerah && daerah !== "KOTA / DAERAH") {
-        const dMatch = await db.query.mandiriDesa.findFirst({
-          where: sql`lower(${mandiriDesa.nama}) = ${daerah.toLowerCase()} OR lower(${mandiriDesa.kota}) = ${daerah.toLowerCase()}`
-        });
-        if (dMatch) mDesaId = dMatch.id;
+        const dMatch = await db
+          .select({ id: mandiriDesa.id })
+          .from(mandiriDesa)
+          .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
+          .where(sql`lower(${mandiriDesa.nama}) = ${daerah.toLowerCase()} OR lower(${mandiriDaerah.nama}) = ${daerah.toLowerCase()}`)
+          .limit(1);
+        if (dMatch.length > 0) mDesaId = dMatch[0].id;
       }
 
       await db.insert(generus).values({
@@ -72,29 +75,39 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 2. Ensure in Mandiri table
+    // 2. Ensure in Mandiri table for this kegiatanId
     const existingMandiri = await db.query.mandiri.findFirst({
-      where: eq(mandiri.generusId, targetGenerusId)
+      where: and(
+        eq(mandiri.generusId, targetGenerusId),
+        eq(mandiri.kegiatanId, kegiatanId)
+      )
     });
 
     if (!existingMandiri) {
-      // Calculate next nomorUrut
+      // Calculate next nomorUrut for this specific kegiatan
       let nextNr;
       if (jenisKelamin === "L") {
           const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
               .from(mandiri)
-              .where(sql`${mandiri.nomorUrut} < 200`);
+              .where(and(
+                  sql`${mandiri.nomorUrut} < 200`,
+                  kegiatanId ? eq(mandiri.kegiatanId, kegiatanId) : sql`1=1`
+              ));
           nextNr = (lastRes[0]?.maxNr || 0) + 1;
       } else {
           const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
               .from(mandiri)
-              .where(sql`${mandiri.nomorUrut} >= 200`);
+              .where(and(
+                  sql`${mandiri.nomorUrut} >= 200`,
+                  kegiatanId ? eq(mandiri.kegiatanId, kegiatanId) : sql`1=1`
+              ));
           nextNr = Math.max(lastRes[0]?.maxNr || 199, 199) + 1;
       }
 
       await db.insert(mandiri).values({
         id: uuidv4(),
         generusId: targetGenerusId,
+        kegiatanId: kegiatanId || null,
         nomorUrut: nextNr,
         statusMandiri: "Aktif",
         catatan: `Daftar via ID Card Builder (${role || ""}${dapukan ? " - " + dapukan : ""})`

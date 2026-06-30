@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, idCardBuilderData, settings, formPanitiaDanPengurus, mandiriDesa, mandiri, kelompok, desa, mandiriKegiatan } from "@/lib/schema";
+import { generus, idCardBuilderData, settings, formPanitiaDanPengurus, mandiriDesa, mandiri, kelompok, desa, mandiriKegiatan, mandiriDaerah } from "@/lib/schema";
 import { eq, and, or, sql, desc } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 
@@ -26,13 +26,10 @@ export async function POST(request: NextRequest) {
     const activeSetting = await db.query.settings.findFirst({
         where: eq(settings.key, "mandiri_active_kegiatan_id")
     });
-    let activeKegiatanId = activeSetting?.value;
+    const activeKegiatanId = activeSetting?.value;
     
     if (!activeKegiatanId) {
-        const latestActivity = await db.query.mandiriKegiatan.findFirst({
-            orderBy: desc(mandiriKegiatan.tanggal)
-        });
-        activeKegiatanId = latestActivity?.id || null;
+        return NextResponse.json({ error: "Pendaftaran tidak dapat diproses karena tidak ada kegiatan mandiri yang sedang aktif." }, { status: 400 });
     }
     const { 
         nama, jenisKelamin, tempatLahir, tanggalLahir,
@@ -46,9 +43,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch Desa/Daerah info for tracking and ID Card display
-    const desaData = await db.query.mandiriDesa.findFirst({
-        where: eq(mandiriDesa.id, Number(mandiriDesaId))
-    });
+    const desaDataResult = await db.select({
+        nama: mandiriDesa.nama,
+        kota: mandiriDaerah.nama
+    })
+    .from(mandiriDesa)
+    .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
+    .where(eq(mandiriDesa.id, Number(mandiriDesaId)))
+    .limit(1);
+    const desaData = desaDataResult[0] || null;
 
     // 1. Check for Duplicate in Generus Table
     const existingGenerus = await db.query.generus.findFirst({
@@ -110,23 +113,32 @@ export async function POST(request: NextRequest) {
 
     // 2. Check/Add to mandiri table to get/stay with nomorUrut
     const existingMandiri = await db.query.mandiri.findFirst({
-        where: eq(mandiri.generusId, gId!)
+        where: and(
+            eq(mandiri.generusId, gId!),
+            eq(mandiri.kegiatanId, activeKegiatanId)
+        )
     });
 
     let nextNr = existingMandiri?.nomorUrut;
 
     if (!nextNr) {
-        // Calculate next nomorUrut based on gender
+        // Calculate next nomorUrut based on gender and active activity
         // Laki-laki: 1-199, Perempuan: 200+
         if (jenisKelamin === "L") {
             const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
                 .from(mandiri)
-                .where(sql`${mandiri.nomorUrut} < 200`);
+                .where(and(
+                    sql`${mandiri.nomorUrut} < 200`,
+                    eq(mandiri.kegiatanId, activeKegiatanId)
+                ));
             nextNr = (lastRes[0]?.maxNr || 0) + 1;
         } else {
             const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
                 .from(mandiri)
-                .where(sql`${mandiri.nomorUrut} >= 200`);
+                .where(and(
+                    sql`${mandiri.nomorUrut} >= 200`,
+                    eq(mandiri.kegiatanId, activeKegiatanId)
+                ));
             nextNr = Math.max(lastRes[0]?.maxNr || 199, 199) + 1;
         }
 
@@ -142,7 +154,10 @@ export async function POST(request: NextRequest) {
 
     // 3. Save to form_panitia_dan_pengurus (Legacy tracking)
     const existingPanitia = await db.query.formPanitiaDanPengurus.findFirst({
-        where: eq(formPanitiaDanPengurus.generusId, gId!)
+        where: and(
+            eq(formPanitiaDanPengurus.generusId, gId!),
+            eq(formPanitiaDanPengurus.kegiatanId, activeKegiatanId)
+        )
     });
 
     if (existingPanitia) {
