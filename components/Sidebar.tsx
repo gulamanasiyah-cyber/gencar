@@ -29,7 +29,8 @@ import {
   FileEdit,
   ClipboardList,
   CreditCard,
-  MessageSquare
+  MessageSquare,
+  Camera
 } from "lucide-react";
 
 interface SidebarProps {
@@ -52,13 +53,16 @@ const navItems = [
   },
   {
     section: "Usia Mandiri/Nikah",
-    roles: ["admin_romantic_room"], // Only for admin_romantic_room
+    roles: ["admin", "admin_romantic_room"],
     items: [
       { href: "/mandiri", label: "Registrasi Peserta", icon: "sparkles" },
       { href: "/mandiri/kegiatan", label: "Kegiatan", icon: "calendar" },
       { href: "/mandiri/absensi", label: "Absensi", icon: "absensi" },
+      { href: "/mandiri/pulang", label: "Daftar Pulang", icon: "logout" },
       { href: "/admin/katalog", label: "Katalog Peserta", icon: "katalog" },
       { href: "/mandiri/romantic-room", label: "Romantic Room", icon: "romantic" },
+      { href: "/mandiri/tim-gambuh", label: "Panel Tim Gambuh", icon: "romantic" },
+      { href: "/mandiri/tim-jepret", label: "Panel Tim Jepret", icon: "camera" },
       { href: "/mandiri/desa", label: "Kelola Daerah / Desa", icon: "desa" },
     ],
   },
@@ -81,6 +85,7 @@ const navItems = [
       { href: "/admin/users", label: "Kelola User", icon: "users-cog", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
       { href: "/admin/pengurus", label: "Kelola Pengurus", icon: "users", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
       { href: "/admin/desa", label: "Kelola Desa", icon: "map", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
+      { href: "/admin/tim-gambuh", label: "Tim Gambuh", icon: "users", roles: ["admin", "pengurus_daerah", "kmm_daerah", "admin_romantic_room"] },
       { href: "/admin/berita", label: "Moderasi Berita", icon: "news", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
       { href: "/admin/artikel", label: "Moderasi Artikel", icon: "artikel", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
       { href: "/admin/saran", label: "Saran & Masukan", icon: "message-square", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
@@ -159,9 +164,11 @@ const userNavs: Record<string, any[]> = {
         { href: "/mandiri/panitia", label: "Pendaftaran Panitia", icon: "users" },
         { href: "/mandiri/kegiatan", label: "Kegiatan", icon: "calendar" },
         { href: "/mandiri/absensi", label: "Absensi", icon: "absensi" },
+        { href: "/mandiri/pulang", label: "Daftar Pulang", icon: "logout" },
         { href: "/admin/katalog", label: "Katalog Peserta", icon: "katalog" },
         { href: "/mandiri/romantic-room", label: "Romantic Room", icon: "romantic" },
         { href: "/mandiri/desa", label: "Kelola Daerah / Desa", icon: "desa" },
+        { href: "/admin/tim-gambuh", label: "Tim Gambuh", icon: "users" },
       ],
     },
     {
@@ -200,6 +207,36 @@ const userNavs: Record<string, any[]> = {
       ],
     },
   ],
+  tim_gambuh: [
+    {
+      section: "Menu Utama",
+      items: [
+        { href: "/dashboard", label: "Dashboard", icon: "grid" },
+        { href: "/mandiri/tim-gambuh", label: "Panel Tim Gambuh", icon: "romantic" },
+      ],
+    },
+    {
+      section: "Menu Pribadi",
+      items: [
+        { href: "/profile", label: "Profil Saya (QR)", icon: "user" },
+      ],
+    },
+  ],
+  tim_jepret: [
+    {
+      section: "Menu Utama",
+      items: [
+        { href: "/dashboard", label: "Dashboard", icon: "grid" },
+        { href: "/mandiri/tim-jepret", label: "Panel Tim Jepret", icon: "camera" },
+      ],
+    },
+    {
+      section: "Menu Pribadi",
+      items: [
+        { href: "/profile", label: "Profil Saya (QR)", icon: "user" },
+      ],
+    },
+  ],
 };
 
 const icons: Record<string, React.ReactNode> = {
@@ -229,6 +266,7 @@ const icons: Record<string, React.ReactNode> = {
   sparkles: <Sparkles size={18} />,
   heart: <Heart size={18} />,
   "dollar-sign": <CircleDollarSign size={18} />,
+  camera: <Camera size={18} />,
 };
 
 export default function Sidebar({ user }: SidebarProps) {
@@ -325,7 +363,7 @@ export default function Sidebar({ user }: SidebarProps) {
 
             // Filter items based on access
             const visibleItems = section.items.filter((item: any) => {
-              const isPanitia = ["admin", "pengurus_daerah", "kmm_daerah", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan"].includes(user.role);
+              const isPanitia = ["admin", "pengurus_daerah", "kmm_daerah", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "tim_gambuh", "tim_jepret"].includes(user.role);
 
               // Hide Mandiri items if not in Mandiri and not a committee member
               const isMandiriItem = item.href.startsWith("/mandiri") ||
@@ -382,7 +420,8 @@ export default function Sidebar({ user }: SidebarProps) {
                             user.role === "admin_romantic_room" ? "Admin Romantic Room" :
                               user.role === "admin_keuangan" ? "Admin Keuangan" :
                                 user.role === "admin_kegiatan" ? "Admin Kegiatan" :
-                                  user.role}
+                                  user.role === "tim_gambuh" ? "Tim Gambuh" :
+                                    user.role}
               </div>
             </div>
           </div>

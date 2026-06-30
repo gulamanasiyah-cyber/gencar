@@ -88,6 +88,8 @@ function AddUserForm({ desaList, kelompokList, onSuccess, onCancel }: { desaList
           <option value="admin_romantic_room">Admin Romantic Room</option>
           <option value="admin_keuangan">Admin Keuangan</option>
           <option value="admin_kegiatan">Admin Kegiatan</option>
+          <option value="tim_gambuh">Tim Gambuh</option>
+          <option value="tim_jepret">Tim Jepret</option>
         </select>
       </div>
 
@@ -330,22 +332,36 @@ export default function AdminUsersPage() {
             <input type="checkbox" id="role-admin_kegiatan" value="admin_kegiatan" style="width: 16px; height: 16px;" />
             <span>Admin Kegiatan</span>
           </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="role-tim_gambuh" value="tim_gambuh" style="width: 16px; height: 16px;" />
+            <span>Tim Gambuh</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="role-tim_jepret" value="tim_jepret" style="width: 16px; height: 16px;" />
+            <span>Tim Jepret</span>
+          </label>
         </div>
       `,
       showCancelButton: true,
       confirmButtonText: "Export PDF",
       cancelButtonText: "Batal",
       preConfirm: () => {
+        const getVal = (id: string) => {
+          const el = document.getElementById(id) as HTMLInputElement;
+          return el ? el.checked : false;
+        };
         const roles = [];
-        if ((document.getElementById("role-desa")).checked) roles.push("desa");
-        if ((document.getElementById("role-kelompok")).checked) roles.push("kelompok");
-        if ((document.getElementById("role-pengurus_daerah")).checked) roles.push("pengurus_daerah");
-        if ((document.getElementById("role-kmm_daerah")).checked) roles.push("kmm_daerah");
-        if ((document.getElementById("role-admin")).checked) roles.push("admin");
-        if ((document.getElementById("role-tim_pnkb")).checked) roles.push("tim_pnkb");
-        if ((document.getElementById("role-admin_romantic_room")).checked) roles.push("admin_romantic_room");
-        if ((document.getElementById("role-admin_keuangan")).checked) roles.push("admin_keuangan");
-        if ((document.getElementById("role-admin_kegiatan")).checked) roles.push("admin_kegiatan");
+        if (getVal("role-desa")) roles.push("desa");
+        if (getVal("role-kelompok")) roles.push("kelompok");
+        if (getVal("role-pengurus_daerah")) roles.push("pengurus_daerah");
+        if (getVal("role-kmm_daerah")) roles.push("kmm_daerah");
+        if (getVal("role-admin")) roles.push("admin");
+        if (getVal("role-tim_pnkb")) roles.push("tim_pnkb");
+        if (getVal("role-admin_romantic_room")) roles.push("admin_romantic_room");
+        if (getVal("role-admin_keuangan")) roles.push("admin_keuangan");
+        if (getVal("role-admin_kegiatan")) roles.push("admin_kegiatan");
+        if (getVal("role-tim_gambuh")) roles.push("tim_gambuh");
+        if (getVal("role-tim_jepret")) roles.push("tim_jepret");
         return roles;
       }
     });
@@ -378,7 +394,7 @@ export default function AdminUsersPage() {
       const exportData = json.data || [];
 
       // Filter only selected roles
-      const filteredData = exportData.filter((item) =>
+      const filteredData = exportData.filter((item: any) =>
         selectedRoles.includes(item.role)
       );
 
@@ -400,7 +416,7 @@ export default function AdminUsersPage() {
       );
       const desaName = selectedDesaObj ? selectedDesaObj.nama : "Semua Desa";
       
-      const roleLabels = {
+      const roleLabels: Record<string, string> = {
         desa: "Pengurus Desa",
         kelompok: "Pengurus Kelompok",
         pengurus_daerah: "Pengurus Daerah",
@@ -410,9 +426,11 @@ export default function AdminUsersPage() {
         admin_romantic_room: "Admin Romantic Room",
         admin_keuangan: "Admin Keuangan",
         admin_kegiatan: "Admin Kegiatan",
+        tim_gambuh: "Tim Gambuh",
+        tim_jepret: "Tim Jepret",
       };
 
-      const selectedRoleLabels = selectedRoles.map((r) => roleLabels[r] || r).join(", ");
+      const selectedRoleLabels = selectedRoles.map((r: string) => roleLabels[r] || r).join(", ");
 
       doc.setFontSize(9);
       doc.setTextColor(100);
@@ -423,7 +441,7 @@ export default function AdminUsersPage() {
 
       const startY = 28 + (splitRoles.length * 4);
 
-      const tableRows = filteredData.map((item, index) => [
+      const tableRows = filteredData.map((item: any, index: number) => [
         index + 1,
         item.name,
         roleLabels[item.role] || item.role,
@@ -466,7 +484,7 @@ export default function AdminUsersPage() {
     desa: "badge-blue", kelompok: "badge-green", generus: "badge-purple", peserta: "badge-indigo", usia_mandiri: "badge-pink",
     creator: "badge-orange", pending: "badge-gray", tim_pnkb: "badge-blue",
     admin_romantic_room: "badge-purple", admin_keuangan: "badge-blue",
-    admin_kegiatan: "badge-orange",
+    admin_kegiatan: "badge-orange", tim_gambuh: "badge-indigo", tim_jepret: "badge-pink",
   };
 
   const handleOpenAddUser = () => {
@@ -573,6 +591,8 @@ export default function AdminUsersPage() {
                 <option value="admin_romantic_room">Admin Romantic Room</option>
                 <option value="admin_keuangan">Admin Keuangan</option>
                 <option value="admin_kegiatan">Admin Kegiatan</option>
+                <option value="tim_gambuh">Tim Gambuh</option>
+                <option value="tim_jepret">Tim Jepret</option>
               </select>
               {filterRole && (
                 <button className="btn btn-sm btn-danger" onClick={handleBulkDeleteRole}>
@@ -678,6 +698,8 @@ export default function AdminUsersPage() {
                               <option value="admin_romantic_room">Admin Romantic Room</option>
                               <option value="admin_keuangan">Admin Keuangan</option>
                               <option value="admin_kegiatan">Admin Kegiatan</option>
+                              <option value="tim_gambuh">Tim Gambuh</option>
+                              <option value="tim_jepret">Tim Jepret</option>
                             </select>
                             <div className="flex gap-2" style={{ marginTop: "8px" }}>
                               <button className="btn btn-sm btn-secondary" onClick={() => handleOpenEditUser(user)}>Edit</button>
@@ -791,6 +813,8 @@ export default function AdminUsersPage() {
                           <option value="admin_romantic_room">Admin Romantic Room</option>
                           <option value="admin_keuangan">Admin Keuangan</option>
                           <option value="admin_kegiatan">Admin Kegiatan</option>
+                          <option value="tim_gambuh">Tim Gambuh</option>
+                          <option value="tim_jepret">Tim Jepret</option>
                         </select>
                         <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
                           <button 

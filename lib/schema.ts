@@ -66,7 +66,7 @@ export const users = sqliteTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   passwordPlain: text("password_plain"),
-  role: text("role", { enum: ["admin", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "generus", "peserta", "creator", "pending", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "admin_pdkt", "usia_mandiri"] })
+  role: text("role", { enum: ["admin", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "generus", "peserta", "creator", "pending", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "admin_pdkt", "usia_mandiri", "tim_gambuh", "tim_jepret"] })
     .notNull()
     .default("pending"),
   desaId: integer("desa_id").references(() => desa.id, { onDelete: "set null" }),
@@ -177,11 +177,17 @@ export const mandiri = sqliteTable("mandiri", {
 }, (table) => ({
   generusIdIdx: index("mandiri_generus_id_idx").on(table.generusId),
 }));
+export const mandiriDaerah = sqliteTable("mandiri_daerah", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  nama: text("nama").notNull(),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
 
 export const mandiriDesa = sqliteTable("mandiri_desa", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   nama: text("nama").notNull(),
-  kota: text("kota").notNull(),
+  mandiriDaerahId: integer("mandiri_daerah_id")
+    .references(() => mandiriDaerah.id, { onDelete: "cascade" }),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
 });
 
@@ -218,6 +224,8 @@ export const mandiriAbsensi = sqliteTable("mandiri_absensi", {
     .references(() => generus.id),
   timestamp: text("timestamp").default(sql`(datetime('now'))`),
   keterangan: text("keterangan", { enum: ["hadir", "izin", "alpha", "pulang"] }).default("hadir"),
+  alasanPulang: text("alasan_pulang"),
+  waktuPulang: text("waktu_pulang"),
 }, (table) => ({
   kegiatanIdIdx: index("mandiri_absensi_kegiatan_id_idx").on(table.kegiatanId),
   generusIdIdx: index("mandiri_absensi_generus_id_idx").on(table.generusId),
@@ -252,6 +260,7 @@ export const mandiriPemilihan = sqliteTable("mandiri_pemilihan", {
   status: text("status", { enum: ["Menunggu", "Diterima", "Ditolak", "Selesai"] }).default("Menunggu"),
   hasilPengirim: text("hasil_pengirim"), // Lanjut / Tidak Lanjut
   hasilPenerima: text("hasil_penerima"), // Lanjut / Tidak Lanjut
+  statusTunggu: text("status_tunggu").default("antrean"), // 'antrean', 'dipanggil'
   createdAt: text("created_at").default(sql`(datetime('now'))`),
 }, (table) => ({
   pengirimIdIdx: index("mandiri_pemilihan_pengirim_id_idx").on(table.pengirimId),
@@ -261,7 +270,9 @@ export const mandiriPemilihan = sqliteTable("mandiri_pemilihan", {
 export const mandiriRooms = sqliteTable("mandiri_rooms", {
   id: text("id").primaryKey(),
   nama: text("nama").notNull(),
+  kegiatanId: text("kegiatan_id").references(() => mandiriKegiatan.id, { onDelete: "cascade" }),
   pemilihanId: text("pemilihan_id").references(() => mandiriPemilihan.id, { onDelete: "set null" }),
+  timGambuhId: text("tim_gambuh_id").references(() => timGambuh.id, { onDelete: "set null" }),
   status: text("status", { enum: ["Kosong", "Terisi"] }).default("Kosong"),
   startedAt: text("started_at"),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
@@ -414,6 +425,7 @@ export type User = typeof users.$inferSelect;
 export type Generus = typeof generus.$inferSelect;
 export type Kegiatan = typeof kegiatan.$inferSelect;
 export type MandiriKegiatan = typeof mandiriKegiatan.$inferSelect;
+export type MandiriDaerah = typeof mandiriDaerah.$inferSelect;
 export type MandiriDesa = typeof mandiriDesa.$inferSelect;
 export type MandiriKelompok = typeof mandiriKelompok.$inferSelect;
 export type Absensi = typeof absensi.$inferSelect;
@@ -462,6 +474,7 @@ export type NewUser = typeof users.$inferInsert;
 export type NewGenerus = typeof generus.$inferInsert;
 export type NewKegiatan = typeof kegiatan.$inferInsert;
 export type NewMandiriKegiatan = typeof mandiriKegiatan.$inferInsert;
+export type NewMandiriDaerah = typeof mandiriDaerah.$inferInsert;
 export type NewMandiriDesa = typeof mandiriDesa.$inferInsert;
 export type NewMandiriKelompok = typeof mandiriKelompok.$inferInsert;
 export type NewAbsensi = typeof absensi.$inferInsert;
@@ -484,3 +497,22 @@ export type NewFormPanitiaDanPengurus = typeof formPanitiaDanPengurus.$inferInse
 export type NewMandiriKomentar = typeof mandiriKomentar.$inferInsert;
 export type NewOrganisasiPengurus = typeof organisasiPengurus.$inferInsert;
 export type NewSaranMasukan = typeof saranMasukan.$inferInsert;
+
+export const timGambuh = sqliteTable("tim_gambuh", {
+  id: text("id").primaryKey(),
+  nama: text("nama").notNull(),
+  kegiatanId: text("kegiatan_id").references(() => mandiriKegiatan.id, { onDelete: "cascade" }),
+  daerahId: integer("daerah_id").references(() => mandiriDaerah.id, { onDelete: "cascade" }),
+  desaId: integer("desa_id").references(() => mandiriDesa.id, { onDelete: "cascade" }),
+  tipe: text("tipe", { enum: ["PNKB", "Ibu Gambuh"] }).notNull(),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+}, (table) => ({
+  kegiatanIdIdx: index("tim_gambuh_kegiatan_id_idx").on(table.kegiatanId),
+  daerahIdIdx: index("tim_gambuh_daerah_id_idx").on(table.daerahId),
+  desaIdIdx: index("tim_gambuh_desa_id_idx").on(table.desaId),
+}));
+
+export type TimGambuh = typeof timGambuh.$inferSelect;
+export type NewTimGambuh = typeof timGambuh.$inferInsert;
+

@@ -3,16 +3,17 @@
 
 
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Swal from "sweetalert2";
 import {
     Heart, MessageSquare, User, Phone, MapPin, ClipboardList,
     CheckCircle, Star, Download, Sparkles, Send, Timer,
-    Globe, Plus, Trash2, LogOut, Users, DoorOpen, Search, Undo2
+    Globe, Plus, Trash2, LogOut, Users, DoorOpen, Search, Undo2, Bell
 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import { getPusherClient } from "@/lib/pusher";
 
 function RoomTimer({ startTime }: { startTime: string }) {
     const [timeLeft, setTimeLeft] = useState<string>("");
@@ -142,17 +143,10 @@ export default function RomanticRoomPage() {
 
             const isUserAdmin = ADMIN_ROLES.includes(profJson.role || "");
 
-            // Fetch Rooms
-            const roomsRes = await fetch("/api/mandiri/rooms", { headers: h });
-            const roomsJson = await roomsRes.json();
-            const sortedRooms = Array.isArray(roomsJson)
-                ? [...roomsJson].sort((a, b) => a.nama.localeCompare(b.nama, undefined, { numeric: true, sensitivity: 'base' }))
-                : [];
-            setAllRooms(sortedRooms);
-
+            // Determine target kegiatan ID before querying rooms
+            let targetKgId = selectedKegiatanId;
             if (isUserAdmin) {
                 // Fetch kegiatan list + active setting on first load
-                let activeKgId = selectedKegiatanId;
                 if (kegiatanList.length === 0) {
                     const [kgRes, sRes] = await Promise.all([
                         fetch("/api/mandiri/kegiatan"),
@@ -164,23 +158,45 @@ export default function RomanticRoomPage() {
                             setKegiatanList(kList);
                             if (!selectedKegiatanId) {
                                 const s = sRes.ok ? await sRes.json() : {};
-                                activeKgId = s.mandiri_active_kegiatan_id || kList[0]?.id || "";
-                                setSelectedKegiatanId(activeKgId);
+                                targetKgId = s.mandiri_active_kegiatan_id || kList[0]?.id || "";
+                                setSelectedKegiatanId(targetKgId);
                             }
                         }
                     }
                 }
+            } else {
+                // Non-admin participant: fetch the active kegiatan setting
+                const sRes = await fetch("/api/settings");
+                const s = sRes.ok ? await sRes.json() : {};
+                targetKgId = s.mandiri_active_kegiatan_id || "";
+            }
 
-                const kgParam = activeKgId ? `&kegiatanId=${activeKgId}` : "";
+            // Fetch Rooms (filtered by target kegiatan ID if available)
+            const roomParam = targetKgId ? `?kegiatanId=${targetKgId}` : "";
+            const roomsRes = await fetch(`/api/mandiri/rooms${roomParam}`, { headers: h });
+            const roomsJson = await roomsRes.json();
+            const sortedRooms = Array.isArray(roomsJson)
+                ? [...roomsJson].sort((a, b) => a.nama.localeCompare(b.nama, undefined, { numeric: true, sensitivity: 'base' }))
+                : [];
+            setAllRooms(sortedRooms);
+
+            if (isUserAdmin) {
+                const kgParam = targetKgId ? `&kegiatanId=${targetKgId}` : "";
 
                 // Fetch All Selections for Queue
                 const qRes = await fetch(`/api/mandiri/pilih?all=true${kgParam}`);
                 const qJson = await qRes.json();
                 const waiting = Array.isArray(qJson) ? qJson.filter((q: any) => q.status === "Menunggu") : [];
+                // Sort ascending by createdAt (earliest first / paling awal di atas)
+                waiting.sort((a: any, b: any) => {
+                    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                    return dateA - dateB;
+                });
                 setAllQueue(waiting);
 
                 // Fetch Visit History
-                const histKgParam = activeKgId ? `?kegiatanId=${activeKgId}` : "";
+                const histKgParam = targetKgId ? `?kegiatanId=${targetKgId}` : "";
                 const histRes = await fetch(`/api/mandiri/kunjungan${histKgParam}`, { headers: h });
                 const histJson = await histRes.json();
                 setVisitHistory(Array.isArray(histJson) ? histJson : []);
@@ -191,7 +207,7 @@ export default function RomanticRoomPage() {
                 setAllParticipants(Array.isArray(pJson.data) ? pJson.data : []);
 
                 // Fetch Attendance Stats
-                const statsKgParam = activeKgId ? `?kegiatanId=${activeKgId}` : "";
+                const statsKgParam = targetKgId ? `?kegiatanId=${targetKgId}` : "";
                 const statsRes = await fetch(`/api/mandiri/stats/attendance${statsKgParam}`);
                 const statsJson = await statsRes.json();
                 setAttendanceCount(statsJson.count || 0);
@@ -233,12 +249,38 @@ export default function RomanticRoomPage() {
         }
     };
 
+    const fetchDataRef = useRef(fetchData);
+    useEffect(() => {
+        fetchDataRef.current = fetchData;
+    });
+
     useEffect(() => {
         fetchData();
         const interval = setInterval(fetchData, 10000); // Poll every 10s for status updates
         return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedKegiatanId]);
+
+    // Realtime updates using Pusher
+    useEffect(() => {
+        const pusher = getPusherClient();
+        if (!pusher) return;
+
+        const channel = pusher.subscribe("taaruf-channel");
+
+        const handleUpdate = () => {
+            fetchDataRef.current();
+        };
+
+        channel.bind("taaruf-changed", handleUpdate);
+        channel.bind("room-changed", handleUpdate);
+
+        return () => {
+            channel.unbind("taaruf-changed", handleUpdate);
+            channel.unbind("room-changed", handleUpdate);
+            pusher.unsubscribe("taaruf-channel");
+        };
+    }, []);
 
 
     const handleCreateRoom = async () => {
@@ -361,21 +403,145 @@ export default function RomanticRoomPage() {
         });
 
         if (roomId) {
+            // Fetch available Tim Gambuh companions
+            let availableTimGambuh = [];
             try {
-                const res = await fetch(`/api/mandiri/rooms/${roomId}`, {
+                const tgRes = await fetch("/api/admin/tim-gambuh");
+                if (tgRes.ok) {
+                    const tgList = await tgRes.json();
+                    if (Array.isArray(tgList)) {
+                        const busyIds = allRooms
+                            .filter(r => r.status === "Terisi" && r.timGambuhId)
+                            .map(r => r.timGambuhId);
+                        availableTimGambuh = tgList.filter(m => !busyIds.includes(m.id));
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching tim-gambuh:", err);
+            }
+
+            if (availableTimGambuh.length === 0) {
+                Swal.fire("Gagal", "Tidak ada pendamping (Tim Gambuh) yang tersedia/anggota kosong.", "error");
+                return;
+            }
+
+            const { value: timGambuhId } = await Swal.fire({
+                title: 'Pilih Pendamping (Tim Gambuh)',
+                input: 'select',
+                inputOptions: Object.fromEntries(availableTimGambuh.map(m => [m.id, `${m.nama} (${m.tipe})`])),
+                inputPlaceholder: 'Pilih pendamping...',
+                showCancelButton: true,
+                inputValidator: (value) => {
+                    if (!value) {
+                        return 'Pendamping wajib dipilih!';
+                    }
+                }
+            });
+
+            if (timGambuhId) {
+                try {
+                    const res = await fetch(`/api/mandiri/rooms/${roomId}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ pemilihanId, action: "assign", timGambuhId })
+                    });
+                    if (res.ok) {
+                        Swal.fire("Berhasil", `${pengirim} & ${penerima} telah masuk ke ruangan dengan pendamping.`, "success");
+                        fetchData();
+                    } else {
+                        const errData = await res.json();
+                        Swal.fire("Error", errData.error || "Gagal memproses validasi", "error");
+                    }
+                } catch (err) {
+                    Swal.fire("Error", "Gagal memproses validasi", "error");
+                }
+            }
+        }
+    };
+
+    const handleCallToWaitingRoom = async (pemilihanId: string, pengirim: string, penerima: string, pengirimKeterangan?: string, penerimaKeterangan?: string) => {
+        if (pengirimKeterangan === "pulang") {
+            Swal.fire("Gagal Panggil", `${pengirim} sudah logout (pulang). Tidak dapat memanggil ke Ruang Tunggu.`, "error");
+            return;
+        }
+        if (penerimaKeterangan === "pulang") {
+            Swal.fire("Gagal Panggil", `${penerima} sudah logout (pulang). Tidak dapat memanggil ke Ruang Tunggu.`, "error");
+            return;
+        }
+
+        const currentWaitingRoomCount = allQueue.filter((item: any) => item.statusTunggu === "dipanggil").length;
+        if (currentWaitingRoomCount >= 5) {
+            Swal.fire("Gagal Panggil", "Ruang Tunggu sudah penuh (maksimal 5 pasang). Silakan proses pasangan di Ruang Tunggu ke ruangan terlebih dahulu.", "warning");
+            return;
+        }
+
+        const result = await Swal.fire({
+            title: 'Panggil ke Ruang Tunggu?',
+            text: `Kirim notif WhatsApp ke ${pengirim} & ${penerima} untuk merapat ke Ruang Tunggu?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Panggil',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#3b82f6'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                Swal.fire({
+                    title: 'Mengirim Panggilan...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                const res = await fetch("/api/mandiri/pilih", {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ pemilihanId, action: "assign" })
+                    body: JSON.stringify({ pemilihanId, statusTunggu: "dipanggil" })
                 });
+
                 if (res.ok) {
-                    Swal.fire("Berhasil", `${pengirim} & ${penerima} telah masuk ke ruangan.`, "success");
+                    Swal.fire("Berhasil", "Peserta telah dipanggil ke Ruang Tunggu & notifikasi WA terkirim.", "success");
                     fetchData();
                 } else {
                     const errData = await res.json();
-                    Swal.fire("Error", errData.error || "Gagal memproses validasi", "error");
+                    Swal.fire("Error", errData.error || "Gagal memanggil peserta", "error");
                 }
             } catch (err) {
-                Swal.fire("Error", "Gagal memproses validasi", "error");
+                Swal.fire("Error", "Terjadi kesalahan jaringan", "error");
+            }
+        }
+    };
+
+    const handleReturnToQueue = async (pemilihanId: string, pengirim: string, penerima: string) => {
+        const result = await Swal.fire({
+            title: 'Kembalikan ke Antrean?',
+            text: `Kembalikan ${pengirim} & ${penerima} ke antrean utama?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Kembalikan',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#f59e0b'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const res = await fetch("/api/mandiri/pilih", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ pemilihanId, statusTunggu: "antrean" })
+                });
+
+                if (res.ok) {
+                    Swal.fire("Berhasil", "Pasangan telah dikembalikan ke antrean utama.", "success");
+                    fetchData();
+                } else {
+                    const errData = await res.json();
+                    Swal.fire("Error", errData.error || "Gagal mengembalikan ke antrean", "error");
+                }
+            } catch (err) {
+                Swal.fire("Error", "Terjadi kesalahan jaringan", "error");
             }
         }
     };
@@ -392,7 +558,8 @@ export default function RomanticRoomPage() {
 
         if (result.isConfirmed) {
             try {
-                await fetch("/api/mandiri/rooms", { method: "DELETE" });
+                const kgParam = selectedKegiatanId ? `?kegiatanId=${selectedKegiatanId}` : "";
+                await fetch(`/api/mandiri/rooms${kgParam}`, { method: "DELETE" });
                 fetchData();
             } catch (err) {
                 Swal.fire("Error", "Gagal menghapus semua ruangan", "error");
@@ -924,6 +1091,9 @@ export default function RomanticRoomPage() {
             ).length,
         };
 
+        const activeQueue = allQueue.filter((item: any) => item.statusTunggu !== "dipanggil" && item.statusTunggu !== "ada");
+        const waitingRoomQueue = allQueue.filter((item: any) => item.statusTunggu === "dipanggil" || item.statusTunggu === "ada");
+
         const filteredRooms = allRooms.filter((room) => {
             const search = roomSearch.toLowerCase();
             return (
@@ -1031,14 +1201,14 @@ export default function RomanticRoomPage() {
                 </header>
 
                 <div className="admin-grid">
-                    {/* Queue Box */}
-                    <div className="admin-card queue-box">
-                        <div className="card-header">
+                                   {/* Queue Box (Horizontal Layout) */}
+                    <div className="admin-card queue-box" style={{ width: '100%' }}>
+                        <div className="card-header" style={{ borderRadius: '16px 16px 0 0', overflow: 'hidden' }}>
                             <div className="header-title">
                                 <Timer size={20} />
                                 <h3>Kotak Antrean</h3>
                             </div>
-                            <span className="count-badge">{allQueue.length} Antrean</span>
+                            <span className="count-badge">{activeQueue.length} Antrean</span>
                         </div>
                         <div className="search-bar-container">
                             <Search size={16} />
@@ -1049,82 +1219,228 @@ export default function RomanticRoomPage() {
                                 onChange={(e) => setQueueSearch(e.target.value)}
                             />
                         </div>
-                        <div className="card-body scrollable">
-                            {allQueue.length === 0 ? (
+                        <div className="card-body">
+                            {activeQueue.length === 0 ? (
                                 <div className="empty-state">Antrean kosong</div>
                             ) : (
-                                allQueue
-                                    .filter((item: any) => {
-                                        const search = queueSearch.toLowerCase();
-                                        return (
-                                            item.pengirimNama?.toLowerCase().includes(search) ||
-                                            item.penerimaNama?.toLowerCase().includes(search) ||
-                                            (item.pengirimNomorUrut || item.pengirimNo || '').toString().includes(search) ||
-                                            (item.penerimaNomorUrut || item.penerimaNo || '').toString().includes(search)
-                                        );
-                                    })
-                                    .map((item: any) => (
-                                        <div key={item.id} className="queue-item">
-                                            <div className="pair-names">
-                                                {/* Caller */}
-                                                <div className="participant-row caller">
-                                                    <div className="p-role-tag caller">Pemanggil</div>
-                                                    <div className="p-main-box">
-                                                        <span className="p-number-badge">{item.pengirimNomorUrut || item.pengirimNo || '-'}</span>
-                                                        <span className="p-name">
-                                                            {item.pengirimNama}
-                                                            {item.pengirimKeterangan === 'pulang' && <span className="p-pulang-badge"> (Pulang)</span>}
-                                                        </span>
-                                                    </div>
-                                                    <div className="p-meta-list">
-                                                        <div className="p-sub-info">
-                                                            <MapPin size={10} /> <span>{item.pengirimKota || '-'} / {item.pengirimDesa || '-'}</span>
+                                <div className="scroll-wrapper">
+                                <div className="horizontal-scroll">
+                                    {activeQueue
+                                        .filter((item: any) => {
+                                            const search = queueSearch.toLowerCase();
+                                            return (
+                                                item.pengirimNama?.toLowerCase().includes(search) ||
+                                                item.penerimaNama?.toLowerCase().includes(search) ||
+                                                (item.pengirimNomorUrut || item.pengirimNo || '').toString().includes(search) ||
+                                                (item.penerimaNomorUrut || item.penerimaNo || '').toString().includes(search)
+                                            );
+                                        })
+                                        .map((item: any) => (
+                                            <div key={item.id} className="queue-item" style={{ flexShrink: 0, width: '460px', margin: 0, padding: '12px' }}>
+                                                <div className="pair-names-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                                                    {/* Caller */}
+                                                    <div className="participant-row caller" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                        <div className="p-role-tag caller" style={{ alignSelf: 'flex-start', margin: 0, padding: '1px 4px', fontSize: '7px' }}>Pemanggil</div>
+                                                        <div className="p-main-box" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                                                            <span className="p-number-badge" style={{ padding: '1px 4px', fontSize: '9px', minWidth: '22px' }}>{item.pengirimNomorUrut || item.pengirimNo || '-'}</span>
+                                                            <span className="p-name" style={{ fontSize: '12px', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                {item.pengirimNama}
+                                                                {item.pengirimKeterangan === 'pulang' && <span className="p-pulang-badge" style={{ fontSize: '9px' }}> (Pulang)</span>}
+                                                            </span>
                                                         </div>
-                                                        <div className="p-sub-info">
-                                                            <Phone size={10} /> <span>{item.pengirimWa || '-'}</span>
+                                                        <div className="p-sub-info" style={{ fontSize: '9px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                                            <MapPin size={8} /> <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.pengirimKota || '-'} / {item.pengirimDesa || '-'}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Divider */}
+                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                        <Heart size={12} fill="#f43f5e" color="#f43f5e" />
+                                                    </div>
+
+                                                    {/* Called */}
+                                                    <div className="participant-row called" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-end', textAlign: 'right' }}>
+                                                        <div className="p-role-tag called" style={{ alignSelf: 'flex-end', margin: 0, padding: '1px 4px', fontSize: '7px' }}>Dipanggil</div>
+                                                        <div className="p-main-box" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', flexDirection: 'row-reverse' }}>
+                                                            <span className="p-number-badge" style={{ padding: '1px 4px', fontSize: '9px', minWidth: '22px' }}>{item.penerimaNomorUrut || item.penerimaNo || '-'}</span>
+                                                            <span className="p-name" style={{ fontSize: '12px', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                {item.penerimaNama}
+                                                                {item.penerimaKeterangan === 'pulang' && <span className="p-pulang-badge" style={{ fontSize: '9px' }}> (Pulang)</span>}
+                                                            </span>
+                                                        </div>
+                                                        <div className="p-sub-info" style={{ fontSize: '9px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '2px', justifyContent: 'flex-end' }}>
+                                                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.penerimaKota || '-'} / {item.penerimaDesa || '-'}</span> <MapPin size={8} />
                                                         </div>
                                                     </div>
                                                 </div>
-
-                                                <div className="heart-divider">
-                                                    <div className="line"></div>
-                                                    <Heart size={14} fill="#f43f5e" color="#f43f5e" />
-                                                    <div className="line"></div>
-                                                </div>
-
-                                                {/* Called */}
-                                                <div className="participant-row called">
-                                                    <div className="p-role-tag called">Dipanggil</div>
-                                                    <div className="p-main-box">
-                                                        <span className="p-number-badge">{item.penerimaNomorUrut || item.penerimaNo || '-'}</span>
-                                                        <span className="p-name">
-                                                            {item.penerimaNama}
-                                                            {item.penerimaKeterangan === 'pulang' && <span className="p-pulang-badge"> (Pulang)</span>}
-                                                        </span>
-                                                    </div>
-                                                    <div className="p-meta-list">
-                                                        <div className="p-sub-info">
-                                                            <span>{item.penerimaKota || '-'} / {item.penerimaDesa || '-'}</span> <MapPin size={10} />
-                                                        </div>
-                                                        <div className="p-sub-info">
-                                                            <span>{item.penerimaWa || '-'}</span> <Phone size={10} />
-                                                        </div>
-                                                    </div>
+                                                <div className="queue-actions" style={{ display: 'flex', gap: '6px', borderTop: '1px solid #f1f5f9', paddingTop: '8px', marginTop: '4px' }}>
+                                                    <button 
+                                                        className={`btn-call-waiting ${(item.pengirimKeterangan === 'pulang' || item.penerimaKeterangan === 'pulang') ? 'btn-disabled' : ''}`}
+                                                        style={{
+                                                            flex: 2,
+                                                            backgroundColor: '#3b82f6',
+                                                            color: 'white',
+                                                            border: 'none',
+                                                            padding: '4px 8px',
+                                                            borderRadius: '6px',
+                                                            fontWeight: '700',
+                                                            fontSize: '10px',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            gap: '4px',
+                                                            boxShadow: '0 2px 4px rgba(59, 130, 246, 0.2)',
+                                                            transition: 'all 0.2s',
+                                                            whiteSpace: 'nowrap'
+                                                        }}
+                                                        disabled={item.pengirimKeterangan === 'pulang' || item.penerimaKeterangan === 'pulang'}
+                                                        onClick={() => handleCallToWaitingRoom(item.id, item.pengirimNama, item.penerimaNama, item.pengirimKeterangan, item.penerimaKeterangan)}
+                                                    >
+                                                        <Bell size={10} /> Panggil Ke Ruang Tunggu
+                                                    </button>
+                                                    
+                                                    <button className="btn-delete-queue" style={{ padding: '4px 8px' }} onClick={() => handleDeleteQueue(item)} title="Hapus Antrean">
+                                                        <Trash2 size={10} />
+                                                    </button>
                                                 </div>
                                             </div>
-                                            <div className="queue-actions">
-                                                <button 
-                                                    className={`btn-validate ${(item.pengirimKeterangan === 'pulang' || item.penerimaKeterangan === 'pulang') ? 'btn-disabled' : ''}`} 
-                                                    onClick={() => handleAssignToRoom(item.id, item.pengirimNama, item.penerimaNama, item.pengirimKeterangan, item.penerimaKeterangan)}
-                                                >
-                                                    Validasi & Masuk Room
-                                                </button>
-                                                <button className="btn-delete-queue" onClick={() => handleDeleteQueue(item)} title="Hapus Antrean">
-                                                    <Trash2 size={16} />
-                                                </button>
+                                        ))}
+                                </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Waiting Room Box (Horizontal Layout) */}
+                    <div className="admin-card waiting-room-box" style={{ width: '100%', borderLeft: '4px solid #10b981' }}>
+                        <div className="card-header" style={{ background: 'linear-gradient(to right, #f0fdf4, #ffffff)', borderRadius: '16px 16px 0 0', overflow: 'hidden' }}>
+                            <div className="header-title">
+                                <Users size={20} color="#10b981" />
+                                <h3 style={{ color: '#065f46' }}>Ruang Tunggu (Maks 5 Pasang)</h3>
+                            </div>
+                            <span className="count-badge" style={{ backgroundColor: '#10b981', color: 'white' }}>{waitingRoomQueue.length} / 5 Pasang</span>
+                        </div>
+                        <div className="card-body">
+                            {waitingRoomQueue.length === 0 ? (
+                                <div className="empty-state">Ruang tunggu kosong</div>
+                            ) : (
+                                <div className="scroll-wrapper">
+                                <div className="horizontal-scroll">
+                                    {waitingRoomQueue
+                                        .filter((item: any) => {
+                                            const search = queueSearch.toLowerCase();
+                                            return (
+                                                item.pengirimNama?.toLowerCase().includes(search) ||
+                                                item.penerimaNama?.toLowerCase().includes(search) ||
+                                                (item.pengirimNomorUrut || item.pengirimNo || '').toString().includes(search) ||
+                                                (item.penerimaNomorUrut || item.penerimaNo || '').toString().includes(search)
+                                            );
+                                        })
+                                        .map((item: any) => (
+                                            <div key={item.id} className="queue-item" style={{ flexShrink: 0, width: '460px', borderLeft: '3px solid #10b981', backgroundColor: '#fafafa', margin: 0, padding: '12px' }}>
+                                                <div className="pair-names-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                                                    {/* Caller */}
+                                                    <div className="participant-row caller" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                        <div className="p-role-tag caller" style={{ alignSelf: 'flex-start', margin: 0, padding: '1px 4px', fontSize: '7px', backgroundColor: '#e0f2fe', color: '#0369a1' }}>Pemanggil</div>
+                                                        <div className="p-main-box" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                                                            <span className="p-number-badge" style={{ padding: '1px 4px', fontSize: '9px', minWidth: '22px' }}>{item.pengirimNomorUrut || item.pengirimNo || '-'}</span>
+                                                            <span className="p-name">{item.pengirimNama}</span>
+                                                        </div>
+                                                        <div className="p-sub-info" style={{ fontSize: '9px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                                            <MapPin size={8} /> <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.pengirimKota || '-'} / {item.pengirimDesa || '-'}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Divider */}
+                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                        <Heart size={12} fill="#10b981" color="#10b981" />
+                                                    </div>
+
+                                                    {/* Called */}
+                                                    <div className="participant-row called" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-end', textAlign: 'right' }}>
+                                                        <div className="p-role-tag called" style={{ alignSelf: 'flex-end', margin: 0, padding: '1px 4px', fontSize: '7px', backgroundColor: '#fef3c7', color: '#b45309' }}>Dipanggil</div>
+                                                        <div className="p-main-box" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', flexDirection: 'row-reverse' }}>
+                                                            <span className="p-number-badge" style={{ padding: '1px 4px', fontSize: '9px', minWidth: '22px' }}>{item.penerimaNomorUrut || item.penerimaNo || '-'}</span>
+                                                            <span className="p-name">{item.penerimaNama}</span>
+                                                        </div>
+                                                        <div className="p-sub-info" style={{ fontSize: '9px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '2px', justifyContent: 'flex-end' }}>
+                                                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.penerimaKota || '-'} / {item.penerimaDesa || '-'}</span> <MapPin size={8} />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div style={{ display: 'flex', justifyContent: 'center', margin: '6px 0 8px 0', fontSize: '10px' }}>
+                                                    {item.statusTunggu === 'ada' ? (
+                                                        <span style={{ backgroundColor: '#e2fdf0', color: '#15803d', border: '1px solid #bbf7d0', padding: '3px 8px', borderRadius: '6px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                            <span className="dot-green-pulse" /> Sudah Hadir di Ruang Tunggu
+                                                        </span>
+                                                    ) : (
+                                                        <span style={{ backgroundColor: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', padding: '3px 8px', borderRadius: '6px', fontWeight: '700' }}>
+                                                            ⏳ Dipanggil (OTW)
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                <div style={{ display: 'flex', gap: '6px', borderTop: '1px solid #f1f5f9', paddingTop: '8px', marginTop: '4px' }}>
+                                                    <button 
+                                                        className={`btn-validate ${(item.pengirimKeterangan === 'pulang' || item.penerimaKeterangan === 'pulang') ? 'btn-disabled' : ''}`} 
+                                                        style={{
+                                                            flex: 2,
+                                                            backgroundColor: '#10b981',
+                                                            color: 'white',
+                                                            border: 'none',
+                                                            padding: '4px 8px',
+                                                            borderRadius: '6px',
+                                                            fontWeight: '700',
+                                                            fontSize: '10px',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            gap: '4px',
+                                                            boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)',
+                                                            transition: 'all 0.2s',
+                                                            whiteSpace: 'nowrap'
+                                                        }}
+                                                        disabled={item.pengirimKeterangan === 'pulang' || item.penerimaKeterangan === 'pulang'}
+                                                        onClick={() => handleAssignToRoom(item.id, item.pengirimNama, item.penerimaNama, item.pengirimKeterangan, item.penerimaKeterangan)}
+                                                    >
+                                                        <DoorOpen size={10} /> Validasi & Masuk Room
+                                                    </button>
+                                                    
+                                                    <button 
+                                                        className="btn-undo-waiting" 
+                                                        style={{
+                                                            flex: 1.5,
+                                                            backgroundColor: '#f59e0b',
+                                                            color: 'white',
+                                                            border: 'none',
+                                                            padding: '4px 8px',
+                                                            borderRadius: '6px',
+                                                            fontWeight: '700',
+                                                            fontSize: '10px',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            gap: '4px',
+                                                            transition: 'all 0.2s',
+                                                            whiteSpace: 'nowrap'
+                                                        }}
+                                                        onClick={() => handleReturnToQueue(item.id, item.pengirimNama, item.penerimaNama)}
+                                                        title="Kembalikan ke Antrean Utama"
+                                                    >
+                                                        <Undo2 size={10} /> Batal Panggil
+                                                    </button>
+                                                    <button className="btn-delete-queue" style={{ padding: '4px 8px' }} onClick={() => handleDeleteQueue(item)} title="Hapus Antrean">
+                                                        <Trash2 size={10} />
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))
+                                        ))}
+                                </div>
+                                </div>
                             )}
                         </div>
                     </div>
@@ -1450,7 +1766,7 @@ export default function RomanticRoomPage() {
                 </div>
 
                 <style jsx>{`
-                    .admin-layout { max-width: 1400px; padding: 20px; margin: 0 auto; background: #f8fafc; min-height: 100vh; }
+                    .admin-layout { width: 100%; min-width: 0; max-width: 1400px; padding: 20px; margin: 0 auto; background: #f8fafc; min-height: 100vh; overflow-x: hidden; }
                     .room-header-modern { margin-bottom: 25px; }
                     .header-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
                     .title-area h1 { font-size: 28px; font-weight: 900; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 10px; }
@@ -1480,10 +1796,14 @@ export default function RomanticRoomPage() {
                     .card-val { font-size: 18px; font-weight: 900; color: #1e293b; line-height: 1; }
                     .card-lbl { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
 
-                    .admin-grid { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
-                    .admin-card { background: white; border-radius: 16px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.03); transition: all 0.3s; }
+                    .admin-grid { display: flex; flex-direction: column; gap: 20px; width: 100%; min-width: 0; max-width: 100%; overflow-x: hidden; }
+                    .admin-card { background: white; border-radius: 16px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.03); transition: all 0.3s; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
                     .admin-card:hover { box-shadow: 0 10px 30px rgba(0,0,0,0.05); border-color: #fecdd3; }
-                    .queue-box { height: 0; min-height: 100%; }
+                    .scroll-wrapper { width: 100%; overflow-x: auto; overflow-y: hidden; }
+                    .scroll-wrapper::-webkit-scrollbar { height: 6px; }
+                    .scroll-wrapper::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+                    .scroll-wrapper::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+                    .horizontal-scroll { display: flex; gap: 12px; padding: 5px 4px 12px 4px; width: max-content; scroll-behavior: smooth; box-sizing: border-box; }
                     
                     .card-header { padding: 15px 20px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; background: #fff; }
                     .header-title { display: flex; align-items: center; gap: 10px; color: #1e293b; }
@@ -1496,7 +1816,7 @@ export default function RomanticRoomPage() {
                     .search-bar-container input { border: none; background: transparent; font-size: 12px; color: #1e293b; width: 100%; outline: none; font-weight: 600; }
                     .search-bar-container input::placeholder { color: #cbd5e1; }
                     
-                    .card-body { padding: 15px; flex: 1; }
+                    .card-body { padding: 15px; flex: 1 1 auto; min-width: 0; max-width: 100%; display: flex; flex-direction: column; }
                     .scrollable { max-height: 600px; overflow-y: auto; padding-right: 5px; }
                     .scrollable::-webkit-scrollbar { width: 4px; }
                     .scrollable::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
@@ -1753,6 +2073,7 @@ export default function RomanticRoomPage() {
                         font-weight: 800; 
                         text-transform: uppercase;
                         color: white !important;
+                        white-space: nowrap;
                     }
                     .result-badge.badge-success { background: #16a34a; }
                     .result-badge.badge-warning { background: #d97706; }
@@ -1766,6 +2087,7 @@ export default function RomanticRoomPage() {
                         font-weight: 800;
                         text-transform: uppercase;
                         display: inline-block;
+                        white-space: nowrap;
                     }
                     .status-badge-inline.waiting { background: #fff1f2; color: #f43f5e; border: 1px solid #fecdd3; }
                     .status-badge-inline.finished { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
@@ -1803,6 +2125,20 @@ export default function RomanticRoomPage() {
                         0% { opacity: 1; }
                         50% { opacity: 0.5; }
                         100% { opacity: 1; }
+                    }
+
+                    .dot-green-pulse {
+                        width: 6px;
+                        height: 6px;
+                        background-color: #10b981;
+                        border-radius: 50%;
+                        display: inline-block;
+                        box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+                        animation: pulse-green 1s infinite alternate;
+                    }
+                    @keyframes pulse-green {
+                        0% { transform: scale(0.9); opacity: 0.7; }
+                        100% { transform: scale(1.3); opacity: 1; }
                     }
 
                     .user-timer-wrapper {

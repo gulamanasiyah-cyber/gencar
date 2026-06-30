@@ -1,8 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse, NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { generus, desa, kelompok, users, mandiri, mandiriDesa } from "@/lib/schema";
-import { eq, and } from "drizzle-orm";
+import { generus, desa, kelompok, users, mandiri, mandiriDesa, settings, mandiriKegiatan, mandiriDaerah } from "@/lib/schema";
+import { eq, and, desc } from "drizzle-orm";
 import { getSession, setSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!currentGenerusId) {
-      if (!session || !["admin", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "creator", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "admin_pdkt"].includes(session.role)) {
+      if (!session || !["admin", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "creator", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "admin_pdkt", "tim_gambuh", "tim_jepret"].includes(session.role)) {
         return NextResponse.json({ error: "Akun Anda belum terhubung dengan data profil generus" }, { status: 403 });
       }
 
@@ -136,13 +136,14 @@ export async function GET(request: NextRequest) {
         desaNama: desa.nama,
         kelompokNama: kelompok.nama,
         mandiriDesaNama: mandiriDesa.nama,
-        kota: mandiriDesa.kota,
+        kota: mandiriDaerah.nama,
         createdAt: generus.createdAt,
       })
       .from(generus)
       .leftJoin(desa, eq(generus.desaId, desa.id))
       .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
+      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
       .where(eq(generus.id, currentGenerusId))
       .limit(1);
 
@@ -151,14 +152,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Data profil tidak ditemukan" }, { status: 404 });
     }
 
-    const mandiriData = await db.query.mandiri.findFirst({ where: eq(mandiri.generusId, currentGenerusId) });
+    // Fetch active activity
+    const activeSetting = await db.query.settings.findFirst({
+        where: eq(settings.key, "mandiri_active_kegiatan_id")
+    });
+    const activeKegiatanId = activeSetting?.value || null;
+
+    const mandiriData = activeKegiatanId 
+        ? await db.query.mandiri.findFirst({ 
+            where: and(
+                eq(mandiri.generusId, currentGenerusId),
+                eq(mandiri.kegiatanId, activeKegiatanId)
+            )
+          })
+        : await db.query.mandiri.findFirst({ where: eq(mandiri.generusId, currentGenerusId) });
 
     // Include the current session role and PDKT status in the response
     const profile = {
       ...data[0],
       role: session?.role || "peserta",
       nomorUrut: mandiriData?.nomorUrut || null,
-      isInPdkt: !!mandiriData || (session && ["admin", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "admin_pdkt"].includes(session.role))
+      isInPdkt: !!mandiriData || (session && ["admin", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "admin_pdkt", "tim_gambuh", "tim_jepret"].includes(session.role))
     };
 
     // Nonaktifkan cache agar data selalu fresh setelah update
@@ -178,7 +192,7 @@ export async function PUT(request: NextRequest) {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (!session.generusId) {
-      if (!["admin", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "creator", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan"].includes(session.role)) {
+      if (!["admin", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "creator", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "tim_gambuh", "tim_jepret"].includes(session.role)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
@@ -246,13 +260,14 @@ export async function PUT(request: NextRequest) {
           desaNama: desa.nama,
           kelompokNama: kelompok.nama,
           mandiriDesaNama: mandiriDesa.nama,
-          kota: mandiriDesa.kota,
+          kota: mandiriDaerah.nama,
           createdAt: generus.createdAt,
         })
         .from(generus)
         .leftJoin(desa, eq(generus.desaId, desa.id))
         .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
         .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
+        .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
         .where(eq(generus.id, newGenerusId))
         .limit(1);
 
@@ -313,13 +328,14 @@ export async function PUT(request: NextRequest) {
         desaNama: desa.nama,
         kelompokNama: kelompok.nama,
         mandiriDesaNama: mandiriDesa.nama,
-        kota: mandiriDesa.kota,
+        kota: mandiriDaerah.nama,
         createdAt: generus.createdAt,
       })
       .from(generus)
       .leftJoin(desa, eq(generus.desaId, desa.id))
       .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
+      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
       .where(eq(generus.id, session.generusId))
       .limit(1);
 

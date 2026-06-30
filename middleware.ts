@@ -1,55 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth";
 
-// Rate limiting configuration: max 15 requests per 10 seconds per IP for API endpoints
-const ipRequests = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT_COUNT = 15;
-const RATE_LIMIT_WINDOW_MS = 10000;
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  
-  // Basic cleanup to prevent memory leak
-  if (ipRequests.size > 2000) {
-    for (const [key, value] of ipRequests.entries()) {
-      if (now > value.resetTime) {
-        ipRequests.delete(key);
-      }
-    }
-  }
-
-  const record = ipRequests.get(ip);
-  if (!record || now > record.resetTime) {
-    ipRequests.set(ip, {
-      count: 1,
-      resetTime: now + RATE_LIMIT_WINDOW_MS,
-    });
-    return false;
-  }
-
-  record.count += 1;
-  if (record.count > RATE_LIMIT_COUNT) {
-    return true;
-  }
-  return false;
-}
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Rate Limiting for API routes
-  if (pathname.startsWith("/api/")) {
-    const ip = request.ip || request.headers.get("cf-connecting-ip") || request.headers.get("x-real-ip") || "127.0.0.1";
-    if (checkRateLimit(ip)) {
-      console.warn(`[RATE_LIMIT] IP ${ip} exceeded rate limit on ${pathname}`);
-      return new NextResponse(
-        JSON.stringify({ error: "Too many requests", details: "Rate limit exceeded. Please wait a moment." }),
-        { status: 429, headers: { "Content-Type": "application/json" } }
-      );
-    }
-  }
-
-  const PUBLIC_PATHS = ["/login", "/register", "/api/auth/login", "/api/auth/register", "/api/auth/desa", "/api/auth/kelompok", "/api/auth/reset-password", "/api/settings", "/api/public", "/api/upload", "/api/sholat", "/mandiri/katalog", "/mandiri/daftar", "/api/mandiri/pilih", "/api/mandiri/komentar", "/api/mandiri/box-love", "/api/mandiri/rooms", "/api/debug-db"];
+  const PUBLIC_PATHS = ["/login", "/register", "/api/auth/login", "/api/auth/register", "/api/auth/desa", "/api/auth/kelompok", "/api/auth/reset-password", "/api/settings", "/api/public", "/api/upload", "/api/sholat", "/mandiri/katalog", "/mandiri/daftar", "/api/mandiri/pilih", "/api/mandiri/komentar", "/api/mandiri/box-love", "/api/mandiri/rooms", "/api/debug-db", "/api/webhook/fonnte"];
 
   // Allow public paths
   if (PUBLIC_PATHS.some((path) => pathname.startsWith(path))) {
@@ -92,11 +47,40 @@ export async function middleware(request: NextRequest) {
   const isMandiriRoute = pathname.startsWith("/mandiri") || pathname.startsWith("/admin/katalog");
   const isMandiriApi = pathname.startsWith("/api/mandiri");
   
-  if ((isMandiriRoute || isMandiriApi) && !(["admin_romantic_room", "admin_pdkt"] as string[]).includes(payload.role)) {
+  if ((isMandiriRoute || isMandiriApi) && !(["admin", "admin_romantic_room", "admin_pdkt", "tim_gambuh", "tim_jepret"] as string[]).includes(payload.role)) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
+  // Tim Gambuh strict restriction
+  if (payload.role === "tim_gambuh" && 
+      !pathname.startsWith("/dashboard") &&
+      !pathname.startsWith("/mandiri/tim-gambuh") && 
+      !pathname.startsWith("/api/mandiri/rooms") &&
+      !pathname.startsWith("/api/profile") && 
+      !pathname.startsWith("/profile") && 
+      !pathname.startsWith("/api/admin/tim-gambuh") &&
+      !pathname.startsWith("/api/auth/logout")) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    return NextResponse.redirect(new URL("/mandiri/tim-gambuh", request.url));
+  }
+
+  // Tim Jepret strict restriction
+  if (payload.role === "tim_jepret" && 
+      !pathname.startsWith("/dashboard") &&
+      !pathname.startsWith("/mandiri/tim-jepret") && 
+      !pathname.startsWith("/api/mandiri/pilih") &&
+      !pathname.startsWith("/api/profile") && 
+      !pathname.startsWith("/profile") && 
+      !pathname.startsWith("/api/auth/logout")) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    return NextResponse.redirect(new URL("/mandiri/tim-jepret", request.url));
   }
 
   // Generus & Peserta restriction
@@ -135,6 +119,8 @@ export async function middleware(request: NextRequest) {
       !pathname.startsWith("/katalog") &&
       !pathname.startsWith("/admin/katalog") &&
       !pathname.startsWith("/admin/anggaran") &&
+      !pathname.startsWith("/admin/tim-gambuh") &&
+      !pathname.startsWith("/api/admin/tim-gambuh") &&
       !pathname.startsWith("/api/mandiri") &&
       !pathname.startsWith("/api/generus") &&
       !pathname.startsWith("/api/profile") &&
