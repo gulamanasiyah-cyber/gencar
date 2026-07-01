@@ -3,16 +3,51 @@
 
 
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Swal from "sweetalert2";
 import {
   Sparkles, Search, User, MapPin, Heart, Calendar,
   GraduationCap, Briefcase, Lock, LogOut, ChevronDown,
   Settings2, CheckCircle2, UserCheck, Users, Globe, Music, Utensils,
-  X, ShieldCheck, Star, UtilityPole as UtensilsIcon, ArrowLeft, Instagram, Timer, MessageSquare, Clock
+  X, ShieldCheck, Star, UtilityPole as UtensilsIcon, ArrowLeft, Instagram, Timer, MessageSquare, Clock, QrCode
 } from "lucide-react";
 import Link from "next/link";
 import { getPusherClient } from "@/lib/pusher";
+import JsBarcode from "jsbarcode";
+
+function LocalBarcode({ value }: { value: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (canvasRef.current && value) {
+      try {
+        JsBarcode(canvasRef.current, value, {
+          format: "CODE128",
+          width: 2,
+          height: 40,
+          displayValue: true,
+          fontSize: 10,
+          textMargin: 2
+        });
+      } catch (err) {
+        console.error("JsBarcode error:", err);
+      }
+    }
+  }, [value]);
+
+  return (
+    <canvas 
+      ref={canvasRef} 
+      style={{ 
+        maxWidth: "260px", 
+        width: "100%", 
+        height: "auto", 
+        display: "block",
+        margin: "0 auto"
+      }} 
+    />
+  );
+}
 
 export default function PublicKatalogPage() {
   const [data, setData] = useState<any[]>([]);
@@ -57,7 +92,10 @@ export default function PublicKatalogPage() {
   const [sentComments, setSentComments] = useState<any[]>([]);
   const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false);
   const [hasNewComments, setHasNewComments] = useState(false);
-  const [activeTab, setActiveTab] = useState<"katalog" | "cart" | "profile">("katalog");
+  const [activeTab, setActiveTab] = useState<"katalog" | "cart" | "profile" | "absen">("katalog");
+  const [absenTabMode, setAbsenTabMode] = useState<"show_barcode" | "scan_camera">("show_barcode");
+  const [scanningAbsen, setScanningAbsen] = useState(false);
+  const absenScannerRef = useRef<any>(null);
   const [myFullProfile, setMyFullProfile] = useState<any>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -74,6 +112,111 @@ export default function PublicKatalogPage() {
     });
     return p.toString();
   };
+
+  const stopSelfAbsenScan = async () => {
+    if (absenScannerRef.current) {
+      try {
+        await absenScannerRef.current.stop();
+      } catch {}
+      absenScannerRef.current = null;
+    }
+    setScanningAbsen(false);
+  };
+
+  const startSelfAbsenScan = async () => {
+    const uniqueNo = currentUser?.nomorUnik || 
+                     myFullProfile?.nomorUnik || 
+                     (typeof window !== "undefined" && localStorage.getItem("attended_nomor_unik")) || 
+                     "";
+    if (!uniqueNo) {
+      Swal.fire({ icon: "error", title: "Gagal", text: "Nomor Unik Anda tidak ditemukan. Pastikan Anda sudah login." });
+      return;
+    }
+
+    setScanningAbsen(true);
+    try {
+      const { Html5Qrcode } = await import("html5-qrcode");
+      
+      if (absenScannerRef.current) {
+        try { await absenScannerRef.current.stop(); } catch {}
+      }
+
+      const scanner = new Html5Qrcode("katalog-qr-reader");
+      absenScannerRef.current = scanner;
+
+      await scanner.start(
+        { facingMode: "environment" },
+        { fps: 15, qrbox: { width: 220, height: 220 } },
+        async (decodedText) => {
+          try {
+            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            gain.gain.setValueAtTime(0.05, ctx.currentTime);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.1);
+          } catch {}
+
+          await scanner.stop();
+          absenScannerRef.current = null;
+          setScanningAbsen(false);
+
+          let kegId = "";
+          try {
+            const urlObj = new URL(decodedText);
+            kegId = urlObj.searchParams.get("kegiatanId") || "";
+          } catch {
+            const match = decodedText.match(/[?&]kegiatanId=([^&]+)/);
+            if (match) kegId = match[1];
+          }
+
+          if (!kegId) {
+            Swal.fire({ icon: "error", title: "QR Code Tidak Valid", text: "QR Code ini bukan untuk absensi kegiatan." });
+            return;
+          }
+
+          Swal.fire({
+            title: "Mencatat Kehadiran...",
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+          });
+
+          try {
+            const res = await fetch("/api/public/absensi", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ kegiatanId: kegId, nomorUnik: uniqueNo }),
+            });
+            const data = await res.json();
+
+            if (res.status === 409) {
+              Swal.fire({ icon: "info", title: "Sudah Hadir", text: "Anda sudah tercatat hadir untuk kegiatan ini." });
+            } else if (!res.ok) {
+              Swal.fire({ icon: "error", title: "Gagal", text: data.error || "Gagal mencatat absensi." });
+            } else {
+              Swal.fire({ icon: "success", title: "Berhasil", text: "Kehadiran Anda berhasil dicatat!", timer: 2000, showConfirmButton: false });
+              setAbsenTabMode("show_barcode");
+            }
+          } catch {
+            Swal.fire({ icon: "error", title: "Error", text: "Terjadi kesalahan jaringan." });
+          }
+        },
+        () => {}
+      );
+    } catch (e) {
+      console.error("Self QR scan error:", e);
+      Swal.fire({ icon: "error", title: "Kamera Gagal", text: "Gagal mengakses kamera. Mohon berikan izin kamera." });
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== "absen" || absenTabMode !== "scan_camera") {
+      stopSelfAbsenScan();
+    }
+  }, [activeTab, absenTabMode]);
 
   const fetchUserComments = useCallback(async (userId: string) => {
     try {
@@ -174,31 +317,6 @@ export default function PublicKatalogPage() {
   useEffect(() => {
     async function init() {
       try {
-        const [titleRes, descRes] = await Promise.all([
-          fetch("/api/public/mandiri/settings?key=mandiri_registration_title"),
-          fetch("/api/public/mandiri/settings?key=mandiri_registration_description")
-        ]);
-
-        let title = "KATALOG PESERTA dan PANITIA";
-        let description = "";
-        if (titleRes.ok) { const t = await titleRes.json(); if (t.value) title = t.value; }
-        if (descRes.ok) { const d = await descRes.json(); if (d.value) description = d.value; }
-        setLatestActivity({ title, description });
-
-        const filterRes = await fetch("/api/public/mandiri/filters");
-        if (filterRes.ok) {
-          const filterJson = await filterRes.json();
-          setPendidikanList(filterJson.pendidikan || []);
-          setKotaList(filterJson.kota || []);
-          setWilayahList(filterJson.wilayah || []);
-        }
-
-        const boxLoveRes = await fetch("/api/mandiri/box-love?action=status");
-        if (boxLoveRes.ok) {
-          const boxLoveJson = await boxLoveRes.json();
-          setBoxLoveStatus(boxLoveJson.value || "closed");
-        }
-
         const storedUnik = localStorage.getItem("attended_nomor_unik");
         const storedToken = localStorage.getItem("attended_session_token");
         let deviceId = localStorage.getItem("mandiri_device_id");
@@ -207,55 +325,84 @@ export default function PublicKatalogPage() {
           localStorage.setItem("mandiri_device_id", deviceId);
         }
 
-        if (storedUnik) {
-          // FIX: All query params encoded via buildQuery
-          const qs = buildQuery({
+        // Concurrent fetching for all parallelizable initial endpoints
+        const [titleRes, descRes, filterRes, boxLoveRes, statusRes] = await Promise.all([
+          fetch("/api/public/mandiri/settings?key=mandiri_registration_title"),
+          fetch("/api/public/mandiri/settings?key=mandiri_registration_description"),
+          fetch("/api/public/mandiri/filters"),
+          fetch("/api/mandiri/box-love?action=status"),
+          storedUnik ? fetch(`/api/public/mandiri/katalog/check-status?${buildQuery({
             nomorUnik: storedUnik,
             ...(storedToken ? { sessionToken: storedToken } : {}),
             deviceId,
-          });
-          const res = await fetch(`/api/public/mandiri/katalog/check-status?${qs}`);
-          const rawText = await res.text();
-          if (!rawText) throw new Error("Empty response from check-status");
-          const data = JSON.parse(rawText);
+          })}`) : Promise.resolve(null)
+        ]);
 
-          if (data.status === "attended") {
-            setHasAttended(true);
-            const userRole = data.role || localStorage.getItem("attended_role") || "Peserta";
-            setCurrentUser({
-              id: data.id,
-              nama: data.nama,
-              nomorUrut: data.nomorUrut,
-              mandiriDesaNama: data.mandiriDesaNama,
-              mandiriDesaKota: data.mandiriDesaKota,
-              jenisKelamin: data.jenisKelamin,
-              role: userRole,
-            });
-            if (data.jenisKelamin) {
-              setGender(data.jenisKelamin === "L" ? "P" : "L");
-            }
-            setKomentarNama(data.nama);
-            localStorage.setItem("attended_role", userRole);
-            fetchUserComments(data.id);
+        let title = "KATALOG PESERTA dan PANITIA";
+        let description = "";
+        if (titleRes.ok) { const t = await titleRes.json(); if (t.value) title = t.value; }
+        if (descRes.ok) { const d = await descRes.json(); if (d.value) description = d.value; }
+        setLatestActivity({ title, description });
 
-            // FIX: Encode pilih params too
-            const selQs = buildQuery({ nomorUnik: storedUnik, token: storedToken || "" });
-            const selRes = await fetch(`/api/mandiri/pilih?${selQs}`);
-            if (selRes.ok) {
-              const selText = await selRes.text();
-              if (selText) {
-                try {
-                  const selJson = JSON.parse(selText);
-                  if (Array.isArray(selJson)) {
-                    setSelections(selJson);
-                    setSelectedIds(selJson.map((s: any) => String(s.penerimaId)));
-                    setStatusQueue(selJson.find((s: any) => s.status === "Menunggu") || null);
-                  }
-                } catch (e) { console.error("selJson parse error:", e); }
+        if (filterRes.ok) {
+          const filterJson = await filterRes.json();
+          setPendidikanList(filterJson.pendidikan || []);
+          setKotaList(filterJson.kota || []);
+          setWilayahList(filterJson.wilayah || []);
+        }
+
+        if (boxLoveRes.ok) {
+          const boxLoveJson = await boxLoveRes.json();
+          setBoxLoveStatus(boxLoveJson.value || "closed");
+        }
+
+        if (statusRes && statusRes.ok) {
+          const rawText = await statusRes.text();
+          if (rawText) {
+            const data = JSON.parse(rawText);
+
+            if (data.status === "attended" || data.status === "waiting") {
+              setHasAttended(true);
+              const userRole = data.role || localStorage.getItem("attended_role") || "Peserta";
+              setCurrentUser({
+                id: data.id,
+                nama: data.nama,
+                nomorUrut: data.nomorUrut,
+                nomorUnik: data.nomorUnik || storedUnik || "",
+                mandiriDesaNama: data.mandiriDesaNama,
+                mandiriDesaKota: data.mandiriDesaKota,
+                jenisKelamin: data.jenisKelamin,
+                role: userRole,
+              });
+              if (data.jenisKelamin) {
+                setGender(data.jenisKelamin === "L" ? "P" : "L");
               }
+              setKomentarNama(data.nama);
+              localStorage.setItem("attended_role", userRole);
+
+              // Parallelize comments check and selections fetch
+              const selQs = buildQuery({ nomorUnik: storedUnik, token: storedToken || "" });
+              const [commRes, selRes] = await Promise.all([
+                fetchUserComments(data.id),
+                fetch(`/api/mandiri/pilih?${selQs}`)
+              ]);
+
+              if (selRes && selRes.ok) {
+                const selText = await selRes.text();
+                if (selText) {
+                  try {
+                    const selJson = JSON.parse(selText);
+                    if (Array.isArray(selJson)) {
+                      setSelections(selJson);
+                      setSelectedIds(selJson.map((s: any) => String(s.penerimaId)));
+                      setStatusQueue(selJson.find((s: any) => s.status === "Menunggu") || null);
+                    }
+                  } catch (e) { console.error("selJson parse error:", e); }
+                }
+              }
+            } else if (data.status === "multi_login") {
+              handleLogout();
             }
-          } else if (data.status === "multi_login") {
-            handleLogout();
           }
         }
       } catch (e) {
@@ -787,7 +934,7 @@ export default function PublicKatalogPage() {
 
         const resData = await res.json();
 
-        if (resData.status === "attended") {
+        if (resData.status === "attended" || resData.status === "waiting") {
           localStorage.setItem("attended_nomor_unik", resData.nomorUnik || unik.trim());
           localStorage.setItem("attended_session_token", resData.sessionToken);
           localStorage.setItem("attended_nomor_urut_peserta", resData.nomorUrut);
@@ -796,6 +943,7 @@ export default function PublicKatalogPage() {
             id: resData.id,
             nama: resData.nama,
             nomorUrut: resData.nomorUrut,
+            nomorUnik: resData.nomorUnik || unik.trim(),
             mandiriDesaNama: resData.mandiriDesaNama,
             mandiriDesaKota: resData.mandiriDesaKota,
             jenisKelamin: resData.jenisKelamin,
@@ -963,11 +1111,13 @@ export default function PublicKatalogPage() {
           {activeTab === "katalog" && "KATALOG PESERTA"}
           {activeTab === "cart" && "PILIHAN SAYA"}
           {activeTab === "profile" && "PROFIL SAYA"}
+          {activeTab === "absen" && "ABSENSI SAYA"}
         </div>
         <h1>
           {activeTab === "katalog" && <>DATA <span>PESERTA</span></>}
           {activeTab === "cart" && <>LOVE <span>LETTER</span></>}
           {activeTab === "profile" && <>PROFIL <span>SAYA</span></>}
+          {activeTab === "absen" && <>SCAN <span>ABSENSI</span></>}
         </h1>
         <div className="header-actions">
           <p className="welcome-msg">Selamat datang kembali, {currentUser?.nama || "User"}</p>
@@ -1383,6 +1533,170 @@ export default function PublicKatalogPage() {
         </div>
       )}
 
+      {/* TAB CONTENT: ABSEN */}
+      {activeTab === "absen" && (() => {
+        const uniqueNo = currentUser?.nomorUnik || 
+                         myFullProfile?.nomorUnik || 
+                         (typeof window !== "undefined" && localStorage.getItem("attended_nomor_unik")) || 
+                         "";
+        return (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", padding: "24px 16px", minHeight: "60vh", justifyContent: "center" }}>
+            
+            {/* Mode Toggle Switch */}
+            <div style={{ display: "flex", gap: "6px", background: "#f1f5f9", padding: "4px", borderRadius: "10px", width: "100%", maxWidth: "340px", marginBottom: "4px" }}>
+              <button
+                type="button"
+                onClick={() => setAbsenTabMode("show_barcode")}
+                style={{
+                  flex: 1,
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  border: "none",
+                  background: absenTabMode === "show_barcode" ? "white" : "transparent",
+                  color: absenTabMode === "show_barcode" ? "#6366f1" : "#64748b",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  boxShadow: absenTabMode === "show_barcode" ? "0 2px 4px rgba(0,0,0,0.05)" : "none",
+                  transition: "all 0.2s"
+                }}
+              >
+                QR Code Saya
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAbsenTabMode("scan_camera");
+                  setTimeout(() => startSelfAbsenScan(), 100);
+                }}
+                style={{
+                  flex: 1,
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  border: "none",
+                  background: absenTabMode === "scan_camera" ? "white" : "transparent",
+                  color: absenTabMode === "scan_camera" ? "#6366f1" : "#64748b",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  boxShadow: absenTabMode === "scan_camera" ? "0 2px 4px rgba(0,0,0,0.05)" : "none",
+                  transition: "all 0.2s"
+                }}
+              >
+                Scan QR Kegiatan
+              </button>
+            </div>
+
+            <div style={{ background: "white", borderRadius: "20px", padding: "28px", boxShadow: "0 8px 32px rgba(0,0,0,0.10)", border: "1px solid #f1f5f9", textAlign: "center", width: "100%", maxWidth: "340px" }}>
+              
+              {absenTabMode === "show_barcode" ? (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginBottom: "6px" }}>
+                    <QrCode size={20} color="#6366f1" />
+                    <span style={{ fontWeight: 800, fontSize: "15px", color: "#0f172a" }}>QR Code Absensi</span>
+                  </div>
+                  <p style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "20px" }}>Tunjukkan QR Code ini ke panitia untuk absensi</p>
+
+                  {uniqueNo ? (
+                    <>
+                      <div style={{ background: "white", borderRadius: "16px", padding: "16px", display: "inline-block", border: "2px solid #e2e8f0", marginBottom: "16px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${uniqueNo}&margin=10`}
+                          alt="QR Code Peserta"
+                          style={{ width: "160px", height: "160px", display: "block" }}
+                        />
+                      </div>
+                      <div style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)", color: "white", borderRadius: "8px", padding: "8px 18px", fontSize: "18px", fontWeight: 900, letterSpacing: "3px", marginBottom: "8px", display: "inline-block" }}>
+                        {uniqueNo}
+                      </div>
+                      <p style={{ fontSize: "11px", color: "#94a3b8", margin: "8px 0 0" }}>Nomor Unik Peserta</p>
+                    </>
+                  ) : (
+                    <div style={{ padding: "30px", color: "#94a3b8", fontSize: "13px" }}>
+                      <QrCode size={40} color="#e2e8f0" style={{ margin: "0 auto 12px" }} />
+                      <p>Data QR Code tidak tersedia</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginBottom: "6px" }}>
+                    <QrCode size={20} color="#6366f1" />
+                    <span style={{ fontWeight: 800, fontSize: "15px", color: "#0f172a" }}>Scan QR Kegiatan</span>
+                  </div>
+                  <p style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "20px" }}>Pindai QR Code kegiatan yang ditampilkan panitia</p>
+
+                  <div style={{ position: "relative", width: "100%", height: "240px", borderRadius: "12px", overflow: "hidden", border: "2px dashed #cbd5e1", background: "#f8fafc", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                    <div id="katalog-qr-reader" style={{ width: "100%", height: "100%" }} />
+                    <style dangerouslySetInnerHTML={{__html: `
+                      #katalog-qr-reader video {
+                        width: 100% !important;
+                        height: 100% !important;
+                        object-fit: cover !important;
+                      }
+                    `}} />
+                    {!scanningAbsen && (
+                      <div style={{ position: "absolute", zIndex: 2, padding: "20px", color: "#94a3b8" }}>
+                        <button
+                          type="button"
+                          onClick={startSelfAbsenScan}
+                          style={{
+                            background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                            color: "white",
+                            border: "none",
+                            padding: "10px 20px",
+                            borderRadius: "10px",
+                            fontWeight: 800,
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            boxShadow: "0 4px 12px rgba(99,102,241,0.3)"
+                          }}
+                        >
+                          Mulai Pindai Kamera
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {scanningAbsen && (
+                    <button
+                      type="button"
+                      onClick={stopSelfAbsenScan}
+                      style={{
+                        marginTop: "16px",
+                        background: "#ef4444",
+                        color: "white",
+                        border: "none",
+                        padding: "8px 16px",
+                        borderRadius: "8px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        fontSize: "12px"
+                      }}
+                    >
+                      Batal / Matikan Kamera
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+
+            {currentUser && (
+              <div style={{ background: "white", borderRadius: "14px", padding: "16px 20px", border: "1px solid #e2e8f0", width: "100%", maxWidth: "340px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "linear-gradient(135deg,#6366f1,#8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 800, fontSize: "18px", flexShrink: 0 }}>
+                    {currentUser.nama?.charAt(0) || "?"}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: "14px", color: "#0f172a" }}>{currentUser.nama}</div>
+                    <div style={{ fontSize: "12px", color: "#64748b" }}>No. Urut #{currentUser.nomorUrut || "-"}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {/* TAB CONTENT: PROFILE */}
       {activeTab === "profile" && (
         <div className="profile-tab-container">
@@ -1516,6 +1830,13 @@ export default function PublicKatalogPage() {
         >
           <User size={20} />
           <span>Profil</span>
+        </button>
+        <button
+          className={`nav-bar-item ${activeTab === "absen" ? "active" : ""}`}
+          onClick={() => setActiveTab("absen")}
+        >
+          <QrCode size={20} />
+          <span>Absen</span>
         </button>
       </nav>
 

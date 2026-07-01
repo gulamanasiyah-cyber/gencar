@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, mandiri, settings, desa, kelompok, users } from "@/lib/schema";
+import { generus, mandiri, settings, desa, kelompok, users, mandiriDesa, mandiriDaerah } from "@/lib/schema";
 import { eq, desc, and, or, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 
@@ -40,6 +40,43 @@ export async function POST(request: NextRequest) {
 
     if (!nama || !jenisKelamin || !mandiriDesaId || !tempatLahir || !tanggalLahir || !noTelp || !pendidikan || !pekerjaan || !hobi || !makananMinumanFavorit || !foto) {
       return NextResponse.json({ error: "Mohon lengkapi semua data wajib." }, { status: 400 });
+    }
+
+    // 2.1. Quota Check for Daerah (Max 5 males, 5 females per kegiatan)
+    const desaRecord = await db.select({
+      daerahId: mandiriDesa.mandiriDaerahId,
+      daerahNama: mandiriDaerah.nama
+    })
+    .from(mandiriDesa)
+    .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
+    .where(eq(mandiriDesa.id, Number(mandiriDesaId)))
+    .limit(1);
+
+    if (desaRecord.length > 0 && desaRecord[0].daerahId) {
+      const targetDaerahId = desaRecord[0].daerahId;
+      const targetDaerahNama = desaRecord[0].daerahNama || "Daerah Terkait";
+
+      const countResult = await db.select({
+        count: sql<number>`count(*)`
+      })
+      .from(mandiri)
+      .innerJoin(generus, eq(mandiri.generusId, generus.id))
+      .innerJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
+      .where(and(
+        eq(mandiri.kegiatanId, activeKegiatanId),
+        eq(mandiriDesa.mandiriDaerahId, targetDaerahId),
+        eq(generus.jenisKelamin, jenisKelamin)
+      ));
+
+      const registeredCount = Number(countResult[0]?.count || 0);
+
+      if (registeredCount >= 5) {
+        const genderLabel = jenisKelamin === "L" ? "pria" : "wanita";
+        return NextResponse.json({
+          status: "quota_full",
+          error: `kouta peserta ${genderLabel} untuk daerah ${targetDaerahNama} sudah penuh, jikaa ingin ikut dapat datang secara mandiri`
+        }, { status: 409 });
+      }
     }
 
     // Duplicate Check

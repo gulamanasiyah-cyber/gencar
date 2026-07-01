@@ -2,7 +2,7 @@
 
 
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Swal from "sweetalert2";
 import Link from "next/link";
 import { Calendar, Clock, MapPin, ExternalLink } from "lucide-react";
@@ -334,11 +334,58 @@ export default function MandiriDaftarPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleAddNewDaerah = async (name: string) => {
+    const res = await fetch("/api/public/mandiri/wilayah", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "daerah", nama: name })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      Swal.fire({ icon: "error", title: "Gagal", text: data.error || "Gagal menambah daerah baru" });
+      throw new Error(data.error);
+    }
+    setKotaList(prev => prev.includes(data.nama) ? prev : [...prev, data.nama].sort());
+    return { id: data.nama, name: data.nama };
+  };
+
+  const handleAddNewDesa = async (name: string) => {
+    if (!selectedKota) return { id: "", name: "" };
+    const res = await fetch("/api/public/mandiri/wilayah", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "desa", nama: name, kota: selectedKota })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      Swal.fire({ icon: "error", title: "Gagal", text: data.error || "Gagal menambah desa baru" });
+      throw new Error(data.error);
+    }
+    setDaerahList(prev => prev.some(item => item.id === data.id) ? prev : [...prev, { id: data.id, nama: data.nama, mandiriDaerahId: 0, daerahNama: selectedKota, kota: selectedKota }]);
+    return { id: data.id, name: data.nama };
+  };
+
+  const handleAddNewKelompok = async (name: string) => {
+    if (!form.mandiriDesaId) return { id: "", name: "" };
+    const res = await fetch("/api/public/mandiri/wilayah", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "kelompok", nama: name, parentId: Number(form.mandiriDesaId) })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      Swal.fire({ icon: "error", title: "Gagal", text: data.error || "Gagal menambah kelompok baru" });
+      throw new Error(data.error);
+    }
+    setDesaList(prev => prev.some(item => item.id === data.id) ? prev : [...prev, { id: data.id, nama: data.nama, mandiriDesaId: Number(form.mandiriDesaId) }]);
+    return { id: data.id, name: data.nama };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      if (!form.nama || !form.jenisKelamin || !form.mandiriDesaId || !form.tempatLahir || !form.tanggalLahir || !form.noTelp || !form.pendidikan || !form.pekerjaan || !form.hobi || !form.makananMinumanFavorit) {
+      if (!form.nama || !form.jenisKelamin || !form.mandiriDesaId || !form.mandiriKelompokId || !form.tempatLahir || !form.tanggalLahir || !form.noTelp || !form.pendidikan || !form.pekerjaan || !form.hobi || !form.makananMinumanFavorit) {
         Swal.fire({ icon: "warning", title: "Data Belum Lengkap", text: "Mohon lengkapi semua data wajib yang bertanda bintang (*)." });
         setLoading(false);
         return;
@@ -363,6 +410,18 @@ export default function MandiriDaftarPage() {
         body: JSON.stringify(form),
       });
       const data = await res.json();
+
+      if (res.status === 409 && data.status === "quota_full") {
+        Swal.fire({
+          icon: "warning",
+          title: "Kuota Daerah Penuh",
+          text: data.error,
+          confirmButtonText: "Mengerti",
+          confirmButtonColor: "#f59e0b"
+        });
+        setLoading(false);
+        return;
+      }
 
       if (data.isAlreadyRegistered) {
         setSuccess(true);
@@ -727,25 +786,43 @@ export default function MandiriDaftarPage() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+            <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Daerah <span className="required">*</span></label>
-                <select className="form-control" value={selectedKota} onChange={(e) => setSelectedKota(e.target.value)} required>
-                  <option value="">Pilih Daerah</option>
-                  {kotaList.map(k => <option key={k} value={k}>{k}</option>)}
-                </select>
+                <SearchableSelect
+                  placeholder="Pilih/Tambah Daerah..."
+                  options={kotaList.map(k => ({ id: k, name: k }))}
+                  value={selectedKota}
+                  onChange={(val) => setSelectedKota(val)}
+                  onAddNew={handleAddNewDaerah}
+                />
               </div>
               <div className="form-group">
                 <label className="form-label">Desa <span className="required">*</span></label>
-                <select name="mandiriDesaId" className="form-control" value={form.mandiriDesaId} onChange={(e) => {
-                  handleChange(e);
-                  setForm(prev => ({ ...prev, mandiriKelompokId: "" }));
-                }} required disabled={!selectedKota}>
-                  <option value="">Pilih Desa</option>
-                  {filteredDaerahList.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
-                </select>
+                <SearchableSelect
+                  placeholder="Pilih/Tambah Desa..."
+                  options={filteredDaerahList.map(d => ({ id: d.id, name: d.nama }))}
+                  value={form.mandiriDesaId}
+                  onChange={(val) => {
+                    setForm(prev => ({ ...prev, mandiriDesaId: val, mandiriKelompokId: "" }));
+                  }}
+                  disabled={!selectedKota}
+                  onAddNew={handleAddNewDesa}
+                />
               </div>
-
+              <div className="form-group">
+                <label className="form-label">Kelompok <span className="required">*</span></label>
+                <SearchableSelect
+                  placeholder="Pilih/Tambah Kelompok..."
+                  options={filteredDesaList.map(k => ({ id: k.id, name: k.nama }))}
+                  value={form.mandiriKelompokId}
+                  onChange={(val) => {
+                    setForm(prev => ({ ...prev, mandiriKelompokId: val }));
+                  }}
+                  disabled={!form.mandiriDesaId}
+                  onAddNew={handleAddNewKelompok}
+                />
+              </div>
             </div>
 
             <div className="form-row">
@@ -842,6 +919,171 @@ export default function MandiriDaftarPage() {
       </div>
 
       {/* Removed orphaned camera block */}
+    </div>
+  );
+}
+
+function SearchableSelect({
+  placeholder,
+  options,
+  value,
+  onChange,
+  disabled,
+  onAddNew,
+}: {
+  placeholder: string;
+  options: { id: string | number; name: string }[];
+  value: string | number;
+  onChange: (val: string) => void;
+  disabled?: boolean;
+  onAddNew?: (name: string) => Promise<{ id: string | number; name: string }>;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: any) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filtered = options.filter(opt =>
+    opt.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const selectedOption = options.find(opt => String(opt.id) === String(value));
+  const showAddNew = onAddNew && search.trim() && !options.some(opt => opt.name.toLowerCase() === search.trim().toLowerCase());
+
+  return (
+    <div ref={wrapperRef} className="searchable-select-container" style={{ position: 'relative', width: '100%' }}>
+      <div 
+        className="form-control" 
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          background: disabled ? '#f1f5f9' : '#fff',
+          opacity: disabled ? 0.7 : 1,
+          minHeight: '44px',
+          padding: '10px 12px',
+          borderRadius: '12px',
+          border: '1px solid #cbd5e1',
+          fontSize: '14px',
+          color: selectedOption ? '#0f172a' : '#64748b'
+        }}
+      >
+        <span>{selectedOption ? selectedOption.name : placeholder}</span>
+        <span style={{ fontSize: '10px', color: '#94a3b8' }}>{isOpen ? '▲' : '▼'}</span>
+      </div>
+
+      {isOpen && (
+        <div 
+          className="dropdown-menu" 
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 0,
+            zIndex: 50,
+            background: '#fff',
+            borderRadius: '12px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+            marginTop: '6px',
+            maxHeight: '220px',
+            display: 'flex',
+            flexDirection: 'column'
+          }}
+        >
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Cari..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              margin: '8px',
+              padding: '8px 12px',
+              fontSize: '13px',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              width: 'calc(100% - 16px)'
+            }}
+            autoFocus
+          />
+          <div style={{ overflowY: 'auto', flexGrow: 1 }}>
+            {filtered.map(opt => (
+              <div
+                key={opt.id}
+                onClick={() => {
+                  onChange(String(opt.id));
+                  setIsOpen(false);
+                  setSearch("");
+                }}
+                style={{
+                  padding: '8px 12px',
+                  fontSize: '13.5px',
+                  cursor: 'pointer',
+                  backgroundColor: String(opt.id) === String(value) ? '#eff6ff' : 'transparent',
+                  color: String(opt.id) === String(value) ? '#1d4ed8' : '#334155',
+                  fontWeight: String(opt.id) === String(value) ? '600' : 'normal',
+                  transition: 'all 0.15s'
+                }}
+                onMouseEnter={(e) => {
+                  if (String(opt.id) !== String(value)) e.currentTarget.style.backgroundColor = '#f8fafc';
+                }}
+                onMouseLeave={(e) => {
+                  if (String(opt.id) !== String(value)) e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                {opt.name}
+              </div>
+            ))}
+
+            {filtered.length === 0 && !showAddNew && (
+              <div style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                Tidak ditemukan hasil
+              </div>
+            )}
+
+            {showAddNew && (
+              <div
+                onClick={async () => {
+                  try {
+                    const newOpt = await onAddNew(search.trim());
+                    onChange(String(newOpt.id));
+                    setIsOpen(false);
+                    setSearch("");
+                  } catch (e) {
+                    console.error("Failed to add new option:", e);
+                  }
+                }}
+                style={{
+                  padding: '10px 12px',
+                  fontSize: '13.5px',
+                  cursor: 'pointer',
+                  backgroundColor: '#f0fdf4',
+                  color: '#166534',
+                  fontWeight: '600',
+                  borderTop: '1px solid #e2e8f0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <span style={{ fontSize: '16px' }}>+</span> Tambah baru: "{search.trim()}"
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

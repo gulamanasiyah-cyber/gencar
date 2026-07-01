@@ -5,6 +5,7 @@ import { mandiriAbsensi, generus, mandiriKegiatan, mandiriDesa, mandiri, idCardB
 import { eq, and, or, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
+import { pusherServer } from "@/lib/pusher";
 
 export async function GET(request: NextRequest) {
   try {
@@ -151,6 +152,11 @@ export async function POST(request: NextRequest) {
         await db.update(mandiriAbsensi)
           .set({ keterangan: "hadir", timestamp: new Date().toISOString() })
           .where(eq(mandiriAbsensi.id, existing.id));
+        try {
+          await pusherServer.trigger("taaruf-channel", "absensi-updated", { kegiatanId });
+        } catch (pusherErr) {
+          console.error("Pusher trigger error in POST absensi (reactivate):", pusherErr);
+        }
         return NextResponse.json({ success: true, id: existing.id, generusNama: resolvedGenerusNama });
       }
       return NextResponse.json({ error: "Sudah diabsen", existing }, { status: 409 });
@@ -164,6 +170,12 @@ export async function POST(request: NextRequest) {
       keterangan: keterangan || "hadir",
       timestamp: new Date().toISOString(),
     });
+
+    try {
+      await pusherServer.trigger("taaruf-channel", "absensi-updated", { kegiatanId });
+    } catch (pusherErr) {
+      console.error("Pusher trigger error in POST absensi (new):", pusherErr);
+    }
 
     return NextResponse.json({ success: true, id, generusNama: resolvedGenerusNama });
   } catch (error) {
@@ -181,7 +193,21 @@ export async function DELETE(request: NextRequest) {
 
     if (!id) return NextResponse.json({ error: "id absensi diperlukan" }, { status: 400 });
 
+    const record = await db.select({ kegiatanId: mandiriAbsensi.kegiatanId })
+      .from(mandiriAbsensi)
+      .where(eq(mandiriAbsensi.id, id))
+      .limit(1);
+    const kegiatanId = record[0]?.kegiatanId;
+
     await db.delete(mandiriAbsensi).where(eq(mandiriAbsensi.id, id));
+
+    if (kegiatanId) {
+      try {
+        await pusherServer.trigger("taaruf-channel", "absensi-updated", { kegiatanId });
+      } catch (pusherErr) {
+        console.error("Pusher trigger error in DELETE absensi:", pusherErr);
+      }
+    }
 
     return NextResponse.json({ success: true, message: "Data absensi berhasil dihapus" });
   } catch (error) {

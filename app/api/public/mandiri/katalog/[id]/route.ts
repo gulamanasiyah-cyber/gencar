@@ -53,17 +53,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       })
       .from(generus)
       .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-      .innerJoin(mandiriAbsensi, eq(generus.id, mandiriAbsensi.generusId))
+      .leftJoin(mandiriAbsensi, eq(generus.id, mandiriAbsensi.generusId))
       .leftJoin(desa, eq(generus.desaId, desa.id))
       .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
       .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id))
       .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
       .leftJoin(users, eq(generus.id, users.generusId))
-      .where(and(
-        eq(generus.id, id),
-        eq(mandiriAbsensi.kegiatanId, kegiatanId)
-      ))
+      .where(eq(generus.id, id))
       .limit(1);
 
     if (data.length === 0) {

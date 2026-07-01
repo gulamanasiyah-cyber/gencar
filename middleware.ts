@@ -31,7 +31,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Admin-only routes
-  if (pathname.startsWith("/admin") && !["admin", "pengurus_daerah", "kmm_daerah", "admin_romantic_room", "tim_pnkb", "admin_keuangan", "admin_kegiatan", "admin_pdkt"].includes(payload.role)) {
+  if (pathname.startsWith("/admin") && !["admin", "pengurus_daerah", "kmm_daerah", "admin_romantic_room", "tim_pnkb", "admin_keuangan", "admin_kegiatan", "admin_pdkt", "tim_gambuh"].includes(payload.role)) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
@@ -46,8 +46,8 @@ export async function middleware(request: NextRequest) {
   // Usia Mandiri / Romantic Room strict restriction
   const isMandiriRoute = pathname.startsWith("/mandiri") || pathname.startsWith("/admin/katalog");
   const isMandiriApi = pathname.startsWith("/api/mandiri");
-  
-  if ((isMandiriRoute || isMandiriApi) && !(["admin", "admin_romantic_room", "admin_pdkt", "tim_gambuh", "tim_jepret"] as string[]).includes(payload.role)) {
+
+  if ((isMandiriRoute || isMandiriApi) && !(["admin", "admin_romantic_room", "admin_pdkt", "tim_gambuh"] as string[]).includes(payload.role)) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -55,13 +55,18 @@ export async function middleware(request: NextRequest) {
   }
 
   // Tim Gambuh strict restriction
-  if (payload.role === "tim_gambuh" && 
+  if (payload.role === "tim_gambuh" &&
       !pathname.startsWith("/dashboard") &&
-      !pathname.startsWith("/mandiri/tim-gambuh") && 
+      !pathname.startsWith("/mandiri/tim-gambuh") &&
+      !pathname.startsWith("/admin/katalog") &&
+      !pathname.startsWith("/api/public/mandiri") &&
       !pathname.startsWith("/api/mandiri/rooms") &&
-      !pathname.startsWith("/api/profile") && 
-      !pathname.startsWith("/profile") && 
+      !pathname.startsWith("/api/profile") &&
+      !pathname.startsWith("/profile") &&
       !pathname.startsWith("/api/admin/tim-gambuh") &&
+      !pathname.startsWith("/api/mandiri/settings") &&
+      !pathname.startsWith("/api/generus/filters") &&
+        !pathname.startsWith("/api/generus") &&
       !pathname.startsWith("/api/auth/logout")) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -69,26 +74,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/mandiri/tim-gambuh", request.url));
   }
 
-  // Tim Jepret strict restriction
-  if (payload.role === "tim_jepret" && 
-      !pathname.startsWith("/dashboard") &&
-      !pathname.startsWith("/mandiri/tim-jepret") && 
-      !pathname.startsWith("/api/mandiri/pilih") &&
-      !pathname.startsWith("/api/profile") && 
-      !pathname.startsWith("/profile") && 
-      !pathname.startsWith("/api/auth/logout")) {
-    if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-    return NextResponse.redirect(new URL("/mandiri/tim-jepret", request.url));
-  }
-
   // Generus & Peserta restriction
-  if ((payload.role === "generus" || payload.role === "peserta" || payload.role === "usia_mandiri") && 
-      !pathname.startsWith("/profile") && 
-      !pathname.startsWith("/katalog") && 
+  if ((payload.role === "generus" || payload.role === "peserta" || payload.role === "usia_mandiri") &&
+      !pathname.startsWith("/profile") &&
+      !pathname.startsWith("/katalog") &&
       !pathname.startsWith("/mandiri") &&
-      !pathname.startsWith("/api/profile") && 
+      !pathname.startsWith("/api/profile") &&
       !pathname.startsWith("/api/mandiri") &&
       !pathname.startsWith("/api/auth/logout") &&
       !pathname.startsWith("/api/generus") &&
@@ -104,7 +95,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Pending-only restriction
-  if (payload.role === "pending" && 
+  if (payload.role === "pending" &&
       !pathname.startsWith("/pending") &&
       !pathname.startsWith("/api/auth/logout") &&
       !PUBLIC_PATHS.some(p => pathname.startsWith(p)) &&
@@ -113,7 +104,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Admin Romantic Room / Tim PNKB / Admin Keuangan / Creator / Admin Kegiatan restriction
-  if (["admin_romantic_room", "tim_pnkb", "admin_keuangan", "creator", "admin_kegiatan"].includes(payload.role) && 
+  if (["admin_romantic_room", "tim_pnkb", "admin_keuangan", "creator", "admin_kegiatan"].includes(payload.role) &&
       !pathname.startsWith("/dashboard") &&
       !pathname.startsWith("/mandiri") &&
       !pathname.startsWith("/katalog") &&
@@ -147,3 +138,4 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
+

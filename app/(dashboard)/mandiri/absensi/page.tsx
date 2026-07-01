@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx';
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Swal from "sweetalert2";
+import { getPusherClient } from "@/lib/pusher";
 
 interface KegiatanItem {
   id: string;
@@ -57,7 +58,8 @@ function AbsensiContent() {
   const [cameraId, setCameraId] = useState<string>("");
   const [filterKota, setFilterKota] = useState("");
   const [filterDesa, setFilterDesa] = useState("");
-  
+  const [absensiMode, setAbsensiMode] = useState<"scan_panitia" | "qr_self">("scan_panitia");
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<{ stop: () => void } | null>(null);
   const scanLockRef = useRef(false); // prevents concurrent scan callbacks
@@ -71,19 +73,19 @@ function AbsensiContent() {
           fetch("/api/profile"),
           fetch("/api/mandiri/settings?key=mandiri_active_kegiatan_id")
         ]);
-        
+
         if (kegRes.ok) {
           const d = await kegRes.json();
           setKegiatan(Array.isArray(d) ? d : []);
         }
-        
+
         if (activeRes.ok) {
           const active = await activeRes.json();
           if (active.value && !searchParams.get("kegiatanId")) {
             setSelectedKegiatan(active.value);
           }
         }
-        
+
         if (profRes.ok) {
           const d = await profRes.json();
           setUserRole(d.role || "");
@@ -111,6 +113,28 @@ function AbsensiContent() {
   }, [selectedKegiatan]);
 
   useEffect(() => { fetchAbsensi(); }, [fetchAbsensi]);
+
+  // Realtime updates using Pusher
+  useEffect(() => {
+    const pusher = getPusherClient();
+    if (!pusher) return;
+
+    const channel = pusher.subscribe("taaruf-channel");
+
+    const handleUpdate = (data: { kegiatanId: string }) => {
+      if (data && data.kegiatanId === selectedKegiatan) {
+        fetchAbsensi();
+      } else if (!data) {
+        fetchAbsensi();
+      }
+    };
+
+    channel.bind("absensi-updated", handleUpdate);
+    return () => {
+      channel.unbind("absensi-updated", handleUpdate);
+      pusher.unsubscribe("taaruf-channel");
+    };
+  }, [selectedKegiatan, fetchAbsensi]);
 
 
 
@@ -184,7 +208,7 @@ function AbsensiContent() {
         body: JSON.stringify({ kegiatanId: selectedKegiatan, generusId, keterangan: "hadir" }),
       });
       const data = await res.json().catch(() => ({ error: "Format data tidak valid" }));
-      
+
       if (!res.ok && res.status !== 409) {
         Swal.fire({ icon: 'error', title: 'Gagal', text: data.error || "Gagal mencatat absensi", toast: true, position: 'top-end', timer: 3000, showConfirmButton: false });
         setMessage({ type: "error", text: data.error || "Gagal mencatat absensi" });
@@ -239,11 +263,11 @@ function AbsensiContent() {
     }
     setScanMode(true);
     scanLockRef.current = false;
-    
+
     if (scannerType === "camera") {
       try {
         const { Html5Qrcode } = await import("html5-qrcode");
-        
+
         // Fetch cameras if not loaded
         let devices = cameras;
         if (devices.length === 0) {
@@ -258,7 +282,7 @@ function AbsensiContent() {
 
         const scanner = new Html5Qrcode("qr-reader");
         scannerRef.current = scanner;
-        
+
         const config = { fps: 15, qrbox: { width: 250, height: 250 } };
         const idToUse = forcedId || cameraId;
 
@@ -304,20 +328,20 @@ function AbsensiContent() {
 
   const handleScanResult = async (code: string) => {
     if (!code || isProcessing) return;
-    
+
     setIsProcessing(true);
-    setPhysicalInput(""); 
+    setPhysicalInput("");
     setLastScanned(null); // Clear previous result to show animation
     setScanFeedback({ type: "success", text: "Mencari data..." });
-    
+
     try {
       const scanRes = await fetch(`/api/scanner?code=${encodeURIComponent(code)}`);
       const scanData = await scanRes.json().catch(() => ({ error: "Format data tidak valid" }));
-      
+
       if (!scanRes.ok) {
         throw new Error(scanData.error || `Server Error ${scanRes.status}`);
       }
-      
+
       if (scanData.type !== "unknown") {
         // Person to check-in can be participant or staff
         const person = scanData.person;
@@ -329,7 +353,7 @@ function AbsensiContent() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ kegiatanId: selectedKegiatan, generusId: gId, keterangan: "hadir" }),
           });
-          
+
           const data = await res.json();
           if (res.status === 409) {
             setScanFeedback({ type: "error", text: `⚠️ ${person.nama} sudah hadir` });
@@ -373,14 +397,14 @@ function AbsensiContent() {
     setPhysicalInput(val);
 
     if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
-    
+
     // Increased debounce for better handling of different scanner speeds
     // Trigger on any length > 0 to support short sequence numbers
     scanTimeoutRef.current = setTimeout(() => {
         if (val.trim().length > 0) {
             processScanCode(val.trim().replace(/[^\w\s-]/g, ''));
         }
-    }, 450); 
+    }, 450);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -411,7 +435,7 @@ function AbsensiContent() {
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Absensi");
-    
+
     // Auto-size columns
     const colWidths = [
       { wch: 5 },
@@ -471,8 +495,36 @@ function AbsensiContent() {
         <div className="responsive-grid-2" style={{ marginBottom: 20 }}>
           {/* Left: Scan & Search */}
           <div className="card">
-            <div className="card-header">
-              <span className="card-title">Pilih Kegiatan Mandiri</span>
+            <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+              <span className="card-title" style={{ margin: 0 }}>Absensi Mandiri</span>
+              <div style={{ display: "flex", gap: 4, background: "#f1f5f9", padding: 4, borderRadius: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setAbsensiMode("scan_panitia")}
+                  style={{
+                    padding: "6px 12px", borderRadius: "6px", border: "none",
+                    background: absensiMode === "scan_panitia" ? "white" : "transparent",
+                    color: absensiMode === "scan_panitia" ? "#0f172a" : "#64748b",
+                    fontWeight: 700, fontSize: "12px", cursor: "pointer",
+                    boxShadow: absensiMode === "scan_panitia" ? "0 1px 3px rgba(0,0,0,0.1)" : "none"
+                  }}
+                >
+                  Scan Panitia
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAbsensiMode("qr_self")}
+                  style={{
+                    padding: "6px 12px", borderRadius: "6px", border: "none",
+                    background: absensiMode === "qr_self" ? "white" : "transparent",
+                    color: absensiMode === "qr_self" ? "#0f172a" : "#64748b",
+                    fontWeight: 700, fontSize: "12px", cursor: "pointer",
+                    boxShadow: absensiMode === "qr_self" ? "0 1px 3px rgba(0,0,0,0.1)" : "none"
+                  }}
+                >
+                  QR Mandiri
+                </button>
+              </div>
             </div>
             <div className="card-body">
               <div className="form-group">
@@ -485,138 +537,138 @@ function AbsensiContent() {
                 </select>
               </div>
 
-              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginTop: 16 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-                  <div className="form-label" style={{ margin: 0 }}>Scan QR Code</div>
-                  <div className="scanner-controls-wrapper" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span className="text-sm text-muted">Mode:</span>
-                      <select 
-                        className="form-control text-sm" 
-                        style={{ padding: "4px 8px", width: "auto" }}
-                        value={scannerType}
-                        onChange={(e) => {
-                          const val = e.target.value as any;
-                          setScannerType(val);
-                          if (scanMode) stopScan();
-                        }}
-                      >
-                        <option value="camera">📷 Kamera</option>
-                        <option value="physical">🔌 Mesin</option>
-                      </select>
-                    </div>
-
-                    {scannerType === "camera" && cameras.length > 0 && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span className="text-sm text-muted">Kamera:</span>
-                        <select 
-                          className="form-control text-sm" 
-                          style={{ padding: "4px 8px", width: "auto", maxWidth: "120px" }}
-                          value={cameraId}
-                          onChange={(e) => switchCamera(e.target.value)}
+              {absensiMode === "scan_panitia" ? (
+              <><div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginTop: 16 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+                    <div className="form-label" style={{ margin: 0 }}>Scan QR Code</div>
+                    <div className="scanner-controls-wrapper" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span className="text-sm text-muted">Mode:</span>
+                        <select
+                          className="form-control text-sm"
+                          style={{ padding: "4px 8px", width: "auto" }}
+                          value={scannerType}
+                          onChange={(e) => {
+                            const val = e.target.value as any;
+                            setScannerType(val);
+                            if (scanMode) stopScan();
+                          } }
                         >
-                          <option value="">Default</option>
-                          {cameras.map(c => (
-                            <option key={c.id} value={c.id}>{c.label}</option>
-                          ))}
+                          <option value="camera">📷 Kamera</option>
+                          <option value="physical">🔌 Mesin</option>
                         </select>
                       </div>
-                    )}
+
+                      {scannerType === "camera" && cameras.length > 0 && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span className="text-sm text-muted">Kamera:</span>
+                          <select
+                            className="form-control text-sm"
+                            style={{ padding: "4px 8px", width: "auto", maxWidth: "120px" }}
+                            value={cameraId}
+                            onChange={(e) => switchCamera(e.target.value)}
+                          >
+                            <option value="">Default</option>
+                            {cameras.map(c => (
+                              <option key={c.id} value={c.id}>{c.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {!scanMode ? (
-                  <button className="btn btn-primary btn-full" onClick={() => startQRScan()} disabled={!selectedKegiatan}>
-                    {scannerType === "camera" ? "📷 Buka Kamera Scan QR" : "🔌 Aktifkan Mesin Scanner"}
-                  </button>
-                ) : (
-                  <div>
-                    {scannerType === "camera" ? (
-                      <div style={{ position: "relative" }}>
-                        <div id="qr-reader" style={{ width: "100%", borderRadius: 8, overflow: "hidden" }} />
-                        {scanFeedback && (
-                          <div style={{
-                            position: "absolute", bottom: 0, left: 0, right: 0,
-                            padding: "10px 14px", textAlign: "center",
-                            fontWeight: 600, fontSize: 14,
-                            background: scanFeedback.type === "success" ? "rgba(21,128,61,0.92)" : "rgba(185,28,28,0.92)",
-                            color: "white", borderBottomLeftRadius: 8, borderBottomRightRadius: 8,
-                            zIndex: 10
-                          }}>
-                            {scanFeedback.text}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="physical-scanner-container">
-                        <div className="physical-scanner-glow"></div>
-                          <div style={{ position: "relative", zIndex: 1, padding: "20px 0" }}>
-                          <div className="scanner-status-indicator">
-                             <div className="status-dot pulsed"></div>
-                             Ready to Scan
-                          </div>
-                          
-                          <div className="scanner-icon-container">
-                            <QrCode size={48} className={`scanner-icon ${scanFeedback?.type === 'success' ? 'success' : scanFeedback?.type === 'error' ? 'error' : ''}`} />
-                            <div className="scanner-beam"></div>
-                          </div>
-                          
-                          <div style={{ marginTop: 24 }}>
-                            <div className="scanner-badge">PANDA PRJ-666 ACTIVE</div>
-                            <h3 style={{ fontSize: "20px", fontWeight: "900", color: "#1e293b", marginBottom: "4px" }}>
-                              {isProcessing ? "Sedang Memproses..." : scanFeedback ? (scanFeedback.type === "success" ? "Berhasil!" : "Gagal!") : "Arahkan Scanner"}
-                            </h3>
-                            <p style={{ color: "#64748b", fontSize: "14px", maxWidth: "280px", margin: "0 auto", lineHeight: "1.5" }}>
-                              {isProcessing ? "Mencocokkan data dengan database JB2..." : scanFeedback ? scanFeedback.text : "Pencatatan kehadiran otomatis aktif. Hubungkan Panda Scanner ke Port USB."}
-                            </p>
-                          </div>
-
-                          {lastScanned && (
-                            <div className="last-scanned-card">
-                              <div className="last-scanned-avatar">
-                                {lastScanned.foto ? <img src={lastScanned.foto} /> : lastScanned.nama.charAt(0)}
-                              </div>
-                              <div style={{ textAlign: "left", flex: 1 }}>
-                                <div className="last-scanned-name">{lastScanned.nama}</div>
-                                <div className="last-scanned-meta">ID: {lastScanned.nomorUnik} • #{lastScanned.nomorPeserta}</div>
-                              </div>
-                              <div className="last-scanned-status">Hadir</div>
-                            </div>
-                          )}
-                          
-                          <div className="scanner-instruction">
-                            Scanner fisik terdeteksi. Silakan arahkan kursor ke sini atau 
-                            <button 
-                              onClick={() => physicalInputRef.current?.focus()}
-                              className="btn-refocus"
-                            >
-                              Klik di sini
-                            </button> 
-                            jika tidak merespons.
-                          </div>
-                          <input
-                            ref={physicalInputRef}
-                            type="text"
-                            className="scanner-hidden-input"
-                            value={physicalInput}
-                            onChange={handlePhysicalInput}
-                            onKeyDown={handleKeyDown}
-                            autoFocus
-                            onBlur={() => {
-                               if (scanMode && scannerType === "physical") {
-                                  setTimeout(() => physicalInputRef.current?.focus(), 150);
-                               }
-                            }}
-                          />
-                          
-                          {physicalInput && (
-                            <div className="input-preview">
-                               Typing: <code>{physicalInput}</code>
+                  {!scanMode ? (
+                    <button className="btn btn-primary btn-full" onClick={() => startQRScan()} disabled={!selectedKegiatan}>
+                      {scannerType === "camera" ? "📷 Buka Kamera Scan QR" : "🔌 Aktifkan Mesin Scanner"}
+                    </button>
+                  ) : (
+                    <div>
+                      {scannerType === "camera" ? (
+                        <div style={{ position: "relative" }}>
+                          <div id="qr-reader" style={{ width: "100%", borderRadius: 8, overflow: "hidden" }} />
+                          {scanFeedback && (
+                            <div style={{
+                              position: "absolute", bottom: 0, left: 0, right: 0,
+                              padding: "10px 14px", textAlign: "center",
+                              fontWeight: 600, fontSize: 14,
+                              background: scanFeedback.type === "success" ? "rgba(21,128,61,0.92)" : "rgba(185,28,28,0.92)",
+                              color: "white", borderBottomLeftRadius: 8, borderBottomRightRadius: 8,
+                              zIndex: 10
+                            }}>
+                              {scanFeedback.text}
                             </div>
                           )}
                         </div>
+                      ) : (
+                        <div className="physical-scanner-container">
+                          <div className="physical-scanner-glow"></div>
+                          <div style={{ position: "relative", zIndex: 1, padding: "20px 0" }}>
+                            <div className="scanner-status-indicator">
+                              <div className="status-dot pulsed"></div>
+                              Ready to Scan
+                            </div>
 
-                        <style jsx>{`
+                            <div className="scanner-icon-container">
+                              <QrCode size={48} className={`scanner-icon ${scanFeedback?.type === 'success' ? 'success' : scanFeedback?.type === 'error' ? 'error' : ''}`} />
+                              <div className="scanner-beam"></div>
+                            </div>
+
+                            <div style={{ marginTop: 24 }}>
+                              <div className="scanner-badge">PANDA PRJ-666 ACTIVE</div>
+                              <h3 style={{ fontSize: "20px", fontWeight: "900", color: "#1e293b", marginBottom: "4px" }}>
+                                {isProcessing ? "Sedang Memproses..." : scanFeedback ? (scanFeedback.type === "success" ? "Berhasil!" : "Gagal!") : "Arahkan Scanner"}
+                              </h3>
+                              <p style={{ color: "#64748b", fontSize: "14px", maxWidth: "280px", margin: "0 auto", lineHeight: "1.5" }}>
+                                {isProcessing ? "Mencocokkan data dengan database JB2..." : scanFeedback ? scanFeedback.text : "Pencatatan kehadiran otomatis aktif. Hubungkan Panda Scanner ke Port USB."}
+                              </p>
+                            </div>
+
+                            {lastScanned && (
+                              <div className="last-scanned-card">
+                                <div className="last-scanned-avatar">
+                                  {lastScanned.foto ? <img src={lastScanned.foto} /> : lastScanned.nama.charAt(0)}
+                                </div>
+                                <div style={{ textAlign: "left", flex: 1 }}>
+                                  <div className="last-scanned-name">{lastScanned.nama}</div>
+                                  <div className="last-scanned-meta">ID: {lastScanned.nomorUnik} • #{lastScanned.nomorPeserta}</div>
+                                </div>
+                                <div className="last-scanned-status">Hadir</div>
+                              </div>
+                            )}
+
+                            <div className="scanner-instruction">
+                              Scanner fisik terdeteksi. Silakan arahkan kursor ke sini atau
+                              <button
+                                onClick={() => physicalInputRef.current?.focus()}
+                                className="btn-refocus"
+                              >
+                                Klik di sini
+                              </button>
+                              jika tidak merespons.
+                            </div>
+                            <input
+                              ref={physicalInputRef}
+                              type="text"
+                              className="scanner-hidden-input"
+                              value={physicalInput}
+                              onChange={handlePhysicalInput}
+                              onKeyDown={handleKeyDown}
+                              autoFocus
+                              onBlur={() => {
+                                if (scanMode && scannerType === "physical") {
+                                  setTimeout(() => physicalInputRef.current?.focus(), 150);
+                                }
+                              } } />
+
+                            {physicalInput && (
+                              <div className="input-preview">
+                                Typing: <code>{physicalInput}</code>
+                              </div>
+                            )}
+                          </div>
+
+                          <style jsx>{`
                           .physical-scanner-container {
                             min-height: 320px;
                             background: white;
@@ -731,15 +783,15 @@ function AbsensiContent() {
                           }
                           .scanner-badge {
                              display: inline-block;
-                             font-size: "10px"; 
-                             font-weight: 800; 
-                             background: #eff6ff; 
-                             color: #2563eb; 
+                             font-size: "10px";
+                             font-weight: 800;
+                             background: #eff6ff;
+                             color: #2563eb;
                              border: 1px solid #dbeafe;
-                             padding: 4px 12px; 
-                             border-radius: 20px; 
-                             text-transform: uppercase; 
-                             letter-spacing: 1px; 
+                             padding: 4px 12px;
+                             border-radius: 20px;
+                             text-transform: uppercase;
+                             letter-spacing: 1px;
                              margin-bottom: 12px;
                           }
                           .last-scanned-card {
@@ -763,7 +815,7 @@ function AbsensiContent() {
                           .last-scanned-name { font-size: 14px; font-weight: 800; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
                           .last-scanned-meta { font-size: 11px; color: #64748b; font-weight: 600; }
                           .last-scanned-status { margin-left: auto; font-size: 10px; font-weight: 800; color: #10b981; background: #d1fae5; padding: 2px 8px; border-radius: 6px; text-transform: uppercase; }
-                          
+
                           @media (max-width: 768px) {
                             .physical-scanner-container { min-height: 280px; }
                             .scanner-badge { font-size: 8px; padding: 3px 10px; }
@@ -778,48 +830,74 @@ function AbsensiContent() {
                             .page-header-left h2 { font-size: 18px; }
                           }
                         `}</style>
+                        </div>
+                      )}
+                      <button className="btn btn-danger btn-full" style={{ marginTop: 12 }} onClick={stopScan}>
+                        ✕ Stop Scan
+                      </button>
+                    </div>
+                  )}
+                </div><div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginTop: 16 }}>
+                    <div className="form-label" style={{ marginBottom: 8 }}>Cari Manual Peserta Mandiri</div>
+                    <div className="search-bar">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+                      </svg>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="Nama atau nomor unik..."
+                        value={searchQuery}
+                        onChange={(e) => handleSearch(e.target.value)} />
+                    </div>
+                    {searchResults.length > 0 && (
+                      <div style={{ marginTop: 8, border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+                        {searchResults.map((g) => (
+                          <div
+                            key={g.id}
+                            className="search-result-item"
+                            style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
+                            onClick={() => recordAbsensi(g.id)}
+                          >
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 500, fontSize: "14px" }}>{g.nama}</div>
+                              <div className="text-sm text-muted">No: {g.nomorPeserta} • {g.desaNama}</div>
+                            </div>
+                            <span className="badge badge-green">Catat</span>
+                          </div>
+                        ))}
                       </div>
                     )}
-                    <button className="btn btn-danger btn-full" style={{ marginTop: 12 }} onClick={stopScan}>
-                      ✕ Stop Scan
-                    </button>
-                  </div>
-                )}
-              </div>
-
+                  </div></>
+              ) : (
               <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginTop: 16 }}>
-                <div className="form-label" style={{ marginBottom: 8 }}>Cari Manual Peserta Mandiri</div>
-                <div className="search-bar">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-                  </svg>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Nama atau nomor unik..."
-                    value={searchQuery}
-                    onChange={(e) => handleSearch(e.target.value)}
-                  />
-                </div>
-                {searchResults.length > 0 && (
-                  <div style={{ marginTop: 8, border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
-                    {searchResults.map((g) => (
-                      <div
-                        key={g.id}
-                        className="search-result-item"
-                        style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
-                        onClick={() => recordAbsensi(g.id)}
-                      >
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 500, fontSize: "14px" }}>{g.nama}</div>
-                          <div className="text-sm text-muted">No: {g.nomorPeserta} • {g.desaNama}</div>
-                        </div>
-                        <span className="badge badge-green">Catat</span>
-                      </div>
-                    ))}
+                {selectedKegiatan ? (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, textAlign: "center", padding: "12px 0" }}>
+                    <div style={{ background: "white", padding: 16, borderRadius: 16, border: "2px solid #e2e8f0", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent((typeof window !== "undefined" ? window.location.origin : "") + "/hadir?kegiatanId=" + selectedKegiatan)}&margin=10`}
+                        alt="QR Code Mandiri"
+                        style={{ width: "220px", height: "220px", display: "block" }}
+                      />
+                    </div>
+                    <div>
+                      <h4 style={{ fontSize: 16, fontWeight: 800, color: "#1e293b", margin: "0 0 6px" }}>Scan untuk Absen Mandiri</h4>
+                      <p style={{ fontSize: 12, color: "#64748b", margin: 0, lineHeight: 1.5, maxWidth: 280 }}>
+                        Arahkan kamera smartphone Anda ke QR Code di atas untuk melakukan absensi secara mandiri.
+                      </p>
+                    </div>
+                    <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: "8px 16px", borderRadius: 8, fontSize: 12, color: "#2563eb", fontWeight: 700, textTransform: "uppercase" }}>
+                      {kegiatan.find(k => k.id === selectedKegiatan)?.judul || selectedKegiatan}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ textAlign: "center", padding: "40px 0", color: "#94a3b8" }}>
+                    <QrCode size={40} style={{ margin: "0 auto 12px", opacity: 0.6 }} />
+                    <p style={{ fontSize: 13, margin: 0 }}>Silakan pilih kegiatan terlebih dahulu untuk menampilkan QR Code.</p>
                   </div>
                 )}
               </div>
+              )}
             </div>
           </div>
 
@@ -834,13 +912,13 @@ function AbsensiContent() {
                 <Download size={14} /> Export Excel
               </button>
             </div>
-            
+
             <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", background: "#f8fafc" }}>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <div style={{ flex: 1, minWidth: "150px" }}>
-                  <select 
-                    className="form-control text-sm" 
-                    value={filterKota} 
+                  <select
+                    className="form-control text-sm"
+                    value={filterKota}
                     onChange={(e) => { setFilterKota(e.target.value); setFilterDesa(""); }}
                   >
                     <option value="">Semua Kota/Daerah</option>
@@ -848,9 +926,9 @@ function AbsensiContent() {
                   </select>
                 </div>
                 <div style={{ flex: 1, minWidth: "150px" }}>
-                  <select 
-                    className="form-control text-sm" 
-                    value={filterDesa} 
+                  <select
+                    className="form-control text-sm"
+                    value={filterDesa}
                     onChange={(e) => setFilterDesa(e.target.value)}
                   >
                     <option value="">Semua Desa</option>
@@ -858,8 +936,8 @@ function AbsensiContent() {
                   </select>
                 </div>
                 {(filterKota || filterDesa) && (
-                  <button 
-                    className="btn btn-ghost btn-sm" 
+                  <button
+                    className="btn btn-ghost btn-sm"
                     onClick={() => { setFilterKota(""); setFilterDesa(""); }}
                     style={{ padding: "0 10px" }}
                   >
@@ -903,8 +981,8 @@ function AbsensiContent() {
                           {item.timestamp ? new Date(item.timestamp).toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' }) : "-"}
                         </td>
                         <td>
-                          <button 
-                            className="btn-icon text-red" 
+                          <button
+                            className="btn-icon text-red"
                             title="Hapus Kehadiran"
                             onClick={() => deleteAbsensi(item.id, item.generusNama || "Peserta")}
                           >

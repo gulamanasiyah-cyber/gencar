@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!currentGenerusId) {
-      if (!session || !["admin", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "creator", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "admin_pdkt", "tim_gambuh", "tim_jepret"].includes(session.role)) {
+      if (!session || !["admin", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "creator", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "admin_pdkt", "tim_gambuh"].includes(session.role)) {
         return NextResponse.json({ error: "Akun Anda belum terhubung dengan data profil generus" }, { status: 403 });
       }
 
@@ -172,7 +172,7 @@ export async function GET(request: NextRequest) {
       ...data[0],
       role: session?.role || "peserta",
       nomorUrut: mandiriData?.nomorUrut || null,
-      isInPdkt: !!mandiriData || (session && ["admin", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "admin_pdkt", "tim_gambuh", "tim_jepret"].includes(session.role))
+      isInPdkt: !!mandiriData || (session && ["admin", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "admin_pdkt", "tim_gambuh"].includes(session.role))
     };
 
     // Nonaktifkan cache agar data selalu fresh setelah update
@@ -192,7 +192,7 @@ export async function PUT(request: NextRequest) {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (!session.generusId) {
-      if (!["admin", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "creator", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "tim_gambuh", "tim_jepret"].includes(session.role)) {
+      if (!["admin", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "creator", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "tim_gambuh"].includes(session.role)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 

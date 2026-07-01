@@ -21,7 +21,7 @@ export default async function DashboardLayout({
   }
 
   let userFoto = "";
-  let isInMandiri = ["admin", "pengurus_daerah", "kmm_daerah", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "tim_gambuh", "tim_jepret"].includes(session.role);
+  let isInMandiri = ["admin", "pengurus_daerah", "kmm_daerah", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "tim_gambuh"].includes(session.role);
 
   if (session.generusId) {
     const res = await db.select({ foto: generus.foto }).from(generus).where(eq(generus.id, session.generusId)).limit(1);

@@ -1,17 +1,46 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriDaerah } from "@/lib/schema";
-import { eq } from "drizzle-orm";
+import { mandiriDaerah, mandiriKegiatanDaerah } from "@/lib/schema";
+import { eq, and, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { v4 as uuidv4 } from "uuid";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
     if (!session || !["admin", "pengurus_daerah", "kmm_daerah", "tim_pnkb", "admin_romantic_room", "admin_kegiatan"].includes(session.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const data = await db.select().from(mandiriDaerah).orderBy(mandiriDaerah.nama);
+    const { searchParams } = new URL(request.url);
+    const kegiatanId = searchParams.get("kegiatanId");
+
+    let data;
+    if (kegiatanId) {
+      data = await db
+        .select({
+          id: mandiriDaerah.id,
+          nama: mandiriDaerah.nama,
+          isActive: sql<number>`COALESCE(
+            (SELECT is_active FROM mandiri_kegiatan_daerah 
+             WHERE mandiri_kegiatan_daerah.daerah_id = ${mandiriDaerah.id} 
+             AND mandiri_kegiatan_daerah.kegiatan_id = ${kegiatanId}), 
+            1
+          )`.mapWith(Number),
+        })
+        .from(mandiriDaerah)
+        .orderBy(mandiriDaerah.nama);
+    } else {
+      data = await db
+        .select({
+          id: mandiriDaerah.id,
+          nama: mandiriDaerah.nama,
+          isActive: sql<number>`1`.mapWith(Number)
+        })
+        .from(mandiriDaerah)
+        .orderBy(mandiriDaerah.nama);
+    }
+
     return NextResponse.json(data);
   } catch (error) {
     console.error(error);
@@ -41,7 +70,38 @@ export async function PUT(request: NextRequest) {
     if (!session || !["admin", "pengurus_daerah", "kmm_daerah", "tim_pnkb", "admin_romantic_room", "admin_kegiatan"].includes(session.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const { id, nama } = await request.json();
+    const body = await request.json();
+    const { id, nama, kegiatanId, isActive } = body;
+
+    // Toggle active status for a specific kegiatan
+    if (kegiatanId !== undefined && isActive !== undefined) {
+      if (!id) return NextResponse.json({ error: "ID daerah diperlukan" }, { status: 400 });
+      
+      const existing = await db
+        .select()
+        .from(mandiriKegiatanDaerah)
+        .where(and(
+          eq(mandiriKegiatanDaerah.kegiatanId, kegiatanId),
+          eq(mandiriKegiatanDaerah.daerahId, Number(id))
+        ))
+        .limit(1);
+
+      if (existing.length > 0) {
+        await db
+          .update(mandiriKegiatanDaerah)
+          .set({ isActive: isActive ? 1 : 0 })
+          .where(eq(mandiriKegiatanDaerah.id, existing[0].id));
+      } else {
+        await db.insert(mandiriKegiatanDaerah).values({
+          id: uuidv4(),
+          kegiatanId,
+          daerahId: Number(id),
+          isActive: isActive ? 1 : 0,
+        });
+      }
+      return NextResponse.json({ success: true });
+    }
+
     if (!id || !nama || !nama.trim()) return NextResponse.json({ error: "ID dan nama daerah wajib diisi" }, { status: 400 });
     await db.update(mandiriDaerah).set({ nama: nama.trim() }).where(eq(mandiriDaerah.id, Number(id)));
 

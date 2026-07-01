@@ -494,7 +494,7 @@ function AttendanceChart({ label, present, absent, color = "#10b981" }: { label:
 
 /* ─── Admin Dashboard ─────────────────── */
 function AdminDashboard({ role, stats, cities, villages }: { role: string; stats: any; cities?: any[]; villages?: any[] }) {
-  if (role === "admin_romantic_room" || role === "tim_gambuh" || role === "tim_jepret") {
+  if (role === "admin_romantic_room" || role === "tim_gambuh") {
     return (
       <div>
         <DashboardFilter cities={cities || []} villages={villages || []} />

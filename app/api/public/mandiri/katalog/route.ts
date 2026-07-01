@@ -12,6 +12,14 @@ export async function GET(request: NextRequest) {
     const sToken = searchParams.get("sessionToken");
 
     let isAuthorizedModifier = false;
+    
+    // Check server session for admin/staff
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (session && ["admin", "admin_romantic_room", "tim_pnkb", "tim_gambuh"].includes(session.role)) {
+      isAuthorizedModifier = true;
+    }
+
     let currentParticipantId: string | null = null;
     if (nUnik && sToken) {
       const authCheck = await db.select({ 

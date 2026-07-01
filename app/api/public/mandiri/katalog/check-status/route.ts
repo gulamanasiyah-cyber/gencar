@@ -59,6 +59,51 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ status: "not_found" });
     }
 
+    // Find the user's name and last session token
+    const user = await db.select({ 
+        id: generus.id,
+        nama: generus.nama,
+        nomorUrut: mandiri.nomorUrut,
+        nomorUnik: generus.nomorUnik,
+        lastSessionToken: mandiri.lastSessionToken,
+        deviceId: mandiri.deviceId,
+        mandiriDesaNama: mandiriDesa.nama,
+        mandiriDesaKota: mandiriDaerah.nama,
+        jenisKelamin: generus.jenisKelamin,
+        role: formPanitiaDanPengurus.dapukan
+    })
+    .from(generus)
+    .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
+    .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
+    .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
+    .leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId))
+    .where(eq(generus.id, generusId))
+    .limit(1);
+
+    if (user.length === 0) {
+      return NextResponse.json({ status: "not_found" });
+    }
+
+    // Verify session token if provided (passive check for existing sessions)
+    // This is what prevents multiple simultaneous sessions
+    const isAdminRole = user[0]?.role === "Admin Romantic Room" || user[0]?.role === "admin_romantic_room";
+    
+    if (!isAdminRole && sessionToken && user[0]?.lastSessionToken && sessionToken !== user[0].lastSessionToken) {
+        return NextResponse.json({ status: "multi_login" });
+    }
+
+    // Generate new token if logging in from scratch
+    let finalSessionToken = sessionToken || user[0]?.lastSessionToken;
+    if (nomorPeserta || !sessionToken) {
+      finalSessionToken = isAdminRole && user[0]?.lastSessionToken ? user[0].lastSessionToken : uuidv4();
+      await db.update(mandiri)
+          .set({ 
+            deviceId: deviceId || user[0]?.deviceId, 
+            lastSessionToken: finalSessionToken 
+          })
+          .where(eq(mandiri.generusId, generusId));
+    }
+
     // 3. Check if attended the latest activity
     const attendance = await db.select()
       .from(mandiriAbsensi)
@@ -67,6 +112,20 @@ export async function GET(request: NextRequest) {
         eq(mandiriAbsensi.generusId, generusId)
       ))
       .limit(1);
+
+    const commonResponse = {
+      id: user[0]?.id,
+      kegiatanId,
+      kegiatanJudul: latestActivity[0].judul,
+      nama: user[0]?.nama || "Peserta",
+      nomorUrut: user[0]?.nomorUrut || "-",
+      nomorUnik: user[0]?.nomorUnik || nomorUnik,
+      mandiriDesaNama: user[0]?.mandiriDesaNama,
+      mandiriDesaKota: user[0]?.mandiriDesaKota,
+      jenisKelamin: user[0]?.jenisKelamin,
+      role: user[0]?.role || "Peserta",
+      sessionToken: finalSessionToken
+    };
 
     if (attendance.length > 0) {
       // If currently "pulang" (went home/logged out), reset to "hadir" since they are entering/logging in again
@@ -79,85 +138,16 @@ export async function GET(request: NextRequest) {
           ));
       }
 
-      // Find the user's name and last session token
-      const user = await db.select({ 
-          id: generus.id,
-          nama: generus.nama,
-          nomorUrut: mandiri.nomorUrut,
-          nomorUnik: generus.nomorUnik,
-          lastSessionToken: mandiri.lastSessionToken,
-          deviceId: mandiri.deviceId,
-          mandiriDesaNama: mandiriDesa.nama,
-          mandiriDesaKota: mandiriDaerah.nama,
-          jenisKelamin: generus.jenisKelamin,
-          role: formPanitiaDanPengurus.dapukan
-      })
-      .from(generus)
-      .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
-      .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
-      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
-      .leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId))
-      .where(eq(generus.id, generusId))
-      .limit(1);
-
-      // Verify session token if provided (passive check for existing sessions)
-      // This is what prevents multiple simultaneous sessions
-      const isAdminRole = user[0]?.role === "Admin Romantic Room" || user[0]?.role === "admin_romantic_room";
-      
-      if (!isAdminRole && sessionToken && user[0]?.lastSessionToken && sessionToken !== user[0].lastSessionToken) {
-          return NextResponse.json({ status: "multi_login" });
-      }
-
-      // If logging in via nomorPeserta or nomorUnik explicitly (without sessionToken)
-      if (nomorPeserta || !sessionToken) {
-        // Generate new token to invalidate other sessions (except for admins)
-        const finalSessionToken = isAdminRole && user[0]?.lastSessionToken ? user[0].lastSessionToken : uuidv4();
-        
-        // Update both deviceId and lastSessionToken
-        // For admins, we keep the lastSessionToken if it exists to allow multiple sessions sharing the same token
-        await db.update(mandiri)
-            .set({ 
-              deviceId: deviceId || user[0]?.deviceId, 
-              lastSessionToken: finalSessionToken 
-            })
-            .where(eq(mandiri.generusId, generusId));
-
-        return NextResponse.json({ 
-          status: "attended", 
-          id: user[0]?.id,
-          kegiatanId,
-          kegiatanJudul: latestActivity[0].judul,
-          nama: user[0]?.nama || "Peserta",
-          nomorUrut: user[0]?.nomorUrut || "-",
-          nomorUnik: user[0]?.nomorUnik || nomorUnik,
-          mandiriDesaNama: user[0]?.mandiriDesaNama,
-          mandiriDesaKota: user[0]?.mandiriDesaKota,
-          jenisKelamin: user[0]?.jenisKelamin,
-          role: user[0]?.role || "Peserta",
-          sessionToken: finalSessionToken
-        });
-      }
-
-      // If it's a passive check (sessionToken provided), we already verified it above.
-      // If it's just a nomorUnik check without a token, return the current state
-      // (This part might be used for initial loading)
       return NextResponse.json({ 
         status: "attended", 
-        id: user[0]?.id,
-        kegiatanId,
-        kegiatanJudul: latestActivity[0].judul,
-        nama: user[0]?.nama || "Peserta",
-        nomorUrut: user[0]?.nomorUrut || "-",
-        nomorUnik: user[0]?.nomorUnik || nomorUnik,
-        mandiriDesaNama: user[0]?.mandiriDesaNama,
-        mandiriDesaKota: user[0]?.mandiriDesaKota,
-        jenisKelamin: user[0]?.jenisKelamin,
-        role: user[0]?.role || "Peserta",
-        sessionToken: sessionToken || user[0]?.lastSessionToken
+        ...commonResponse
       });
     }
 
-    return NextResponse.json({ status: "waiting", kegiatanId });
+    return NextResponse.json({ 
+      status: "waiting", 
+      ...commonResponse
+    });
   } catch (error) {
     console.error("Check status error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

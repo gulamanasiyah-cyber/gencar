@@ -8,6 +8,7 @@ import { alias } from "drizzle-orm/sqlite-core";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 import { pusherServer } from "@/lib/pusher";
+import { sendWhatsApp } from "@/lib/whatsapp";
 
 export async function GET(request: NextRequest) {
     try {
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
         const session = await getSession();
         if (session) {
             currentGenerusId = session.generusId || null;
-            isAdmin = ["admin", "kmm_daerah", "admin_romantic_room", "pengurus_daerah", "tim_pnkb", "tim_jepret"].includes(session.role);
+            isAdmin = ["admin", "kmm_daerah", "admin_romantic_room", "pengurus_daerah", "tim_pnkb"].includes(session.role);
         }
 
         // If not logged in but has token, verify token
@@ -81,6 +82,8 @@ export async function GET(request: NextRequest) {
                 penerimaWa: sql<string>`COALESCE(${g2.noTelp}, ${pan2.noTelp})`,
                 pengirimJenisKelamin: g1.jenisKelamin,
                 penerimaJenisKelamin: g2.jenisKelamin,
+                pengirimTanggalLahir: g1.tanggalLahir,
+                penerimaTanggalLahir: g2.tanggalLahir,
                 pengirimKeterangan: abs1.keterangan,
                 penerimaKeterangan: abs2.keterangan
             })
@@ -369,7 +372,7 @@ export async function PATCH(request: NextRequest) {
     try {
         const session = await getSession();
         if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        const isAdmin = ["admin", "kmm_daerah", "admin_romantic_room", "pengurus_daerah", "tim_pnkb", "tim_jepret"].includes(session.role);
+        const isAdmin = ["admin", "kmm_daerah", "admin_romantic_room", "pengurus_daerah", "tim_pnkb"].includes(session.role);
         if (!isAdmin) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
         const body = await request.json();
@@ -436,46 +439,18 @@ export async function PATCH(request: NextRequest) {
                     const pengirim = pengirimData[0];
                     const penerima = penerimaData[0];
 
-                    const sendWhatsApp = async (target: string, msg: string) => {
-                        const fonnteToken = process.env.FONNTE_TOKEN;
-                        if (!fonnteToken || !target) return;
-                        
-                        let cleanTarget = target.replace(/\D/g, "");
-                        if (cleanTarget.startsWith("0")) {
-                            cleanTarget = "62" + cleanTarget.slice(1);
-                        }
-                        if (!cleanTarget.startsWith("62")) return;
-                        
-                        try {
-                            const res = await fetch("https://api.fonnte.com/send", {
-                                method: "POST",
-                                headers: {
-                                    Authorization: fonnteToken,
-                                    "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({
-                                    target: cleanTarget,
-                                    message: msg,
-                                }),
-                            });
-                            const resData = await res.json();
-                            console.log(`Fonnte waiting room notification sent to ${cleanTarget}:`, resData);
-                        } catch (err) {
-                            console.error(`Failed to send WhatsApp waiting room notification to ${cleanTarget}:`, err);
-                        }
-                    };
 
                     if (pengirim) {
-                        const msgToPengirim = `Amal sholihnya untuk *${pengirim.nama}* (*#${pengirim.nomorUrut || '-'}*), dimintai amal sholih untuk segera merapat ke *Ruang Tunggu Romantic Room*.`;
+                        const msgToPengirim = `Amal sholihnya untuk *${pengirim.nama}* (*#${pengirim.nomorUrut || '-'}*), dimintai amal sholih untuk segera merapat ke *Titik Tunggu*.`;
                         if (pengirim.noTelp) {
-                            await sendWhatsApp(pengirim.noTelp, msgToPengirim);
+                            sendWhatsApp(pengirim.noTelp, msgToPengirim);
                         }
                     }
 
                     if (penerima) {
-                        const msgToPenerima = `Amal sholihnya untuk *${penerima.nama}* (*#${penerima.nomorUrut || '-'}*), dimintai amal sholih untuk segera merapat ke *Ruang Tunggu Romantic Room*.`;
+                        const msgToPenerima = `Amal sholihnya untuk *${penerima.nama}* (*#${penerima.nomorUrut || '-'}*), dimintai amal sholih untuk segera merapat ke *Titik Tunggu*.`;
                         if (penerima.noTelp) {
-                            await sendWhatsApp(penerima.noTelp, msgToPenerima);
+                            sendWhatsApp(penerima.noTelp, msgToPenerima);
                         }
                     }
                 }

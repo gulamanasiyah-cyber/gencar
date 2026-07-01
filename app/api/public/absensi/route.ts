@@ -1,9 +1,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { absensi, generus, kegiatan } from "@/lib/schema";
+import { absensi, generus, kegiatan, mandiriKegiatan, mandiriAbsensi } from "@/lib/schema";
 import { eq, and } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
+import { pusherServer } from "@/lib/pusher";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,10 +15,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Kegiatan ID dan Nomor Unik diperlukan" }, { status: 400 });
     }
 
-    // Periksa apakah kegiatan ada
-    const kegiatanExists = await db.query.kegiatan.findFirst({
+    // Periksa apakah kegiatan ada di kegiatan umum
+    let kegiatanExists = await db.query.kegiatan.findFirst({
       where: eq(kegiatan.id, kegiatanId),
     });
+    
+    let isMandiri = false;
+
+    // Jika tidak ditemukan di kegiatan umum, periksa di kegiatan mandiri
+    if (!kegiatanExists) {
+      const mandiriKegExists = await db.query.mandiriKegiatan.findFirst({
+        where: eq(mandiriKegiatan.id, kegiatanId),
+      });
+      if (mandiriKegExists) {
+        kegiatanExists = mandiriKegExists;
+        isMandiri = true;
+      }
+    }
+
     if (!kegiatanExists) {
       return NextResponse.json({ error: "Kegiatan tidak ditemukan" }, { status: 404 });
     }
@@ -36,24 +51,52 @@ export async function POST(request: NextRequest) {
 
     const resolvedGenerusId = resolvedGenerus.id;
 
-    // Cek apakah sudah absen
-    const existing = await db.query.absensi.findFirst({
-      where: and(eq(absensi.kegiatanId, kegiatanId), eq(absensi.generusId, resolvedGenerusId)),
-    });
+    // Proses pencatatan sesuai tipe kegiatan
+    if (isMandiri) {
+      // Cek apakah sudah absen di mandiri
+      const existing = await db.query.mandiriAbsensi.findFirst({
+        where: and(eq(mandiriAbsensi.kegiatanId, kegiatanId), eq(mandiriAbsensi.generusId, resolvedGenerusId)),
+      });
 
-    if (existing) {
-      return NextResponse.json({ error: "Anda sudah tercatat hadir!", existing }, { status: 409 });
+      if (existing) {
+        return NextResponse.json({ error: "Anda sudah tercatat hadir!", existing }, { status: 409 });
+      }
+
+      // Catat kehadiran di mandiri_absensi
+      const id = uuidv4();
+      await db.insert(mandiriAbsensi).values({
+        id,
+        kegiatanId,
+        generusId: resolvedGenerusId,
+        keterangan: "hadir",
+        timestamp: new Date().toISOString(),
+      });
+    } else {
+      // Cek apakah sudah absen di umum
+      const existing = await db.query.absensi.findFirst({
+        where: and(eq(absensi.kegiatanId, kegiatanId), eq(absensi.generusId, resolvedGenerusId)),
+      });
+
+      if (existing) {
+        return NextResponse.json({ error: "Anda sudah tercatat hadir!", existing }, { status: 409 });
+      }
+
+      // Catat kehadiran di absensi umum
+      const id = uuidv4();
+      await db.insert(absensi).values({
+        id,
+        kegiatanId,
+        generusId: resolvedGenerusId,
+        keterangan: "hadir",
+        timestamp: new Date().toISOString(),
+      });
     }
 
-    // Catat kehadiran
-    const id = uuidv4();
-    await db.insert(absensi).values({
-      id,
-      kegiatanId,
-      generusId: resolvedGenerusId,
-      keterangan: "hadir",
-      timestamp: new Date().toISOString(),
-    });
+    try {
+      await pusherServer.trigger("taaruf-channel", "absensi-updated", { kegiatanId });
+    } catch (pusherErr) {
+      console.error("Pusher trigger error in public absensi:", pusherErr);
+    }
 
     return NextResponse.json({ success: true, generusNama: resolvedGenerus.nama });
   } catch (error) {

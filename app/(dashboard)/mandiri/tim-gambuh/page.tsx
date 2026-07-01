@@ -4,9 +4,10 @@ import Topbar from "@/components/Topbar";
 import { useState, useEffect, useCallback } from "react";
 import Swal from "sweetalert2";
 import { 
-    Timer, LogOut, Search, Undo2, RefreshCw
+    Timer, LogOut, Search, Undo2, RefreshCw, BookOpen
 } from "lucide-react";
 import { getPusherClient } from "@/lib/pusher";
+import Link from "next/link";
 
 function RoomTimer({ startTime }: { startTime: string }) {
     const [timeLeft, setTimeLeft] = useState<string>("");
@@ -70,6 +71,7 @@ export default function TimGambuhOperatorPage() {
     const [roomSearch, setRoomSearch] = useState("");
     const [myId, setMyId] = useState<string>("");
     const [myName, setMyName] = useState<string>("");
+    const [selectedRoom, setSelectedRoom] = useState<any>(null);
 
     const showSelectIdentityModal = useCallback(async (forced = false) => {
         // Show loading state immediately to block screen and show visual feedback
@@ -196,9 +198,9 @@ export default function TimGambuhOperatorPage() {
         channel.bind("room-changed", (eventData: any) => {
             fetchData();
             if (eventData && eventData.action === "assign") {
-                const { roomNama, timGambuhNama, pengirimNama, pengirimNoUrut, penerimaNama, penerimaNoUrut } = eventData;
-                const currentName = localStorage.getItem("my_tim_gambuh_nama") || "";
-                const isMyAssignment = timGambuhNama === currentName;
+                const { roomNama, pengirimNama, pengirimNoUrut, penerimaNama, penerimaNoUrut, assignedCallerNama, assignedCallerId, assignedGuardNama, assignedGuardId } = eventData;
+                const savedId = localStorage.getItem("my_tim_gambuh_id") || "";
+                const isMyAssignment = assignedCallerId === savedId || assignedGuardId === savedId;
 
                 Swal.fire({
                     title: isMyAssignment ? 'Tugas Pendampingan Baru!' : 'Sesi Pertemuan Baru!',
@@ -210,7 +212,10 @@ export default function TimGambuhOperatorPage() {
                                 <li>Pria: No. ${pengirimNoUrut || '-'} - ${pengirimNama}</li>
                                 <li>Wanita: No. ${penerimaNoUrut || '-'} - ${penerimaNama}</li>
                             </ul>
-                            <p style="margin-top: 10px;"><strong>Pendamping:</strong> <span style="color: ${isMyAssignment ? '#ec4899' : 'inherit'}; font-weight: bold;">${timGambuhNama} ${isMyAssignment ? '(Anda)' : ''}</span></p>
+                            <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #e2e8f0; display: flex; flexDirection: column; gap: 4px;">
+                                <p style="margin: 0;"><strong>Pemanggil:</strong> <span style="color: ${assignedCallerId === savedId ? '#3b82f6' : 'inherit'}; font-weight: bold;">${assignedCallerNama || 'Belum ditentukan'} ${assignedCallerId === savedId ? '(Anda)' : ''}</span></p>
+                                <p style="margin: 0;"><strong>Penunggu:</strong> <span style="color: ${assignedGuardId === savedId ? '#10b981' : 'inherit'}; font-weight: bold;">${assignedGuardNama || 'Belum ditentukan'} ${assignedGuardId === savedId ? '(Anda)' : ''}</span></p>
+                            </div>
                         </div>
                     `,
                     icon: isMyAssignment ? 'success' : 'info',
@@ -356,8 +361,8 @@ export default function TimGambuhOperatorPage() {
             room.penerimaNo?.toLowerCase().includes(query)
         );
     }).sort((a, b) => {
-        const aIsMine = a.timGambuhId === myId;
-        const bIsMine = b.timGambuhId === myId;
+        const aIsMine = a.assignedCallerId === myId || a.assignedGuardId === myId;
+        const bIsMine = b.assignedCallerId === myId || b.assignedGuardId === myId;
         
         if (aIsMine && !bIsMine) return -1;
         if (!aIsMine && bIsMine) return 1;
@@ -384,6 +389,23 @@ export default function TimGambuhOperatorPage() {
                         <button className="btn-identity" onClick={() => showSelectIdentityModal(false)} title="Ubah Identitas">
                             Ubah Identitas
                         </button>
+                        <Link href="/admin/katalog" className="btn-refresh" title="Katalog Peserta" style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            background: '#e0f2fe',
+                            color: '#0369a1',
+                            border: '1px solid #bae6fd',
+                            padding: '8px 16px',
+                            borderRadius: '8px',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            textDecoration: 'none',
+                            transition: 'all 0.2s'
+                        }}>
+                            <BookOpen size={16} /> Katalog Peserta
+                        </Link>
                         <button className="btn-refresh" onClick={fetchData} title="Refresh Data">
                             <RefreshCw size={16} /> Refresh
                         </button>
@@ -413,11 +435,13 @@ export default function TimGambuhOperatorPage() {
                             <div className="empty-state">Tidak ada ruangan ditemukan</div>
                         ) : (
                             filteredRooms.map((room) => (
-                                <div key={room.id} className={`room-tile ${room.status?.toLowerCase()} ${room.status === "Terisi" && !room.startedAt ? "not-started" : ""} ${room.timGambuhId === myId ? "my-assigned-room" : ""}`}>
+                                <div key={room.id} className={`room-tile ${room.status?.toLowerCase()} ${room.status === "Terisi" && !room.startedAt ? "not-started" : ""} ${room.assignedGuardId === myId || room.assignedCallerId === myId ? "my-assigned-room" : ""}`} onClick={() => setSelectedRoom(room)} style={{ cursor: "pointer" }}>
                                     <div className="room-top">
                                         <span className="room-name">{room.nama}</span>
-                                        {room.timGambuhId === myId && (
-                                            <span className="my-task-badge">Tugas Anda</span>
+                                        {(room.assignedGuardId === myId || room.assignedCallerId === myId) && (
+                                            <span className="my-task-badge" style={{ backgroundColor: room.assignedGuardId === myId ? '#10b981' : '#3b82f6', color: 'white', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '4px' }}>
+                                                {room.assignedGuardId === myId ? 'Penunggu' : 'Pemanggil'}
+                                            </span>
                                         )}
                                         {room.status === "Terisi" && room.startedAt && (
                                             <RoomTimer startTime={room.startedAt} />
@@ -438,23 +462,50 @@ export default function TimGambuhOperatorPage() {
                                                     </div>
                                                 </div>
                                                 
-                                                {room.timGambuhNama && (
-                                                    <div className="room-companion-badge">
-                                                        Pendamping: {room.timGambuhNama}
-                                                    </div>
-                                                )}
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '6px', fontSize: '10px', width: '100%', padding: '4px 0', borderTop: '1px dashed #f1f5f9' }}>
+                                                    {room.assignedCallerNama && (
+                                                        <div style={{ color: '#2563eb', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                            📢 <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>Pemanggil: {room.assignedCallerNama} {room.assignedCallerId === myId ? '(Anda)' : ''}</span>
+                                                        </div>
+                                                    )}
+                                                    {room.assignedGuardNama && (
+                                                        <div style={{ color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                            🚪 <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>Penunggu: {room.assignedGuardNama} {room.assignedGuardId === myId ? '(Anda)' : ''}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
 
                                                 <div className="action-row">
-                                                    {room.timGambuhId === myId ? (
+                                                    {room.assignedGuardId === myId ? (
                                                         room.startedAt ? (
-                                                            <button className="btn-clear" onClick={() => handleClearRoom(room.id)}>
+                                                            <button 
+                                                                className="btn-clear" 
+                                                                onClick={(e) => { e.stopPropagation(); handleClearRoom(room.id); }}
+                                                            >
                                                                 <LogOut size={12} /> Selesaikan Sesi
                                                             </button>
                                                         ) : (
-                                                            <button className="btn-start-timer" onClick={() => handleStartRoom(room.id)}>
+                                                            <button 
+                                                                className="btn-start-timer" 
+                                                                onClick={(e) => { e.stopPropagation(); handleStartRoom(room.id); }}
+                                                            >
                                                                 <Timer size={12} fill="white" /> Mulai Sesi
                                                             </button>
                                                         )
+                                                    ) : room.assignedCallerId === myId ? (
+                                                        <div className="non-assigned-companion" style={{
+                                                            fontSize: '11px',
+                                                            color: '#2563eb',
+                                                            textAlign: 'center',
+                                                            width: '100%',
+                                                            padding: '6px',
+                                                            background: '#eff6ff',
+                                                            borderRadius: '6px',
+                                                            border: '1px solid #bfdbfe',
+                                                            fontWeight: '600'
+                                                        }}>
+                                                            Tugas Anda: Pemanggil
+                                                        </div>
                                                     ) : (
                                                         <div className="non-assigned-companion" style={{
                                                             fontSize: '11px',
@@ -466,7 +517,7 @@ export default function TimGambuhOperatorPage() {
                                                             borderRadius: '6px',
                                                             border: '1px solid #cbd5e1'
                                                         }}>
-                                                            Bukan Pendampingan Anda
+                                                            Bukan Ruangan Anda
                                                         </div>
                                                     )}
                                                 </div>
@@ -486,6 +537,142 @@ export default function TimGambuhOperatorPage() {
                 </div>
 
             </div>
+
+            {selectedRoom && (
+                <div style={{
+                    position: "fixed", inset: 0, zIndex: 9999,
+                    background: "rgba(15,23,42,0.55)", backdropFilter: "blur(4px)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    padding: "16px"
+                }} onClick={() => setSelectedRoom(null)}>
+                    <div style={{
+                        background: "white", borderRadius: "16px", padding: "24px",
+                        width: "100%", maxWidth: "420px", boxShadow: "0 24px 60px rgba(0,0,0,0.25)",
+                        position: "relative", maxHeight: "90vh", overflowY: "auto"
+                    }} onClick={e => e.stopPropagation()}>
+                        {/* Close button */}
+                        <button onClick={() => setSelectedRoom(null)} style={{
+                            position: "absolute", top: "14px", right: "14px",
+                            background: "#f1f5f9", border: "none", borderRadius: "8px",
+                            width: "30px", height: "30px", cursor: "pointer",
+                            fontSize: "16px", fontWeight: 800, color: "#475569",
+                            display: "flex", alignItems: "center", justifyContent: "center"
+                        }}>×</button>
+
+                        {/* Room header */}
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "18px" }}>
+                            <div style={{
+                                background: selectedRoom.status === "Terisi" ? "linear-gradient(135deg,#10b981,#059669)" : "linear-gradient(135deg,#94a3b8,#64748b)",
+                                borderRadius: "10px", width: "44px", height: "44px",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                fontSize: "20px", flexShrink: 0
+                            }}>🚪</div>
+                            <div>
+                                <div style={{ fontSize: "18px", fontWeight: 800, color: "#0f172a" }}>{selectedRoom.nama}</div>
+                                <div style={{ fontSize: "12px", color: selectedRoom.status === "Terisi" ? "#10b981" : "#94a3b8", fontWeight: 700 }}>
+                                    ● {selectedRoom.status || "Kosong"}
+                                </div>
+                            </div>
+                            {selectedRoom.status === "Terisi" && selectedRoom.startedAt && (
+                                <div style={{ marginLeft: "auto" }}>
+                                    <RoomTimer startTime={selectedRoom.startedAt} />
+                                </div>
+                            )}
+                        </div>
+
+                        {selectedRoom.status === "Terisi" ? (
+                            <>
+                                {/* Participants */}
+                                <div style={{ background: "#f8fafc", borderRadius: "10px", padding: "14px", marginBottom: "14px", border: "1px solid #e2e8f0" }}>
+                                    <div style={{ fontSize: "10px", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>Peserta</div>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                        <div style={{ flex: 1, textAlign: "center" }}>
+                                            <div style={{ fontSize: "22px", fontWeight: 900, color: "#3b82f6" }}>{selectedRoom.pengirimNomorUrut || selectedRoom.pengirimNo || "-"}</div>
+                                            <div style={{ fontSize: "12px", fontWeight: 700, color: "#1e40af", marginTop: "2px" }}>{selectedRoom.pengirimNama}</div>
+                                            <div style={{ fontSize: "10px", color: "#94a3b8", marginTop: "2px" }}>Pria</div>
+                                        </div>
+                                        <div style={{ fontSize: "20px", color: "#e2e8f0", fontWeight: 900 }}>&amp;</div>
+                                        <div style={{ flex: 1, textAlign: "center" }}>
+                                            <div style={{ fontSize: "22px", fontWeight: 900, color: "#ec4899" }}>{selectedRoom.penerimaNomorUrut || selectedRoom.penerimaNo || "-"}</div>
+                                            <div style={{ fontSize: "12px", fontWeight: 700, color: "#be185d", marginTop: "2px" }}>{selectedRoom.penerimaNama}</div>
+                                            <div style={{ fontSize: "10px", color: "#94a3b8", marginTop: "2px" }}>Wanita</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Companions */}
+                                {(selectedRoom.assignedCallerNama || selectedRoom.assignedGuardNama) && (
+                                    <div style={{ background: "#f0fdf4", borderRadius: "10px", padding: "14px", marginBottom: "14px", border: "1px solid #bbf7d0" }}>
+                                        <div style={{ fontSize: "10px", fontWeight: 800, color: "#059669", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>Tim Pendamping</div>
+                                        {selectedRoom.assignedCallerNama && (
+                                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                                                <span style={{ fontSize: "14px" }}>📢</span>
+                                                <div>
+                                                    <div style={{ fontSize: "10px", color: "#64748b", fontWeight: 600 }}>Pemanggil</div>
+                                                    <div style={{ fontSize: "13px", fontWeight: 700, color: selectedRoom.assignedCallerId === myId ? "#2563eb" : "#0f172a" }}>
+                                                        {selectedRoom.assignedCallerNama} {selectedRoom.assignedCallerId === myId ? "(Anda)" : ""}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {selectedRoom.assignedGuardNama && (
+                                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                                <span style={{ fontSize: "14px" }}>🚪</span>
+                                                <div>
+                                                    <div style={{ fontSize: "10px", color: "#64748b", fontWeight: 600 }}>Penunggu</div>
+                                                    <div style={{ fontSize: "13px", fontWeight: 700, color: selectedRoom.assignedGuardId === myId ? "#059669" : "#0f172a" }}>
+                                                        {selectedRoom.assignedGuardNama} {selectedRoom.assignedGuardId === myId ? "(Anda)" : ""}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Action buttons — only for assigned guard */}
+                                {selectedRoom.assignedGuardId === myId && (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                                        {!selectedRoom.startedAt ? (
+                                            <button onClick={() => { setSelectedRoom(null); handleStartRoom(selectedRoom.id); }} style={{
+                                                background: "linear-gradient(135deg,#d97706,#b45309)", color: "white", border: "none",
+                                                borderRadius: "10px", padding: "12px", fontSize: "13px", fontWeight: 800,
+                                                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                                                boxShadow: "0 4px 12px rgba(217,119,6,0.3)"
+                                            }}>
+                                                <Timer size={14} fill="white" /> Mulai Sesi
+                                            </button>
+                                        ) : (
+                                            <button onClick={() => { setSelectedRoom(null); handleClearRoom(selectedRoom.id); }} style={{
+                                                background: "linear-gradient(135deg,#166534,#14532d)", color: "white", border: "none",
+                                                borderRadius: "10px", padding: "12px", fontSize: "13px", fontWeight: 800,
+                                                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                                                boxShadow: "0 4px 12px rgba(22,101,52,0.3)"
+                                            }}>
+                                                <LogOut size={14} /> Selesaikan Sesi
+                                            </button>
+                                        )}
+
+                                    </div>
+                                )}
+                                {selectedRoom.assignedCallerId === myId && (
+                                    <div style={{
+                                        background: "#eff6ff", borderRadius: "10px", padding: "12px", textAlign: "center",
+                                        color: "#2563eb", fontWeight: 700, fontSize: "13px", border: "1px solid #bfdbfe"
+                                    }}>
+                                        📢 Tugas Anda: Pemanggil — Tunggu instruksi Penunggu
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <div style={{ textAlign: "center", padding: "30px 0", color: "#94a3b8" }}>
+                                <div style={{ fontSize: "40px", marginBottom: "12px" }}>🏠</div>
+                                <div style={{ fontWeight: 700, fontSize: "14px" }}>Ruangan Kosong</div>
+                                <div style={{ fontSize: "12px", marginTop: "4px" }}>Belum ada pasangan di ruangan ini</div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             <style jsx>{`
                 .operator-layout {

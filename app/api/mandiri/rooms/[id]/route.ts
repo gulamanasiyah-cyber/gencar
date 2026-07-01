@@ -5,6 +5,7 @@ import { mandiriRooms, mandiriPemilihan, mandiriKunjungan, mandiriKegiatan, mand
 import { eq, sql, and, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { pusherServer } from "@/lib/pusher";
+import { sendWhatsApp } from "@/lib/whatsapp";
 
 export async function PATCH(
     request: NextRequest,
@@ -25,9 +26,66 @@ export async function PATCH(
             const room = await db.query.mandiriRooms.findFirst({
                 where: eq(mandiriRooms.id, roomId)
             });
-            if (room && room.timGambuhId !== operatorCompanionId) {
-                return NextResponse.json({ error: "Anda tidak memiliki wewenang untuk memproses ruangan ini karena bukan pendamping Anda." }, { status: 403 });
+            if (room && room.assignedGuardId !== operatorCompanionId) {
+                return NextResponse.json({ error: "Hanya Penunggu yang dapat memulai atau menyelesaikan sesi ini." }, { status: 403 });
             }
+        }
+
+        if (action === "update_details") {
+            const { nama, assignedCallerId, assignedGuardId } = body;
+            
+            const updateFields: any = {
+                updatedAt: sql`(datetime('now'))`
+            };
+            
+            if (nama !== undefined) {
+                updateFields.nama = nama;
+            }
+            if (assignedCallerId !== undefined) {
+                updateFields.assignedCallerId = assignedCallerId;
+            }
+            if (assignedGuardId !== undefined) {
+                updateFields.assignedGuardId = assignedGuardId;
+            }
+
+            await db.update(mandiriRooms)
+                .set(updateFields)
+                .where(eq(mandiriRooms.id, roomId));
+
+            // Trigger Pusher update
+            const updatedRoom = await db.query.mandiriRooms.findFirst({
+                where: eq(mandiriRooms.id, roomId)
+            });
+            await pusherServer.trigger("romantic-room", "room-updated", { roomId, room: updatedRoom });
+
+            return NextResponse.json({ success: true });
+        }
+
+        if (action === "assign_staff") {
+            const { assignedCallerId, assignedGuardId } = body;
+            
+            const updateFields: any = {
+                updatedAt: sql`(datetime('now'))`
+            };
+            
+            if (assignedCallerId !== undefined) {
+                updateFields.assignedCallerId = assignedCallerId;
+            }
+            if (assignedGuardId !== undefined) {
+                updateFields.assignedGuardId = assignedGuardId;
+            }
+
+            await db.update(mandiriRooms)
+                .set(updateFields)
+                .where(eq(mandiriRooms.id, roomId));
+
+            // Trigger Pusher update
+            const updatedRoom = await db.query.mandiriRooms.findFirst({
+                where: eq(mandiriRooms.id, roomId)
+            });
+            await pusherServer.trigger("romantic-room", "room-updated", { roomId, room: updatedRoom });
+
+            return NextResponse.json({ success: true });
         }
 
         if (action === "assign") {
@@ -122,6 +180,8 @@ export async function PATCH(
                 const g2 = alias(generus, "g2");
                 const m1 = alias(mandiri, "m1");
                 const m2 = alias(mandiri, "m2");
+                const uCaller = alias(timGambuh, "uCaller");
+                const uGuard = alias(timGambuh, "uGuard");
 
                 const rDetails = await db.select({
                     roomNama: mandiriRooms.nama,
@@ -130,6 +190,10 @@ export async function PATCH(
                     pengirimNoUrut: m1.nomorUrut,
                     penerimaNama: g2.nama,
                     penerimaNoUrut: m2.nomorUrut,
+                    assignedCallerId: mandiriRooms.assignedCallerId,
+                    assignedCallerNama: uCaller.nama,
+                    assignedGuardId: mandiriRooms.assignedGuardId,
+                    assignedGuardNama: uGuard.nama,
                 })
                 .from(mandiriRooms)
                 .leftJoin(mandiriPemilihan, eq(mandiriRooms.pemilihanId, mandiriPemilihan.id))
@@ -138,6 +202,8 @@ export async function PATCH(
                 .leftJoin(g2, eq(mandiriPemilihan.penerimaId, g2.id))
                 .leftJoin(m1, eq(g1.id, m1.generusId))
                 .leftJoin(m2, eq(g2.id, m2.generusId))
+                .leftJoin(uCaller, eq(mandiriRooms.assignedCallerId, uCaller.id))
+                .leftJoin(uGuard, eq(mandiriRooms.assignedGuardId, uGuard.id))
                 .where(eq(mandiriRooms.id, roomId))
                 .limit(1);
 
@@ -153,6 +219,10 @@ export async function PATCH(
                     pengirimNoUrut: rd?.pengirimNoUrut || "",
                     penerimaNama: rd?.penerimaNama || "",
                     penerimaNoUrut: rd?.penerimaNoUrut || "",
+                    assignedCallerId: rd?.assignedCallerId || null,
+                    assignedCallerNama: rd?.assignedCallerNama || null,
+                    assignedGuardId: rd?.assignedGuardId || null,
+                    assignedGuardNama: rd?.assignedGuardNama || null,
                 });
             } catch (pusherErr) {
                 console.error("Pusher trigger error:", pusherErr);
@@ -192,43 +262,15 @@ export async function PATCH(
                 const penerima = penerimaData[0];
 
                 if (pengirim && penerima) {
-                    const sendWhatsApp = async (target: string, msg: string) => {
-                        const fonnteToken = process.env.FONNTE_TOKEN;
-                        if (!fonnteToken || !target) return;
-                        
-                        let cleanTarget = target.replace(/\D/g, "");
-                        if (cleanTarget.startsWith("0")) {
-                            cleanTarget = "62" + cleanTarget.slice(1);
-                        }
-                        if (!cleanTarget.startsWith("62")) return;
-                        
-                        try {
-                            const res = await fetch("https://api.fonnte.com/send", {
-                                method: "POST",
-                                headers: {
-                                    Authorization: fonnteToken,
-                                    "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({
-                                    target: cleanTarget,
-                                    message: msg,
-                                }),
-                            });
-                            const resData = await res.json();
-                            console.log(`Fonnte room notification sent to ${cleanTarget}:`, resData);
-                        } catch (err) {
-                            console.error(`Failed to send WhatsApp notification to ${cleanTarget}:`, err);
-                        }
-                    };
 
                     const msgToPengirim = `Amal sholihnya untuk *${pengirim.nama}* (*#${pengirim.nomorUrut || '-'}*), dimintai amal sholih untuk ke *${roomName}* dengan *${penerima.nama}* (*#${penerima.nomorUrut || '-'}*).`;
                     const msgToPenerima = `Amal sholihnya untuk *${penerima.nama}* (*#${penerima.nomorUrut || '-'}*), dimintai amal sholih untuk ke *${roomName}* dengan *${pengirim.nama}* (*#${pengirim.nomorUrut || '-'}*).`;
 
                     if (pengirim.noTelp) {
-                        await sendWhatsApp(pengirim.noTelp, msgToPengirim);
+                        sendWhatsApp(pengirim.noTelp, msgToPengirim);
                     }
                     if (penerima.noTelp) {
-                        await sendWhatsApp(penerima.noTelp, msgToPenerima);
+                        sendWhatsApp(penerima.noTelp, msgToPenerima);
                     }
                 }
             } catch (notifyErr) {

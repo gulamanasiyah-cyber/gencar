@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriRooms, mandiriPemilihan, generus, mandiri, settings, timGambuh } from "@/lib/schema";
+import { mandiriRooms, mandiriPemilihan, generus, mandiri, settings, timGambuh, users } from "@/lib/schema";
 import { eq, and, or, count, desc, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
@@ -11,6 +11,14 @@ import { pusherServer } from "@/lib/pusher";
 
 export async function GET(request: NextRequest) {
     try {
+        // Self-healing migration to automatically add new columns to database if missing
+        try {
+            await db.run(sql`ALTER TABLE mandiri_rooms ADD COLUMN assigned_caller_id TEXT`);
+        } catch (e) {}
+        try {
+            await db.run(sql`ALTER TABLE mandiri_rooms ADD COLUMN assigned_guard_id TEXT`);
+        } catch (e) {}
+
         const session = await getSession();
         let authorized = !!session;
 
@@ -46,6 +54,8 @@ export async function GET(request: NextRequest) {
         const g2 = alias(generus, "g2");
         const m1 = alias(mandiri, "m1");
         const m2 = alias(mandiri, "m2");
+        const uCaller = alias(timGambuh, "uCaller");
+        const uGuard = alias(timGambuh, "uGuard");
 
         const rooms = await db.select({
             id: mandiriRooms.id,
@@ -61,6 +71,10 @@ export async function GET(request: NextRequest) {
             penerimaNo: g2.nomorUnik,
             penerimaNomorUrut: m2.nomorUrut,
             startedAt: mandiriRooms.startedAt,
+            assignedCallerId: mandiriRooms.assignedCallerId,
+            assignedCallerNama: uCaller.nama,
+            assignedGuardId: mandiriRooms.assignedGuardId,
+            assignedGuardNama: uGuard.nama,
             updatedAt: mandiriRooms.updatedAt,
         })
         .from(mandiriRooms)
@@ -70,6 +84,8 @@ export async function GET(request: NextRequest) {
         .leftJoin(g2, eq(mandiriPemilihan.penerimaId, g2.id))
         .leftJoin(m1, eq(g1.id, m1.generusId))
         .leftJoin(m2, eq(g2.id, m2.generusId))
+        .leftJoin(uCaller, eq(mandiriRooms.assignedCallerId, uCaller.id))
+        .leftJoin(uGuard, eq(mandiriRooms.assignedGuardId, uGuard.id))
         .where(eq(mandiriRooms.kegiatanId, kegiatanId))
         .orderBy(mandiriRooms.nama);
 

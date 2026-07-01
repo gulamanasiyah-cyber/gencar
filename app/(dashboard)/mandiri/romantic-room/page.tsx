@@ -8,7 +8,7 @@ import Swal from "sweetalert2";
 import {
     Heart, MessageSquare, User, Phone, MapPin, ClipboardList,
     CheckCircle, Star, Download, Sparkles, Send, Timer,
-    Globe, Plus, Trash2, LogOut, Users, DoorOpen, Search, Undo2, Bell
+    Globe, Plus, Trash2, LogOut, Users, DoorOpen, Search, Undo2, Bell, Info, SlidersHorizontal
 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -74,10 +74,23 @@ function RoomTimer({ startTime }: { startTime: string }) {
     );
 }
 
+const calculateAge = (birthDateString: string) => {
+    if (!birthDateString) return 0;
+    const today = new Date();
+    const birthDate = new Date(birthDateString);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+    return age;
+};
+
 export default function RomanticRoomPage() {
     const [loading, setLoading] = useState(true);
     const [myProfile, setMyProfile] = useState<any>(null);
     const [allRooms, setAllRooms] = useState<any[]>([]);
+    const [staffList, setStaffList] = useState<any[]>([]);
     const [allQueue, setAllQueue] = useState<any[]>([]); // Status "Menunggu"
     const [allParticipants, setAllParticipants] = useState<any[]>([]);
     const [resultFilter, setResultFilter] = useState("Semua");
@@ -87,6 +100,12 @@ export default function RomanticRoomPage() {
     const [attendanceCount, setAttendanceCount] = useState<number>(0);
     const [queueSearch, setQueueSearch] = useState("");
     const [roomSearch, setRoomSearch] = useState("");
+    const [callerGenderFilter, setCallerGenderFilter] = useState("Semua");
+    const [calledGenderFilter, setCalledGenderFilter] = useState("Semua");
+    const [callerAgeFilter, setCallerAgeFilter] = useState("Semua");
+    const [calledAgeFilter, setCalledAgeFilter] = useState("Semua");
+    const [showQueueFilters, setShowQueueFilters] = useState(false);
+    const [ageThreshold, setAgeThreshold] = useState<number>(25);
 
     const [allCities, setAllCities] = useState<string[]>([]);
     const [allVillages, setAllVillages] = useState<any[]>([]);
@@ -220,6 +239,13 @@ export default function RomanticRoomPage() {
                     const cities = Array.from(new Set(desaJson.map((d: any) => d.kota))).sort() as string[];
                     setAllCities(cities);
                 }
+
+                // Fetch Staff list for assignments
+                const staffRes = await fetch("/api/mandiri/staff");
+                if (staffRes.ok) {
+                    const staffJson = await staffRes.json();
+                    setStaffList(Array.isArray(staffJson) ? staffJson : []);
+                }
             } else {
                 // Check if user is in a room or queue
                 const myRooms = (Array.isArray(roomsJson) ? roomsJson : []).find((r: any) =>
@@ -282,6 +308,197 @@ export default function RomanticRoomPage() {
         };
     }, []);
 
+
+    const handleShowRoomDetails = async (room: any) => {
+        const { value: formValues } = await Swal.fire({
+            title: `Detail & Pengaturan ${room.nama}`,
+            html: `
+                <div style="text-align: left; font-size: 13px; color: #1e293b;">
+                    <div style="margin-bottom: 12px;">
+                        <label style="display:block; font-weight:700; margin-bottom: 6px;">Nama Ruangan:</label>
+                        <input id="edit_room_nama" type="text" value="${room.nama}" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; outline:none; font-weight:600;" />
+                    </div>
+                    
+                    <div style="margin-bottom: 12px;">
+                        <label style="display:block; font-weight:700; margin-bottom: 6px;">Petugas Pemanggil (Caller):</label>
+                        <select id="edit_room_caller" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; outline:none; font-weight:600;">
+                            <option value="">-- Belum Ditugaskan --</option>
+                            ${staffList.map(s => `<option value="${s.id}" ${s.id === room.assignedCallerId ? 'selected' : ''}>${s.name}</option>`).join("")}
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 12px;">
+                        <label style="display:block; font-weight:700; margin-bottom: 6px;">Petugas Penunggu (Guard):</label>
+                        <select id="edit_room_guard" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; outline:none; font-weight:600;">
+                            <option value="">-- Belum Ditugaskan --</option>
+                            ${staffList.map(s => `<option value="${s.id}" ${s.id === room.assignedGuardId ? 'selected' : ''}>${s.name}</option>`).join("")}
+                        </select>
+                    </div>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Simpan Perubahan',
+            cancelButtonText: 'Batal',
+            preConfirm: () => {
+                const nama = (document.getElementById("edit_room_nama") as HTMLInputElement).value.trim();
+                const callerId = (document.getElementById("edit_room_caller") as HTMLSelectElement).value;
+                const guardId = (document.getElementById("edit_room_guard") as HTMLSelectElement).value;
+
+                if (!nama) {
+                    Swal.showValidationMessage("Nama ruangan tidak boleh kosong");
+                    return false;
+                }
+
+                return {
+                    nama,
+                    assignedCallerId: callerId || null,
+                    assignedGuardId: guardId || null
+                };
+            }
+        });
+
+        if (formValues) {
+            try {
+                Swal.fire({
+                    title: 'Menyimpan Perubahan...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                const res = await fetch(`/api/mandiri/rooms/${room.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        action: "update_details",
+                        ...formValues
+                    })
+                });
+
+                if (res.ok) {
+                    Swal.fire("Berhasil", "Detail ruangan telah diperbarui.", "success");
+                    fetchData();
+                } else {
+                    const err = await res.json();
+                    throw new Error(err.error || "Gagal memperbarui detail ruangan");
+                }
+            } catch (err: any) {
+                Swal.fire("Error", err.message, "error");
+            }
+        }
+    };
+
+    const handleOpenAssignStaffModal = async () => {
+        const { value: formValues } = await Swal.fire({
+            title: 'Atur Tugas Staf Tim PNKB',
+            html: `
+                <div style="text-align: left; font-size: 13px; color: #1e293b;">
+                    <div style="margin-bottom: 12px;">
+                        <label style="display:block; font-weight:700; margin-bottom: 6px;">1. Pilih Nama Staf:</label>
+                        <select id="assign_staff_id" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; outline:none; font-weight:600;">
+                            <option value="">-- Pilih Staf PNKB --</option>
+                            <option value="clear">-- Hapus Penugasan / Kosongkan --</option>
+                            ${staffList.map(s => `<option value="${s.id}">${s.name} (${s.role.replace("_", " ").toUpperCase()})</option>`).join("")}
+                        </select>
+                    </div>
+                    
+                    <div style="margin-bottom: 12px;" id="role_type_container">
+                        <label style="display:block; font-weight:700; margin-bottom: 6px;">2. Pilih Peran Tugas:</label>
+                        <div style="display:flex; gap: 15px;">
+                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                <input type="radio" name="assign_role_type" value="caller" defaultChecked style="width:16px; height:16px;" />
+                                <span>Pemanggil (Caller)</span>
+                            </label>
+                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                <input type="radio" name="assign_role_type" value="guard" style="width:16px; height:16px;" />
+                                <span>Penunggu (Room Guard)</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label style="display:block; font-weight:700; margin-bottom: 6px;">3. Pilih Ruangan (Bisa lebih dari satu):</label>
+                        <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 8px; max-height: 180px; overflow-y: auto; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc;">
+                            ${allRooms.map(r => `
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${r.nama}">
+                                    <input type="checkbox" name="assign_rooms" value="${r.id}" style="width:16px; height:16px;" />
+                                    <span style="font-size:11px; font-weight:600;">${r.nama}</span>
+                                </label>
+                            `).join("")}
+                        </div>
+                    </div>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Terapkan',
+            cancelButtonText: 'Batal',
+            preConfirm: () => {
+                const staffId = (document.getElementById("assign_staff_id") as HTMLSelectElement).value;
+                const checkedBoxes = document.querySelectorAll('input[name="assign_rooms"]:checked');
+                const selectedRoomIds = Array.from(checkedBoxes).map((cb: any) => cb.value);
+                
+                const checkedRadio = document.querySelector('input[name="assign_role_type"]:checked') as HTMLInputElement;
+                const roleType = checkedRadio ? checkedRadio.value : "caller";
+
+                if (!staffId) {
+                    Swal.showValidationMessage("Silakan pilih staf terlebih dahulu");
+                    return false;
+                }
+                if (selectedRoomIds.length === 0) {
+                    Swal.showValidationMessage("Silakan pilih minimal satu ruangan");
+                    return false;
+                }
+
+                return { staffId, roleType, selectedRoomIds };
+            }
+        });
+
+        if (formValues) {
+            try {
+                Swal.fire({
+                    title: 'Menerapkan Penugasan...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                const { staffId, roleType, selectedRoomIds } = formValues;
+                const isClear = staffId === "clear";
+
+                const promises = selectedRoomIds.map((roomId: string) => {
+                    const body: any = { action: "assign_staff" };
+                    if (isClear) {
+                        body.assignedCallerId = null;
+                        body.assignedGuardId = null;
+                    } else if (roleType === "caller") {
+                        body.assignedCallerId = staffId;
+                    } else {
+                        body.assignedGuardId = staffId;
+                    }
+
+                    return fetch(`/api/mandiri/rooms/${roomId}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(body)
+                    });
+                });
+
+                const results = await Promise.all(promises);
+                const allOk = results.every(res => res.ok);
+
+                if (allOk) {
+                    Swal.fire("Berhasil", "Penugasan staf telah diterapkan.", "success");
+                    fetchData();
+                } else {
+                    Swal.fire("Error", "Gagal menerapkan beberapa penugasan", "error");
+                }
+            } catch (err) {
+                Swal.fire("Error", "Terjadi kesalahan jaringan", "error");
+            }
+        }
+    };
 
     const handleCreateRoom = async () => {
         const { value: roomName } = await Swal.fire({
@@ -394,157 +611,36 @@ export default function RomanticRoomPage() {
             return;
         }
 
-        const { value: roomId } = await Swal.fire({
-            title: 'Pilih Ruangan',
-            input: 'select',
-            inputOptions: Object.fromEntries(availableRooms.map(r => [r.id, r.nama])),
-            inputPlaceholder: 'Pilih ruangan...',
-            showCancelButton: true
-        });
+        // Auto assign to the first empty room (sorted numerically/alphabetically)
+        const sortedAvailableRooms = [...availableRooms].sort((a, b) => a.nama.localeCompare(b.nama, undefined, { numeric: true, sensitivity: 'base' }));
+        const targetRoom = sortedAvailableRooms[0];
+        const roomId = targetRoom.id;
 
-        if (roomId) {
-            // Fetch available Tim Gambuh companions
-            let availableTimGambuh = [];
-            try {
-                const tgRes = await fetch("/api/admin/tim-gambuh");
-                if (tgRes.ok) {
-                    const tgList = await tgRes.json();
-                    if (Array.isArray(tgList)) {
-                        const busyIds = allRooms
-                            .filter(r => r.status === "Terisi" && r.timGambuhId)
-                            .map(r => r.timGambuhId);
-                        availableTimGambuh = tgList.filter(m => !busyIds.includes(m.id));
-                    }
-                }
-            } catch (err) {
-                console.error("Error fetching tim-gambuh:", err);
-            }
-
-            if (availableTimGambuh.length === 0) {
-                Swal.fire("Gagal", "Tidak ada pendamping (Tim Gambuh) yang tersedia/anggota kosong.", "error");
-                return;
-            }
-
-            const { value: timGambuhId } = await Swal.fire({
-                title: 'Pilih Pendamping (Tim Gambuh)',
-                input: 'select',
-                inputOptions: Object.fromEntries(availableTimGambuh.map(m => [m.id, `${m.nama} (${m.tipe})`])),
-                inputPlaceholder: 'Pilih pendamping...',
-                showCancelButton: true,
-                inputValidator: (value) => {
-                    if (!value) {
-                        return 'Pendamping wajib dipilih!';
-                    }
-                }
+        try {
+            const res = await fetch(`/api/mandiri/rooms/${roomId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pemilihanId, action: "assign" })
             });
-
-            if (timGambuhId) {
-                try {
-                    const res = await fetch(`/api/mandiri/rooms/${roomId}`, {
-                        method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ pemilihanId, action: "assign", timGambuhId })
-                    });
-                    if (res.ok) {
-                        Swal.fire("Berhasil", `${pengirim} & ${penerima} telah masuk ke ruangan dengan pendamping.`, "success");
-                        fetchData();
-                    } else {
-                        const errData = await res.json();
-                        Swal.fire("Error", errData.error || "Gagal memproses validasi", "error");
-                    }
-                } catch (err) {
-                    Swal.fire("Error", "Gagal memproses validasi", "error");
-                }
-            }
-        }
-    };
-
-    const handleCallToWaitingRoom = async (pemilihanId: string, pengirim: string, penerima: string, pengirimKeterangan?: string, penerimaKeterangan?: string) => {
-        if (pengirimKeterangan === "pulang") {
-            Swal.fire("Gagal Panggil", `${pengirim} sudah logout (pulang). Tidak dapat memanggil ke Ruang Tunggu.`, "error");
-            return;
-        }
-        if (penerimaKeterangan === "pulang") {
-            Swal.fire("Gagal Panggil", `${penerima} sudah logout (pulang). Tidak dapat memanggil ke Ruang Tunggu.`, "error");
-            return;
-        }
-
-        const currentWaitingRoomCount = allQueue.filter((item: any) => item.statusTunggu === "dipanggil").length;
-        if (currentWaitingRoomCount >= 5) {
-            Swal.fire("Gagal Panggil", "Ruang Tunggu sudah penuh (maksimal 5 pasang). Silakan proses pasangan di Ruang Tunggu ke ruangan terlebih dahulu.", "warning");
-            return;
-        }
-
-        const result = await Swal.fire({
-            title: 'Panggil ke Ruang Tunggu?',
-            text: `Kirim notif WhatsApp ke ${pengirim} & ${penerima} untuk merapat ke Ruang Tunggu?`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Ya, Panggil',
-            cancelButtonText: 'Batal',
-            confirmButtonColor: '#3b82f6'
-        });
-
-        if (result.isConfirmed) {
-            try {
+            if (res.ok) {
                 Swal.fire({
-                    title: 'Mengirim Panggilan...',
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
+                    title: "Berhasil",
+                    text: `${pengirim} & ${penerima} telah masuk ke ${targetRoom.nama}.`,
+                    icon: "success",
+                    timer: 1500,
+                    showConfirmButton: false
                 });
-
-                const res = await fetch("/api/mandiri/pilih", {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ pemilihanId, statusTunggu: "dipanggil" })
-                });
-
-                if (res.ok) {
-                    Swal.fire("Berhasil", "Peserta telah dipanggil ke Ruang Tunggu & notifikasi WA terkirim.", "success");
-                    fetchData();
-                } else {
-                    const errData = await res.json();
-                    Swal.fire("Error", errData.error || "Gagal memanggil peserta", "error");
-                }
-            } catch (err) {
-                Swal.fire("Error", "Terjadi kesalahan jaringan", "error");
+                fetchData();
+            } else {
+                const errData = await res.json();
+                Swal.fire("Error", errData.error || "Gagal memproses validasi", "error");
             }
+        } catch (err) {
+            Swal.fire("Error", "Gagal memproses validasi", "error");
         }
     };
 
-    const handleReturnToQueue = async (pemilihanId: string, pengirim: string, penerima: string) => {
-        const result = await Swal.fire({
-            title: 'Kembalikan ke Antrean?',
-            text: `Kembalikan ${pengirim} & ${penerima} ke antrean utama?`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Ya, Kembalikan',
-            cancelButtonText: 'Batal',
-            confirmButtonColor: '#f59e0b'
-        });
 
-        if (result.isConfirmed) {
-            try {
-                const res = await fetch("/api/mandiri/pilih", {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ pemilihanId, statusTunggu: "antrean" })
-                });
-
-                if (res.ok) {
-                    Swal.fire("Berhasil", "Pasangan telah dikembalikan ke antrean utama.", "success");
-                    fetchData();
-                } else {
-                    const errData = await res.json();
-                    Swal.fire("Error", errData.error || "Gagal mengembalikan ke antrean", "error");
-                }
-            } catch (err) {
-                Swal.fire("Error", "Terjadi kesalahan jaringan", "error");
-            }
-        }
-    };
 
     const handleDeleteAllRooms = async () => {
         const result = await Swal.fire({
@@ -1018,6 +1114,8 @@ export default function RomanticRoomPage() {
         terpilihWa: q.penerimaWa,
         pemilihJenisKelamin: q.pengirimJenisKelamin,
         terpilihJenisKelamin: q.penerimaJenisKelamin,
+        pemilihTanggalLahir: q.pengirimTanggalLahir,
+        terpilihTanggalLahir: q.penerimaTanggalLahir,
         isQueue: true
     }));
 
@@ -1091,8 +1189,56 @@ export default function RomanticRoomPage() {
             ).length,
         };
 
-        const activeQueue = allQueue.filter((item: any) => item.statusTunggu !== "dipanggil" && item.statusTunggu !== "ada");
-        const waitingRoomQueue = allQueue.filter((item: any) => item.statusTunggu === "dipanggil" || item.statusTunggu === "ada");
+        const activeQueue = allQueue;
+
+        const filteredQueue = activeQueue.filter((item: any) => {
+            // Search filter
+            const search = queueSearch.toLowerCase();
+            const matchSearch = (
+                item.pengirimNama?.toLowerCase().includes(search) ||
+                item.penerimaNama?.toLowerCase().includes(search) ||
+                (item.pengirimNomorUrut || item.pengirimNo || '').toString().includes(search) ||
+                (item.penerimaNomorUrut || item.penerimaNo || '').toString().includes(search)
+            );
+
+            // Gender Pemanggil filter
+            let matchCallerGender = true;
+            if (callerGenderFilter !== "Semua") {
+                matchCallerGender = item.pengirimJenisKelamin === callerGenderFilter;
+            }
+
+            // Gender Dipanggil filter
+            let matchCalledGender = true;
+            if (calledGenderFilter !== "Semua") {
+                matchCalledGender = item.penerimaJenisKelamin === calledGenderFilter;
+            }
+
+            // Calculate ages
+            const callerAge = item.pengirimTanggalLahir ? calculateAge(item.pengirimTanggalLahir) : 0;
+            const calledAge = item.penerimaTanggalLahir ? calculateAge(item.penerimaTanggalLahir) : 0;
+
+            // Age Pemanggil filter (under ageThreshold vs ageThreshold+)
+            let matchCallerAge = true;
+            if (callerAgeFilter !== "Semua") {
+                if (callerAgeFilter === "under") {
+                    matchCallerAge = callerAge > 0 && callerAge < ageThreshold;
+                } else if (callerAgeFilter === "over") {
+                    matchCallerAge = callerAge >= ageThreshold;
+                }
+            }
+
+            // Age Dipanggil filter (under ageThreshold vs ageThreshold+)
+            let matchCalledAge = true;
+            if (calledAgeFilter !== "Semua") {
+                if (calledAgeFilter === "under") {
+                    matchCalledAge = calledAge > 0 && calledAge < ageThreshold;
+                } else if (calledAgeFilter === "over") {
+                    matchCalledAge = calledAge >= ageThreshold;
+                }
+            }
+
+            return matchSearch && matchCallerGender && matchCalledGender && matchCallerAge && matchCalledAge;
+        });
 
         const filteredRooms = allRooms.filter((room) => {
             const search = roomSearch.toLowerCase();
@@ -1201,245 +1347,176 @@ export default function RomanticRoomPage() {
                 </header>
 
                 <div className="admin-grid">
-                                   {/* Queue Box (Horizontal Layout) */}
-                    <div className="admin-card queue-box" style={{ width: '100%' }}>
+                    <div className="admin-card queue-box" style={{ width: '100%', height: '100%' }}>
                         <div className="card-header" style={{ borderRadius: '16px 16px 0 0', overflow: 'hidden' }}>
                             <div className="header-title">
                                 <Timer size={20} />
                                 <h3>Kotak Antrean</h3>
                             </div>
-                            <span className="count-badge">{activeQueue.length} Antrean</span>
+                            <span className="count-badge">{filteredQueue.length} Antrean</span>
                         </div>
-                        <div className="search-bar-container">
-                            <Search size={16} />
-                            <input
-                                type="text"
-                                placeholder="Cari nama atau nomor..."
-                                value={queueSearch}
-                                onChange={(e) => setQueueSearch(e.target.value)}
-                            />
+                        <div className="search-bar-container" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+                                <Search size={16} style={{ position: 'absolute', left: '12px', color: '#94a3b8' }} />
+                                <input
+                                    type="text"
+                                    placeholder="Cari nama atau nomor..."
+                                    value={queueSearch}
+                                    onChange={(e) => setQueueSearch(e.target.value)}
+                                    style={{ width: '100%', paddingLeft: '36px', height: '36px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '12px', outline: 'none' }}
+                                />
+                            </div>
+                            <button
+                                onClick={() => setShowQueueFilters(!showQueueFilters)}
+                                className={`btn-queue-filter-toggle ${showQueueFilters ? 'active' : ''}`}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: '36px',
+                                    height: '36px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #cbd5e1',
+                                    background: showQueueFilters ? '#eff6ff' : 'white',
+                                    color: showQueueFilters ? '#2563eb' : '#64748b',
+                                    borderColor: showQueueFilters ? '#bfdbfe' : '#cbd5e1',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    flexShrink: 0
+                                }}
+                                title="Filter Antrean"
+                            >
+                                <SlidersHorizontal size={14} />
+                            </button>
                         </div>
+
+                        {/* Queue Filter Dropdowns */}
+                        {showQueueFilters && (
+                            <div className="queue-filters" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px 12px', borderBottom: '1px solid #f1f5f9', backgroundColor: '#f8fafc' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '8px', fontWeight: 800, textTransform: 'uppercase', color: '#64748b', marginBottom: '3px' }}>Gender Pemanggil</label>
+                                        <select value={callerGenderFilter} onChange={(e) => setCallerGenderFilter(e.target.value)} style={{ width: '100%', padding: '4px 6px', fontSize: '10px', borderRadius: '4px', border: '1px solid #cbd5e1', outline: 'none', background: 'white', fontWeight: 600 }}>
+                                            <option value="Semua">Semua Gender</option>
+                                            <option value="L">Laki-laki (L)</option>
+                                            <option value="P">Perempuan (P)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '8px', fontWeight: 800, textTransform: 'uppercase', color: '#64748b', marginBottom: '3px' }}>Gender Dipanggil</label>
+                                        <select value={calledGenderFilter} onChange={(e) => setCalledGenderFilter(e.target.value)} style={{ width: '100%', padding: '4px 6px', fontSize: '10px', borderRadius: '4px', border: '1px solid #cbd5e1', outline: 'none', background: 'white', fontWeight: 600 }}>
+                                            <option value="Semua">Semua Gender</option>
+                                            <option value="L">Laki-laki (L)</option>
+                                            <option value="P">Perempuan (P)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr 1fr', gap: '8px', alignItems: 'flex-end' }}>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '8px', fontWeight: 800, textTransform: 'uppercase', color: '#64748b', marginBottom: '3px' }}>Batas Umur</label>
+                                        <input 
+                                            type="number" 
+                                            value={ageThreshold} 
+                                            onChange={(e) => setAgeThreshold(Math.max(1, Number(e.target.value)))} 
+                                            style={{ width: '100%', padding: '4px 6px', fontSize: '10px', borderRadius: '4px', border: '1px solid #cbd5e1', outline: 'none', background: 'white', fontWeight: 800, textAlign: 'center' }} 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '8px', fontWeight: 800, textTransform: 'uppercase', color: '#64748b', marginBottom: '3px' }}>Umur Pemanggil</label>
+                                        <select value={callerAgeFilter} onChange={(e) => setCallerAgeFilter(e.target.value)} style={{ width: '100%', padding: '4px 6px', fontSize: '10px', borderRadius: '4px', border: '1px solid #cbd5e1', outline: 'none', background: 'white', fontWeight: 600 }}>
+                                            <option value="Semua">Semua Umur</option>
+                                            <option value="under">Di bawah {ageThreshold} thn</option>
+                                            <option value="over">Di atas/Sama {ageThreshold} thn</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '8px', fontWeight: 800, textTransform: 'uppercase', color: '#64748b', marginBottom: '3px' }}>Umur Dipanggil</label>
+                                        <select value={calledAgeFilter} onChange={(e) => setCalledAgeFilter(e.target.value)} style={{ width: '100%', padding: '4px 6px', fontSize: '10px', borderRadius: '4px', border: '1px solid #cbd5e1', outline: 'none', background: 'white', fontWeight: 600 }}>
+                                            <option value="Semua">Semua Umur</option>
+                                            <option value="under">Di bawah {ageThreshold} thn</option>
+                                            <option value="over">Di atas/Sama {ageThreshold} thn</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="card-body">
-                            {activeQueue.length === 0 ? (
+                            {filteredQueue.length === 0 ? (
                                 <div className="empty-state">Antrean kosong</div>
                             ) : (
-                                <div className="scroll-wrapper">
-                                <div className="horizontal-scroll">
-                                    {activeQueue
-                                        .filter((item: any) => {
-                                            const search = queueSearch.toLowerCase();
-                                            return (
-                                                item.pengirimNama?.toLowerCase().includes(search) ||
-                                                item.penerimaNama?.toLowerCase().includes(search) ||
-                                                (item.pengirimNomorUrut || item.pengirimNo || '').toString().includes(search) ||
-                                                (item.penerimaNomorUrut || item.penerimaNo || '').toString().includes(search)
-                                            );
-                                        })
-                                        .map((item: any) => (
-                                            <div key={item.id} className="queue-item" style={{ flexShrink: 0, width: '460px', margin: 0, padding: '12px' }}>
-                                                <div className="pair-names-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                                <div className="scrollable">
+                                    {filteredQueue.map((item: any) => (
+                                            <div key={item.id} className="queue-item" style={{ padding: '6px 10px', margin: '0 0 6px 0', borderRadius: '8px' }}>
+                                                <div className="pair-names-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                                                     {/* Caller */}
-                                                    <div className="participant-row caller" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                        <div className="p-role-tag caller" style={{ alignSelf: 'flex-start', margin: 0, padding: '1px 4px', fontSize: '7px' }}>Pemanggil</div>
+                                                    <div className="participant-row caller" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                                                        <div className="p-role-tag caller" style={{ alignSelf: 'flex-start', margin: 0, padding: '1px 4px', fontSize: '7.5px', borderRadius: '3px' }}>Pemanggil</div>
                                                         <div className="p-main-box" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                                                            <span className="p-number-badge" style={{ padding: '1px 4px', fontSize: '9px', minWidth: '22px' }}>{item.pengirimNomorUrut || item.pengirimNo || '-'}</span>
-                                                            <span className="p-name" style={{ fontSize: '12px', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                            <span className="p-number-badge" style={{ padding: '1px 4px', fontSize: '9px', minWidth: '20px', borderRadius: '3px' }}>{item.pengirimNomorUrut || item.pengirimNo || '-'}</span>
+                                                            <span className="p-name" style={{ fontSize: '12.5px', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                 {item.pengirimNama}
-                                                                {item.pengirimKeterangan === 'pulang' && <span className="p-pulang-badge" style={{ fontSize: '9px' }}> (Pulang)</span>}
+                                                                {item.pengirimKeterangan === 'pulang' && <span className="p-pulang-badge" style={{ fontSize: '9px' }}> (P)</span>}
                                                             </span>
                                                         </div>
-                                                        <div className="p-sub-info" style={{ fontSize: '9px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                                            <MapPin size={8} /> <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.pengirimKota || '-'} / {item.pengirimDesa || '-'}</span>
+                                                        <div className="p-sub-info" style={{ fontSize: '9.5px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                                            <MapPin size={9} /> <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.pengirimKota || '-'} / {item.pengirimDesa || '-'}</span>
                                                         </div>
                                                     </div>
-
+ 
                                                     {/* Divider */}
                                                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                                                         <Heart size={12} fill="#f43f5e" color="#f43f5e" />
                                                     </div>
-
+ 
                                                     {/* Called */}
-                                                    <div className="participant-row called" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-end', textAlign: 'right' }}>
-                                                        <div className="p-role-tag called" style={{ alignSelf: 'flex-end', margin: 0, padding: '1px 4px', fontSize: '7px' }}>Dipanggil</div>
+                                                    <div className="participant-row called" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1px', alignItems: 'flex-end', textAlign: 'right' }}>
+                                                        <div className="p-role-tag called" style={{ alignSelf: 'flex-end', margin: 0, padding: '1px 4px', fontSize: '7.5px', borderRadius: '3px' }}>Dipanggil</div>
                                                         <div className="p-main-box" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', flexDirection: 'row-reverse' }}>
-                                                            <span className="p-number-badge" style={{ padding: '1px 4px', fontSize: '9px', minWidth: '22px' }}>{item.penerimaNomorUrut || item.penerimaNo || '-'}</span>
-                                                            <span className="p-name" style={{ fontSize: '12px', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                            <span className="p-number-badge" style={{ padding: '1px 4px', fontSize: '9px', minWidth: '20px', borderRadius: '3px' }}>{item.penerimaNomorUrut || item.penerimaNo || '-'}</span>
+                                                            <span className="p-name" style={{ fontSize: '12.5px', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                                 {item.penerimaNama}
-                                                                {item.penerimaKeterangan === 'pulang' && <span className="p-pulang-badge" style={{ fontSize: '9px' }}> (Pulang)</span>}
+                                                                {item.penerimaKeterangan === 'pulang' && <span className="p-pulang-badge" style={{ fontSize: '9px' }}> (P)</span>}
                                                             </span>
                                                         </div>
-                                                        <div className="p-sub-info" style={{ fontSize: '9px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '2px', justifyContent: 'flex-end' }}>
-                                                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.penerimaKota || '-'} / {item.penerimaDesa || '-'}</span> <MapPin size={8} />
+                                                        <div className="p-sub-info" style={{ fontSize: '9.5px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '2px', justifyContent: 'flex-end' }}>
+                                                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.penerimaKota || '-'} / {item.penerimaDesa || '-'}</span> <MapPin size={9} />
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="queue-actions" style={{ display: 'flex', gap: '6px', borderTop: '1px solid #f1f5f9', paddingTop: '8px', marginTop: '4px' }}>
+                                                <div className="queue-actions" style={{ display: 'flex', gap: '6px', borderTop: '1px solid #f1f5f9', paddingTop: '6px', marginTop: '4px' }}>
                                                     <button 
-                                                        className={`btn-call-waiting ${(item.pengirimKeterangan === 'pulang' || item.penerimaKeterangan === 'pulang') ? 'btn-disabled' : ''}`}
-                                                        style={{
-                                                            flex: 2,
-                                                            backgroundColor: '#3b82f6',
-                                                            color: 'white',
-                                                            border: 'none',
-                                                            padding: '4px 8px',
-                                                            borderRadius: '6px',
-                                                            fontWeight: '700',
-                                                            fontSize: '10px',
-                                                            cursor: 'pointer',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            gap: '4px',
-                                                            boxShadow: '0 2px 4px rgba(59, 130, 246, 0.2)',
-                                                            transition: 'all 0.2s',
-                                                            whiteSpace: 'nowrap'
-                                                        }}
-                                                        disabled={item.pengirimKeterangan === 'pulang' || item.penerimaKeterangan === 'pulang'}
-                                                        onClick={() => handleCallToWaitingRoom(item.id, item.pengirimNama, item.penerimaNama, item.pengirimKeterangan, item.penerimaKeterangan)}
-                                                    >
-                                                        <Bell size={10} /> Panggil Ke Ruang Tunggu
-                                                    </button>
-                                                    
-                                                    <button className="btn-delete-queue" style={{ padding: '4px 8px' }} onClick={() => handleDeleteQueue(item)} title="Hapus Antrean">
-                                                        <Trash2 size={10} />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Waiting Room Box (Horizontal Layout) */}
-                    <div className="admin-card waiting-room-box" style={{ width: '100%', borderLeft: '4px solid #10b981' }}>
-                        <div className="card-header" style={{ background: 'linear-gradient(to right, #f0fdf4, #ffffff)', borderRadius: '16px 16px 0 0', overflow: 'hidden' }}>
-                            <div className="header-title">
-                                <Users size={20} color="#10b981" />
-                                <h3 style={{ color: '#065f46' }}>Ruang Tunggu (Maks 5 Pasang)</h3>
-                            </div>
-                            <span className="count-badge" style={{ backgroundColor: '#10b981', color: 'white' }}>{waitingRoomQueue.length} / 5 Pasang</span>
-                        </div>
-                        <div className="card-body">
-                            {waitingRoomQueue.length === 0 ? (
-                                <div className="empty-state">Ruang tunggu kosong</div>
-                            ) : (
-                                <div className="scroll-wrapper">
-                                <div className="horizontal-scroll">
-                                    {waitingRoomQueue
-                                        .filter((item: any) => {
-                                            const search = queueSearch.toLowerCase();
-                                            return (
-                                                item.pengirimNama?.toLowerCase().includes(search) ||
-                                                item.penerimaNama?.toLowerCase().includes(search) ||
-                                                (item.pengirimNomorUrut || item.pengirimNo || '').toString().includes(search) ||
-                                                (item.penerimaNomorUrut || item.penerimaNo || '').toString().includes(search)
-                                            );
-                                        })
-                                        .map((item: any) => (
-                                            <div key={item.id} className="queue-item" style={{ flexShrink: 0, width: '460px', borderLeft: '3px solid #10b981', backgroundColor: '#fafafa', margin: 0, padding: '12px' }}>
-                                                <div className="pair-names-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                                                    {/* Caller */}
-                                                    <div className="participant-row caller" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                        <div className="p-role-tag caller" style={{ alignSelf: 'flex-start', margin: 0, padding: '1px 4px', fontSize: '7px', backgroundColor: '#e0f2fe', color: '#0369a1' }}>Pemanggil</div>
-                                                        <div className="p-main-box" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                                                            <span className="p-number-badge" style={{ padding: '1px 4px', fontSize: '9px', minWidth: '22px' }}>{item.pengirimNomorUrut || item.pengirimNo || '-'}</span>
-                                                            <span className="p-name">{item.pengirimNama}</span>
-                                                        </div>
-                                                        <div className="p-sub-info" style={{ fontSize: '9px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                                            <MapPin size={8} /> <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.pengirimKota || '-'} / {item.pengirimDesa || '-'}</span>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Divider */}
-                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                                        <Heart size={12} fill="#10b981" color="#10b981" />
-                                                    </div>
-
-                                                    {/* Called */}
-                                                    <div className="participant-row called" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px', alignItems: 'flex-end', textAlign: 'right' }}>
-                                                        <div className="p-role-tag called" style={{ alignSelf: 'flex-end', margin: 0, padding: '1px 4px', fontSize: '7px', backgroundColor: '#fef3c7', color: '#b45309' }}>Dipanggil</div>
-                                                        <div className="p-main-box" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', flexDirection: 'row-reverse' }}>
-                                                            <span className="p-number-badge" style={{ padding: '1px 4px', fontSize: '9px', minWidth: '22px' }}>{item.penerimaNomorUrut || item.penerimaNo || '-'}</span>
-                                                            <span className="p-name">{item.penerimaNama}</span>
-                                                        </div>
-                                                        <div className="p-sub-info" style={{ fontSize: '9px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '2px', justifyContent: 'flex-end' }}>
-                                                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.penerimaKota || '-'} / {item.penerimaDesa || '-'}</span> <MapPin size={8} />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                
-                                                <div style={{ display: 'flex', justifyContent: 'center', margin: '6px 0 8px 0', fontSize: '10px' }}>
-                                                    {item.statusTunggu === 'ada' ? (
-                                                        <span style={{ backgroundColor: '#e2fdf0', color: '#15803d', border: '1px solid #bbf7d0', padding: '3px 8px', borderRadius: '6px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                                            <span className="dot-green-pulse" /> Sudah Hadir di Ruang Tunggu
-                                                        </span>
-                                                    ) : (
-                                                        <span style={{ backgroundColor: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', padding: '3px 8px', borderRadius: '6px', fontWeight: '700' }}>
-                                                            ⏳ Dipanggil (OTW)
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                <div style={{ display: 'flex', gap: '6px', borderTop: '1px solid #f1f5f9', paddingTop: '8px', marginTop: '4px' }}>
-                                                    <button 
-                                                        className={`btn-validate ${(item.pengirimKeterangan === 'pulang' || item.penerimaKeterangan === 'pulang') ? 'btn-disabled' : ''}`} 
+                                                        className={`btn-validate ${(item.pengirimKeterangan === 'pulang' || item.penerimaKeterangan === 'pulang') ? 'btn-disabled' : ''}`}
                                                         style={{
                                                             flex: 2,
                                                             backgroundColor: '#10b981',
                                                             color: 'white',
                                                             border: 'none',
                                                             padding: '4px 8px',
-                                                            borderRadius: '6px',
+                                                            borderRadius: '4px',
                                                             fontWeight: '700',
-                                                            fontSize: '10px',
+                                                            fontSize: '11px',
                                                             cursor: 'pointer',
                                                             display: 'flex',
                                                             alignItems: 'center',
                                                             justifyContent: 'center',
-                                                            gap: '4px',
-                                                            boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)',
+                                                            gap: '3px',
+                                                            boxShadow: '0 1px 2px rgba(16, 185, 129, 0.2)',
                                                             transition: 'all 0.2s',
                                                             whiteSpace: 'nowrap'
                                                         }}
                                                         disabled={item.pengirimKeterangan === 'pulang' || item.penerimaKeterangan === 'pulang'}
                                                         onClick={() => handleAssignToRoom(item.id, item.pengirimNama, item.penerimaNama, item.pengirimKeterangan, item.penerimaKeterangan)}
                                                     >
-                                                        <DoorOpen size={10} /> Validasi & Masuk Room
+                                                        <DoorOpen size={11} /> Validasi & Masuk Room
                                                     </button>
                                                     
-                                                    <button 
-                                                        className="btn-undo-waiting" 
-                                                        style={{
-                                                            flex: 1.5,
-                                                            backgroundColor: '#f59e0b',
-                                                            color: 'white',
-                                                            border: 'none',
-                                                            padding: '4px 8px',
-                                                            borderRadius: '6px',
-                                                            fontWeight: '700',
-                                                            fontSize: '10px',
-                                                            cursor: 'pointer',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            gap: '4px',
-                                                            transition: 'all 0.2s',
-                                                            whiteSpace: 'nowrap'
-                                                        }}
-                                                        onClick={() => handleReturnToQueue(item.id, item.pengirimNama, item.penerimaNama)}
-                                                        title="Kembalikan ke Antrean Utama"
-                                                    >
-                                                        <Undo2 size={10} /> Batal Panggil
-                                                    </button>
-                                                    <button className="btn-delete-queue" style={{ padding: '4px 8px' }} onClick={() => handleDeleteQueue(item)} title="Hapus Antrean">
-                                                        <Trash2 size={10} />
+                                                    <button className="btn-delete-queue" style={{ padding: '4px 8px', borderRadius: '4px' }} onClick={() => handleDeleteQueue(item)} title="Hapus Antrean">
+                                                        <Trash2 size={11} />
                                                     </button>
                                                 </div>
                                             </div>
                                         ))}
-                                </div>
                                 </div>
                             )}
                         </div>
@@ -1461,6 +1538,9 @@ export default function RomanticRoomPage() {
                                 </button>
                                 <button className="btn-add-room" onClick={handleCreateRoom}>
                                     <Plus size={14} /> Create Ruangan
+                                </button>
+                                <button className="btn-add-room" onClick={handleOpenAssignStaffModal} style={{ backgroundColor: "#2563eb" }}>
+                                    <Users size={14} /> Atur Staf PNKB
                                 </button>
                             </div>
                         </div>
@@ -1521,9 +1601,48 @@ export default function RomanticRoomPage() {
                                                 <span className="empty-label">Kosong</span>
                                             )}
                                         </div>
-                                        <div className="room-footer">
-                                            <span className={`status-dot ${room.status?.toLowerCase()}`}></span>
-                                            {room.status}
+                                        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', width: '100%', gap: '6px' }}>
+                                            {/* Staff Assignment Info */}
+                                            {(room.assignedCallerNama || room.assignedGuardNama) && (
+                                                <div className="room-staff-info" style={{ display: 'flex', justifyContent: 'space-between', gap: '6px', paddingTop: '6px', borderTop: '1px dashed #e2e8f0' }}>
+                                                    {room.assignedCallerNama ? (
+                                                        <span className="staff-badge caller" style={{ fontSize: '8px', fontWeight: 800, padding: '1px 4px', borderRadius: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '48%', display: 'inline-flex', alignItems: 'center', gap: '2px', backgroundColor: '#eff6ff', color: '#2563eb' }} title={`Pemanggil: ${room.assignedCallerNama}`}>
+                                                            📢 {room.assignedCallerNama.split(" ")[0]}
+                                                        </span>
+                                                    ) : <span />}
+                                                    {room.assignedGuardNama ? (
+                                                        <span className="staff-badge guard" style={{ fontSize: '8px', fontWeight: 800, padding: '1px 4px', borderRadius: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '48%', display: 'inline-flex', alignItems: 'center', gap: '2px', backgroundColor: '#ecfdf5', color: '#059669' }} title={`Penunggu: ${room.assignedGuardNama}`}>
+                                                            🚪 {room.assignedGuardNama.split(" ")[0]}
+                                                        </span>
+                                                    ) : <span />}
+                                                </div>
+                                            )}
+                                            <div className="room-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', borderTop: (room.assignedCallerNama || room.assignedGuardNama) ? 'none' : '1px solid rgba(0,0,0,0.05)', paddingTop: '6px', marginTop: 0 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <span className={`status-dot ${room.status?.toLowerCase()}`}></span>
+                                                    {room.status}
+                                                </div>
+                                                <button 
+                                                    className="btn-room-details" 
+                                                    onClick={() => handleShowRoomDetails(room)} 
+                                                    title="Detail & Ubah Ruangan"
+                                                    style={{ 
+                                                        background: 'none', 
+                                                        border: 'none', 
+                                                        padding: '2px', 
+                                                        cursor: 'pointer', 
+                                                        display: 'flex', 
+                                                        alignItems: 'center', 
+                                                        justifyContent: 'center',
+                                                        color: '#94a3b8',
+                                                        transition: 'color 0.2s'
+                                                    }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.color = '#3b82f6'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
+                                                >
+                                                    <Info size={11} />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 ))
@@ -1796,9 +1915,10 @@ export default function RomanticRoomPage() {
                     .card-val { font-size: 18px; font-weight: 900; color: #1e293b; line-height: 1; }
                     .card-lbl { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
 
-                    .admin-grid { display: flex; flex-direction: column; gap: 20px; width: 100%; min-width: 0; max-width: 100%; overflow-x: hidden; }
+                    .admin-grid { display: grid; grid-template-columns: 420px 1fr; gap: 20px; width: 100%; min-width: 0; max-width: 100%; }
                     .admin-card { background: white; border-radius: 16px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.03); transition: all 0.3s; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
                     .admin-card:hover { box-shadow: 0 10px 30px rgba(0,0,0,0.05); border-color: #fecdd3; }
+                    .queue-box { height: 100%; }
                     .scroll-wrapper { width: 100%; overflow-x: auto; overflow-y: hidden; }
                     .scroll-wrapper::-webkit-scrollbar { height: 6px; }
                     .scroll-wrapper::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -1820,8 +1940,8 @@ export default function RomanticRoomPage() {
                     .scrollable { max-height: 600px; overflow-y: auto; padding-right: 5px; }
                     .scrollable::-webkit-scrollbar { width: 4px; }
                     .scrollable::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-                    .queue-box .card-body { display: flex; flex-direction: column; min-height: 0; }
-                    .queue-box .scrollable { flex: 1; max-height: none; }
+                    .queue-box .card-body { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+                    .queue-box .scrollable { flex: 1; max-height: none; min-height: 0; overflow-y: auto; }
                     
                     .empty-state { text-align: center; color: #94a3b8; padding: 40px 20px; font-style: italic; font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 
@@ -1868,42 +1988,42 @@ export default function RomanticRoomPage() {
                     
                     .grid-rooms { 
                         display: grid; 
-                        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
-                        gap: 15px; 
+                        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); 
+                        gap: 12px; 
                     }
                     
-                    .room-tile { min-width: 0; border-radius: 12px; border: 1px solid #e2e8f0; padding: 12px; display: flex; flex-direction: column; gap: 10px; transition: all 0.3s; background: white; }
+                    .room-tile { min-width: 0; border-radius: 12px; border: 1px solid #e2e8f0; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; transition: all 0.3s; background: white; }
                     .room-tile.terisi { background: #f0fdf4; border-color: #bbf7d0; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.05); }
                     .room-tile.terisi.not-started { background: #fffbeb; border-color: #fde68a; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.04); }
                     .room-tile.kosong { background: #fff1f2; border-color: #fecdd3; opacity: 0.8; }
                     .room-tile:hover { transform: scale(1.02); }
                     
-                    .room-top { display: flex; justify-content: space-between; align-items: flex-start; }
+                    .room-top { display: flex; justify-content: space-between; align-items: center; }
                     .room-name { font-weight: 800; font-size: 12px; color: #1e293b; }
-                    .btn-delete-room { color: #94a3b8; background: none; border: none; cursor: pointer; padding: 0; transition: color 0.2s; }
+                    .btn-delete-room { color: #94a3b8; background: none; border: none; cursor: pointer; padding: 0; transition: color 0.2s; display: flex; align-items: center; }
                     .btn-delete-room:hover { color: #ef4444; }
                     
-                    .room-middle { min-height: 45px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; }
-                    .empty-label { color: #f43f5e; font-weight: 900; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+                    .room-middle { min-height: 45px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; }
+                    .empty-label { color: #f43f5e; font-weight: 900; font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; }
                     
-                    .occupied-pair { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+                    .occupied-pair { display: flex; flex-direction: column; gap: 5px; width: 100%; }
                     .pair-member { display: flex; align-items: center; gap: 6px; justify-content: center; min-width: 0; }
                     .room-p-number { background: #166534; color: white; padding: 1px 4px; border-radius: 4px; font-size: 9px; font-weight: 800; flex-shrink: 0; }
                     .room-p-name { font-size: 11px; font-weight: 700; color: #166534; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
                     .pair-separator { font-size: 10px; color: #166534; opacity: 0.4; font-weight: 800; }
                     
-                    .btn-clear { background: #166534; color: white; border: none; border-radius: 6px; padding: 4px 8px; font-size: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; transition: all 0.2s; }
+                    .btn-clear { background: #166534; color: white; border: none; border-radius: 6px; padding: 4px 6px; font-size: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; transition: all 0.2s; }
                     .btn-clear:hover { background: #14532d; transform: scale(1.02); }
-                    .btn-start-timer { background: #d97706; color: white; border: none; border-radius: 6px; padding: 4px 8px; font-size: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; transition: all 0.2s; }
+                    .btn-start-timer { background: #d97706; color: white; border: none; border-radius: 6px; padding: 4px 6px; font-size: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; transition: all 0.2s; }
                     .btn-start-timer:hover { background: #b45309; transform: scale(1.02); }
                     
-                    .btn-undo-room { background: #64748b; color: white; border: none; border-radius: 6px; padding: 4px 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+                    .btn-undo-room { background: #64748b; color: white; border: none; border-radius: 6px; padding: 4px 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
                     .btn-undo-room:hover { background: #475569; transform: scale(1.05); }
                     
-                    .room-footer { border-top: 1px solid rgba(0,0,0,0.05); padding-top: 8px; display: flex; align-items: center; gap: 6px; font-size: 9px; font-weight: 800; text-transform: uppercase; color: #64748b; }
+                    .room-footer { border-top: 1px solid rgba(0,0,0,0.05); padding-top: 6px; display: flex; align-items: center; gap: 6px; font-size: 9px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-top: auto; }
                     .status-dot { width: 6px; height: 6px; border-radius: 50%; }
-                    .status-dot.kosong { background: #f43f5e; box-shadow: 0 0 8px rgba(244, 63, 94, 0.4); }
-                    .status-dot.terisi { background: #22c55e; box-shadow: 0 0 8px rgba(34, 197, 94, 0.4); }
+                    .status-dot.kosong { background: #f43f5e; box-shadow: 0 0 6px rgba(244, 63, 94, 0.4); }
+                    .status-dot.terisi { background: #22c55e; box-shadow: 0 0 6px rgba(34, 197, 94, 0.4); }
 
                     .history-box { grid-column: span 2; margin-top: 10px; }
                     .history-table { width: 100%; border-collapse: separate; border-spacing: 0; }
@@ -2101,9 +2221,9 @@ export default function RomanticRoomPage() {
                         align-items: center;
                         gap: 4px;
                         background: #f1f5f9;
-                        padding: 2px 6px;
+                        padding: 2px 5px;
                         border-radius: 4px;
-                        font-size: 10px;
+                        font-size: 9px;
                         font-weight: 800;
                         color: #1e293b;
                         border: 1px solid #e2e8f0;

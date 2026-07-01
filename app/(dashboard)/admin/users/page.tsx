@@ -89,7 +89,6 @@ function AddUserForm({ desaList, kelompokList, onSuccess, onCancel }: { desaList
           <option value="admin_keuangan">Admin Keuangan</option>
           <option value="admin_kegiatan">Admin Kegiatan</option>
           <option value="tim_gambuh">Tim Gambuh</option>
-          <option value="tim_jepret">Tim Jepret</option>
         </select>
       </div>
 
@@ -336,10 +335,6 @@ export default function AdminUsersPage() {
             <input type="checkbox" id="role-tim_gambuh" value="tim_gambuh" style="width: 16px; height: 16px;" />
             <span>Tim Gambuh</span>
           </label>
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" id="role-tim_jepret" value="tim_jepret" style="width: 16px; height: 16px;" />
-            <span>Tim Jepret</span>
-          </label>
         </div>
       `,
       showCancelButton: true,
@@ -361,7 +356,6 @@ export default function AdminUsersPage() {
         if (getVal("role-admin_keuangan")) roles.push("admin_keuangan");
         if (getVal("role-admin_kegiatan")) roles.push("admin_kegiatan");
         if (getVal("role-tim_gambuh")) roles.push("tim_gambuh");
-        if (getVal("role-tim_jepret")) roles.push("tim_jepret");
         return roles;
       }
     });
@@ -427,7 +421,6 @@ export default function AdminUsersPage() {
         admin_keuangan: "Admin Keuangan",
         admin_kegiatan: "Admin Kegiatan",
         tim_gambuh: "Tim Gambuh",
-        tim_jepret: "Tim Jepret",
       };
 
       const selectedRoleLabels = selectedRoles.map((r: string) => roleLabels[r] || r).join(", ");
@@ -484,7 +477,7 @@ export default function AdminUsersPage() {
     desa: "badge-blue", kelompok: "badge-green", generus: "badge-purple", peserta: "badge-indigo", usia_mandiri: "badge-pink",
     creator: "badge-orange", pending: "badge-gray", tim_pnkb: "badge-blue",
     admin_romantic_room: "badge-purple", admin_keuangan: "badge-blue",
-    admin_kegiatan: "badge-orange", tim_gambuh: "badge-indigo", tim_jepret: "badge-pink",
+    admin_kegiatan: "badge-orange", tim_gambuh: "badge-indigo",
   };
 
   const handleOpenAddUser = () => {
@@ -592,7 +585,6 @@ export default function AdminUsersPage() {
                 <option value="admin_keuangan">Admin Keuangan</option>
                 <option value="admin_kegiatan">Admin Kegiatan</option>
                 <option value="tim_gambuh">Tim Gambuh</option>
-                <option value="tim_jepret">Tim Jepret</option>
               </select>
               {filterRole && (
                 <button className="btn btn-sm btn-danger" onClick={handleBulkDeleteRole}>
@@ -699,7 +691,6 @@ export default function AdminUsersPage() {
                               <option value="admin_keuangan">Admin Keuangan</option>
                               <option value="admin_kegiatan">Admin Kegiatan</option>
                               <option value="tim_gambuh">Tim Gambuh</option>
-                              <option value="tim_jepret">Tim Jepret</option>
                             </select>
                             <div className="flex gap-2" style={{ marginTop: "8px" }}>
                               <button className="btn btn-sm btn-secondary" onClick={() => handleOpenEditUser(user)}>Edit</button>
@@ -814,7 +805,6 @@ export default function AdminUsersPage() {
                           <option value="admin_keuangan">Admin Keuangan</option>
                           <option value="admin_kegiatan">Admin Kegiatan</option>
                           <option value="tim_gambuh">Tim Gambuh</option>
-                          <option value="tim_jepret">Tim Jepret</option>
                         </select>
                         <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
                           <button 

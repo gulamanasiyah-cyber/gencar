@@ -62,7 +62,6 @@ const navItems = [
       { href: "/admin/katalog", label: "Katalog Peserta", icon: "katalog" },
       { href: "/mandiri/romantic-room", label: "Romantic Room", icon: "romantic" },
       { href: "/mandiri/tim-gambuh", label: "Panel Tim Gambuh", icon: "romantic" },
-      { href: "/mandiri/tim-jepret", label: "Panel Tim Jepret", icon: "camera" },
       { href: "/mandiri/desa", label: "Kelola Daerah / Desa", icon: "desa" },
     ],
   },
@@ -213,21 +212,7 @@ const userNavs: Record<string, any[]> = {
       items: [
         { href: "/dashboard", label: "Dashboard", icon: "grid" },
         { href: "/mandiri/tim-gambuh", label: "Panel Tim Gambuh", icon: "romantic" },
-      ],
-    },
-    {
-      section: "Menu Pribadi",
-      items: [
-        { href: "/profile", label: "Profil Saya (QR)", icon: "user" },
-      ],
-    },
-  ],
-  tim_jepret: [
-    {
-      section: "Menu Utama",
-      items: [
-        { href: "/dashboard", label: "Dashboard", icon: "grid" },
-        { href: "/mandiri/tim-jepret", label: "Panel Tim Jepret", icon: "camera" },
+        { href: "/admin/katalog", label: "Katalog Peserta", icon: "katalog" },
       ],
     },
     {
@@ -363,7 +348,7 @@ export default function Sidebar({ user }: SidebarProps) {
 
             // Filter items based on access
             const visibleItems = section.items.filter((item: any) => {
-              const isPanitia = ["admin", "pengurus_daerah", "kmm_daerah", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "tim_gambuh", "tim_jepret"].includes(user.role);
+              const isPanitia = ["admin", "pengurus_daerah", "kmm_daerah", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "tim_gambuh"].includes(user.role);
 
               // Hide Mandiri items if not in Mandiri and not a committee member
               const isMandiriItem = item.href.startsWith("/mandiri") ||

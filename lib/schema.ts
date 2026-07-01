@@ -66,7 +66,7 @@ export const users = sqliteTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   passwordPlain: text("password_plain"),
-  role: text("role", { enum: ["admin", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "generus", "peserta", "creator", "pending", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "admin_pdkt", "usia_mandiri", "tim_gambuh", "tim_jepret"] })
+  role: text("role", { enum: ["admin", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "generus", "peserta", "creator", "pending", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "admin_pdkt", "usia_mandiri", "tim_gambuh"] })
     .notNull()
     .default("pending"),
   desaId: integer("desa_id").references(() => desa.id, { onDelete: "set null" }),
@@ -275,6 +275,8 @@ export const mandiriRooms = sqliteTable("mandiri_rooms", {
   timGambuhId: text("tim_gambuh_id").references(() => timGambuh.id, { onDelete: "set null" }),
   status: text("status", { enum: ["Kosong", "Terisi"] }).default("Kosong"),
   startedAt: text("started_at"),
+  assignedCallerId: text("assigned_caller_id").references(() => timGambuh.id, { onDelete: "set null" }),
+  assignedGuardId: text("assigned_guard_id").references(() => timGambuh.id, { onDelete: "set null" }),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 });
@@ -515,4 +517,21 @@ export const timGambuh = sqliteTable("tim_gambuh", {
 
 export type TimGambuh = typeof timGambuh.$inferSelect;
 export type NewTimGambuh = typeof timGambuh.$inferInsert;
+
+export const mandiriKegiatanDaerah = sqliteTable("mandiri_kegiatan_daerah", {
+  id: text("id").primaryKey(),
+  kegiatanId: text("kegiatan_id")
+    .notNull()
+    .references(() => mandiriKegiatan.id, { onDelete: "cascade" }),
+  daerahId: integer("daerah_id")
+    .notNull()
+    .references(() => mandiriDaerah.id, { onDelete: "cascade" }),
+  isActive: integer("is_active").notNull().default(1),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+}, (table) => ({
+  kegiatanDaerahIdx: index("mandiri_kegiatan_daerah_keg_daer_idx").on(table.kegiatanId, table.daerahId),
+}));
+
+export type MandiriKegiatanDaerah = typeof mandiriKegiatanDaerah.$inferSelect;
+export type NewMandiriKegiatanDaerah = typeof mandiriKegiatanDaerah.$inferInsert;
 
