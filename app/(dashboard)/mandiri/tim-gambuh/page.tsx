@@ -74,59 +74,138 @@ export default function TimGambuhOperatorPage() {
     const [selectedRoom, setSelectedRoom] = useState<any>(null);
 
     const showSelectIdentityModal = useCallback(async (forced = false) => {
-        // Show loading state immediately to block screen and show visual feedback
         Swal.fire({
             title: 'Memuat Data...',
-            text: 'Mengambil daftar pendamping Tim Gambuh...',
+            text: 'Mengambil daftar pendamping...',
             allowOutsideClick: !forced,
             allowEscapeKey: !forced,
             showConfirmButton: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
+            didOpen: () => { Swal.showLoading(); }
         });
 
         try {
             const res = await fetch("/api/admin/tim-gambuh");
             if (!res.ok) throw new Error("Gagal mengambil data");
-            const data = await res.json();
-            
-            // Close the loading dialog
+            let data: any[] = await res.json();
             Swal.close();
 
-            if (!Array.isArray(data) || data.length === 0) {
-                Swal.fire("Pemberitahuan", "Belum ada data anggota Tim Gambuh aktif di kegiatan ini. Silakan hubungi Admin untuk menambahkan anggota Tim Gambuh.", "warning");
-                return;
-            }
-
-            const options = data.reduce((acc: any, item: any) => {
-                acc[item.id] = `${item.nama} (${item.tipe})`;
-                return acc;
-            }, {});
+            const buildOptionHtml = (list: any[]) =>
+                list.map(item => `<option value="${item.id}">${item.nama} (${item.tipe})</option>`).join('');
 
             const currentSavedId = localStorage.getItem("my_tim_pnkb_gambuh_id") || "";
 
-            const { value: selectedId } = await Swal.fire({
+            const { value: selectedId, isConfirmed } = await Swal.fire({
                 title: 'Pilih Identitas Anda',
-                text: 'Silakan pilih nama Anda dari daftar pendamping Tim Gambuh:',
-                input: 'select',
-                inputOptions: options,
-                inputValue: currentSavedId,
-                inputPlaceholder: '-- Pilih Anggota --',
+                html: `
+                    <p style="font-size:13px;color:#64748b;margin:0 0 10px;">Pilih nama Anda dari daftar Tim PNKB &amp; Gambuh:</p>
+                    <select id="swal-identity" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;color:#1e293b;background:#fff;outline:none;cursor:pointer;">
+                        <option value="">-- Pilih Nama Anda --</option>
+                        ${buildOptionHtml(data)}
+                    </select>
+                    <div style="margin-top:14px;border-top:1px solid #e2e8f0;padding-top:12px;text-align:left;">
+                        <button type="button" id="btn-toggle-add" style="background:none;border:none;color:#3b82f6;font-size:13px;font-weight:600;cursor:pointer;padding:0;display:flex;align-items:center;gap:5px;">
+                            <span style="font-size:16px;line-height:1;">＋</span> Tambah Data Tim PNKB &amp; Gambuh
+                        </button>
+                        <div id="add-member-form" style="display:none;margin-top:10px;padding:12px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
+                            <div style="margin-bottom:8px;text-align:left;">
+                                <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Nama Lengkap *</label>
+                                <input id="new-member-nama" type="text" placeholder="Masukkan nama lengkap..." style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:13px;color:#1e293b;box-sizing:border-box;outline:none;" />
+                            </div>
+                            <div style="margin-bottom:10px;text-align:left;">
+                                <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Tipe *</label>
+                                <select id="new-member-tipe" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:13px;color:#1e293b;background:#fff;outline:none;cursor:pointer;">
+                                    <option value="">-- Pilih Tipe --</option>
+                                    <option value="PNKB">PNKB (Pemanggil 1)</option>
+                                    <option value="Ibu Gambuh">Ibu Gambuh (Pemanggil 2)</option>
+                                </select>
+                            </div>
+                            <button type="button" id="btn-save-member" style="width:100%;background:#3b82f6;color:#fff;border:none;padding:8px 16px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;">
+                                Simpan Anggota Baru
+                            </button>
+                            <div id="add-status" style="margin-top:7px;font-size:12px;text-align:center;min-height:18px;"></div>
+                        </div>
+                    </div>
+                `,
                 showCancelButton: !forced,
                 allowOutsideClick: !forced,
                 allowEscapeKey: !forced,
                 confirmButtonText: 'Simpan',
                 cancelButtonText: 'Batal',
-                inputValidator: (value) => {
-                    if (!value) {
-                        return 'Anda harus memilih identitas Anda!';
+                preConfirm: () => {
+                    const val = (document.getElementById('swal-identity') as HTMLSelectElement)?.value;
+                    if (!val) {
+                        Swal.showValidationMessage('Anda harus memilih identitas Anda!');
+                        return false;
                     }
-                    return null;
+                    return val;
+                },
+                didOpen: () => {
+                    const sel = document.getElementById('swal-identity') as HTMLSelectElement;
+                    if (sel && currentSavedId) sel.value = currentSavedId;
+
+                    document.getElementById('btn-toggle-add')?.addEventListener('click', () => {
+                        const form = document.getElementById('add-member-form');
+                        if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+                    });
+
+                    document.getElementById('btn-save-member')?.addEventListener('click', async () => {
+                        const nama = ((document.getElementById('new-member-nama') as HTMLInputElement)?.value || '').trim();
+                        const tipe = (document.getElementById('new-member-tipe') as HTMLSelectElement)?.value;
+                        const statusEl = document.getElementById('add-status');
+
+                        if (!nama || !tipe) {
+                            if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Nama dan Tipe wajib diisi!</span>';
+                            return;
+                        }
+
+                        const saveBtn = document.getElementById('btn-save-member') as HTMLButtonElement;
+                        if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Menyimpan...'; }
+
+                        try {
+                            const postRes = await fetch('/api/admin/tim-gambuh', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ nama, tipe })
+                            });
+
+                            if (!postRes.ok) {
+                                const errData = await postRes.json();
+                                throw new Error(errData.error || 'Gagal menyimpan');
+                            }
+
+                            const newMember = await postRes.json();
+
+                            // Refresh the member list
+                            const refreshRes = await fetch('/api/admin/tim-gambuh');
+                            if (refreshRes.ok) {
+                                data = await refreshRes.json();
+                                const sel2 = document.getElementById('swal-identity') as HTMLSelectElement;
+                                if (sel2) {
+                                    sel2.innerHTML = `<option value="">-- Pilih Nama Anda --</option>${buildOptionHtml(data)}`;
+                                    if (newMember.id) sel2.value = newMember.id;
+                                }
+                            }
+
+                            // Reset & close add form
+                            (document.getElementById('new-member-nama') as HTMLInputElement).value = '';
+                            (document.getElementById('new-member-tipe') as HTMLSelectElement).value = '';
+                            const form = document.getElementById('add-member-form');
+                            if (form) form.style.display = 'none';
+
+                            if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Simpan Anggota Baru'; }
+                            if (statusEl) {
+                                statusEl.innerHTML = `<span style="color:#10b981;">✓ ${nama} berhasil ditambahkan!</span>`;
+                                setTimeout(() => { if (statusEl) statusEl.innerHTML = ''; }, 3000);
+                            }
+                        } catch (err: any) {
+                            if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Simpan Anggota Baru'; }
+                            if (statusEl) statusEl.innerHTML = `<span style="color:#ef4444;">${err.message}</span>`;
+                        }
+                    });
                 }
             });
 
-            if (selectedId) {
+            if (isConfirmed && selectedId) {
                 const selectedItem = data.find((d: any) => d.id === selectedId);
                 if (selectedItem) {
                     localStorage.setItem("my_tim_pnkb_gambuh_id", selectedItem.id);
@@ -143,7 +222,7 @@ export default function TimGambuhOperatorPage() {
                 }
             }
         } catch (err) {
-            Swal.fire("Error", "Gagal mengambil daftar anggota Tim Gambuh.", "error");
+            Swal.fire("Error", "Gagal mengambil daftar anggota Tim PNKB & Gambuh.", "error");
         }
     }, []);
 

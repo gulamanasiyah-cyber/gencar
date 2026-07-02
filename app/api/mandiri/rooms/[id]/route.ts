@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriRooms, mandiriPemilihan, mandiriKunjungan, mandiriKegiatan, mandiriAbsensi, settings, generus, mandiri, timGambuh } from "@/lib/schema";
+import { mandiriRooms, mandiriPemilihan, mandiriKunjungan, mandiriKegiatan, mandiriAbsensi, settings, generus, mandiri, timGambuh, formPanitiaDanPengurus, mandiriDesa } from "@/lib/schema";
 import { eq, sql, and, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { pusherServer } from "@/lib/pusher";
@@ -100,7 +100,6 @@ export async function PATCH(
         }
 
         if (action === "assign") {
-            const { assignedCallerId, assignedCaller2Id, assignedGuardId } = body;
             if (!pemilihanId) return NextResponse.json({ error: "ID Pemilihan wajib diisi" }, { status: 400 });
 
             // 0. Get Pemilihan Details for History
@@ -146,6 +145,129 @@ export async function PATCH(
 
                 if (busyRoom.length > 0) {
                     return NextResponse.json({ error: "Anggota Tim Gambuh ini sedang bertugas di ruangan lain." }, { status: 400 });
+                }
+            }
+
+            // Auto-assign staff based on participants' daerah+desa
+            let assignedCallerId: string | null = null;
+            let assignedCaller2Id: string | null = null;
+            let assignedGuardId: string | null = null;
+            let callerNama: string | null = null;
+            let caller2Nama: string | null = null;
+            let guardNama: string | null = null;
+
+            if (kegiatanId) {
+                try {
+                    const { alias } = await import("drizzle-orm/sqlite-core");
+
+                    // Lookup participants' mandiriDesa/mandiriDaerah IDs
+                    const g1 = alias(generus, "pg1");
+                    const g2 = alias(generus, "pg2");
+                    const pan1 = alias(formPanitiaDanPengurus, "ppan1");
+                    const pan2 = alias(formPanitiaDanPengurus, "ppan2");
+                    const md1 = alias(mandiriDesa, "pmd1");
+                    const md2 = alias(mandiriDesa, "pmd2");
+
+                    const [pengirimInfo] = await db.select({
+                        mandiriDesaId: sql<number>`COALESCE(${g1.mandiriDesaId}, ${pan1.mandiriDesaId})`,
+                        mandiriDaerahId: md1.mandiriDaerahId,
+                    })
+                    .from(g1)
+                    .leftJoin(pan1, eq(g1.id, pan1.generusId))
+                    .leftJoin(md1, sql`COALESCE(${g1.mandiriDesaId}, ${pan1.mandiriDesaId}) = ${md1.id}`)
+                    .where(eq(g1.id, pemilihan.pengirimId))
+                    .limit(1);
+
+                    const [penerimaInfo] = await db.select({
+                        mandiriDesaId: sql<number>`COALESCE(${g2.mandiriDesaId}, ${pan2.mandiriDesaId})`,
+                        mandiriDaerahId: md2.mandiriDaerahId,
+                    })
+                    .from(g2)
+                    .leftJoin(pan2, eq(g2.id, pan2.generusId))
+                    .leftJoin(md2, sql`COALESCE(${g2.mandiriDesaId}, ${pan2.mandiriDesaId}) = ${md2.id}`)
+                    .where(eq(g2.id, pemilihan.penerimaId))
+                    .limit(1);
+
+                    const pengirimDesaId = pengirimInfo?.mandiriDesaId ?? null;
+                    const pengirimDaerahId = pengirimInfo?.mandiriDaerahId ?? null;
+                    const penerimaDesaId = penerimaInfo?.mandiriDesaId ?? null;
+                    const penerimaDaerahId = penerimaInfo?.mandiriDaerahId ?? null;
+
+                    // Fetch all active staff for this kegiatan
+                    const allStaff = await db.select({
+                        id: timGambuh.id,
+                        nama: timGambuh.nama,
+                        tipe: timGambuh.tipe,
+                        daerahId: timGambuh.daerahId,
+                        desaId: timGambuh.desaId,
+                    })
+                    .from(timGambuh)
+                    .where(eq(timGambuh.kegiatanId, kegiatanId));
+
+                    // Get busy staff IDs from other occupied rooms
+                    const occupiedRoomStaff = await db.select({
+                        assignedCallerId: mandiriRooms.assignedCallerId,
+                        assignedCaller2Id: mandiriRooms.assignedCaller2Id,
+                        assignedGuardId: mandiriRooms.assignedGuardId,
+                    })
+                    .from(mandiriRooms)
+                    .where(and(eq(mandiriRooms.status, "Terisi"), sql`${mandiriRooms.id} != ${roomId}`));
+
+                    const busyIds = new Set<string>(
+                        occupiedRoomStaff.flatMap(r => [r.assignedCallerId, r.assignedCaller2Id, r.assignedGuardId].filter(Boolean) as string[])
+                    );
+
+                    // Pick best candidate: prefer not busy, pick randomly among free
+                    const pickBest = (pool: typeof allStaff, excludeIds: Set<string> = new Set()): string | null => {
+                        if (pool.length === 0) return null;
+                        const eligible = pool.filter(s => !excludeIds.has(s.id));
+                        if (eligible.length === 0) return pool[0]?.id ?? null;
+                        const free = eligible.filter(s => !busyIds.has(s.id));
+                        const candidates = free.length > 0 ? free : eligible;
+                        return candidates[Math.floor(Math.random() * candidates.length)].id;
+                    };
+
+                    // Caller 1: PNKB from pengirim's daerah+desa → daerah-only → any PNKB
+                    const pnkbStaff = allStaff.filter(s => s.tipe === 'PNKB');
+                    const caller1Pool = pengirimDesaId && pengirimDaerahId &&
+                        pnkbStaff.filter(s => s.desaId === pengirimDesaId && s.daerahId === pengirimDaerahId).length > 0
+                        ? pnkbStaff.filter(s => s.desaId === pengirimDesaId && s.daerahId === pengirimDaerahId)
+                        : pengirimDaerahId && pnkbStaff.filter(s => s.daerahId === pengirimDaerahId).length > 0
+                        ? pnkbStaff.filter(s => s.daerahId === pengirimDaerahId)
+                        : pnkbStaff;
+                    assignedCallerId = pickBest(caller1Pool);
+
+                    // Caller 2: Ibu Gambuh from penerima's daerah+desa → daerah-only → any Ibu Gambuh
+                    const gambuhStaff = allStaff.filter(s => s.tipe === 'Ibu Gambuh');
+                    const caller2Pool = penerimaDesaId && penerimaDaerahId &&
+                        gambuhStaff.filter(s => s.desaId === penerimaDesaId && s.daerahId === penerimaDaerahId).length > 0
+                        ? gambuhStaff.filter(s => s.desaId === penerimaDesaId && s.daerahId === penerimaDaerahId)
+                        : penerimaDaerahId && gambuhStaff.filter(s => s.daerahId === penerimaDaerahId).length > 0
+                        ? gambuhStaff.filter(s => s.daerahId === penerimaDaerahId)
+                        : gambuhStaff;
+                    assignedCaller2Id = pickBest(caller2Pool);
+
+                    // Guard: any tipe from either participant's daerah+desa, not already chosen
+                    const chosenIds = new Set<string>([assignedCallerId, assignedCaller2Id].filter(Boolean) as string[]);
+                    const guardCandidates = (() => {
+                        const exactMatch = allStaff.filter(s =>
+                            (pengirimDesaId && pengirimDaerahId && s.desaId === pengirimDesaId && s.daerahId === pengirimDaerahId) ||
+                            (penerimaDesaId && penerimaDaerahId && s.desaId === penerimaDesaId && s.daerahId === penerimaDaerahId)
+                        );
+                        if (exactMatch.length > 0) return exactMatch;
+                        const daerahMatch = allStaff.filter(s =>
+                            (pengirimDaerahId && s.daerahId === pengirimDaerahId) ||
+                            (penerimaDaerahId && s.daerahId === penerimaDaerahId)
+                        );
+                        return daerahMatch.length > 0 ? daerahMatch : allStaff;
+                    })();
+                    assignedGuardId = pickBest(guardCandidates, chosenIds);
+
+                    callerNama = allStaff.find(s => s.id === assignedCallerId)?.nama ?? null;
+                    caller2Nama = allStaff.find(s => s.id === assignedCaller2Id)?.nama ?? null;
+                    guardNama = allStaff.find(s => s.id === assignedGuardId)?.nama ?? null;
+                } catch (staffErr) {
+                    console.error("Staff auto-assignment error:", staffErr);
                 }
             }
 
@@ -303,7 +425,15 @@ export async function PATCH(
                 console.error("Failed to send room assignment WA notification:", notifyErr);
             }
 
-            return NextResponse.json({ success: true });
+            return NextResponse.json({
+                success: true,
+                assignedCallerId,
+                assignedCallerNama: callerNama,
+                assignedCaller2Id,
+                assignedCaller2Nama: caller2Nama,
+                assignedGuardId,
+                assignedGuardNama: guardNama,
+            });
         } else if (action === "clear") {
             const { hasilPengirim, hasilPenerima } = body;
 

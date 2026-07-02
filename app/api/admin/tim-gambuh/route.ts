@@ -48,7 +48,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
-    if (!session || !["admin", "pengurus_daerah", "kmm_daerah", "admin_romantic_room"].includes(session.role)) {
+    if (!session || !["admin", "pengurus_daerah", "kmm_daerah", "admin_romantic_room", "tim_pnkb_gambuh"].includes(session.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -62,8 +62,8 @@ export async function POST(request: NextRequest) {
 
     const { nama, daerahId, desaId, tipe } = await request.json();
 
-    if (!nama || !tipe || !daerahId || !desaId) {
-      return NextResponse.json({ error: "Nama, Tipe, Daerah, dan Desa wajib diisi" }, { status: 400 });
+    if (!nama || !tipe) {
+      return NextResponse.json({ error: "Nama dan Tipe wajib diisi" }, { status: 400 });
     }
 
     if (!["PNKB", "Ibu Gambuh"].includes(tipe)) {

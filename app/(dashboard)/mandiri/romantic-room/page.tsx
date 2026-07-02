@@ -656,51 +656,21 @@ export default function RomanticRoomPage() {
             return;
         }
 
-        // Auto assign to the first empty room (sorted numerically/alphabetically)
         const sortedAvailableRooms = [...availableRooms].sort((a, b) => a.nama.localeCompare(b.nama, undefined, { numeric: true, sensitivity: 'base' }));
         const targetRoom = sortedAvailableRooms[0];
         const roomId = targetRoom.id;
-
-        const pnkbStaff = staffList.filter((s: any) => s.role === 'PNKB');
-        const gambuhStaff = staffList.filter((s: any) => s.role === 'Ibu Gambuh');
-        const penungguStaff = staffList.filter((s: any) => s.role === 'Tim Penunggu');
-        // Tim Penunggu = dedicated guard team; fall back to PNKB + Ibu Gambuh combined if none registered
-        const guardPool = penungguStaff.length > 0 ? penungguStaff : [...pnkbStaff, ...gambuhStaff];
-
-        // Prefer staff not already assigned to another active room (load balancing)
-        const occupiedRooms = allRooms.filter((r: any) => r.status === 'Terisi');
-        const busyCallerIds = new Set(occupiedRooms.map((r: any) => r.assignedCallerId).filter(Boolean));
-        const busyCaller2Ids = new Set(occupiedRooms.map((r: any) => r.assignedCaller2Id).filter(Boolean));
-        const busyGuardIds = new Set(occupiedRooms.map((r: any) => r.assignedGuardId).filter(Boolean));
-
-        const pickAvailable = (pool: any[], busyIds: Set<string>): string | null => {
-            if (pool.length === 0) return null;
-            const freePool = pool.filter((s: any) => !busyIds.has(s.id));
-            const candidates = freePool.length > 0 ? freePool : pool;
-            return candidates[Math.floor(Math.random() * candidates.length)].id;
-        };
-
-        const assignedCallerId = pickAvailable(pnkbStaff, busyCallerIds);
-        const assignedCaller2Id = pickAvailable(gambuhStaff, busyCaller2Ids);
-        const assignedGuardId = pickAvailable(guardPool, busyGuardIds);
-
-        const callerName = pnkbStaff.find((s: any) => s.id === assignedCallerId)?.name || '-';
-        const caller2Name = gambuhStaff.find((s: any) => s.id === assignedCaller2Id)?.name || '-';
-        const guardName = guardPool.find((s: any) => s.id === assignedGuardId)?.name || '-';
 
         try {
             const res = await fetch(`/api/mandiri/rooms/${roomId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    pemilihanId,
-                    action: "assign",
-                    assignedCallerId,
-                    assignedCaller2Id,
-                    assignedGuardId
-                })
+                body: JSON.stringify({ pemilihanId, action: "assign" })
             });
             if (res.ok) {
+                const resData = await res.json();
+                const callerName = resData.assignedCallerNama || '-';
+                const caller2Name = resData.assignedCaller2Nama || '-';
+                const guardName = resData.assignedGuardNama || '-';
                 Swal.fire({
                     title: "Berhasil",
                     html: `
