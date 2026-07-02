@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriRooms, mandiriPemilihan, mandiriKunjungan, mandiriKegiatan, mandiriAbsensi, settings, generus, mandiri, timGambuh, formPanitiaDanPengurus, mandiriDesa } from "@/lib/schema";
+import { mandiriRooms, mandiriPemilihan, mandiriKunjungan, mandiriKegiatan, mandiriAbsensi, settings, generus, mandiri, timGambuh, mandiriDesa, formPanitiaDanPengurus } from "@/lib/schema";
 import { eq, sql, and, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { pusherServer } from "@/lib/pusher";
@@ -158,40 +158,27 @@ export async function PATCH(
 
             if (kegiatanId) {
                 try {
-                    const { alias } = await import("drizzle-orm/sqlite-core");
+                    // Helper: resolve mandiriDesaId for a generusId (check generus, fallback to formPanitiaDanPengurus)
+                    const resolveDesaId = async (generusId: string): Promise<number | null> => {
+                        const [gRow] = await db.select({ mandiriDesaId: generus.mandiriDesaId })
+                            .from(generus).where(eq(generus.id, generusId)).limit(1);
+                        if (gRow?.mandiriDesaId) return gRow.mandiriDesaId;
+                        const [pRow] = await db.select({ mandiriDesaId: formPanitiaDanPengurus.mandiriDesaId })
+                            .from(formPanitiaDanPengurus).where(eq(formPanitiaDanPengurus.generusId, generusId)).limit(1);
+                        return pRow?.mandiriDesaId ?? null;
+                    };
+                    const resolveDaerahId = async (desaId: number): Promise<number | null> => {
+                        const [dRow] = await db.select({ mandiriDaerahId: mandiriDesa.mandiriDaerahId })
+                            .from(mandiriDesa).where(eq(mandiriDesa.id, desaId)).limit(1);
+                        return dRow?.mandiriDaerahId ?? null;
+                    };
 
-                    // Lookup participants' mandiriDesa/mandiriDaerah IDs
-                    const g1 = alias(generus, "pg1");
-                    const g2 = alias(generus, "pg2");
-                    const pan1 = alias(formPanitiaDanPengurus, "ppan1");
-                    const pan2 = alias(formPanitiaDanPengurus, "ppan2");
-                    const md1 = alias(mandiriDesa, "pmd1");
-                    const md2 = alias(mandiriDesa, "pmd2");
+                    const pengirimDesaId = await resolveDesaId(pemilihan.pengirimId);
+                    const pengirimDaerahId = pengirimDesaId ? await resolveDaerahId(pengirimDesaId) : null;
+                    const penerimaDesaId = await resolveDesaId(pemilihan.penerimaId);
+                    const penerimaDaerahId = penerimaDesaId ? await resolveDaerahId(penerimaDesaId) : null;
 
-                    const [pengirimInfo] = await db.select({
-                        mandiriDesaId: sql<number>`COALESCE(${g1.mandiriDesaId}, ${pan1.mandiriDesaId})`,
-                        mandiriDaerahId: md1.mandiriDaerahId,
-                    })
-                    .from(g1)
-                    .leftJoin(pan1, eq(g1.id, pan1.generusId))
-                    .leftJoin(md1, sql`COALESCE(${g1.mandiriDesaId}, ${pan1.mandiriDesaId}) = ${md1.id}`)
-                    .where(eq(g1.id, pemilihan.pengirimId))
-                    .limit(1);
-
-                    const [penerimaInfo] = await db.select({
-                        mandiriDesaId: sql<number>`COALESCE(${g2.mandiriDesaId}, ${pan2.mandiriDesaId})`,
-                        mandiriDaerahId: md2.mandiriDaerahId,
-                    })
-                    .from(g2)
-                    .leftJoin(pan2, eq(g2.id, pan2.generusId))
-                    .leftJoin(md2, sql`COALESCE(${g2.mandiriDesaId}, ${pan2.mandiriDesaId}) = ${md2.id}`)
-                    .where(eq(g2.id, pemilihan.penerimaId))
-                    .limit(1);
-
-                    const pengirimDesaId = pengirimInfo?.mandiriDesaId ?? null;
-                    const pengirimDaerahId = pengirimInfo?.mandiriDaerahId ?? null;
-                    const penerimaDesaId = penerimaInfo?.mandiriDesaId ?? null;
-                    const penerimaDaerahId = penerimaInfo?.mandiriDaerahId ?? null;
+                    console.log(`[RoomAssign] pengirimDesaId=${pengirimDesaId} pengirimDaerahId=${pengirimDaerahId} | penerimaDesaId=${penerimaDesaId} penerimaDaerahId=${penerimaDaerahId}`);
 
                     // Fetch all active staff for this kegiatan
                     const allStaff = await db.select({
@@ -227,37 +214,45 @@ export async function PATCH(
                         return candidates[Math.floor(Math.random() * candidates.length)].id;
                     };
 
+                    // Normalise IDs to numbers to avoid type-mismatch (SQLite can return mixed types)
+                    const pgDesa = pengirimDesaId != null ? Number(pengirimDesaId) : null;
+                    const pgDaerah = pengirimDaerahId != null ? Number(pengirimDaerahId) : null;
+                    const pnDesa = penerimaDesaId != null ? Number(penerimaDesaId) : null;
+                    const pnDaerah = penerimaDaerahId != null ? Number(penerimaDaerahId) : null;
+
+                    const matchDesa = (s: typeof allStaff[0], desaId: number | null, daerahId: number | null) =>
+                        desaId != null && daerahId != null &&
+                        Number(s.desaId) === desaId && Number(s.daerahId) === daerahId;
+                    const matchDaerah = (s: typeof allStaff[0], daerahId: number | null) =>
+                        daerahId != null && Number(s.daerahId) === daerahId;
+
                     // Caller 1: PNKB from pengirim's daerah+desa → daerah-only → any PNKB
                     const pnkbStaff = allStaff.filter(s => s.tipe === 'PNKB');
-                    const caller1Pool = pengirimDesaId && pengirimDaerahId &&
-                        pnkbStaff.filter(s => s.desaId === pengirimDesaId && s.daerahId === pengirimDaerahId).length > 0
-                        ? pnkbStaff.filter(s => s.desaId === pengirimDesaId && s.daerahId === pengirimDaerahId)
-                        : pengirimDaerahId && pnkbStaff.filter(s => s.daerahId === pengirimDaerahId).length > 0
-                        ? pnkbStaff.filter(s => s.daerahId === pengirimDaerahId)
-                        : pnkbStaff;
+                    const pnkbExact = pnkbStaff.filter(s => matchDesa(s, pgDesa, pgDaerah));
+                    const pnkbDaerah = pnkbStaff.filter(s => matchDaerah(s, pgDaerah));
+                    const caller1Pool = pnkbExact.length > 0 ? pnkbExact : pnkbDaerah.length > 0 ? pnkbDaerah : pnkbStaff;
                     assignedCallerId = pickBest(caller1Pool);
 
                     // Caller 2: Ibu Gambuh from penerima's daerah+desa → daerah-only → any Ibu Gambuh
                     const gambuhStaff = allStaff.filter(s => s.tipe === 'Ibu Gambuh');
-                    const caller2Pool = penerimaDesaId && penerimaDaerahId &&
-                        gambuhStaff.filter(s => s.desaId === penerimaDesaId && s.daerahId === penerimaDaerahId).length > 0
-                        ? gambuhStaff.filter(s => s.desaId === penerimaDesaId && s.daerahId === penerimaDaerahId)
-                        : penerimaDaerahId && gambuhStaff.filter(s => s.daerahId === penerimaDaerahId).length > 0
-                        ? gambuhStaff.filter(s => s.daerahId === penerimaDaerahId)
-                        : gambuhStaff;
+                    const gambuhExact = gambuhStaff.filter(s => matchDesa(s, pnDesa, pnDaerah));
+                    const gambuhDaerah = gambuhStaff.filter(s => matchDaerah(s, pnDaerah));
+                    const caller2Pool = gambuhExact.length > 0 ? gambuhExact : gambuhDaerah.length > 0 ? gambuhDaerah : gambuhStaff;
                     assignedCaller2Id = pickBest(caller2Pool);
+
+                    console.log(`[RoomAssign] pgDesa=${pgDesa} pgDaerah=${pgDaerah} pnDesa=${pnDesa} pnDaerah=${pnDaerah}`);
+                    console.log(`[RoomAssign] pnkbExact=${pnkbExact.length} pnkbDaerah=${pnkbDaerah.length} gambuhExact=${gambuhExact.length} gambuhDaerah=${gambuhDaerah.length}`);
+                    console.log(`[RoomAssign] gambuhStaff:`, gambuhStaff.map(s => `${s.nama}(daerah=${s.daerahId},desa=${s.desaId})`));
 
                     // Guard: any tipe from either participant's daerah+desa, not already chosen
                     const chosenIds = new Set<string>([assignedCallerId, assignedCaller2Id].filter(Boolean) as string[]);
                     const guardCandidates = (() => {
                         const exactMatch = allStaff.filter(s =>
-                            (pengirimDesaId && pengirimDaerahId && s.desaId === pengirimDesaId && s.daerahId === pengirimDaerahId) ||
-                            (penerimaDesaId && penerimaDaerahId && s.desaId === penerimaDesaId && s.daerahId === penerimaDaerahId)
+                            matchDesa(s, pgDesa, pgDaerah) || matchDesa(s, pnDesa, pnDaerah)
                         );
                         if (exactMatch.length > 0) return exactMatch;
                         const daerahMatch = allStaff.filter(s =>
-                            (pengirimDaerahId && s.daerahId === pengirimDaerahId) ||
-                            (penerimaDaerahId && s.daerahId === penerimaDaerahId)
+                            matchDaerah(s, pgDaerah) || matchDaerah(s, pnDaerah)
                         );
                         return daerahMatch.length > 0 ? daerahMatch : allStaff;
                     })();

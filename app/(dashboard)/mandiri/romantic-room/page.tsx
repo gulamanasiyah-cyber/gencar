@@ -640,13 +640,17 @@ export default function RomanticRoomPage() {
         }
     };
 
-    const handleAssignToRoom = async (pemilihanId: string, pengirim: string, penerima: string, pengirimKeterangan?: string, penerimaKeterangan?: string) => {
+    const handleAssignToRoom = async (item: any) => {
+        const { id: pemilihanId, pengirimNama, penerimaNama, pengirimKeterangan, penerimaKeterangan,
+            pengirimNomorUrut, pengirimNo, penerimaNo, penerimaNomorUrut,
+            pengirimKota, pengirimDesa, penerimaKota, penerimaDesa } = item;
+
         if (pengirimKeterangan === "pulang") {
-            Swal.fire("Gagal Masuk Room", `${pengirim} sudah logout (pulang). Tidak dapat memasukkan pasangan ini ke dalam ruangan.`, "error");
+            Swal.fire("Gagal Masuk Room", `${pengirimNama} sudah logout (pulang). Tidak dapat memasukkan pasangan ini ke dalam ruangan.`, "error");
             return;
         }
         if (penerimaKeterangan === "pulang") {
-            Swal.fire("Gagal Masuk Room", `${penerima} sudah logout (pulang). Tidak dapat memasukkan pasangan ini ke dalam ruangan.`, "error");
+            Swal.fire("Gagal Masuk Room", `${penerimaNama} sudah logout (pulang). Tidak dapat memasukkan pasangan ini ke dalam ruangan.`, "error");
             return;
         }
 
@@ -660,6 +664,63 @@ export default function RomanticRoomPage() {
         const targetRoom = sortedAvailableRooms[0];
         const roomId = targetRoom.id;
 
+        const pgNo = pengirimNomorUrut || pengirimNo || '-';
+        const pnNo = penerimaNomorUrut || penerimaNo || '-';
+
+        const confirm = await Swal.fire({
+            title: `<span style="font-size:17px;font-weight:800;color:#1e293b;">Konfirmasi Masuk Romantic Room</span>`,
+            html: `
+                <div style="margin-bottom:10px;">
+                    <div style="display:flex;align-items:stretch;gap:0;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;">
+                        <!-- PEMANGGIL -->
+                        <div style="flex:1;padding:12px 10px;background:#eff6ff;text-align:left;min-width:0;">
+                            <div style="font-size:9px;font-weight:800;color:#2563eb;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px;">Pemanggil</div>
+                            <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;">
+                                <span style="background:#1e3a5f;color:#fff;font-size:10px;font-weight:800;padding:1px 6px;border-radius:4px;flex-shrink:0;">${pgNo}</span>
+                                <span style="font-size:13px;font-weight:800;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${pengirimNama}</span>
+                            </div>
+                            <div style="font-size:10px;color:#64748b;display:flex;align-items:center;gap:3px;">
+                                <span>📍</span><span>${pengirimKota || '-'} / ${pengirimDesa || '-'}</span>
+                            </div>
+                        </div>
+                        <!-- Heart divider -->
+                        <div style="display:flex;align-items:center;justify-content:center;padding:0 8px;background:#fff5f5;flex-shrink:0;">
+                            <span style="font-size:18px;">❤️</span>
+                        </div>
+                        <!-- DIPANGGIL -->
+                        <div style="flex:1;padding:12px 10px;background:#fdf4ff;text-align:right;min-width:0;">
+                            <div style="font-size:9px;font-weight:800;color:#7c3aed;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px;">Dipanggil</div>
+                            <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;justify-content:flex-end;">
+                                <span style="font-size:13px;font-weight:800;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${penerimaNama}</span>
+                                <span style="background:#4c1d95;color:#fff;font-size:10px;font-weight:800;padding:1px 6px;border-radius:4px;flex-shrink:0;">${pnNo}</span>
+                            </div>
+                            <div style="font-size:10px;color:#64748b;display:flex;align-items:center;gap:3px;justify-content:flex-end;">
+                                <span>${penerimaKota || '-'} / ${penerimaDesa || '-'}</span><span>📍</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:20px;">🚪</span>
+                    <div style="text-align:left;">
+                        <div style="font-size:10px;color:#15803d;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Ruangan yang Dituju</div>
+                        <div style="font-size:15px;font-weight:800;color:#166534;">${targetRoom.nama}</div>
+                    </div>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: '✅ Ya, Masukkan!',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#10b981',
+            cancelButtonColor: '#94a3b8',
+            reverseButtons: true,
+            focusConfirm: false,
+        });
+
+        if (!confirm.isConfirmed) return;
+
+        Swal.fire({ title: 'Memproses...', allowOutsideClick: false, showConfirmButton: false, didOpen: () => Swal.showLoading() });
+
         try {
             const res = await fetch(`/api/mandiri/rooms/${roomId}`, {
                 method: "PATCH",
@@ -672,23 +733,26 @@ export default function RomanticRoomPage() {
                 const caller2Name = resData.assignedCaller2Nama || '-';
                 const guardName = resData.assignedGuardNama || '-';
                 Swal.fire({
-                    title: "Berhasil",
+                    title: "Berhasil Masuk Room",
                     html: `
-                        <p style="margin-bottom:10px;">${pengirim} &amp; ${penerima} telah masuk ke <b>${targetRoom.nama}</b>.</p>
-                        <div style="text-align:left; font-size:12px; color:#475569; background:#f8fafc; padding:10px; border-radius:8px; line-height:1.8;">
-                            <div>📢 Pemanggil 1 (PNKB): <b>${callerName}</b></div>
-                            <div>📢 Pemanggil 2 (Ibu Gambuh): <b>${caller2Name}</b></div>
-                            <div>🚪 Penunggu: <b>${guardName}</b></div>
+                        <p style="margin-bottom:10px;font-size:13px;color:#475569;">
+                            <b>${pengirimNama}</b> &amp; <b>${penerimaNama}</b> telah masuk ke <b style="color:#059669;">${targetRoom.nama}</b>.
+                        </p>
+                        <div style="text-align:left;font-size:12px;color:#475569;background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px solid #e2e8f0;line-height:2;">
+                            <div>📢 <b>Pemanggil 1 (PNKB):</b> ${callerName}</div>
+                            <div>📢 <b>Pemanggil 2 (Ibu Gambuh):</b> ${caller2Name}</div>
+                            <div>🚪 <b>Penunggu:</b> ${guardName}</div>
                         </div>
                     `,
                     icon: "success",
-                    timer: 3000,
+                    timer: 4000,
+                    timerProgressBar: true,
                     showConfirmButton: false
                 });
                 fetchData();
             } else {
                 const errData = await res.json();
-                Swal.fire("Error", errData.error || "Gagal memproses validasi", "error");
+                Swal.fire("Gagal", errData.error || "Gagal memproses validasi", "error");
             }
         } catch (err) {
             Swal.fire("Error", "Gagal memproses validasi", "error");
@@ -1589,7 +1653,7 @@ export default function RomanticRoomPage() {
                                                             whiteSpace: 'nowrap'
                                                         }}
                                                         disabled={item.pengirimKeterangan === 'pulang' || item.penerimaKeterangan === 'pulang'}
-                                                        onClick={() => handleAssignToRoom(item.id, item.pengirimNama, item.penerimaNama, item.pengirimKeterangan, item.penerimaKeterangan)}
+                                                        onClick={() => handleAssignToRoom(item)}
                                                     >
                                                         <DoorOpen size={11} /> Validasi & Masuk Room
                                                     </button>
