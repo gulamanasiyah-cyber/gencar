@@ -2,7 +2,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, mandiri, settings, desa, kelompok, users, mandiriDesa, mandiriDaerah } from "@/lib/schema";
+import { generus, mandiri, settings, desa, kelompok, users, mandiriDesa, mandiriDaerah, mandiriKegiatan } from "@/lib/schema";
+import { sendOneSignalNotification } from "@/lib/onesignal";
 import { eq, desc, and, or, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 
@@ -31,6 +32,9 @@ export async function POST(request: NextRequest) {
     if (!activeKegiatanId) {
         return NextResponse.json({ error: "Pendaftaran tidak dapat diproses karena tidak ada kegiatan mandiri yang sedang aktif." }, { status: 400 });
     }
+
+    const activeKegRes = await db.select().from(mandiriKegiatan).where(eq(mandiriKegiatan.id, activeKegiatanId)).limit(1);
+    const activeKegNama = activeKegRes[0]?.judul || "Kegiatan Mandiri";
     const { 
         nama, jenisKelamin, tempatLahir, tanggalLahir, 
         alamat, noTelp, pendidikan, pekerjaan, statusNikah, 
@@ -160,6 +164,13 @@ export async function POST(request: NextRequest) {
             catatan: "Pendaftaran mandiri (Public - Existing Generus)"
         });
 
+        // Send OneSignal push notification
+        await sendOneSignalNotification({
+          headings: "Pendaftaran Sukses! 🎉",
+          contents: `Halo ${nama}, pendaftaran Anda untuk kegiatan "${activeKegNama}" berhasil. Nomor Urut Anda adalah #${nextNr}.`,
+          externalUserIds: [noTelp]
+        });
+
         return NextResponse.json({ success: true, generusId: duplicate.id, nomorUnik: duplicate.nomorUnik, nomorUrut: nextNr });
     }
 
@@ -247,6 +258,13 @@ export async function POST(request: NextRequest) {
       kegiatanId: activeKegiatanId,
       statusMandiri: "Aktif",
       catatan: "Pendaftaran mandiri (Public - New User)"
+    });
+
+    // Send OneSignal push notification
+    await sendOneSignalNotification({
+      headings: "Pendaftaran Sukses! 🎉",
+      contents: `Halo ${nama}, pendaftaran Anda untuk kegiatan "${activeKegNama}" berhasil. Nomor Urut Anda adalah #${nextNr}.`,
+      externalUserIds: [noTelp]
     });
 
     return NextResponse.json({ success: true, generusId, nomorUnik, nomorUrut: nextNr });

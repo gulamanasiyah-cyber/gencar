@@ -431,6 +431,18 @@ export default function MandiriDaftarPage() {
       }
 
       if (!res.ok) throw new Error(data.error || "Gagal mendaftar");
+      
+      if (typeof window !== "undefined" && (window as any).OneSignal) {
+        try {
+          const OneSignal = (window as any).OneSignal;
+          OneSignal.push(() => {
+            OneSignal.login(cleanNoTelp);
+          });
+        } catch (e) {
+          console.warn("OneSignal login failed:", e);
+        }
+      }
+
       setSuccess(true);
       setResult(data);
       Swal.fire({ icon: "success", title: "Berhasil!", text: "Data Anda telah tercatat." });
