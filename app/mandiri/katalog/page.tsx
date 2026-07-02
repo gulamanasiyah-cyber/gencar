@@ -444,9 +444,34 @@ export default function PublicKatalogPage() {
   }, [searchTerm]);
 
   useEffect(() => {
+    if (verifying) return; // Do not fetch data while verifying / initializing!
     const timer = setTimeout(fetchData, 100);
     return () => clearTimeout(timer);
-  }, [fetchData]);
+  }, [fetchData, verifying]);
+
+  const fetchSelections = useCallback(async () => {
+    const storedUnik = localStorage.getItem("attended_nomor_unik");
+    const storedToken = localStorage.getItem("attended_session_token");
+    if (!storedUnik) return;
+
+    const selQs = buildQuery({ nomorUnik: storedUnik, token: storedToken || "" });
+    try {
+      const selRes = await fetch(`/api/mandiri/pilih?${selQs}`);
+      if (selRes.ok) {
+        const selText = await selRes.text();
+        if (selText) {
+          const selJson = JSON.parse(selText);
+          if (Array.isArray(selJson)) {
+            setSelections(selJson);
+            setSelectedIds(selJson.map((s: any) => String(s.penerimaId)));
+            setStatusQueue(selJson.find((s: any) => s.status === "Menunggu") || null);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("fetchSelections error:", e);
+    }
+  }, []);
 
   // Realtime updates using Pusher
   useEffect(() => {
@@ -458,6 +483,7 @@ export default function PublicKatalogPage() {
     const handleUpdate = () => {
       // Trigger data refetching
       fetchData();
+      fetchSelections();
     };
 
     const handleBoxLoveUpdate = (data: any) => {
@@ -476,7 +502,7 @@ export default function PublicKatalogPage() {
       channel.unbind("box-love-status-changed", handleBoxLoveUpdate);
       pusher.unsubscribe("taaruf-channel");
     };
-  }, [fetchData]);
+  }, [fetchData, fetchSelections]);
 
   const handleSendKomentar = async (penerimaId: string, itemNama: string, komentar: string) => {
     if (submittingKomentar) return;
@@ -745,6 +771,13 @@ export default function PublicKatalogPage() {
     });
 
     if (result.isConfirmed) {
+      Swal.fire({
+        title: "Memproses Pilihan...",
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
       try {
         const res = await fetch("/api/mandiri/pilih", {
           method: "POST",
