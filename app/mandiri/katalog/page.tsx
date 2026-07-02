@@ -373,7 +373,28 @@ export default function PublicKatalogPage() {
                 mandiriDesaKota: data.mandiriDesaKota,
                 jenisKelamin: data.jenisKelamin,
                 role: userRole,
+                noTelp: data.noTelp,
               });
+
+              // Bind OneSignal to existing user phone number
+              if (typeof window !== "undefined" && data.noTelp) {
+                let cleanPhone = data.noTelp.trim().replace(/[^0-9]/g, "");
+                if (cleanPhone.startsWith("0")) {
+                  cleanPhone = "62" + cleanPhone.slice(1);
+                }
+                const OneSignal = (window as any).OneSignal;
+                if (OneSignal) {
+                  OneSignal.push(async () => {
+                    try {
+                      console.log("Binding existing user to OneSignal with phone:", cleanPhone);
+                      await OneSignal.login(cleanPhone);
+                    } catch (e) {
+                      console.error("OneSignal login error:", e);
+                    }
+                  });
+                }
+              }
+
               if (data.jenisKelamin) {
                 setGender(data.jenisKelamin === "L" ? "P" : "L");
               }

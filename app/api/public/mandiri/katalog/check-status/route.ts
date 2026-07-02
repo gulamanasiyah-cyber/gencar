@@ -70,7 +70,8 @@ export async function GET(request: NextRequest) {
         mandiriDesaNama: mandiriDesa.nama,
         mandiriDesaKota: mandiriDaerah.nama,
         jenisKelamin: generus.jenisKelamin,
-        role: formPanitiaDanPengurus.dapukan
+        role: formPanitiaDanPengurus.dapukan,
+        noTelp: generus.noTelp
     })
     .from(generus)
     .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
