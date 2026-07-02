@@ -18,9 +18,9 @@ const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
-    const file = formData.get("file") as File | null;
+    const file = formData.get("file") as any;
 
-    if (!file || !(file instanceof File)) {
+    if (!file || typeof file === "string" || !file.size) {
       return NextResponse.json({ error: "Tidak ada file yang diunggah" }, { status: 400 });
     }
 
