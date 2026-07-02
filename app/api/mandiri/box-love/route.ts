@@ -7,6 +7,8 @@ import { eq, and, or, like, sql, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 
+import { pusherServer } from "@/lib/pusher";
+
 // GET: Check Box Love status + search participants
 export async function GET(request: NextRequest) {
   try {
@@ -125,6 +127,12 @@ export async function POST(request: NextRequest) {
         await db.update(settings).set({ value: newStatus, updatedAt: new Date().toISOString() }).where(eq(settings.key, "box_love_status"));
       } else {
         await db.insert(settings).values({ key: "box_love_status", value: newStatus });
+      }
+
+      try {
+        await pusherServer.trigger("taaruf-channel", "box-love-status-changed", { status: newStatus });
+      } catch (err) {
+        console.error("Pusher toggle box-love-status error:", err);
       }
 
       return NextResponse.json({ success: true, value: newStatus });

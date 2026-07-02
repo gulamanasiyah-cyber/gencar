@@ -23,6 +23,18 @@ export default function OneSignalInit() {
                 position: "bottom-left",
               },
             });
+
+            console.log("OneSignal Initialized. Permission status:", OneSignal.Notifications.permission);
+
+            // Auto prompt for notification permission if not yet decided
+            if (OneSignal.Notifications.permission === "default") {
+              try {
+                console.log("Requesting OneSignal notification permission...");
+                await OneSignal.Notifications.requestPermission();
+              } catch (e) {
+                console.error("OneSignal permission request failed:", e);
+              }
+            }
           });
         };
       }

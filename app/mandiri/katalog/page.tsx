@@ -460,12 +460,20 @@ export default function PublicKatalogPage() {
       fetchData();
     };
 
+    const handleBoxLoveUpdate = (data: any) => {
+      if (data && data.status) {
+        setBoxLoveStatus(data.status);
+      }
+    };
+
     channel.bind("taaruf-changed", handleUpdate);
     channel.bind("room-changed", handleUpdate);
+    channel.bind("box-love-status-changed", handleBoxLoveUpdate);
 
     return () => {
       channel.unbind("taaruf-changed", handleUpdate);
       channel.unbind("room-changed", handleUpdate);
+      channel.unbind("box-love-status-changed", handleBoxLoveUpdate);
       pusher.unsubscribe("taaruf-channel");
     };
   }, [fetchData]);
