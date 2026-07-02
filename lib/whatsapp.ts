@@ -62,7 +62,13 @@ export const sendWhatsApp = async (target: string, msg: string) => {
         }),
       });
 
-      const resData = await res.json();
+      const text = await res.text();
+      let resData: any;
+      try {
+        resData = JSON.parse(text);
+      } catch {
+        throw new Error(`Evolution API returned non-JSON response: ${text.substring(0, 100)}`);
+      }
       console.log(`Evolution API notification sent to ${cleanTarget}:`, resData);
       return resData;
     } catch (err) {

@@ -54,7 +54,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.onesignal.com https://onesignal.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://res.cloudinary.com https://api.qrserver.com https://cdn.onesignal.com https://onesignal.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.qrserver.com wss://*.pusher.com https://*.pusher.com https://onesignal.com wss://*.onesignal.com https://cdn.onesignal.com; frame-src 'self' https://www.youtube.com https://*.youtube.com https://www.google.com https://maps.google.com; worker-src 'self' blob:; frame-ancestors 'none';",
+            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.onesignal.com https://onesignal.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://res.cloudinary.com https://api.qrserver.com https://cdn.onesignal.com https://onesignal.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.qrserver.com wss://*.pusher.com https://*.pusher.com https://onesignal.com wss://*.onesignal.com https://cdn.onesignal.com; frame-src 'self' https://www.youtube.com https://*.youtube.com https://www.google.com https://maps.google.com; worker-src 'self' blob:; frame-ancestors 'none';",
           },
           {
             key: 'X-Frame-Options',
