@@ -12,6 +12,12 @@ import { setSession } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    // Self-healing: migrate old role value to new
+    try {
+      const { sql } = await import("drizzle-orm");
+      await db.run(sql`UPDATE users SET role = 'tim_pnkb_gambuh' WHERE role = 'tim_gambuh'`);
+    } catch (_) {}
+
     const { email, password } = await request.json();
 
     if (!email || !password) {

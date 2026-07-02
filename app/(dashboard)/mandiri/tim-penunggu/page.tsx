@@ -64,7 +64,7 @@ function RoomTimer({ startTime }: { startTime: string }) {
     );
 }
 
-export default function TimGambuhOperatorPage() {
+export default function TimPenungguOperatorPage() {
     const [allRooms, setAllRooms] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [userRole, setUserRole] = useState("");
@@ -87,7 +87,7 @@ export default function TimGambuhOperatorPage() {
         });
 
         try {
-            const res = await fetch("/api/admin/tim-gambuh");
+            const res = await fetch("/api/admin/tim-penunggu");
             if (!res.ok) throw new Error("Gagal mengambil data");
             const data = await res.json();
             
@@ -95,7 +95,7 @@ export default function TimGambuhOperatorPage() {
             Swal.close();
 
             if (!Array.isArray(data) || data.length === 0) {
-                Swal.fire("Pemberitahuan", "Belum ada data anggota Tim Gambuh aktif di kegiatan ini. Silakan hubungi Admin untuk menambahkan anggota Tim Gambuh.", "warning");
+                Swal.fire("Pemberitahuan", "Belum ada data anggota Tim Penunggu aktif di kegiatan ini. Silakan hubungi Admin untuk menambahkan anggota Tim Penunggu.", "warning");
                 return;
             }
 
@@ -104,11 +104,11 @@ export default function TimGambuhOperatorPage() {
                 return acc;
             }, {});
 
-            const currentSavedId = localStorage.getItem("my_tim_pnkb_gambuh_id") || "";
+            const currentSavedId = localStorage.getItem("my_tim_penunggu_id") || "";
 
             const { value: selectedId } = await Swal.fire({
                 title: 'Pilih Identitas Anda',
-                text: 'Silakan pilih nama Anda dari daftar pendamping Tim Gambuh:',
+                text: 'Silakan pilih nama Anda dari daftar pendamping Tim Penunggu:',
                 input: 'select',
                 inputOptions: options,
                 inputValue: currentSavedId,
@@ -129,8 +129,8 @@ export default function TimGambuhOperatorPage() {
             if (selectedId) {
                 const selectedItem = data.find((d: any) => d.id === selectedId);
                 if (selectedItem) {
-                    localStorage.setItem("my_tim_pnkb_gambuh_id", selectedItem.id);
-                    localStorage.setItem("my_tim_pnkb_gambuh_nama", selectedItem.nama);
+                    localStorage.setItem("my_tim_penunggu_id", selectedItem.id);
+                    localStorage.setItem("my_tim_penunggu_nama", selectedItem.nama);
                     setMyId(selectedItem.id);
                     setMyName(selectedItem.nama);
                     Swal.fire({
@@ -143,7 +143,7 @@ export default function TimGambuhOperatorPage() {
                 }
             }
         } catch (err) {
-            Swal.fire("Error", "Gagal mengambil daftar anggota Tim Gambuh.", "error");
+            Swal.fire("Error", "Gagal mengambil daftar anggota Tim Penunggu.", "error");
         }
     }, []);
 
@@ -176,8 +176,8 @@ export default function TimGambuhOperatorPage() {
             });
 
         // Initialize identity from localStorage
-        const savedId = localStorage.getItem("my_tim_pnkb_gambuh_id") || "";
-        const savedNama = localStorage.getItem("my_tim_pnkb_gambuh_nama") || "";
+        const savedId = localStorage.getItem("my_tim_penunggu_id") || "";
+        const savedNama = localStorage.getItem("my_tim_penunggu_nama") || "";
         if (savedId) {
             setMyId(savedId);
             setMyName(savedNama);
@@ -198,9 +198,9 @@ export default function TimGambuhOperatorPage() {
         channel.bind("room-changed", (eventData: any) => {
             fetchData();
             if (eventData && eventData.action === "assign") {
-                const { roomNama, pengirimNama, pengirimNoUrut, penerimaNama, penerimaNoUrut, assignedCallerNama, assignedCallerId, assignedCaller2Nama, assignedCaller2Id, assignedGuardNama, assignedGuardId } = eventData;
-                const savedId = localStorage.getItem("my_tim_pnkb_gambuh_id") || "";
-                const isMyAssignment = assignedCallerId === savedId || assignedCaller2Id === savedId || assignedGuardId === savedId;
+                const { roomNama, pengirimNama, pengirimNoUrut, penerimaNama, penerimaNoUrut, assignedCallerNama, assignedCallerId, assignedGuardNama, assignedGuardId } = eventData;
+                const savedId = localStorage.getItem("my_tim_penunggu_id") || "";
+                const isMyAssignment = assignedCallerId === savedId || assignedGuardId === savedId;
 
                 Swal.fire({
                     title: isMyAssignment ? 'Tugas Pendampingan Baru!' : 'Sesi Pertemuan Baru!',
@@ -212,10 +212,9 @@ export default function TimGambuhOperatorPage() {
                                 <li>Pria: No. ${pengirimNoUrut || '-'} - ${pengirimNama}</li>
                                 <li>Wanita: No. ${penerimaNoUrut || '-'} - ${penerimaNama}</li>
                             </ul>
-                            <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #e2e8f0; display: flex; flex-direction: column; gap: 4px;">
-                                <p style="margin: 0;">📢 <strong>Pemanggil 1:</strong> <span style="color: ${assignedCallerId === savedId ? '#3b82f6' : 'inherit'}; font-weight: bold;">${assignedCallerNama || '-'} ${assignedCallerId === savedId ? '(Anda)' : ''}</span></p>
-                                ${assignedCaller2Nama ? `<p style="margin: 0;">📢 <strong>Pemanggil 2:</strong> <span style="color: ${assignedCaller2Id === savedId ? '#3b82f6' : 'inherit'}; font-weight: bold;">${assignedCaller2Nama} ${assignedCaller2Id === savedId ? '(Anda)' : ''}</span></p>` : ''}
-                                <p style="margin: 0;">🚪 <strong>Penunggu:</strong> <span style="color: ${assignedGuardId === savedId ? '#10b981' : 'inherit'}; font-weight: bold;">${assignedGuardNama || '-'} ${assignedGuardId === savedId ? '(Anda)' : ''}</span></p>
+                            <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #e2e8f0; display: flex; flexDirection: column; gap: 4px;">
+                                <p style="margin: 0;"><strong>Pemanggil:</strong> <span style="color: ${assignedCallerId === savedId ? '#3b82f6' : 'inherit'}; font-weight: bold;">${assignedCallerNama || 'Belum ditentukan'} ${assignedCallerId === savedId ? '(Anda)' : ''}</span></p>
+                                <p style="margin: 0;"><strong>Penunggu:</strong> <span style="color: ${assignedGuardId === savedId ? '#10b981' : 'inherit'}; font-weight: bold;">${assignedGuardNama || 'Belum ditentukan'} ${assignedGuardId === savedId ? '(Anda)' : ''}</span></p>
                             </div>
                         </div>
                     `,
@@ -373,12 +372,12 @@ export default function TimGambuhOperatorPage() {
 
     return (
         <div className="operator-layout">
-            <Topbar title="Panel Tim PNKB & Gambuh" role={userRole} />
+            <Topbar title="Operator Tim Penunggu" role={userRole} />
             <div className="page-content">
                 
                 <div className="operator-header">
                     <div>
-                        <h2>Panel Tim PNKB & Gambuh</h2>
+                        <h2>Panel Pendamping Tim Penunggu</h2>
                         <p>Kelola sesi taaruf di dalam ruangan: Mulai timer, dampingi, dan simpan hasil pertemuan.</p>
                     </div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -436,10 +435,10 @@ export default function TimGambuhOperatorPage() {
                             <div className="empty-state">Tidak ada ruangan ditemukan</div>
                         ) : (
                             filteredRooms.map((room) => (
-                                <div key={room.id} className={`room-tile ${room.status?.toLowerCase()} ${room.status === "Terisi" && !room.startedAt ? "not-started" : ""} ${room.assignedGuardId === myId || room.assignedCallerId === myId || room.assignedCaller2Id === myId ? "my-assigned-room" : ""}`} onClick={() => setSelectedRoom(room)} style={{ cursor: "pointer" }}>
+                                <div key={room.id} className={`room-tile ${room.status?.toLowerCase()} ${room.status === "Terisi" && !room.startedAt ? "not-started" : ""} ${room.assignedGuardId === myId || room.assignedCallerId === myId ? "my-assigned-room" : ""}`} onClick={() => setSelectedRoom(room)} style={{ cursor: "pointer" }}>
                                     <div className="room-top">
                                         <span className="room-name">{room.nama}</span>
-                                        {(room.assignedGuardId === myId || room.assignedCallerId === myId || room.assignedCaller2Id === myId) && (
+                                        {(room.assignedGuardId === myId || room.assignedCallerId === myId) && (
                                             <span className="my-task-badge" style={{ backgroundColor: room.assignedGuardId === myId ? '#10b981' : '#3b82f6', color: 'white', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '4px' }}>
                                                 {room.assignedGuardId === myId ? 'Penunggu' : 'Pemanggil'}
                                             </span>
@@ -463,47 +462,50 @@ export default function TimGambuhOperatorPage() {
                                                     </div>
                                                 </div>
                                                 
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '6px', fontSize: '10px', width: '100%', padding: '6px 0 4px', borderTop: '1px dashed #f1f5f9' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '6px', fontSize: '10px', width: '100%', padding: '4px 0', borderTop: '1px dashed #f1f5f9' }}>
                                                     {room.assignedCallerNama && (
                                                         <div style={{ color: '#2563eb', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                            📢 <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                                                                P1: {room.assignedCallerNama.split(' ')[0]} {room.assignedCallerId === myId ? <strong>(Anda)</strong> : ''}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                    {room.assignedCaller2Nama && (
-                                                        <div style={{ color: '#7c3aed', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                            📢 <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                                                                P2: {room.assignedCaller2Nama.split(' ')[0]} {room.assignedCaller2Id === myId ? <strong>(Anda)</strong> : ''}
-                                                            </span>
+                                                            📢 <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>Pemanggil: {room.assignedCallerNama} {room.assignedCallerId === myId ? '(Anda)' : ''}</span>
                                                         </div>
                                                     )}
                                                     {room.assignedGuardNama && (
                                                         <div style={{ color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                            🚪 <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                                                                {room.assignedGuardNama.split(' ')[0]} {room.assignedGuardId === myId ? <strong>(Anda)</strong> : ''}
-                                                            </span>
+                                                            🚪 <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>Penunggu: {room.assignedGuardNama} {room.assignedGuardId === myId ? '(Anda)' : ''}</span>
                                                         </div>
                                                     )}
                                                 </div>
 
                                                 <div className="action-row">
-                                                    {(room.assignedGuardId === myId || room.assignedCallerId === myId || room.assignedCaller2Id === myId) ? (
+                                                    {room.assignedGuardId === myId ? (
                                                         room.startedAt ? (
-                                                            <button
-                                                                className="btn-clear"
+                                                            <button 
+                                                                className="btn-clear" 
                                                                 onClick={(e) => { e.stopPropagation(); handleClearRoom(room.id); }}
                                                             >
                                                                 <LogOut size={12} /> Selesaikan Sesi
                                                             </button>
                                                         ) : (
-                                                            <button
-                                                                className="btn-start-timer"
+                                                            <button 
+                                                                className="btn-start-timer" 
                                                                 onClick={(e) => { e.stopPropagation(); handleStartRoom(room.id); }}
                                                             >
                                                                 <Timer size={12} fill="white" /> Mulai Sesi
                                                             </button>
                                                         )
+                                                    ) : room.assignedCallerId === myId ? (
+                                                        <div className="non-assigned-companion" style={{
+                                                            fontSize: '11px',
+                                                            color: '#2563eb',
+                                                            textAlign: 'center',
+                                                            width: '100%',
+                                                            padding: '6px',
+                                                            background: '#eff6ff',
+                                                            borderRadius: '6px',
+                                                            border: '1px solid #bfdbfe',
+                                                            fontWeight: '600'
+                                                        }}>
+                                                            Tugas Anda: Pemanggil
+                                                        </div>
                                                     ) : (
                                                         <div className="non-assigned-companion" style={{
                                                             fontSize: '11px',
@@ -599,27 +601,16 @@ export default function TimGambuhOperatorPage() {
                                 </div>
 
                                 {/* Companions */}
-                                {(selectedRoom.assignedCallerNama || selectedRoom.assignedCaller2Nama || selectedRoom.assignedGuardNama) && (
+                                {(selectedRoom.assignedCallerNama || selectedRoom.assignedGuardNama) && (
                                     <div style={{ background: "#f0fdf4", borderRadius: "10px", padding: "14px", marginBottom: "14px", border: "1px solid #bbf7d0" }}>
                                         <div style={{ fontSize: "10px", fontWeight: 800, color: "#059669", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>Tim Pendamping</div>
                                         {selectedRoom.assignedCallerNama && (
                                             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
                                                 <span style={{ fontSize: "14px" }}>📢</span>
                                                 <div>
-                                                    <div style={{ fontSize: "10px", color: "#64748b", fontWeight: 600 }}>Pemanggil 1 <span style={{ color: '#2563eb' }}>(PNKB)</span></div>
+                                                    <div style={{ fontSize: "10px", color: "#64748b", fontWeight: 600 }}>Pemanggil</div>
                                                     <div style={{ fontSize: "13px", fontWeight: 700, color: selectedRoom.assignedCallerId === myId ? "#2563eb" : "#0f172a" }}>
                                                         {selectedRoom.assignedCallerNama} {selectedRoom.assignedCallerId === myId ? "(Anda)" : ""}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {selectedRoom.assignedCaller2Nama && (
-                                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                                                <span style={{ fontSize: "14px" }}>📢</span>
-                                                <div>
-                                                    <div style={{ fontSize: "10px", color: "#64748b", fontWeight: 600 }}>Pemanggil 2 <span style={{ color: '#7c3aed' }}>(Ibu Gambuh)</span></div>
-                                                    <div style={{ fontSize: "13px", fontWeight: 700, color: selectedRoom.assignedCaller2Id === myId ? "#7c3aed" : "#0f172a" }}>
-                                                        {selectedRoom.assignedCaller2Nama} {selectedRoom.assignedCaller2Id === myId ? "(Anda)" : ""}
                                                     </div>
                                                 </div>
                                             </div>
@@ -638,8 +629,8 @@ export default function TimGambuhOperatorPage() {
                                     </div>
                                 )}
 
-                                {/* Action buttons — for all assigned staff */}
-                                {(selectedRoom.assignedGuardId === myId || selectedRoom.assignedCallerId === myId || selectedRoom.assignedCaller2Id === myId) && (
+                                {/* Action buttons — only for assigned guard */}
+                                {selectedRoom.assignedGuardId === myId && (
                                     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                                         {!selectedRoom.startedAt ? (
                                             <button onClick={() => { setSelectedRoom(null); handleStartRoom(selectedRoom.id); }} style={{
@@ -660,6 +651,15 @@ export default function TimGambuhOperatorPage() {
                                                 <LogOut size={14} /> Selesaikan Sesi
                                             </button>
                                         )}
+
+                                    </div>
+                                )}
+                                {selectedRoom.assignedCallerId === myId && (
+                                    <div style={{
+                                        background: "#eff6ff", borderRadius: "10px", padding: "12px", textAlign: "center",
+                                        color: "#2563eb", fontWeight: 700, fontSize: "13px", border: "1px solid #bfdbfe"
+                                    }}>
+                                        📢 Tugas Anda: Pemanggil — Tunggu instruksi Penunggu
                                     </div>
                                 )}
                             </>

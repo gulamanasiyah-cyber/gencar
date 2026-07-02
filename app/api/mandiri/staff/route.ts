@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { timGambuh, settings } from "@/lib/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 
 export const dynamic = 'force-dynamic';
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         })
         .from(timGambuh)
         .where(and(
-            eq(timGambuh.tipe, "PNKB"),
+            inArray(timGambuh.tipe, ["PNKB", "Tim Penunggu", "Ibu Gambuh"]),
             eq(timGambuh.kegiatanId, kegiatanId)
         ))
         .orderBy(timGambuh.nama);

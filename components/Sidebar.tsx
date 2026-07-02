@@ -58,10 +58,10 @@ const navItems = [
       { href: "/mandiri", label: "Registrasi Peserta", icon: "sparkles" },
       { href: "/mandiri/kegiatan", label: "Kegiatan", icon: "calendar" },
       { href: "/mandiri/absensi", label: "Absensi", icon: "absensi" },
-      { href: "/mandiri/pulang", label: "Daftar Pulang", icon: "logout" },
+      { href: "/mandiri/pulang", label: "Daftar Pulang", icon: "logout", roles: ["admin_romantic_room"] },
       { href: "/admin/katalog", label: "Katalog Peserta", icon: "katalog" },
-      { href: "/mandiri/romantic-room", label: "Romantic Room", icon: "romantic" },
-      { href: "/mandiri/tim-gambuh", label: "Panel Tim Gambuh", icon: "romantic" },
+      { href: "/mandiri/romantic-room", label: "Romantic Room", icon: "romantic", roles: ["admin_romantic_room"] },
+      { href: "/mandiri/tim-gambuh", label: "Panel Tim PNKB & Gambuh", icon: "romantic", roles: ["admin_romantic_room"] },
       { href: "/mandiri/desa", label: "Kelola Daerah / Desa", icon: "desa" },
     ],
   },
@@ -84,7 +84,7 @@ const navItems = [
       { href: "/admin/users", label: "Kelola User", icon: "users-cog", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
       { href: "/admin/pengurus", label: "Kelola Pengurus", icon: "users", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
       { href: "/admin/desa", label: "Kelola Desa", icon: "map", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
-      { href: "/admin/tim-gambuh", label: "Tim Gambuh", icon: "users", roles: ["admin", "pengurus_daerah", "kmm_daerah", "admin_romantic_room"] },
+      { href: "/admin/tim-gambuh", label: "Tim PNKB & Gambuh", icon: "users", roles: ["pengurus_daerah", "kmm_daerah", "admin_romantic_room"] },
       { href: "/admin/berita", label: "Moderasi Berita", icon: "news", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
       { href: "/admin/artikel", label: "Moderasi Artikel", icon: "artikel", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
       { href: "/admin/saran", label: "Saran & Masukan", icon: "message-square", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
@@ -167,7 +167,7 @@ const userNavs: Record<string, any[]> = {
         { href: "/admin/katalog", label: "Katalog Peserta", icon: "katalog" },
         { href: "/mandiri/romantic-room", label: "Romantic Room", icon: "romantic" },
         { href: "/mandiri/desa", label: "Kelola Daerah / Desa", icon: "desa" },
-        { href: "/admin/tim-gambuh", label: "Tim Gambuh", icon: "users" },
+        { href: "/admin/tim-gambuh", label: "Tim PNKB & Gambuh", icon: "users" },
       ],
     },
     {
@@ -206,12 +206,12 @@ const userNavs: Record<string, any[]> = {
       ],
     },
   ],
-  tim_gambuh: [
+  tim_pnkb_gambuh: [
     {
       section: "Menu Utama",
       items: [
         { href: "/dashboard", label: "Dashboard", icon: "grid" },
-        { href: "/mandiri/tim-gambuh", label: "Panel Tim Gambuh", icon: "romantic" },
+        { href: "/mandiri/tim-gambuh", label: "Panel Tim PNKB & Gambuh", icon: "romantic" },
         { href: "/admin/katalog", label: "Katalog Peserta", icon: "katalog" },
       ],
     },
@@ -348,7 +348,7 @@ export default function Sidebar({ user }: SidebarProps) {
 
             // Filter items based on access
             const visibleItems = section.items.filter((item: any) => {
-              const isPanitia = ["admin", "pengurus_daerah", "kmm_daerah", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "tim_gambuh"].includes(user.role);
+              const isPanitia = ["admin", "pengurus_daerah", "kmm_daerah", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "tim_pnkb_gambuh"].includes(user.role);
 
               // Hide Mandiri items if not in Mandiri and not a committee member
               const isMandiriItem = item.href.startsWith("/mandiri") ||
@@ -405,7 +405,7 @@ export default function Sidebar({ user }: SidebarProps) {
                             user.role === "admin_romantic_room" ? "Admin Romantic Room" :
                               user.role === "admin_keuangan" ? "Admin Keuangan" :
                                 user.role === "admin_kegiatan" ? "Admin Kegiatan" :
-                                  user.role === "tim_gambuh" ? "Tim Gambuh" :
+                                  user.role === "tim_pnkb_gambuh" ? "Tim PNKB & Gambuh" :
                                     user.role}
               </div>
             </div>

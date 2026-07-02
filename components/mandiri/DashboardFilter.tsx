@@ -7,22 +7,26 @@ import { Filter, X } from "lucide-react";
 interface DashboardFilterProps {
   cities: string[];
   villages: { id: number; nama: string; kota: string }[];
+  groups?: { id: number; nama: string; desa: string; kota: string }[];
 }
 
-export default function DashboardFilter({ cities, villages }: DashboardFilterProps) {
+export default function DashboardFilter({ cities, villages, groups = [] }: DashboardFilterProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const [city, setCity] = useState(searchParams.get("city") || "");
   const [village, setVillage] = useState(searchParams.get("village") || "");
+  const [group, setGroup] = useState(searchParams.get("group") || "");
   const [gender, setGender] = useState(searchParams.get("gender") || "");
 
-  const filteredVillages = village
-    ? villages.filter((v) => (city ? v.kota === city : true))
-    : city
+  const filteredVillages = city
     ? villages.filter((v) => v.kota === city)
-    : villages;
+    : [];
+
+  const filteredGroups = village
+    ? groups.filter((g) => g.desa === village)
+    : [];
 
   const handleFilter = () => {
     const params = new URLSearchParams(searchParams.toString());
@@ -31,6 +35,9 @@ export default function DashboardFilter({ cities, villages }: DashboardFilterPro
     
     if (village) params.set("village", village);
     else params.delete("village");
+    
+    if (group) params.set("group", group);
+    else params.delete("group");
     
     if (gender) params.set("gender", gender);
     else params.delete("gender");
@@ -41,6 +48,7 @@ export default function DashboardFilter({ cities, villages }: DashboardFilterPro
   const handleReset = () => {
     setCity("");
     setVillage("");
+    setGroup("");
     setGender("");
     router.push(pathname);
   };
@@ -54,7 +62,7 @@ export default function DashboardFilter({ cities, villages }: DashboardFilterPro
       <div className="filter-grid">
         <div className="filter-item">
           <label>Kota/Daerah</label>
-          <select value={city} onChange={(e) => { setCity(e.target.value); setVillage(""); }}>
+          <select value={city} onChange={(e) => { setCity(e.target.value); setVillage(""); setGroup(""); }}>
             <option value="">Semua Kota</option>
             {cities.map((c) => (
               <option key={c} value={c}>{c}</option>
@@ -63,10 +71,19 @@ export default function DashboardFilter({ cities, villages }: DashboardFilterPro
         </div>
         <div className="filter-item">
           <label>Desa</label>
-          <select value={village} onChange={(e) => setVillage(e.target.value)}>
+          <select value={village} onChange={(e) => { setVillage(e.target.value); setGroup(""); }}>
             <option value="">Semua Desa</option>
             {filteredVillages.map((v) => (
               <option key={v.id} value={v.nama}>{v.nama}</option>
+            ))}
+          </select>
+        </div>
+        <div className="filter-item">
+          <label>Kelompok</label>
+          <select value={group} onChange={(e) => setGroup(e.target.value)}>
+            <option value="">Semua Kelompok</option>
+            {filteredGroups.map((g) => (
+              <option key={g.id} value={g.nama}>{g.nama}</option>
             ))}
           </select>
         </div>

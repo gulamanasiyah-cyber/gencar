@@ -88,7 +88,7 @@ function AddUserForm({ desaList, kelompokList, onSuccess, onCancel }: { desaList
           <option value="admin_romantic_room">Admin Romantic Room</option>
           <option value="admin_keuangan">Admin Keuangan</option>
           <option value="admin_kegiatan">Admin Kegiatan</option>
-          <option value="tim_gambuh">Tim Gambuh</option>
+          <option value="tim_pnkb_gambuh">Tim PNKB & Gambuh</option>
         </select>
       </div>
 
@@ -332,8 +332,8 @@ export default function AdminUsersPage() {
             <span>Admin Kegiatan</span>
           </label>
           <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" id="role-tim_gambuh" value="tim_gambuh" style="width: 16px; height: 16px;" />
-            <span>Tim Gambuh</span>
+            <input type="checkbox" id="role-tim_pnkb_gambuh" value="tim_pnkb_gambuh" style="width: 16px; height: 16px;" />
+            <span>Tim PNKB & Gambuh</span>
           </label>
         </div>
       `,
@@ -355,7 +355,7 @@ export default function AdminUsersPage() {
         if (getVal("role-admin_romantic_room")) roles.push("admin_romantic_room");
         if (getVal("role-admin_keuangan")) roles.push("admin_keuangan");
         if (getVal("role-admin_kegiatan")) roles.push("admin_kegiatan");
-        if (getVal("role-tim_gambuh")) roles.push("tim_gambuh");
+        if (getVal("role-tim_pnkb_gambuh")) roles.push("tim_pnkb_gambuh");
         return roles;
       }
     });
@@ -420,7 +420,7 @@ export default function AdminUsersPage() {
         admin_romantic_room: "Admin Romantic Room",
         admin_keuangan: "Admin Keuangan",
         admin_kegiatan: "Admin Kegiatan",
-        tim_gambuh: "Tim Gambuh",
+        tim_pnkb_gambuh: "Tim PNKB & Gambuh",
       };
 
       const selectedRoleLabels = selectedRoles.map((r: string) => roleLabels[r] || r).join(", ");
@@ -477,7 +477,7 @@ export default function AdminUsersPage() {
     desa: "badge-blue", kelompok: "badge-green", generus: "badge-purple", peserta: "badge-indigo", usia_mandiri: "badge-pink",
     creator: "badge-orange", pending: "badge-gray", tim_pnkb: "badge-blue",
     admin_romantic_room: "badge-purple", admin_keuangan: "badge-blue",
-    admin_kegiatan: "badge-orange", tim_gambuh: "badge-indigo",
+    admin_kegiatan: "badge-orange", tim_pnkb_gambuh: "badge-indigo",
   };
 
   const handleOpenAddUser = () => {
@@ -584,7 +584,7 @@ export default function AdminUsersPage() {
                 <option value="admin_romantic_room">Admin Romantic Room</option>
                 <option value="admin_keuangan">Admin Keuangan</option>
                 <option value="admin_kegiatan">Admin Kegiatan</option>
-                <option value="tim_gambuh">Tim Gambuh</option>
+                <option value="tim_pnkb_gambuh">Tim PNKB & Gambuh</option>
               </select>
               {filterRole && (
                 <button className="btn btn-sm btn-danger" onClick={handleBulkDeleteRole}>
@@ -690,7 +690,7 @@ export default function AdminUsersPage() {
                               <option value="admin_romantic_room">Admin Romantic Room</option>
                               <option value="admin_keuangan">Admin Keuangan</option>
                               <option value="admin_kegiatan">Admin Kegiatan</option>
-                              <option value="tim_gambuh">Tim Gambuh</option>
+                              <option value="tim_pnkb_gambuh">Tim PNKB & Gambuh</option>
                             </select>
                             <div className="flex gap-2" style={{ marginTop: "8px" }}>
                               <button className="btn btn-sm btn-secondary" onClick={() => handleOpenEditUser(user)}>Edit</button>
@@ -804,7 +804,7 @@ export default function AdminUsersPage() {
                           <option value="admin_romantic_room">Admin Romantic Room</option>
                           <option value="admin_keuangan">Admin Keuangan</option>
                           <option value="admin_kegiatan">Admin Kegiatan</option>
-                          <option value="tim_gambuh">Tim Gambuh</option>
+                          <option value="tim_pnkb_gambuh">Tim PNKB & Gambuh</option>
                         </select>
                         <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
                           <button 

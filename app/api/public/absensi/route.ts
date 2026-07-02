@@ -16,24 +16,27 @@ export async function POST(request: NextRequest) {
     }
 
     // Periksa apakah kegiatan ada di kegiatan umum
+    let validKegiatan = false;
     let kegiatanExists = await db.query.kegiatan.findFirst({
       where: eq(kegiatan.id, kegiatanId),
     });
     
+    if (kegiatanExists) validKegiatan = true;
+
     let isMandiri = false;
 
     // Jika tidak ditemukan di kegiatan umum, periksa di kegiatan mandiri
-    if (!kegiatanExists) {
+    if (!validKegiatan) {
       const mandiriKegExists = await db.query.mandiriKegiatan.findFirst({
         where: eq(mandiriKegiatan.id, kegiatanId),
       });
       if (mandiriKegExists) {
-        kegiatanExists = mandiriKegExists;
+        validKegiatan = true;
         isMandiri = true;
       }
     }
 
-    if (!kegiatanExists) {
+    if (!validKegiatan) {
       return NextResponse.json({ error: "Kegiatan tidak ditemukan" }, { status: 404 });
     }
 

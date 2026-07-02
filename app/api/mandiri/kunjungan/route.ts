@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriKunjungan, generus, mandiriPemilihan, mandiriRooms, formPanitiaDanPengurus, mandiri, mandiriDesa, settings, mandiriKegiatan, mandiriDaerah } from "@/lib/schema";
+import { mandiriKunjungan, generus, mandiriPemilihan, mandiriRooms, formPanitiaDanPengurus, mandiri, mandiriDesa, settings, mandiriKegiatan, mandiriDaerah, timGambuh } from "@/lib/schema";
 import { eq, sql, desc, isNotNull, and, or } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { aliasedTable } from "drizzle-orm";
@@ -12,6 +12,11 @@ export async function GET(request: NextRequest) {
         if (!session || !["admin", "admin_romantic_room", "tim_pnkb", "pengurus_daerah", "kmm_daerah"].includes(session.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
+
+        // Self-healing: add staff columns to mandiri_pemilihan if missing
+        try { await db.run(sql`ALTER TABLE mandiri_pemilihan ADD COLUMN assigned_caller_id TEXT`); } catch (e) {}
+        try { await db.run(sql`ALTER TABLE mandiri_pemilihan ADD COLUMN assigned_caller2_id TEXT`); } catch (e) {}
+        try { await db.run(sql`ALTER TABLE mandiri_pemilihan ADD COLUMN assigned_guard_id TEXT`); } catch (e) {}
 
         const { searchParams } = new URL(request.url);
         let kegiatanId = searchParams.get("kegiatanId") || "";
@@ -30,6 +35,9 @@ export async function GET(request: NextRequest) {
         const md2 = aliasedTable(mandiriDesa, "md2");
         const mda1 = aliasedTable(mandiriDaerah, "mda1");
         const mda2 = aliasedTable(mandiriDaerah, "mda2");
+        const uCaller = aliasedTable(timGambuh, "uCaller");
+        const uCaller2 = aliasedTable(timGambuh, "uCaller2");
+        const uGuard = aliasedTable(timGambuh, "uGuard");
 
         // Get detailed pairing history
         const history = await db.select({
@@ -57,7 +65,10 @@ export async function GET(request: NextRequest) {
             terpilihWa: sql<string>`COALESCE(${g2.noTelp}, ${pan2.noTelp})`,
             pemilihanId: mandiriKunjungan.pemilihanId,
             pemilihJenisKelamin: g1.jenisKelamin,
-            terpilihJenisKelamin: g2.jenisKelamin
+            terpilihJenisKelamin: g2.jenisKelamin,
+            assignedCallerNama: uCaller.nama,
+            assignedCaller2Nama: uCaller2.nama,
+            assignedGuardNama: uGuard.nama
         })
         .from(mandiriKunjungan)
         .leftJoin(mandiriRooms, eq(mandiriKunjungan.roomId, mandiriRooms.id))
@@ -77,6 +88,10 @@ export async function GET(request: NextRequest) {
         .leftJoin(md2, eq(sql`COALESCE(${g2.mandiriDesaId}, ${pan2.mandiriDesaId})`, md2.id))
         .leftJoin(mda1, eq(md1.mandiriDaerahId, mda1.id))
         .leftJoin(mda2, eq(md2.mandiriDaerahId, mda2.id))
+        // Join staff from pemilihan (persists even after room is cleared)
+        .leftJoin(uCaller, eq(mandiriPemilihan.assignedCallerId, uCaller.id))
+        .leftJoin(uCaller2, eq(mandiriPemilihan.assignedCaller2Id, uCaller2.id))
+        .leftJoin(uGuard, eq(mandiriPemilihan.assignedGuardId, uGuard.id))
         .where(and(isNotNull(mandiriKunjungan.pemilihanId), eq(mandiriKunjungan.kegiatanId, kegiatanId)))
         .groupBy(mandiriKunjungan.pemilihanId)
         .orderBy(desc(mandiriKunjungan.createdAt));

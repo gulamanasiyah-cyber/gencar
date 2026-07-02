@@ -21,21 +21,23 @@ export async function GET(request: NextRequest) {
         .select({
           id: mandiriDaerah.id,
           nama: mandiriDaerah.nama,
-          isActive: sql<number>`COALESCE(
-            (SELECT is_active FROM mandiri_kegiatan_daerah 
-             WHERE mandiri_kegiatan_daerah.daerah_id = ${mandiriDaerah.id} 
-             AND mandiri_kegiatan_daerah.kegiatan_id = ${kegiatanId}), 
-            1
-          )`.mapWith(Number),
+          isActive: sql<number>`COALESCE(${mandiriKegiatanDaerah.isActive}, 0)`.mapWith(Number),
         })
         .from(mandiriDaerah)
+        .leftJoin(
+          mandiriKegiatanDaerah,
+          and(
+            eq(mandiriKegiatanDaerah.daerahId, mandiriDaerah.id),
+            eq(mandiriKegiatanDaerah.kegiatanId, kegiatanId)
+          )
+        )
         .orderBy(mandiriDaerah.nama);
     } else {
       data = await db
         .select({
           id: mandiriDaerah.id,
           nama: mandiriDaerah.nama,
-          isActive: sql<number>`1`.mapWith(Number)
+          isActive: sql<number>`0`.mapWith(Number)
         })
         .from(mandiriDaerah)
         .orderBy(mandiriDaerah.nama);

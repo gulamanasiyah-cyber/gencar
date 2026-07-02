@@ -12,7 +12,7 @@ import {
   X, ShieldCheck, Star, UtilityPole as UtensilsIcon, ArrowLeft, Instagram, Timer, MessageSquare, Clock, QrCode
 } from "lucide-react";
 import Link from "next/link";
-import { getPusherClient } from "@/lib/pusher";
+import { getPusherClient } from "@/lib/pusher-client";
 import JsBarcode from "jsbarcode";
 
 function LocalBarcode({ value }: { value: string }) {

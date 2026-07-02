@@ -1,5 +1,4 @@
 import Pusher from "pusher";
-import PusherClient from "pusher-js";
 
 export const pusherServer = new Pusher({
   appId: process.env.PUSHER_APP_ID || "2169693",
@@ -8,18 +7,3 @@ export const pusherServer = new Pusher({
   cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "ap1",
   useTLS: true,
 });
-
-let pusherClientInstance: PusherClient | null = null;
-
-export const getPusherClient = () => {
-  if (typeof window === "undefined") return null;
-  if (!pusherClientInstance) {
-    pusherClientInstance = new PusherClient(
-      process.env.NEXT_PUBLIC_PUSHER_KEY || "7903183fbd733d5317dc",
-      {
-        cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "ap1",
-      }
-    );
-  }
-  return pusherClientInstance;
-};

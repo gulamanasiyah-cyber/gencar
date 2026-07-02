@@ -16,7 +16,15 @@ export async function GET(request: NextRequest) {
             await db.run(sql`ALTER TABLE mandiri_rooms ADD COLUMN assigned_caller_id TEXT`);
         } catch (e) {}
         try {
+            await db.run(sql`ALTER TABLE mandiri_rooms ADD COLUMN assigned_caller2_id TEXT`);
+        } catch (e) {}
+        try {
             await db.run(sql`ALTER TABLE mandiri_rooms ADD COLUMN assigned_guard_id TEXT`);
+        } catch (e) {}
+
+        // Cleanup stale data
+        try {
+            await db.run(sql`UPDATE mandiri_rooms SET assigned_caller_id = NULL, assigned_caller2_id = NULL, assigned_guard_id = NULL WHERE status = 'Kosong'`);
         } catch (e) {}
 
         const session = await getSession();
@@ -55,6 +63,7 @@ export async function GET(request: NextRequest) {
         const m1 = alias(mandiri, "m1");
         const m2 = alias(mandiri, "m2");
         const uCaller = alias(timGambuh, "uCaller");
+        const uCaller2 = alias(timGambuh, "uCaller2");
         const uGuard = alias(timGambuh, "uGuard");
 
         const rooms = await db.select({
@@ -73,6 +82,8 @@ export async function GET(request: NextRequest) {
             startedAt: mandiriRooms.startedAt,
             assignedCallerId: mandiriRooms.assignedCallerId,
             assignedCallerNama: uCaller.nama,
+            assignedCaller2Id: mandiriRooms.assignedCaller2Id,
+            assignedCaller2Nama: uCaller2.nama,
             assignedGuardId: mandiriRooms.assignedGuardId,
             assignedGuardNama: uGuard.nama,
             updatedAt: mandiriRooms.updatedAt,
@@ -85,6 +96,7 @@ export async function GET(request: NextRequest) {
         .leftJoin(m1, eq(g1.id, m1.generusId))
         .leftJoin(m2, eq(g2.id, m2.generusId))
         .leftJoin(uCaller, eq(mandiriRooms.assignedCallerId, uCaller.id))
+        .leftJoin(uCaller2, eq(mandiriRooms.assignedCaller2Id, uCaller2.id))
         .leftJoin(uGuard, eq(mandiriRooms.assignedGuardId, uGuard.id))
         .where(eq(mandiriRooms.kegiatanId, kegiatanId))
         .orderBy(mandiriRooms.nama);

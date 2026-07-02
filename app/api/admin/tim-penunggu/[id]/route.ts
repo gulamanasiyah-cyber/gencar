@@ -21,8 +21,8 @@ export async function PUT(
       return NextResponse.json({ error: "Nama, Tipe, Daerah, dan Desa wajib diisi" }, { status: 400 });
     }
 
-    if (!["PNKB", "Ibu Gambuh"].includes(tipe)) {
-      return NextResponse.json({ error: "Tipe harus PNKB atau Ibu Gambuh" }, { status: 400 });
+    if (tipe !== "Tim Penunggu") {
+      return NextResponse.json({ error: "Tipe harus Tim Penunggu" }, { status: 400 });
     }
 
     await db.update(timGambuh)
@@ -30,7 +30,7 @@ export async function PUT(
         nama,
         daerahId: daerahId ? Number(daerahId) : null,
         desaId: desaId ? Number(desaId) : null,
-        tipe: tipe as "PNKB" | "Ibu Gambuh",
+        tipe: tipe as "Tim Penunggu",
       })
       .where(eq(timGambuh.id, id));
 

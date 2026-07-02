@@ -66,7 +66,7 @@ export const users = sqliteTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   passwordPlain: text("password_plain"),
-  role: text("role", { enum: ["admin", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "generus", "peserta", "creator", "pending", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "admin_pdkt", "usia_mandiri", "tim_gambuh"] })
+  role: text("role", { enum: ["admin", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "generus", "peserta", "creator", "pending", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "admin_pdkt", "usia_mandiri", "tim_pnkb_gambuh"] })
     .notNull()
     .default("pending"),
   desaId: integer("desa_id").references(() => desa.id, { onDelete: "set null" }),
@@ -261,6 +261,9 @@ export const mandiriPemilihan = sqliteTable("mandiri_pemilihan", {
   hasilPengirim: text("hasil_pengirim"), // Lanjut / Tidak Lanjut
   hasilPenerima: text("hasil_penerima"), // Lanjut / Tidak Lanjut
   statusTunggu: text("status_tunggu").default("antrean"), // 'antrean', 'dipanggil'
+  assignedCallerId: text("assigned_caller_id").references(() => timGambuh.id, { onDelete: "set null" }),
+  assignedCaller2Id: text("assigned_caller2_id").references(() => timGambuh.id, { onDelete: "set null" }),
+  assignedGuardId: text("assigned_guard_id").references(() => timGambuh.id, { onDelete: "set null" }),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
 }, (table) => ({
   pengirimIdIdx: index("mandiri_pemilihan_pengirim_id_idx").on(table.pengirimId),
@@ -276,6 +279,7 @@ export const mandiriRooms = sqliteTable("mandiri_rooms", {
   status: text("status", { enum: ["Kosong", "Terisi"] }).default("Kosong"),
   startedAt: text("started_at"),
   assignedCallerId: text("assigned_caller_id").references(() => timGambuh.id, { onDelete: "set null" }),
+  assignedCaller2Id: text("assigned_caller2_id").references(() => timGambuh.id, { onDelete: "set null" }),
   assignedGuardId: text("assigned_guard_id").references(() => timGambuh.id, { onDelete: "set null" }),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
@@ -506,7 +510,7 @@ export const timGambuh = sqliteTable("tim_gambuh", {
   kegiatanId: text("kegiatan_id").references(() => mandiriKegiatan.id, { onDelete: "cascade" }),
   daerahId: integer("daerah_id").references(() => mandiriDaerah.id, { onDelete: "cascade" }),
   desaId: integer("desa_id").references(() => mandiriDesa.id, { onDelete: "cascade" }),
-  tipe: text("tipe", { enum: ["PNKB", "Ibu Gambuh"] }).notNull(),
+  tipe: text("tipe", { enum: ["PNKB", "Ibu Gambuh", "Tim Penunggu"] }).notNull(),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 }, (table) => ({

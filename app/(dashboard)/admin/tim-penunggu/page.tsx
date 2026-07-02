@@ -5,14 +5,14 @@ import { useState, useEffect, useCallback } from "react";
 import Swal from "sweetalert2";
 import { Search, UserPlus, Edit2, Trash2, Shield, Link as LinkIcon, CheckCircle2 } from "lucide-react";
 
-interface TimGambuhItem {
+interface TimPenungguItem {
   id: string;
   nama: string;
   daerahId: number | null;
   daerahNama: string | null;
   desaId: number | null;
   desaNama: string | null;
-  tipe: "PNKB" | "Ibu Gambuh";
+  tipe: "Tim Penunggu";
   createdAt: string | null;
 }
 
@@ -27,8 +27,8 @@ interface DesaItem {
   mandiriDaerahId: number;
 }
 
-export default function AdminTimGambuhPage() {
-  const [members, setMembers] = useState<TimGambuhItem[]>([]);
+export default function AdminTimPenungguPage() {
+  const [members, setMembers] = useState<TimPenungguItem[]>([]);
   const [daerahList, setDaerahList] = useState<DaerahItem[]>([]);
   const [desaList, setDesaList] = useState<DesaItem[]>([]);
   const [filteredDesaList, setFilteredDesaList] = useState<DesaItem[]>([]);
@@ -37,7 +37,7 @@ export default function AdminTimGambuhPage() {
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterType, setFilterType] = useState<"All" | "PNKB" | "Ibu Gambuh">("All");
+  const [filterType, setFilterType] = useState<"All" | "Tim Penunggu">("All");
 
   // Form State
   const [showModal, setShowModal] = useState(false);
@@ -48,14 +48,14 @@ export default function AdminTimGambuhPage() {
     nama: "",
     daerahId: "",
     desaId: "",
-    tipe: "PNKB" as "PNKB" | "Ibu Gambuh",
+    tipe: "Tim Penunggu" as "Tim Penunggu",
   });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [membersRes, daerahsRes, desasRes] = await Promise.all([
-        fetch("/api/admin/tim-gambuh").then((r) => r.json()),
+        fetch("/api/admin/tim-penunggu").then((r) => r.json()),
         fetch("/api/public/mandiri/daerah").then((r) => r.json()),
         fetch("/api/public/mandiri/desa").then((r) => r.json()),
       ]);
@@ -64,7 +64,7 @@ export default function AdminTimGambuhPage() {
       setDaerahList(Array.isArray(daerahsRes) ? daerahsRes : []);
       setDesaList(Array.isArray(desasRes) ? desasRes : []);
     } catch (err) {
-      console.error("Error fetching Tim Gambuh data:", err);
+      console.error("Error fetching Tim Penunggu data:", err);
     } finally {
       setLoading(false);
     }
@@ -94,13 +94,13 @@ export default function AdminTimGambuhPage() {
       nama: "",
       daerahId: "",
       desaId: "",
-      tipe: "PNKB",
+      tipe: "Tim Penunggu",
     });
     setFilteredDesaList([]);
     setShowModal(true);
   };
 
-  const handleOpenEdit = (member: TimGambuhItem) => {
+  const handleOpenEdit = (member: TimPenungguItem) => {
     setIsEditing(true);
     setEditId(member.id);
     setForm({
@@ -126,7 +126,7 @@ export default function AdminTimGambuhPage() {
 
     setLoading(true);
     try {
-      const url = isEditing ? `/api/admin/tim-gambuh/${editId}` : "/api/admin/tim-gambuh";
+      const url = isEditing ? `/api/admin/tim-penunggu/${editId}` : "/api/admin/tim-penunggu";
       const method = isEditing ? "PUT" : "POST";
 
       const res = await fetch(url, {
@@ -165,7 +165,7 @@ export default function AdminTimGambuhPage() {
   const handleDelete = async (id: string, name: string) => {
     const confirm = await Swal.fire({
       title: "Hapus Anggota?",
-      text: `Apakah Anda yakin ingin menghapus "${name}" dari Tim Gambuh?`,
+      text: `Apakah Anda yakin ingin menghapus "${name}" dari Tim Penunggu?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
@@ -177,7 +177,7 @@ export default function AdminTimGambuhPage() {
     if (confirm.isConfirmed) {
       setLoading(true);
       try {
-        const res = await fetch(`/api/admin/tim-gambuh/${id}`, { method: "DELETE" });
+        const res = await fetch(`/api/admin/tim-penunggu/${id}`, { method: "DELETE" });
         const data = await res.json();
 
         if (!res.ok) {
@@ -202,14 +202,14 @@ export default function AdminTimGambuhPage() {
   };
 
   const handleCopyLink = () => {
-    const link = `${window.location.origin}/mandiri/daftar-tim-gambuh`;
+    const link = `${window.location.origin}/mandiri/daftar-tim-penunggu`;
     navigator.clipboard.writeText(link).then(() => {
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
       Swal.fire({
         icon: "success",
         title: "Tersalin!",
-        text: "Link pendaftaran Tim Gambuh berhasil disalin",
+        text: "Link pendaftaran Tim Penunggu berhasil disalin",
         timer: 1500,
         showConfirmButton: false,
         toast: true,
@@ -227,12 +227,12 @@ export default function AdminTimGambuhPage() {
 
   return (
     <div>
-      <Topbar title="Admin - Kelola Tim PNKB & Gambuh" role={userRole} />
+      <Topbar title="Admin - Kelola Tim Penunggu" role={userRole} />
       <div className="page-content">
         <div className="page-header">
           <div className="page-header-left">
-            <h2>Kelola Tim PNKB & Gambuh</h2>
-            <p>Tambah dan kelola anggota Tim PNKB & Gambuh untuk kegiatan aktif</p>
+            <h2>Kelola Tim Penunggu</h2>
+            <p>Tambah dan kelola anggota Tim Penunggu untuk kegiatan aktif</p>
           </div>
           <div style={{ display: "flex", gap: "10px" }}>
             <button 
@@ -270,11 +270,9 @@ export default function AdminTimGambuhPage() {
                 className="form-control"
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value as any)}
-                style={{ margin: 0 }}
+                style={{ margin: 0, display: "none" }}
               >
                 <option value="All">Semua Tipe</option>
-                <option value="PNKB">PNKB</option>
-                <option value="Ibu Gambuh">Ibu Gambuh</option>
               </select>
             </div>
           </div>
@@ -286,7 +284,7 @@ export default function AdminTimGambuhPage() {
             <div style={{ padding: "40px", textAlign: "center", color: "#64748b" }}>Memuat data...</div>
           ) : filteredMembers.length === 0 ? (
             <div style={{ padding: "40px", textAlign: "center", color: "#64748b" }}>
-              Tidak ada data anggota Tim Gambuh yang terdaftar di aktivitas ini.
+              Tidak ada data anggota Tim Penunggu yang terdaftar di aktivitas ini.
             </div>
           ) : (
             <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -313,8 +311,8 @@ export default function AdminTimGambuhPage() {
                           borderRadius: "20px",
                           fontSize: "12px",
                           fontWeight: "700",
-                          backgroundColor: member.tipe === "PNKB" ? "#eff6ff" : "#fef2f2",
-                          color: member.tipe === "PNKB" ? "#2563eb" : "#dc2626",
+                          backgroundColor: "#fef2f2",
+                          color: "#dc2626",
                         }}
                       >
                         <Shield size={12} /> {member.tipe}
@@ -399,15 +397,14 @@ export default function AdminTimGambuhPage() {
               </div>
 
               <div className="form-group" style={{ marginBottom: "16px" }}>
-                <label className="form-label">Tipe Tim Gambuh *</label>
+                <label className="form-label">Tipe Tim Penunggu *</label>
                 <select
                   className="form-control"
                   value={form.tipe}
                   onChange={(e) => setForm({ ...form, tipe: e.target.value as any })}
                   required
                 >
-                  <option value="PNKB">PNKB</option>
-                  <option value="Ibu Gambuh">Ibu Gambuh</option>
+                  <option value="Tim Penunggu">Tim Penunggu</option>
                 </select>
               </div>
 

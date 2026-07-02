@@ -4,7 +4,7 @@ import { Metadata } from "next";
 export const metadata: Metadata = { title: "Dashboard" };
 
 import { db } from "@/lib/db";
-import { generus, kegiatan, artikel, users, mandiriKegiatan, mandiri, mandiriAbsensi, formPanitiaDanPengurus, mandiriDesa, mandiriDaerah, mandiriKunjungan, mandiriPemilihan, settings } from "@/lib/schema";
+import { generus, kegiatan, artikel, users, mandiriKegiatan, mandiri, mandiriAbsensi, formPanitiaDanPengurus, mandiriDesa, mandiriDaerah, mandiriKelompok, mandiriKegiatanDaerah, mandiriKunjungan, mandiriPemilihan, settings } from "@/lib/schema";
 import { eq, and, sql, or, isNull, not, notInArray, desc, inArray, aliasedTable, isNotNull } from "drizzle-orm";
 
 async function getStats(session: any, searchParams?: any) {
@@ -62,10 +62,16 @@ async function getStats(session: any, searchParams?: any) {
     // Mandiri Specific Filters from searchParams
     const mCity = searchParams?.city;
     const mVillage = searchParams?.village;
+    const mGroup = searchParams?.group;
     const mGender = searchParams?.gender;
 
-    let mandiriUserConditions = [];
-    if (mGender) mandiriUserConditions.push(eq(generus.jenisKelamin, mGender as any));
+    let mandiriUserConditions: any[] = [];
+    let panitiaConditions: any[] = [];
+    
+    if (mGender) {
+      mandiriUserConditions.push(eq(generus.jenisKelamin, mGender as any));
+      panitiaConditions.push(eq(formPanitiaDanPengurus.jenisKelamin, mGender as any));
+    }
 
     let mandiriDesaIds: number[] | undefined = undefined;
     if (mCity || mVillage) {
@@ -82,18 +88,26 @@ async function getStats(session: any, searchParams?: any) {
 
       if (mandiriDesaIds && mandiriDesaIds.length === 0) {
         mandiriUserConditions.push(sql`1=0`);
+        panitiaConditions.push(sql`1=0`);
       } else if (mandiriDesaIds) {
         mandiriUserConditions.push(inArray(generus.mandiriDesaId, mandiriDesaIds));
+        panitiaConditions.push(inArray(formPanitiaDanPengurus.mandiriDesaId, mandiriDesaIds));
       }
     }
-    const mandiriUserFilter = mandiriUserConditions.length > 0 ? and(...mandiriUserConditions) : undefined;
-
-    let panitiaConditions = [];
-    if (mGender) panitiaConditions.push(eq(formPanitiaDanPengurus.jenisKelamin, mGender as any));
-    if (mandiriDesaIds) {
-      if (mandiriDesaIds.length === 0) panitiaConditions.push(sql`1=0`);
-      else panitiaConditions.push(inArray(formPanitiaDanPengurus.mandiriDesaId, mandiriDesaIds));
+    
+    if (mGroup) {
+      const matchedGroups = await db.select({ id: mandiriKelompok.id }).from(mandiriKelompok).where(eq(mandiriKelompok.nama, mGroup));
+      const mandiriKelompokIds = matchedGroups.map(g => g.id);
+      if (mandiriKelompokIds.length === 0) {
+        mandiriUserConditions.push(sql`1=0`);
+        panitiaConditions.push(sql`1=0`);
+      } else {
+        mandiriUserConditions.push(inArray(generus.mandiriKelompokId, mandiriKelompokIds));
+        panitiaConditions.push(inArray(formPanitiaDanPengurus.mandiriKelompokId, mandiriKelompokIds));
+      }
     }
+
+    const mandiriUserFilter = mandiriUserConditions.length > 0 ? and(...mandiriUserConditions) : undefined;
     const panitiaFilterWithParams = panitiaConditions.length > 0 ? and(...panitiaConditions) : undefined;
 
     let artikelAuthorConditions = [];
@@ -281,6 +295,8 @@ async function getStats(session: any, searchParams?: any) {
     const md2 = aliasedTable(mandiriDesa, "md2");
     const mda1 = aliasedTable(mandiriDaerah, "mda1");
     const mda2 = aliasedTable(mandiriDaerah, "mda2");
+    const mk1 = aliasedTable(mandiriKelompok, "mk1");
+    const mk2 = aliasedTable(mandiriKelompok, "mk2");
     const pan1 = aliasedTable(formPanitiaDanPengurus, "pan1");
     const pan2 = aliasedTable(formPanitiaDanPengurus, "pan2");
 
@@ -289,8 +305,10 @@ async function getStats(session: any, searchParams?: any) {
       h2: mandiriPemilihan.hasilPenerima,
       city1: mda1.nama,
       village1: md1.nama,
+      group1: mk1.nama,
       city2: mda2.nama,
       village2: md2.nama,
+      group2: mk2.nama,
     })
       .from(mandiriKunjungan)
       .innerJoin(mandiriPemilihan, eq(mandiriKunjungan.pemilihanId, mandiriPemilihan.id))
@@ -302,6 +320,8 @@ async function getStats(session: any, searchParams?: any) {
       .leftJoin(md2, eq(sql`COALESCE(${g2.mandiriDesaId}, ${pan2.mandiriDesaId})`, md2.id))
       .leftJoin(mda1, eq(md1.mandiriDaerahId, mda1.id))
       .leftJoin(mda2, eq(md2.mandiriDaerahId, mda2.id))
+      .leftJoin(mk1, eq(sql`COALESCE(${g1.mandiriKelompokId}, ${pan1.mandiriKelompokId})`, mk1.id))
+      .leftJoin(mk2, eq(sql`COALESCE(${g2.mandiriKelompokId}, ${pan2.mandiriKelompokId})`, mk2.id))
       .where(
         currentActivityId 
           ? and(isNotNull(mandiriKunjungan.pemilihanId), eq(mandiriKunjungan.kegiatanId, currentActivityId))
@@ -313,6 +333,7 @@ async function getStats(session: any, searchParams?: any) {
       let match = true;
       if (mCity) match = (v.city1 === mCity || v.city2 === mCity);
       if (mVillage && match) match = (v.village1 === mVillage || v.village2 === mVillage);
+      if (mGroup && match) match = (v.group1 === mGroup || v.group2 === mGroup);
       return match;
     });
 
@@ -370,8 +391,20 @@ export default async function DashboardPage({ searchParams }: { searchParams: an
   const session = await getSession();
   const stats = await getStats(session, searchParams);
 
-  // Fetch Cities & Villages for Filter
-  const villages = await db
+  // Fetch Cities, Villages & Groups for Filter based on active kegiatan
+  const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id"));
+  const currentActivityId = activeSetting[0]?.value || undefined;
+  
+  let activeDaerahIds: number[] = [];
+  if (currentActivityId) {
+    const active = await db.select({ daerahId: mandiriKegiatanDaerah.daerahId })
+      .from(mandiriKegiatanDaerah)
+      .where(and(eq(mandiriKegiatanDaerah.kegiatanId, currentActivityId), eq(mandiriKegiatanDaerah.isActive, 1)));
+    activeDaerahIds = active.map((a: any) => a.daerahId);
+  }
+
+
+  let villageQuery = db
     .select({
       id: mandiriDesa.id,
       nama: mandiriDesa.nama,
@@ -379,9 +412,38 @@ export default async function DashboardPage({ searchParams }: { searchParams: an
       kota: mandiriDaerah.nama,
     })
     .from(mandiriDesa)
-    .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
-    .orderBy(mandiriDesa.nama);
+    .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id));
+    
+  if (currentActivityId) {
+     if (activeDaerahIds.length > 0) {
+       villageQuery = villageQuery.where(inArray(mandiriDesa.mandiriDaerahId, activeDaerahIds)) as any;
+     } else {
+       villageQuery = villageQuery.where(sql`1=0`) as any;
+     }
+  }
+  const villages = await villageQuery.orderBy(mandiriDesa.nama);
   const cities = Array.from(new Set(villages.map((v: any) => v.kota).filter(Boolean))).sort();
+
+  let groupQuery = db
+    .select({
+      id: mandiriKelompok.id,
+      nama: mandiriKelompok.nama,
+      mandiriDesaId: mandiriKelompok.mandiriDesaId,
+      desa: mandiriDesa.nama,
+      kota: mandiriDaerah.nama,
+    })
+    .from(mandiriKelompok)
+    .leftJoin(mandiriDesa, eq(mandiriKelompok.mandiriDesaId, mandiriDesa.id))
+    .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id));
+    
+  if (currentActivityId) {
+     if (activeDaerahIds.length > 0) {
+       groupQuery = groupQuery.where(inArray(mandiriDesa.mandiriDaerahId, activeDaerahIds)) as any;
+     } else {
+       groupQuery = groupQuery.where(sql`1=0`) as any;
+     }
+  }
+  const groups = await groupQuery.orderBy(mandiriKelompok.nama);
 
   const isUser = session?.role === "generus" || session?.role === "creator";
 
@@ -432,7 +494,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: an
         {isUser ? (
           <UserDashboard session={session} stats={stats} />
         ) : (
-          <AdminDashboard role={session?.role || "kelompok"} stats={stats} cities={cities} villages={villages} />
+          <AdminDashboard role={session?.role || "kelompok"} stats={stats} cities={cities} villages={villages} groups={groups} />
         )}
       </div>
     </div>
@@ -493,11 +555,11 @@ function AttendanceChart({ label, present, absent, color = "#10b981" }: { label:
 }
 
 /* ─── Admin Dashboard ─────────────────── */
-function AdminDashboard({ role, stats, cities, villages }: { role: string; stats: any; cities?: any[]; villages?: any[] }) {
-  if (role === "admin_romantic_room" || role === "tim_gambuh") {
+function AdminDashboard({ role, stats, cities, villages, groups }: { role: string; stats: any; cities?: any[]; villages?: any[]; groups?: any[] }) {
+  if (role === "admin_romantic_room" || role === "tim_pnkb_gambuh") {
     return (
       <div>
-        <DashboardFilter cities={cities || []} villages={villages || []} />
+        <DashboardFilter cities={cities || []} villages={villages || []} groups={groups || []} />
 
         <div style={{
           marginBottom: "1.5rem",

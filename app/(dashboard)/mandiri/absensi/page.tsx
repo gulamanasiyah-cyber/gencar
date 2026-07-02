@@ -9,7 +9,7 @@ import * as XLSX from 'xlsx';
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Swal from "sweetalert2";
-import { getPusherClient } from "@/lib/pusher";
+import { getPusherClient } from "@/lib/pusher-client";
 
 interface KegiatanItem {
   id: string;

@@ -31,9 +31,9 @@ export default function MandiriDesaTreePage() {
       const activeKegId = kegId || selectedKegiatan;
       const daerahUrl = activeKegId ? `/api/mandiri/daerah?kegiatanId=${activeKegId}` : "/api/mandiri/daerah";
       const [da, de, ke] = await Promise.all([
-        fetch(daerahUrl).then((r) => r.json()),
-        fetch("/api/mandiri/desa").then((r) => r.json()),
-        fetch("/api/mandiri/kelompok").then((r) => r.json()),
+        fetch(daerahUrl, { cache: 'no-store' }).then((r) => r.json()),
+        fetch("/api/mandiri/desa", { cache: 'no-store' }).then((r) => r.json()),
+        fetch("/api/mandiri/kelompok", { cache: 'no-store' }).then((r) => r.json()),
       ]);
       setDaerahList(Array.isArray(da) ? da : []);
       setDesaList(Array.isArray(de) ? de : []);
@@ -48,11 +48,11 @@ export default function MandiriDesaTreePage() {
   useEffect(() => { 
     async function init() {
       try {
-        const kegRes = await fetch("/api/mandiri/kegiatan");
+        const kegRes = await fetch("/api/mandiri/kegiatan", { cache: 'no-store' });
         const kegs = await kegRes.json();
         setKegiatanList(Array.isArray(kegs) ? kegs : []);
 
-        const activeRes = await fetch("/api/public/mandiri/settings?key=mandiri_active_kegiatan_id");
+        const activeRes = await fetch("/api/public/mandiri/settings?key=mandiri_active_kegiatan_id", { cache: 'no-store' });
         const activeJson = await activeRes.json();
         const activeId = activeJson.value || (kegs.length > 0 ? kegs[0].id : "");
         setSelectedKegiatan(activeId);
@@ -64,7 +64,7 @@ export default function MandiriDesaTreePage() {
       }
     }
     init();
-    fetch("/api/profile").then(r => r.json()).then(d => setUserRole(d.role || ""));
+    fetch("/api/profile", { cache: 'no-store' }).then(r => r.json()).then(d => setUserRole(d.role || ""));
   }, []);
 
   useEffect(() => {

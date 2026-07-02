@@ -8,7 +8,7 @@ import { getSession } from "@/lib/auth";
 
 const ALLOWED_ROLES = ["admin", "admin_romantic_room"];
 
-// PATCH — edit hasil pemilih & terpilih
+// PATCH — edit hasil OR return to queue
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { pemilihanId: string } }
@@ -19,7 +19,29 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { hasilPengirim, hasilPenerima, roomId } = await request.json();
+    const body = await request.json();
+    const { action } = body;
+
+    if (action === "return_to_queue") {
+      await db.update(mandiriPemilihan)
+        .set({
+          status: "Menunggu",
+          statusTunggu: "antrean",
+          hasilPengirim: null,
+          hasilPenerima: null,
+          assignedCallerId: null,
+          assignedCaller2Id: null,
+          assignedGuardId: null,
+        })
+        .where(eq(mandiriPemilihan.id, params.pemilihanId));
+
+      await db.delete(mandiriKunjungan)
+        .where(eq(mandiriKunjungan.pemilihanId, params.pemilihanId));
+
+      return NextResponse.json({ success: true });
+    }
+
+    const { hasilPengirim, hasilPenerima, roomId } = body;
 
     const valid = ["Lanjut", "Ragu-ragu", "Tidak Lanjut"];
     if (!valid.includes(hasilPengirim) || !valid.includes(hasilPenerima)) {

@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { timGambuh, settings, mandiriDesa, mandiriDaerah } from "@/lib/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 
@@ -35,7 +35,7 @@ export async function GET() {
     .from(timGambuh)
     .leftJoin(mandiriDaerah, eq(timGambuh.daerahId, mandiriDaerah.id))
     .leftJoin(mandiriDesa, eq(timGambuh.desaId, mandiriDesa.id))
-    .where(eq(timGambuh.kegiatanId, kegiatanId))
+    .where(and(eq(timGambuh.kegiatanId, kegiatanId), eq(timGambuh.tipe, "Tim Penunggu")))
     .orderBy(timGambuh.nama);
 
     return NextResponse.json(data);
@@ -66,8 +66,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Nama, Tipe, Daerah, dan Desa wajib diisi" }, { status: 400 });
     }
 
-    if (!["PNKB", "Ibu Gambuh"].includes(tipe)) {
-      return NextResponse.json({ error: "Tipe harus PNKB atau Ibu Gambuh" }, { status: 400 });
+    if (tipe !== "Tim Penunggu") {
+      return NextResponse.json({ error: "Tipe harus Tim Penunggu" }, { status: 400 });
     }
 
     const id = uuidv4();
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       kegiatanId,
       daerahId: daerahId ? Number(daerahId) : null,
       desaId: desaId ? Number(desaId) : null,
-      tipe: tipe as "PNKB" | "Ibu Gambuh",
+      tipe: tipe as "Tim Penunggu",
     });
 
     return NextResponse.json({ success: true, id });

@@ -93,7 +93,7 @@ export default function AdminKatalogPage() {
         if (!profileRes.ok) throw new Error("Gagal mengambil profil");
         const profileJson = await profileRes.json();
         setMyProfile(profileJson);
-        setIsAuthorized(!!profileJson.isInPdkt || ["admin", "tim_pnkb", "admin_romantic_room", "kmm_daerah", "pengurus_daerah", "admin_pdkt", "tim_gambuh"].includes(profileJson.role));
+        setIsAuthorized(!!profileJson.isInPdkt || ["admin", "tim_pnkb", "admin_romantic_room", "kmm_daerah", "pengurus_daerah", "admin_pdkt", "tim_pnkb_gambuh"].includes(profileJson.role));
 
         // Fetch activity info + kegiatan list + active setting
         const [activityRes, kegiatanRes, settingsRes] = await Promise.all([

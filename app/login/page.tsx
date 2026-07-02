@@ -77,7 +77,7 @@ function LoginContent() {
         window.location.href = "/pending";
       } else if (["generus", "usia_mandiri"].includes(data.user.role)) {
         window.location.href = "/";
-      } else if (data.user.role === "tim_gambuh") {
+      } else if (data.user.role === "tim_pnkb_gambuh") {
         window.location.href = "/mandiri/tim-gambuh";
       } else {
         window.location.href = "/dashboard";

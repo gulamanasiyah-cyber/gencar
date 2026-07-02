@@ -247,7 +247,7 @@ export default function ProfilePage() {
                    data.role === "admin" ? "Administrator" :
                    data.role === "desa" ? "Pengurus Desa" :
                    data.role === "kelompok" ? "Pengurus Kelompok" :
-                   data.role === "tim_gambuh" ? "Tim Gambuh" :
+                   data.role === "tim_gambuh" ? "Tim PNKB & Gambuh" :
                    data.kategoriUsia}
                 </div>
               </div>

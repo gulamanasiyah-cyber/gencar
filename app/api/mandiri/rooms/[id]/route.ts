@@ -13,7 +13,7 @@ export async function PATCH(
 ) {
     try {
         const session = await getSession();
-        if (!session || !["admin", "admin_romantic_room", "tim_pnkb", "tim_gambuh"].includes(session.role)) {
+        if (!session || !["admin", "admin_romantic_room", "tim_pnkb", "tim_pnkb_gambuh"].includes(session.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -21,18 +21,23 @@ export async function PATCH(
         const body = await request.json();
         const { pemilihanId, action, timGambuhId, operatorCompanionId } = body;
 
-        // If user is tim_gambuh, they can only perform start/clear on rooms assigned to them
-        if (session.role === "tim_gambuh" && (action === "start" || action === "clear")) {
+        // If user is tim_pnkb_gambuh, they can only perform start/clear on rooms assigned to them
+        if (session.role === "tim_pnkb_gambuh" && (action === "start" || action === "clear")) {
             const room = await db.query.mandiriRooms.findFirst({
                 where: eq(mandiriRooms.id, roomId)
             });
-            if (room && room.assignedGuardId !== operatorCompanionId) {
-                return NextResponse.json({ error: "Hanya Penunggu yang dapat memulai atau menyelesaikan sesi ini." }, { status: 403 });
+            const isAssigned = room && (
+                room.assignedGuardId === operatorCompanionId ||
+                room.assignedCallerId === operatorCompanionId ||
+                room.assignedCaller2Id === operatorCompanionId
+            );
+            if (!isAssigned) {
+                return NextResponse.json({ error: "Anda tidak ditugaskan di ruangan ini." }, { status: 403 });
             }
         }
 
         if (action === "update_details") {
-            const { nama, assignedCallerId, assignedGuardId } = body;
+            const { nama, assignedCallerId, assignedCaller2Id, assignedGuardId } = body;
             
             const updateFields: any = {
                 updatedAt: sql`(datetime('now'))`
@@ -43,6 +48,9 @@ export async function PATCH(
             }
             if (assignedCallerId !== undefined) {
                 updateFields.assignedCallerId = assignedCallerId;
+            }
+            if (assignedCaller2Id !== undefined) {
+                updateFields.assignedCaller2Id = assignedCaller2Id;
             }
             if (assignedGuardId !== undefined) {
                 updateFields.assignedGuardId = assignedGuardId;
@@ -62,7 +70,7 @@ export async function PATCH(
         }
 
         if (action === "assign_staff") {
-            const { assignedCallerId, assignedGuardId } = body;
+            const { assignedCallerId, assignedCaller2Id, assignedGuardId } = body;
             
             const updateFields: any = {
                 updatedAt: sql`(datetime('now'))`
@@ -70,6 +78,9 @@ export async function PATCH(
             
             if (assignedCallerId !== undefined) {
                 updateFields.assignedCallerId = assignedCallerId;
+            }
+            if (assignedCaller2Id !== undefined) {
+                updateFields.assignedCaller2Id = assignedCaller2Id;
             }
             if (assignedGuardId !== undefined) {
                 updateFields.assignedGuardId = assignedGuardId;
@@ -89,6 +100,7 @@ export async function PATCH(
         }
 
         if (action === "assign") {
+            const { assignedCallerId, assignedCaller2Id, assignedGuardId } = body;
             if (!pemilihanId) return NextResponse.json({ error: "ID Pemilihan wajib diisi" }, { status: 400 });
 
             // 0. Get Pemilihan Details for History
@@ -122,7 +134,7 @@ export async function PATCH(
             }
 
             if (timGambuhId) {
-                // Check if this tim_gambuh member is already active/busy in another room
+                // Check if this tim_pnkb_gambuh member is already active/busy in another room
                 const busyRoom = await db.select({ id: mandiriRooms.id })
                     .from(mandiriRooms)
                     .where(and(
@@ -157,9 +169,14 @@ export async function PATCH(
                 ]);
             }
 
-            // 1. Update selection status
+            // 1. Update selection status + persist staff assignment on pemilihan
             await db.update(mandiriPemilihan)
-                .set({ status: "Diterima" })
+                .set({
+                    status: "Diterima",
+                    assignedCallerId: assignedCallerId || null,
+                    assignedCaller2Id: assignedCaller2Id || null,
+                    assignedGuardId: assignedGuardId || null,
+                })
                 .where(eq(mandiriPemilihan.id, pemilihanId));
 
             // 2. Update room info
@@ -167,6 +184,9 @@ export async function PATCH(
                 .set({ 
                     pemilihanId, 
                     timGambuhId: timGambuhId || null,
+                    assignedCallerId: assignedCallerId || null,
+                    assignedCaller2Id: assignedCaller2Id || null,
+                    assignedGuardId: assignedGuardId || null,
                     status: "Terisi",
                     startedAt: null,
                     updatedAt: sql`(datetime('now'))`
@@ -181,6 +201,7 @@ export async function PATCH(
                 const m1 = alias(mandiri, "m1");
                 const m2 = alias(mandiri, "m2");
                 const uCaller = alias(timGambuh, "uCaller");
+                const uCaller2 = alias(timGambuh, "uCaller2");
                 const uGuard = alias(timGambuh, "uGuard");
 
                 const rDetails = await db.select({
@@ -192,6 +213,8 @@ export async function PATCH(
                     penerimaNoUrut: m2.nomorUrut,
                     assignedCallerId: mandiriRooms.assignedCallerId,
                     assignedCallerNama: uCaller.nama,
+                    assignedCaller2Id: mandiriRooms.assignedCaller2Id,
+                    assignedCaller2Nama: uCaller2.nama,
                     assignedGuardId: mandiriRooms.assignedGuardId,
                     assignedGuardNama: uGuard.nama,
                 })
@@ -203,6 +226,7 @@ export async function PATCH(
                 .leftJoin(m1, eq(g1.id, m1.generusId))
                 .leftJoin(m2, eq(g2.id, m2.generusId))
                 .leftJoin(uCaller, eq(mandiriRooms.assignedCallerId, uCaller.id))
+                .leftJoin(uCaller2, eq(mandiriRooms.assignedCaller2Id, uCaller2.id))
                 .leftJoin(uGuard, eq(mandiriRooms.assignedGuardId, uGuard.id))
                 .where(eq(mandiriRooms.id, roomId))
                 .limit(1);
@@ -221,6 +245,8 @@ export async function PATCH(
                     penerimaNoUrut: rd?.penerimaNoUrut || "",
                     assignedCallerId: rd?.assignedCallerId || null,
                     assignedCallerNama: rd?.assignedCallerNama || null,
+                    assignedCaller2Id: rd?.assignedCaller2Id || null,
+                    assignedCaller2Nama: rd?.assignedCaller2Nama || null,
                     assignedGuardId: rd?.assignedGuardId || null,
                     assignedGuardNama: rd?.assignedGuardNama || null,
                 });
@@ -309,6 +335,9 @@ export async function PATCH(
                 .set({ 
                     pemilihanId: null, 
                     timGambuhId: null,
+                    assignedCallerId: null,
+                    assignedCaller2Id: null,
+                    assignedGuardId: null,
                     status: "Kosong",
                     startedAt: null,
                     updatedAt: sql`(datetime('now'))`
@@ -357,6 +386,9 @@ export async function PATCH(
                 .set({ 
                     pemilihanId: null, 
                     timGambuhId: null,
+                    assignedCallerId: null,
+                    assignedCaller2Id: null,
+                    assignedGuardId: null,
                     status: "Kosong",
                     startedAt: null,
                     updatedAt: sql`(datetime('now'))`

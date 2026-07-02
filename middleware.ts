@@ -31,7 +31,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Admin-only routes
-  if (pathname.startsWith("/admin") && !["admin", "pengurus_daerah", "kmm_daerah", "admin_romantic_room", "tim_pnkb", "admin_keuangan", "admin_kegiatan", "admin_pdkt", "tim_gambuh"].includes(payload.role)) {
+  if (pathname.startsWith("/admin") && !["admin", "pengurus_daerah", "kmm_daerah", "admin_romantic_room", "tim_pnkb", "admin_keuangan", "admin_kegiatan", "admin_pdkt", "tim_pnkb_gambuh"].includes(payload.role)) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
@@ -47,7 +47,7 @@ export async function middleware(request: NextRequest) {
   const isMandiriRoute = pathname.startsWith("/mandiri") || pathname.startsWith("/admin/katalog");
   const isMandiriApi = pathname.startsWith("/api/mandiri");
 
-  if ((isMandiriRoute || isMandiriApi) && !(["admin", "admin_romantic_room", "admin_pdkt", "tim_gambuh"] as string[]).includes(payload.role)) {
+  if ((isMandiriRoute || isMandiriApi) && !(["admin", "admin_romantic_room", "admin_pdkt", "tim_pnkb_gambuh"] as string[]).includes(payload.role)) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -55,15 +55,17 @@ export async function middleware(request: NextRequest) {
   }
 
   // Tim Gambuh strict restriction
-  if (payload.role === "tim_gambuh" &&
+  if (payload.role === "tim_pnkb_gambuh" &&
       !pathname.startsWith("/dashboard") &&
       !pathname.startsWith("/mandiri/tim-gambuh") &&
+      !pathname.startsWith("/mandiri/tim-penunggu") &&
       !pathname.startsWith("/admin/katalog") &&
       !pathname.startsWith("/api/public/mandiri") &&
       !pathname.startsWith("/api/mandiri/rooms") &&
       !pathname.startsWith("/api/profile") &&
       !pathname.startsWith("/profile") &&
       !pathname.startsWith("/api/admin/tim-gambuh") &&
+      !pathname.startsWith("/api/admin/tim-penunggu") &&
       !pathname.startsWith("/api/mandiri/settings") &&
       !pathname.startsWith("/api/generus/filters") &&
         !pathname.startsWith("/api/generus") &&
@@ -111,7 +113,9 @@ export async function middleware(request: NextRequest) {
       !pathname.startsWith("/admin/katalog") &&
       !pathname.startsWith("/admin/anggaran") &&
       !pathname.startsWith("/admin/tim-gambuh") &&
+      !pathname.startsWith("/admin/tim-penunggu") &&
       !pathname.startsWith("/api/admin/tim-gambuh") &&
+      !pathname.startsWith("/api/admin/tim-penunggu") &&
       !pathname.startsWith("/api/mandiri") &&
       !pathname.startsWith("/api/generus") &&
       !pathname.startsWith("/api/profile") &&

@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     // Check server session for admin/staff
     const { getSession } = await import("@/lib/auth");
     const session = await getSession();
-    if (session && ["admin", "admin_romantic_room", "tim_pnkb", "tim_gambuh"].includes(session.role)) {
+    if (session && ["admin", "admin_romantic_room", "tim_pnkb", "tim_pnkb_gambuh"].includes(session.role)) {
       isAuthorizedModifier = true;
     }
 
