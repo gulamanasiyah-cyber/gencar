@@ -598,11 +598,7 @@ export default function TimGambuhOperatorPage() {
         // Only show rooms with an active session assigned to me (by admin romantic
         // room or the system's auto-assignment). Kosong rooms carry no assignment
         // (it's cleared when a session ends), so they're hidden entirely too.
-        const assignedCallerId = normalizeId(room.assignedCallerId);
-        const assignedCaller2Id = normalizeId(room.assignedCaller2Id);
-        const assignedGuardId = normalizeId(room.assignedGuardId);
-        const isAssignedToMe = assignedGuardId === normalizedMyId || assignedCallerId === normalizedMyId || assignedCaller2Id === normalizedMyId;
-        if (room.status !== "Terisi" || !isAssignedToMe) return false;
+        if (room.status !== "Terisi") return false;
 
         return matchesSearch;
     }).sort((a, b) => {
@@ -867,23 +863,25 @@ export default function TimGambuhOperatorPage() {
                                                     )}
                                                 </div>
 
-                                                <div className="action-row">
-                                                    {room.startedAt ? (
-                                                        <button
-                                                            className="btn-clear"
-                                                            onClick={(e) => { e.stopPropagation(); handleClearRoom(room.id); }}
-                                                        >
-                                                            <LogOut size={12} /> Selesaikan Sesi
-                                                        </button>
-                                                    ) : (
-                                                        <button
-                                                            className="btn-start-timer"
-                                                            onClick={(e) => { e.stopPropagation(); handleStartRoom(room.id); }}
-                                                        >
-                                                            <Timer size={12} fill="white" /> Mulai Sesi
-                                                        </button>
-                                                    )}
-                                                </div>
+                                                {room.assignedGuardId === myId && (
+                                                    <div className="action-row">
+                                                        {room.startedAt ? (
+                                                            <button
+                                                                className="btn-clear"
+                                                                onClick={(e) => { e.stopPropagation(); handleClearRoom(room.id); }}
+                                                            >
+                                                                <LogOut size={12} /> Selesaikan Sesi
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                className="btn-start-timer"
+                                                                onClick={(e) => { e.stopPropagation(); handleStartRoom(room.id); }}
+                                                            >
+                                                                <Timer size={12} fill="white" /> Mulai Sesi
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         ) : (
                                             <span className="empty-label">Kosong</span>
@@ -1137,7 +1135,7 @@ export default function TimGambuhOperatorPage() {
                                 )}
 
                                 {/* Action buttons — for all assigned staff */}
-                                {(selectedRoom.assignedGuardId === myId || selectedRoom.assignedCallerId === myId || selectedRoom.assignedCaller2Id === myId) && (
+                                {(selectedRoom.assignedGuardId === myId) && (
                                     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                                         {!selectedRoom.startedAt ? (
                                             <button onClick={() => { setSelectedRoom(null); handleStartRoom(selectedRoom.id); }} style={{

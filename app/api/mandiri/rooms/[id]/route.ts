@@ -467,9 +467,6 @@ export async function PATCH(
                 .set({ 
                     pemilihanId: null, 
                     timGambuhId: null,
-                    assignedCallerId: null,
-                    assignedCaller2Id: null,
-                    assignedGuardId: null,
                     status: "Kosong",
                     startedAt: null,
                     updatedAt: sql`(datetime('now'))`
@@ -518,9 +515,6 @@ export async function PATCH(
                 .set({ 
                     pemilihanId: null, 
                     timGambuhId: null,
-                    assignedCallerId: null,
-                    assignedCaller2Id: null,
-                    assignedGuardId: null,
                     status: "Kosong",
                     startedAt: null,
                     updatedAt: sql`(datetime('now'))`
