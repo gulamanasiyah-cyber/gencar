@@ -623,7 +623,7 @@ export default function GenerusPage() {
               <>
                 {/* 🖥️ Desktop Table View */}
                 <div className="table-wrapper desktop-only">
-                  <table>
+                  <table className="responsive-table">
                     <thead>
                       <tr>
                         <th>Foto</th>
@@ -652,7 +652,7 @@ export default function GenerusPage() {
                         }
                         return (
                           <tr key={item.id}>
-                            <td>
+                            <td data-label="Foto">
                               <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#f1f5f9", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>
                                 {item.foto ? (
                                   <img src={item.foto} alt="Avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -661,23 +661,23 @@ export default function GenerusPage() {
                                 )}
                               </div>
                             </td>
-                            <td>
+                            <td data-label="No. Unik">
                               <span style={{ fontFamily: "monospace", fontSize: 12 }}>{item.nomorUnik}</span>
                             </td>
-                            <td style={{ fontWeight: 500 }}>{item.nama}</td>
-                            <td>{item.jenisKelamin === "L" ? "Laki-laki" : "Perempuan"}</td>
-                            <td>
+                            <td data-label="Nama" style={{ fontWeight: 500 }}>{item.nama}</td>
+                            <td data-label="JK">{item.jenisKelamin === "L" ? "Laki-laki" : "Perempuan"}</td>
+                            <td data-label="TTL / Umur">
                               <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
                                 {item.tempatLahir ? item.tempatLahir + ", " : ""}{item.tanggalLahir || "-"}
                               </div>
                               <div style={{ fontWeight: 500 }}>{umur}</div>
                             </td>
-                            <td>
+                            <td data-label="Kategori">
                               <span className={`badge ${item.kategori === "Usia Mandiri" ? "badge-purple" : "badge-blue"}`}>
                                 {item.kategori === "Generus" ? "Muda-Mudi" : (item.kategori || "Muda-Mudi")}
                               </span>
                             </td>
-                            <td style={{ maxWidth: "150px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            <td data-label="Pend / Pekerjaan" style={{ maxWidth: "150px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                               <span className={`badge ${kategoriColor[item.kategoriUsia] || "badge-gray"}`} style={{ display: "inline-block", marginBottom: (item.pendidikan || item.pekerjaan) ? "4px" : "0" }}>
                                 {item.kategoriUsia}
                               </span>
@@ -687,21 +687,21 @@ export default function GenerusPage() {
                                 </div>
                               )}
                             </td>
-                            <td>{item.desaNama || "-"}</td>
-                            <td>{item.kelompokNama || "-"}</td>
-                            <td style={{ maxWidth: "150px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.alamat || "-"}>
+                            <td data-label="Desa">{item.desaNama || "-"}</td>
+                            <td data-label="Kelompok">{item.kelompokNama || "-"}</td>
+                            <td data-label="Alamat" style={{ maxWidth: "150px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.alamat || "-"}>
                               {item.alamat || "-"}
                             </td>
-                            <td style={{ fontSize: "11px" }}>
+                            <td data-label="No. Telp" style={{ fontSize: "11px" }}>
                               <div style={{ color: "var(--text-main)", fontWeight: 500 }}>{item.noTelp || "-"}</div>
                               {item.noTelpOrtu && <div style={{ color: "var(--text-muted)", marginTop: "2px" }}>Ortu: {item.noTelpOrtu}</div>}
                             </td>
-                            <td>
+                            <td data-label="Status">
                               <span className={`badge ${item.statusNikah === "Menikah" ? "badge-green" : "badge-gray"}`}>
                                 {item.statusNikah || "Belum Menikah"}
                               </span>
                             </td>
-                            <td style={{ maxWidth: "150px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            <td data-label="Akun Login" style={{ maxWidth: "150px", overflow: "hidden", textOverflow: "ellipsis" }}>
                               <div style={{ fontSize: "11px", fontWeight: 500, color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: "2px" }}>
                                 {item.email ? (
                                   <>
@@ -713,7 +713,7 @@ export default function GenerusPage() {
                                 )}
                               </div>
                             </td>
-                            <td>
+                            <td data-label="Aksi">
                               <div className="flex gap-2">
                                 <button
                                   className="btn btn-sm btn-secondary"

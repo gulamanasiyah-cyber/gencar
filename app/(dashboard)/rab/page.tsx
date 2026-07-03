@@ -549,7 +549,7 @@ export default function RabPage() {
                 </div>
               ) : (
                 <div className="table-wrapper">
-                  <table>
+                  <table className="responsive-table">
                     <thead>
                       <tr>
                         <th>Item Pekerjaan/Barang</th>
@@ -562,14 +562,14 @@ export default function RabPage() {
                     <tbody>
                       {rabItems.map((item) => (
                         <tr key={item.id}>
-                          <td>
+                          <td data-label="Item Pekerjaan/Barang">
                             <div style={{ fontWeight: 500 }}>{item.item}</div>
                             {item.keterangan && <div className="text-sm text-muted">{item.keterangan}</div>}
                           </td>
-                          <td style={{ textAlign: "center" }}>{item.volume} {item.satuan}</td>
-                          <td>{formatCurrency(item.hargaSatuan)}</td>
-                          <td style={{ fontWeight: 600 }}>{formatCurrency(item.totalHarga)}</td>
-                          <td>
+                          <td data-label="Volume" style={{ textAlign: "center" }}>{item.volume} {item.satuan}</td>
+                          <td data-label="Harga Satuan">{formatCurrency(item.hargaSatuan)}</td>
+                          <td data-label="Total" style={{ fontWeight: 600 }}>{formatCurrency(item.totalHarga)}</td>
+                          <td data-label="Aksi">
                             <div className="flex gap-2">
                               {["admin_keuangan", "creator"].includes(session?.role) && approvalStatus?.statusAdmin !== 'approved' && (
                                 <>

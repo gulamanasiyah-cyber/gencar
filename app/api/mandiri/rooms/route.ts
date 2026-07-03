@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriRooms, mandiriPemilihan, generus, mandiri, settings, timGambuh, users } from "@/lib/schema";
+import { mandiriRooms, mandiriPemilihan, generus, mandiri, settings, timGambuh, users, formPanitiaDanPengurus, mandiriDesa, mandiriDaerah } from "@/lib/schema";
 import { eq, and, or, count, desc, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
@@ -57,6 +57,12 @@ export async function GET(request: NextRequest) {
         const g2 = alias(generus, "g2");
         const m1 = alias(mandiri, "m1");
         const m2 = alias(mandiri, "m2");
+        const pan1 = alias(formPanitiaDanPengurus, "pan1");
+        const pan2 = alias(formPanitiaDanPengurus, "pan2");
+        const md1 = alias(mandiriDesa, "md1");
+        const md2 = alias(mandiriDesa, "md2");
+        const mda1 = alias(mandiriDaerah, "mda1");
+        const mda2 = alias(mandiriDaerah, "mda2");
         const uCaller = alias(timGambuh, "uCaller");
         const uCaller2 = alias(timGambuh, "uCaller2");
         const uGuard = alias(timGambuh, "uGuard");
@@ -71,9 +77,17 @@ export async function GET(request: NextRequest) {
             pengirimNama: g1.nama,
             pengirimNo: g1.nomorUnik,
             pengirimNomorUrut: m1.nomorUrut,
+            pengirimStatus: sql<string>`CASE WHEN ${pan1.id} IS NOT NULL THEN 'Panitia' ELSE 'Peserta' END`,
+            pengirimKota: mda1.nama,
+            pengirimDesa: md1.nama,
+            pengirimWa: sql<string>`COALESCE(${g1.noTelp}, ${pan1.noTelp})`,
             penerimaNama: g2.nama,
             penerimaNo: g2.nomorUnik,
             penerimaNomorUrut: m2.nomorUrut,
+            penerimaStatus: sql<string>`CASE WHEN ${pan2.id} IS NOT NULL THEN 'Panitia' ELSE 'Peserta' END`,
+            penerimaKota: mda2.nama,
+            penerimaDesa: md2.nama,
+            penerimaWa: sql<string>`COALESCE(${g2.noTelp}, ${pan2.noTelp})`,
             startedAt: mandiriRooms.startedAt,
             assignedCallerId: mandiriRooms.assignedCallerId,
             assignedCallerNama: uCaller.nama,
@@ -90,6 +104,12 @@ export async function GET(request: NextRequest) {
         .leftJoin(g2, eq(mandiriPemilihan.penerimaId, g2.id))
         .leftJoin(m1, eq(g1.id, m1.generusId))
         .leftJoin(m2, eq(g2.id, m2.generusId))
+        .leftJoin(pan1, eq(g1.id, pan1.generusId))
+        .leftJoin(pan2, eq(g2.id, pan2.generusId))
+        .leftJoin(md1, eq(sql`COALESCE(${g1.mandiriDesaId}, ${pan1.mandiriDesaId})`, md1.id))
+        .leftJoin(md2, eq(sql`COALESCE(${g2.mandiriDesaId}, ${pan2.mandiriDesaId})`, md2.id))
+        .leftJoin(mda1, eq(md1.mandiriDaerahId, mda1.id))
+        .leftJoin(mda2, eq(md2.mandiriDaerahId, mda2.id))
         .leftJoin(uCaller, eq(mandiriRooms.assignedCallerId, uCaller.id))
         .leftJoin(uCaller2, eq(mandiriRooms.assignedCaller2Id, uCaller2.id))
         .leftJoin(uGuard, eq(mandiriRooms.assignedGuardId, uGuard.id))

@@ -37,7 +37,11 @@ export function getDb() {
     _client = createClient({
       url,
       authToken,
-      fetch: globalThis.fetch,
+      // Explicitly opt out of Next.js's fetch Data Cache: DB queries should never
+      // be cached, and this also avoids the "Failed to generate cache key" warning
+      // Next.js logs when it can't hash a request body for its cache key.
+      fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+        globalThis.fetch(input, { ...init, cache: "no-store" }),
     });
     _db = drizzle(_client, { schema });
   }

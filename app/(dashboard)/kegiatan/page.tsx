@@ -479,7 +479,7 @@ export default function KegiatanPage() {
             </div>
           ) : (
             <div className="table-wrapper">
-              <table>
+              <table className="responsive-table">
                 <thead>
                   <tr>
                     <th>Kegiatan</th>
@@ -494,20 +494,20 @@ export default function KegiatanPage() {
                 <tbody>
                   {displayData.map((item) => (
                     <tr key={item.id}>
-                      <td>
+                      <td data-label="Kegiatan">
                         <div style={{ fontWeight: 500 }}>{item.judul}</div>
                       </td>
-                      <td style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <td data-label="Deskripsi" style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis" }}>
                         {item.deskripsi || "-"}
                       </td>
-                      <td style={{ whiteSpace: "nowrap" }}>
+                      <td data-label="Tanggal" style={{ whiteSpace: "nowrap" }}>
                         {formatDate(item.tanggal)}
                       </td>
-                      <td style={{ whiteSpace: "nowrap" }}>
+                      <td data-label="Jam" style={{ whiteSpace: "nowrap" }}>
                         {item.jam || "-"}
                       </td>
-                      <td>{item.lokasi || "-"}</td>
-                      <td>
+                      <td data-label="Lokasi">{item.lokasi || "-"}</td>
+                      <td data-label="Desa/Kelompok">
                         {item.kelompokId ? (
                           <div className="flex flex-col gap-1">
                             <span className="text-sm font-medium">{item.kelompokNama || "-"}</span>
@@ -520,7 +520,7 @@ export default function KegiatanPage() {
                           </div>
                         )}
                       </td>
-                      <td>
+                      <td data-label="Aksi">
                         <div className="flex gap-2">
                           <a href={`/absensi?kegiatanId=${item.id}`} className="btn btn-sm btn-success">Absensi</a>
                           <button className="btn btn-sm btn-secondary" onClick={() => { setEditItem(item); setShowModal(true); }}>Edit</button>

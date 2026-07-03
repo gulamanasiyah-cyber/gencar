@@ -168,7 +168,7 @@ export default function MandiriDataPage() {
                  <p style={{ color: "var(--text-muted)" }}>Tidak ada data akun mandiri ditemukan.</p>
                </div>
             ) : (
-              <table>
+              <table className="responsive-table">
                 <thead>
                   <tr>
                     <th>Nama Lengkap</th>
@@ -183,22 +183,22 @@ export default function MandiriDataPage() {
                 <tbody>
                   {data.map((user) => (
                     <tr key={user.id}>
-                      <td style={{ fontWeight: 600, color: "var(--primary)" }}>{user.name}</td>
-                      <td className="text-muted">{user.email}</td>
-                      <td><code style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>{user.nomorUnik}</code></td>
-                      <td>
+                      <td data-label="Nama Lengkap" style={{ fontWeight: 600, color: "var(--primary)" }}>{user.name}</td>
+                      <td data-label="Email / Username" className="text-muted">{user.email}</td>
+                      <td data-label="No. Unik (PW Awal)"><code style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>{user.nomorUnik}</code></td>
+                      <td data-label="Kota/Desa Mandiri">
                         <div style={{ fontSize: "12px" }}>
                           <span style={{ fontWeight: 600 }}>{user.mandiriDesaKota || "-"}</span><br/>
                           <span className="text-muted" style={{ fontSize: "11px" }}>{user.mandiriDesaNama || "-"}</span>
                         </div>
                       </td>
-                      <td>
+                      <td data-label="Akses">
                         <span className="badge badge-gray">{user.role}</span>
                       </td>
-                      <td style={{ fontSize: "12px", opacity: 0.8 }}>
+                      <td data-label="Tgl Bergabung" style={{ fontSize: "12px", opacity: 0.8 }}>
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : "-"}
                       </td>
-                      <td>
+                      <td data-label="Aksi">
                         <div style={{ display: "flex", gap: "6px" }}>
                           <button 
                             className="btn btn-sm btn-secondary" 

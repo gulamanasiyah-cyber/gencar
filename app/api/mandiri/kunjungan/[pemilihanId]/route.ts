@@ -6,7 +6,7 @@ import { mandiriKunjungan, mandiriPemilihan } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 
-const ALLOWED_ROLES = ["admin", "admin_romantic_room"];
+const ALLOWED_ROLES = ["admin", "admin_romantic_room", "tim_pnkb_gambuh"];
 
 // PATCH — edit hasil OR return to queue
 export async function PATCH(

@@ -2,11 +2,12 @@
 
 
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import Link from "next/link";
 import { Calendar, Clock, MapPin, ExternalLink } from "lucide-react";
 import PhotoUpload from "@/components/mandiri/PhotoUpload";
+import SearchableSelect from "@/components/mandiri/SearchableSelect";
 import jsPDF from "jspdf";
 import JsBarcode from "jsbarcode";
 
@@ -42,6 +43,8 @@ export default function MandiriDaftarPage() {
     mandiriDesaId: "",
     mandiriKelompokId: "",
     instagram: "",
+    dibayarkanSenilai: "",
+    buktiPembayaran: "",
   });
 
   const [daerahList, setDaerahList] = useState<Desa[]>([]);
@@ -58,8 +61,10 @@ export default function MandiriDaftarPage() {
   const [regStatus, setRegStatus] = useState("1");
   const [regTitle, setRegTitle] = useState("");
   const [regDesc, setRegDesc] = useState("");
+  const [regStatusPeserta, setRegStatusPeserta] = useState("Utusan Daerah");
   const [agreed, setAgreed] = useState(false);
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
+  const [uploadingBukti, setUploadingBukti] = useState(false);
 
 
   useEffect(() => {
@@ -93,6 +98,12 @@ export default function MandiriDaftarPage() {
       .then(r => r.json())
       .then(d => {
         if (d.value) setRegDesc(d.value);
+      });
+
+    fetch("/api/public/mandiri/settings?key=mandiri_registration_status_peserta")
+      .then(r => r.json())
+      .then(d => {
+        if (d.value) setRegStatusPeserta(d.value);
       });
 
     Promise.all([
@@ -334,6 +345,48 @@ export default function MandiriDaftarPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleDibayarkanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const digitsOnly = e.target.value.replace(/\D/g, "");
+    setForm((prev) => ({ ...prev, dibayarkanSenilai: digitsOnly }));
+  };
+
+  const handleBuktiPembayaranChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedExts = ["jpg", "jpeg", "png"];
+    const fileExt = file.name.split(".").pop()?.toLowerCase() || "";
+    const allowedMimes = ["image/jpeg", "image/jpg", "image/png"];
+
+    if (!allowedExts.includes(fileExt) || !allowedMimes.includes(file.type)) {
+      Swal.fire({ icon: "error", title: "Format Tidak Didukung", text: "Bukti pembayaran hanya boleh berformat JPEG, JPG, atau PNG." });
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > 1 * 1024 * 1024) {
+      Swal.fire({ icon: "error", title: "File Terlalu Besar", text: "Ukuran bukti pembayaran maksimal 1 MB." });
+      e.target.value = "";
+      return;
+    }
+
+    setUploadingBukti(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok || !json.url) throw new Error(json.error || "Gagal mengunggah bukti pembayaran");
+      setForm((prev) => ({ ...prev, buktiPembayaran: json.url }));
+      Swal.fire({ icon: "success", title: "Bukti Pembayaran Terunggah", toast: true, position: "top-end", showConfirmButton: false, timer: 2000 });
+    } catch (err: any) {
+      Swal.fire({ icon: "error", title: "Upload Gagal", text: err.message || "Terjadi kesalahan saat mengunggah bukti pembayaran." });
+    } finally {
+      setUploadingBukti(false);
+      e.target.value = "";
+    }
+  };
+
   const handleAddNewDaerah = async (name: string) => {
     const res = await fetch("/api/public/mandiri/wilayah", {
       method: "POST",
@@ -404,10 +457,20 @@ export default function MandiriDaftarPage() {
         return;
       }
 
+      if (regStatusPeserta === "Person" && (!form.dibayarkanSenilai || !form.buktiPembayaran)) {
+        Swal.fire({ icon: "warning", title: "Data Pembayaran Belum Lengkap", text: "Mohon isi nominal yang dibayarkan dan unggah bukti pembayaran." });
+        setLoading(false);
+        return;
+      }
+
       const res = await fetch("/api/public/mandiri/registrasi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          statusPeserta: regStatusPeserta,
+          dibayarkanSenilai: regStatusPeserta === "Person" ? Number(form.dibayarkanSenilai) : undefined,
+        }),
       });
       const data = await res.json();
 
@@ -899,6 +962,52 @@ export default function MandiriDaftarPage() {
               <textarea name="alamat" className="form-control" value={form.alamat} onChange={handleChange} placeholder="Alamat saat ini (opsional)" />
             </div>
 
+            {regStatusPeserta === "Person" && (
+              <div className="form-group" style={{ padding: "15px", background: "#fffbeb", borderRadius: "10px", border: "1px solid #fde68a" }}>
+                <h4 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 700, color: "#92400e" }}>Informasi Pembayaran</h4>
+
+                <div className="form-group">
+                  <label className="form-label">Dibayarkan Senilai <span className="required">*</span></label>
+                  <div style={{ display: "flex", alignItems: "center", position: "relative" }}>
+                    <span style={{ position: "absolute", left: "12px", color: "var(--text-muted)", fontWeight: 600 }}>Rp</span>
+                    <input
+                      name="dibayarkanSenilai"
+                      className="form-control"
+                      inputMode="numeric"
+                      value={form.dibayarkanSenilai ? Number(form.dibayarkanSenilai).toLocaleString("id-ID") : ""}
+                      onChange={handleDibayarkanChange}
+                      required={regStatusPeserta === "Person"}
+                      placeholder="0"
+                      style={{ paddingLeft: "34px" }}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Bukti Pembayaran <span className="required">*</span></label>
+                  <input
+                    type="file"
+                    className="form-control"
+                    accept="image/jpeg,image/jpg,image/png"
+                    onChange={handleBuktiPembayaranChange}
+                    disabled={uploadingBukti}
+                    required={regStatusPeserta === "Person" && !form.buktiPembayaran}
+                  />
+                  <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px" }}>
+                    Format JPEG, JPG, atau PNG. Ukuran maksimal 1 MB.
+                  </p>
+                  {uploadingBukti && (
+                    <p style={{ fontSize: "12px", color: "#3b82f6", marginTop: "6px" }}>Mengunggah...</p>
+                  )}
+                  {form.buktiPembayaran && !uploadingBukti && (
+                    <div style={{ marginTop: "10px" }}>
+                      <img src={form.buktiPembayaran} alt="Bukti Pembayaran" style={{ maxWidth: "160px", borderRadius: "8px", border: "1px solid #e2e8f0" }} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="form-group" style={{ padding: "15px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
               <div style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
                 <input
@@ -915,7 +1024,7 @@ export default function MandiriDaftarPage() {
               </div>
               <ol style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "10px", paddingLeft: "35px", marginBottom: 0, lineHeight: "1.6" }}>
                 <li>Sanggup mengikuti seluruh rangkaian acara dan menaati aturannya.</li>
-                <li>Menyetujui penyebarluasan data diri kepada Tim PNKB dan Peserta PDKT 2.0 untuk keperluan acara.</li>
+                <li>Menyetujui penyebarluasan data diri kepada Tim PNKB dan Peserta {regTitle || "Kegiatan"} untuk keperluan acara.</li>
               </ol>
             </div>
 
@@ -931,171 +1040,6 @@ export default function MandiriDaftarPage() {
       </div>
 
       {/* Removed orphaned camera block */}
-    </div>
-  );
-}
-
-function SearchableSelect({
-  placeholder,
-  options,
-  value,
-  onChange,
-  disabled,
-  onAddNew,
-}: {
-  placeholder: string;
-  options: { id: string | number; name: string }[];
-  value: string | number;
-  onChange: (val: string) => void;
-  disabled?: boolean;
-  onAddNew?: (name: string) => Promise<{ id: string | number; name: string }>;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const wrapperRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: any) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const filtered = options.filter(opt =>
-    opt.name.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const selectedOption = options.find(opt => String(opt.id) === String(value));
-  const showAddNew = onAddNew && search.trim() && !options.some(opt => opt.name.toLowerCase() === search.trim().toLowerCase());
-
-  return (
-    <div ref={wrapperRef} className="searchable-select-container" style={{ position: 'relative', width: '100%' }}>
-      <div 
-        className="form-control" 
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          background: disabled ? '#f1f5f9' : '#fff',
-          opacity: disabled ? 0.7 : 1,
-          minHeight: '44px',
-          padding: '10px 12px',
-          borderRadius: '12px',
-          border: '1px solid #cbd5e1',
-          fontSize: '14px',
-          color: selectedOption ? '#0f172a' : '#64748b'
-        }}
-      >
-        <span>{selectedOption ? selectedOption.name : placeholder}</span>
-        <span style={{ fontSize: '10px', color: '#94a3b8' }}>{isOpen ? '▲' : '▼'}</span>
-      </div>
-
-      {isOpen && (
-        <div 
-          className="dropdown-menu" 
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            zIndex: 50,
-            background: '#fff',
-            borderRadius: '12px',
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-            marginTop: '6px',
-            maxHeight: '220px',
-            display: 'flex',
-            flexDirection: 'column'
-          }}
-        >
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Cari..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{
-              margin: '8px',
-              padding: '8px 12px',
-              fontSize: '13px',
-              border: '1px solid #e2e8f0',
-              borderRadius: '8px',
-              width: 'calc(100% - 16px)'
-            }}
-            autoFocus
-          />
-          <div style={{ overflowY: 'auto', flexGrow: 1 }}>
-            {filtered.map(opt => (
-              <div
-                key={opt.id}
-                onClick={() => {
-                  onChange(String(opt.id));
-                  setIsOpen(false);
-                  setSearch("");
-                }}
-                style={{
-                  padding: '8px 12px',
-                  fontSize: '13.5px',
-                  cursor: 'pointer',
-                  backgroundColor: String(opt.id) === String(value) ? '#eff6ff' : 'transparent',
-                  color: String(opt.id) === String(value) ? '#1d4ed8' : '#334155',
-                  fontWeight: String(opt.id) === String(value) ? '600' : 'normal',
-                  transition: 'all 0.15s'
-                }}
-                onMouseEnter={(e) => {
-                  if (String(opt.id) !== String(value)) e.currentTarget.style.backgroundColor = '#f8fafc';
-                }}
-                onMouseLeave={(e) => {
-                  if (String(opt.id) !== String(value)) e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-              >
-                {opt.name}
-              </div>
-            ))}
-
-            {filtered.length === 0 && !showAddNew && (
-              <div style={{ padding: '12px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
-                Tidak ditemukan hasil
-              </div>
-            )}
-
-            {showAddNew && (
-              <div
-                onClick={async () => {
-                  try {
-                    const newOpt = await onAddNew(search.trim());
-                    onChange(String(newOpt.id));
-                    setIsOpen(false);
-                    setSearch("");
-                  } catch (e) {
-                    console.error("Failed to add new option:", e);
-                  }
-                }}
-                style={{
-                  padding: '10px 12px',
-                  fontSize: '13.5px',
-                  cursor: 'pointer',
-                  backgroundColor: '#f0fdf4',
-                  color: '#166534',
-                  fontWeight: '600',
-                  borderTop: '1px solid #e2e8f0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                <span style={{ fontSize: '16px' }}>+</span> Tambah baru: "{search.trim()}"
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

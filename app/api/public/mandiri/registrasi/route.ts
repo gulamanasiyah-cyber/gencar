@@ -35,15 +35,20 @@ export async function POST(request: NextRequest) {
 
     const activeKegRes = await db.select().from(mandiriKegiatan).where(eq(mandiriKegiatan.id, activeKegiatanId)).limit(1);
     const activeKegNama = activeKegRes[0]?.judul || "Kegiatan Mandiri";
-    const { 
-        nama, jenisKelamin, tempatLahir, tanggalLahir, 
-        alamat, noTelp, pendidikan, pekerjaan, statusNikah, 
-        hobi, makananMinumanFavorit, suku, foto, 
-        mandiriDesaId, mandiriKelompokId, instagram
+    const {
+        nama, jenisKelamin, tempatLahir, tanggalLahir,
+        alamat, noTelp, pendidikan, pekerjaan, statusNikah,
+        hobi, makananMinumanFavorit, suku, foto,
+        mandiriDesaId, mandiriKelompokId, instagram,
+        statusPeserta, dibayarkanSenilai, buktiPembayaran
     } = body;
 
     if (!nama || !jenisKelamin || !mandiriDesaId || !tempatLahir || !tanggalLahir || !noTelp || !pendidikan || !pekerjaan || !hobi || !makananMinumanFavorit || !foto) {
       return NextResponse.json({ error: "Mohon lengkapi semua data wajib." }, { status: 400 });
+    }
+
+    if (statusPeserta === "Person" && (!dibayarkanSenilai || !buktiPembayaran)) {
+      return NextResponse.json({ error: "Mohon lengkapi nominal pembayaran dan bukti pembayaran." }, { status: 400 });
     }
 
     // 2.1. Quota Check for Daerah (Max 5 males, 5 females per kegiatan)
@@ -55,6 +60,10 @@ export async function POST(request: NextRequest) {
     .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
     .where(eq(mandiriDesa.id, Number(mandiriDesaId)))
     .limit(1);
+
+    const catatanPembayaran = statusPeserta === "Person"
+      ? "Sudah dibayar oleh peserta Person"
+      : `Sudah dibayar oleh ${desaRecord[0]?.daerahNama || "Daerah Terkait"}`;
 
     if (desaRecord.length > 0 && desaRecord[0].daerahId) {
       const targetDaerahId = desaRecord[0].daerahId;
@@ -161,7 +170,10 @@ export async function POST(request: NextRequest) {
             nomorUrut: nextNr,
             kegiatanId: activeKegiatanId,
             statusMandiri: "Aktif",
-            catatan: "Pendaftaran mandiri (Public - Existing Generus)"
+            statusPeserta: statusPeserta === "Person" ? "Person" : "Utusan Daerah",
+            dibayarkanSenilai: statusPeserta === "Person" ? Number(dibayarkanSenilai) : null,
+            buktiPembayaran: statusPeserta === "Person" ? buktiPembayaran : null,
+            catatan: catatanPembayaran
         });
 
         // Send OneSignal push notification
@@ -257,7 +269,10 @@ export async function POST(request: NextRequest) {
       nomorUrut: nextNr,
       kegiatanId: activeKegiatanId,
       statusMandiri: "Aktif",
-      catatan: "Pendaftaran mandiri (Public - New User)"
+      statusPeserta: statusPeserta === "Person" ? "Person" : "Utusan Daerah",
+      dibayarkanSenilai: statusPeserta === "Person" ? Number(dibayarkanSenilai) : null,
+      buktiPembayaran: statusPeserta === "Person" ? buktiPembayaran : null,
+      catatan: catatanPembayaran
     });
 
     // Send OneSignal push notification

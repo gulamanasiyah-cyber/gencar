@@ -299,7 +299,7 @@ function PulangContent() {
               </div>
             ) : (
               <div className="table-responsive">
-                <table className="table">
+                <table className="table responsive-table">
                   <thead>
                     <tr>
                       <th style={{ width: "80px" }}>No. Urut</th>
@@ -314,26 +314,26 @@ function PulangContent() {
                   <tbody>
                     {filteredList.map((item) => (
                       <tr key={item.id}>
-                        <td style={{ fontWeight: 700 }}>#{item.nomorPeserta || "-"}</td>
-                        <td>
+                        <td data-label="No. Urut" style={{ fontWeight: 700 }}>#{item.nomorPeserta || "-"}</td>
+                        <td data-label="Nama">
                           <div style={{ fontWeight: 600 }}>{item.generusNama}</div>
                           <div className="text-xs text-muted" style={{ fontSize: "10px" }}>{item.generusNomorUnik}</div>
                         </td>
-                        <td>{item.generusJenisKelamin || "-"}</td>
-                        <td>
+                        <td data-label="L/P">{item.generusJenisKelamin || "-"}</td>
+                        <td data-label="Desa / Kota">
                           <div>{item.desaNama || "Umum"}</div>
                           <div className="text-xs text-muted" style={{ fontSize: "10px" }}>{item.desaKota || "-"}</div>
                         </td>
-                        <td>
+                        <td data-label="Jam Pulang">
                           {item.waktuPulang ? new Date(item.waktuPulang).toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : "-"}
                         </td>
-                        <td>
+                        <td data-label="Alasan Pulang">
                           <span style={{ fontStyle: "italic", color: "var(--text-muted)" }}>
                             {item.alasanPulang || "Tidak ada alasan"}
                           </span>
                         </td>
-                        <td style={{ textAlign: "center" }}>
-                          <button 
+                        <td data-label="Aksi" style={{ textAlign: "center" }}>
+                          <button
                             className="btn-secondary" 
                             style={{ padding: "6px 12px", display: "inline-flex", alignItems: "center", gap: 6, fontSize: "12px", border: "1px solid #dbeafe", background: "#eff6ff", color: "#2563eb" }}
                             title="Kembalikan Hadir"

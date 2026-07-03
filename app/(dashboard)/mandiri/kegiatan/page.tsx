@@ -162,7 +162,7 @@ export default function MandiriKegiatanPage() {
             </div>
           ) : (
             <div className="table-wrapper">
-              <table>
+              <table className="responsive-table">
                 <thead>
                   <tr>
                     <th style={{ width: 100 }}>Status</th>
@@ -179,7 +179,7 @@ export default function MandiriKegiatanPage() {
                     const isActive = item.id === activeKegiatanId;
                     return (
                       <tr key={item.id} style={isActive ? { background: "#f0fdf4", borderLeft: "3px solid #22c55e" } : undefined}>
-                        <td>
+                        <td data-label="Status">
                           {isActive ? (
                             <span className="badge badge-green" style={{ fontSize: 11, padding: "4px 8px", borderRadius: 6, fontWeight: 700, background: "#dcfce7", color: "#15803d", display: "inline-block" }}>Aktif</span>
                           ) : (
@@ -192,7 +192,7 @@ export default function MandiriKegiatanPage() {
                             </button>
                           )}
                         </td>
-                        <td>
+                        <td data-label="Kegiatan">
                           <div style={{ fontWeight: 500 }}>{item.judul}</div>
                           {item.deskripsi && (
                             <div className="text-sm text-muted" style={{ marginTop: 2, maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -200,17 +200,17 @@ export default function MandiriKegiatanPage() {
                             </div>
                           )}
                         </td>
-                        <td>{item.kota}</td>
-                        <td style={{ whiteSpace: "nowrap" }}>
+                        <td data-label="Kota">{item.kota}</td>
+                        <td data-label="Tanggal" style={{ whiteSpace: "nowrap" }}>
                           {formatDate(item.tanggal)}
                         </td>
-                        <td>{item.lokasi || "-"}</td>
-                        <td>
+                        <td data-label="Lokasi">{item.lokasi || "-"}</td>
+                        <td data-label="Desa/Kelompok">
                           {item.kelompokNama && <div className="text-sm">{item.kelompokNama}</div>}
                           {item.desaNama && <div className="text-sm text-muted">{item.desaNama}</div>}
                           {!item.desaNama && "-"}
                         </td>
-                        <td>
+                        <td data-label="Aksi">
                           <div className="flex gap-2">
                             <button className="btn btn-sm btn-secondary" onClick={() => { setEditItem(item); setShowModal(true); }}>Edit</button>
                             <button className="btn btn-sm btn-danger" onClick={() => handleDelete(item.id)}>Hapus</button>

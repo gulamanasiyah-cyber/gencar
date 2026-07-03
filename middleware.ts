@@ -62,6 +62,7 @@ export async function middleware(request: NextRequest) {
       !pathname.startsWith("/admin/katalog") &&
       !pathname.startsWith("/api/public/mandiri") &&
       !pathname.startsWith("/api/mandiri/rooms") &&
+      !pathname.startsWith("/api/mandiri/kunjungan") &&
       !pathname.startsWith("/api/profile") &&
       !pathname.startsWith("/profile") &&
       !pathname.startsWith("/api/admin/tim-gambuh") &&
