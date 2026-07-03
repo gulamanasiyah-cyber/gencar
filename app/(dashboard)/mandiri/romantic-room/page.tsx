@@ -784,9 +784,11 @@ export default function RomanticRoomPage() {
                 </div>
                 <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:8px;">
                     <span style="font-size:20px;">🚪</span>
-                    <div style="text-align:left;">
-                        <div style="font-size:10px;color:#15803d;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Ruangan yang Dituju</div>
-                        <div style="font-size:15px;font-weight:800;color:#166534;">${targetRoom.nama}</div>
+                    <div style="text-align:left; width: 100%;">
+                        <div style="font-size:10px;color:#15803d;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Ruangan yang Dituju</div>
+                        <select id="target_room_select" style="width: 100%; padding: 6px 8px; border-radius: 4px; border: 1px solid #bbf7d0; font-size: 14px; font-weight: 700; color: #166534; background: #fff; outline: none; cursor: pointer;">
+                            ${sortedAvailableRooms.map(r => `<option value="${r.id}" ${r.id === roomId ? 'selected' : ''}>${r.nama}</option>`).join('')}
+                        </select>
                     </div>
                 </div>
             `,
@@ -797,14 +799,20 @@ export default function RomanticRoomPage() {
             cancelButtonColor: '#94a3b8',
             reverseButtons: true,
             focusConfirm: false,
+            preConfirm: () => {
+                const select = document.getElementById('target_room_select') as HTMLSelectElement;
+                return select.value;
+            }
         });
 
-        if (!confirm.isConfirmed) return;
+        if (!confirm.isConfirmed || !confirm.value) return;
+        const selectedRoomId = confirm.value;
+        const selectedRoom = sortedAvailableRooms.find(r => r.id === selectedRoomId) || targetRoom;
 
         Swal.fire({ title: 'Memproses...', allowOutsideClick: false, showConfirmButton: false, didOpen: () => Swal.showLoading() });
 
         try {
-            const res = await fetch(`/api/mandiri/rooms/${roomId}`, {
+            const res = await fetch(`/api/mandiri/rooms/${selectedRoomId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ pemilihanId, action: "assign" })
@@ -818,7 +826,7 @@ export default function RomanticRoomPage() {
                     title: "Berhasil Masuk Room",
                     html: `
                         <p style="margin-bottom:10px;font-size:13px;color:#475569;">
-                            <b>${pengirimNama}</b> &amp; <b>${penerimaNama}</b> telah masuk ke <b style="color:#059669;">${targetRoom.nama}</b>.
+                            <b>${pengirimNama}</b> &amp; <b>${penerimaNama}</b> telah masuk ke <b style="color:#059669;">${selectedRoom.nama}</b>.
                         </p>
                         <div style="text-align:left;font-size:12px;color:#475569;background:#f8fafc;padding:10px 12px;border-radius:8px;border:1px solid #e2e8f0;line-height:2;">
                             <div>📢 <b>Pemanggil 1 (PNKB):</b> ${callerName}</div>
