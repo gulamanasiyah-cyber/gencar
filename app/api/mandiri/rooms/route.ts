@@ -22,11 +22,6 @@ export async function GET(request: NextRequest) {
             await db.run(sql`ALTER TABLE mandiri_rooms ADD COLUMN assigned_guard_id TEXT`);
         } catch (e) {}
 
-        // Cleanup stale data
-        try {
-            await db.run(sql`UPDATE mandiri_rooms SET assigned_caller_id = NULL, assigned_caller2_id = NULL, assigned_guard_id = NULL WHERE status = 'Kosong'`);
-        } catch (e) {}
-
         const session = await getSession();
         let authorized = !!session;
 

@@ -3,7 +3,7 @@
 import Topbar from "@/components/Topbar";
 import { useState, useEffect, useCallback } from "react";
 import Swal from "sweetalert2";
-import { Plus, Trash2, ChevronDown, ChevronRight, MapPin, Map, Users, Info, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronRight, MapPin, Map, Users, Info, ToggleLeft, ToggleRight, Link2 } from "lucide-react";
 
 interface MandiriDaerahItem { id: number; nama: string; isActive?: number; }
 interface MandiriDesaItem { id: number; nama: string; mandiriDaerahId: number; daerahNama: string | null; kota: string | null; }
@@ -250,6 +250,28 @@ export default function MandiriDesaTreePage() {
     }
   };
 
+  const handleShowAllLinks = () => {
+    const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/mandiri/daftar-wilayah`;
+    Swal.fire({
+      title: '<span style="font-size:17px;font-weight:800">🔗 Link Pendaftaran</span>',
+      html: `
+        <div style="text-align:left">
+          <div style="display:flex;align-items:center;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:14px">
+            <span style="font-size:12px;color:#1e293b;word-break:break-all;flex:1;font-family:monospace">${url}</span>
+            <button id="swal-copy-umum" onclick="navigator.clipboard.writeText('${url}').then(()=>{var b=document.getElementById('swal-copy-umum');b.textContent='✓ Tersalin';b.style.background='#dcfce7';b.style.color='#16a34a';setTimeout(()=>{b.textContent='Salin';b.style.background='#eff6ff';b.style.color='#2563eb';},2000)})" style="border:none;background:#eff6ff;color:#2563eb;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap;flex-shrink:0">Salin</button>
+          </div>
+          <div style="display:flex;justify-content:center;margin-bottom:8px">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(url)}" alt="QR Code" style="border-radius:8px;border:1px solid #e2e8f0" onerror="this.style.display='none'" />
+          </div>
+          <p style="text-align:center;font-size:11px;color:#94a3b8;margin:0">Bagikan link atau scan QR code ini ke peserta</p>
+        </div>
+      `,
+      showConfirmButton: false,
+      showCloseButton: true,
+      width: 420,
+    });
+  };
+
   // Toggle collapse handlers
   const toggleDaerahCollapse = (id: number) => {
     setCollapsedDaerahs(prev => ({ ...prev, [id]: !prev[id] }));
@@ -280,29 +302,46 @@ export default function MandiriDesaTreePage() {
             <h2 style={{ fontSize: "24px", fontWeight: 700, color: "#0f172a", marginBottom: "6px" }}>Kelola Wilayah & Kelompok (Tree View)</h2>
             <p style={{ color: "#64748b", fontSize: "14px" }}>Kelola daerah rujukan, desa, dan kelompok peserta dalam satu peta hirarki struktur</p>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#f8fafc", padding: "10px 14px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
-            <span style={{ fontSize: "14px", fontWeight: 600, color: "#475569" }}>Filter Kegiatan:</span>
-            <select
-              value={selectedKegiatan}
-              onChange={(e) => setSelectedKegiatan(e.target.value)}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#f8fafc", padding: "10px 14px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+              <span style={{ fontSize: "14px", fontWeight: 600, color: "#475569" }}>Filter Kegiatan:</span>
+              <select
+                value={selectedKegiatan}
+                onChange={(e) => setSelectedKegiatan(e.target.value)}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  border: "1px solid #cbd5e1",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  color: "#1e293b",
+                  backgroundColor: "#fff",
+                  outline: "none",
+                  minWidth: "220px",
+                  cursor: "pointer"
+                }}
+              >
+                <option value="">Pilih Kegiatan</option>
+                {kegiatanList.map(k => (
+                  <option key={k.id} value={k.id}>{k.judul}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={handleShowAllLinks}
               style={{
-                padding: "8px 12px",
-                borderRadius: "8px",
-                border: "1px solid #cbd5e1",
-                fontSize: "14px",
-                fontWeight: 500,
-                color: "#1e293b",
-                backgroundColor: "#fff",
-                outline: "none",
-                minWidth: "220px",
-                cursor: "pointer"
+                display: "flex", alignItems: "center", gap: "6px",
+                padding: "10px 16px", borderRadius: "12px",
+                border: "1px solid #e2e8f0", background: "#fff",
+                color: "#475569", fontSize: "14px", fontWeight: 600,
+                cursor: "pointer", transition: "all 0.2s",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.06)"
               }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.color = '#6366f1'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#475569'; }}
             >
-              <option value="">Pilih Kegiatan</option>
-              {kegiatanList.map(k => (
-                <option key={k.id} value={k.id}>{k.judul}</option>
-              ))}
-            </select>
+              <Link2 size={15} /> Link Pendaftaran
+            </button>
           </div>
         </div>
 
@@ -585,24 +624,17 @@ export default function MandiriDesaTreePage() {
                                               <span style={{ fontSize: "13.5px", color: "#475569", fontWeight: 500 }}>{kelompok.nama}</span>
                                             </div>
 
-                                            {/* Delete Button */}
-                                            <button
-                                              onClick={() => handleDeleteKelompok(kelompok.id, kelompok.nama)}
-                                              style={{
-                                                padding: "4px",
-                                                background: "transparent",
-                                                color: "#ef4444",
-                                                border: "none",
-                                                cursor: "pointer",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                borderRadius: "4px"
-                                              }}
-                                              onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
-                                              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                            >
-                                              <Trash2 size={13} />
-                                            </button>
+                                            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                              {/* Delete Button */}
+                                              <button
+                                                onClick={() => handleDeleteKelompok(kelompok.id, kelompok.nama)}
+                                                style={{ padding: "4px", background: "transparent", color: "#ef4444", border: "none", cursor: "pointer", display: "flex", alignItems: "center", borderRadius: "4px" }}
+                                                onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
+                                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                              >
+                                                <Trash2 size={13} />
+                                              </button>
+                                            </div>
                                           </div>
                                         ))
                                       )}

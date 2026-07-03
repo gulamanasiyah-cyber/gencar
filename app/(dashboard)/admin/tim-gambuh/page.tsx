@@ -27,6 +27,77 @@ interface DesaItem {
   mandiriDaerahId: number;
 }
 
+// Indonesian name-based gender detection
+function detectGenderFromName(nama: string): "PNKB" | "Ibu Gambuh" | null {
+  if (!nama.trim()) return null;
+  const lower = nama.toLowerCase().trim();
+  const firstWord = lower.split(/\s+/)[0];
+  const lastWord = lower.split(/\s+/).pop() || "";
+
+  const femaleSuffixes = [
+    "wati","ningsih","yanti","anti","sari","dewi","ayu","indah","putri","rina",
+    "ani","yani","tuti","nita","linda","diana","fitri","handayani","lestari",
+    "kartika","endah","ratna","asih","murni","hasanah","khasanah","fauziah",
+    "rohmah","maryam","fatimah","halimah","aminah","zahra","rahayu","novita",
+    "susanti","priyanti","apriyanti","oktaviani","nurani","sundari","wardani",
+    "pertiwi","anggraeni","anggraini","wahyuni","astuti","widyawati","utami",
+  ];
+  const femaleFirstNames = [
+    "siti","sri","dewi","ayu","putri","rini","rina","dian","diana","fitri",
+    "yuni","juni","mega","citra","hana","ratu","bunga","nurul","nuraini","ida",
+    "eka","desi","evi","yuli","lia","lina","lisa","rita","rosa","tuti","wati",
+    "sari","indah","maya","mira","nia","nita","novi","novia","risa","sinta",
+    "tika","winda","zara","zahra","nayla","nadia","rahma","salma","dina","fina",
+    "gina","heni","irma","karin","lana","mila","nana","olga","vera","weni",
+    "anisa","annisa","bella","cindy","della","ella","feby","ghina","hilda",
+    "julia","karina","laila","melia","nela","reni","selvi","tiara","ulfa","vina",
+    "widya","yessi","zelda","nabila","aulia","azizah","halimah","khairunnisa",
+    "nur","nurhasanah","nurhayati","nurlela","nurlia","nisa","nisaa","risa",
+    "risma","safitri","salsa","shinta","silvi","silvya","sindy","tri","triana",
+    "umy","umi","yesi","yola","zulfa","zulia","zuhriyah",
+  ];
+  const maleSuffixes = ["wan","wira","pratama","putra","tama","anto","ianto"];
+  const maleFirstNames = [
+    "ahmad","muhammad","budi","eko","andi","aditya","fajar","rizki","doni",
+    "hendra","agus","wahyu","yudi","hadi","arif","dedi","feri","gani","heri",
+    "ilham","joko","koko","luki","madi","pandu","rudi","sandi","toni","udin",
+    "abi","adi","agung","akbar","alan","aldo","alex","alfian","ali","alif",
+    "amin","amri","anang","anas","andika","andri","anjar","anto","anwar","ari",
+    "arman","aryo","asep","aziz","bagas","bagus","bayu","benny","bima","bisma",
+    "dani","danu","darmawan","dede","deny","dicky","dimas","dodi","donny",
+    "dwi","edy","edwin","efendi","egi","elang","erlan","erwin","farhan","faris",
+    "ferry","firman","fuad","galang","galih","gilang","giri","gunawan","guntur",
+    "hafiz","haikal","hamid","hamza","hanif","haris","hendri","herman","herwin",
+    "hilman","ibnu","ichsan","iqbal","irfan","ismail","iwan","jefri","julian",
+    "karyo","kemal","khairul","latif","lukman","lutfi","mahdi","mahmud","maman",
+    "mario","marwan","maulana","miko","mirza","mustofa","nando","nanang","naufal",
+    "nizar","noval","novian","oka","otto","panji","prasetyo","prima","puji",
+    "rafi","rafik","rahmat","randa","randy","rangga","reza","ridho","riski",
+    "rivai","rizal","robby","rohman","rohmat","roni","royan","rudy","safri",
+    "sahrul","salman","satrio","satya","setiawan","sigit","slamet","sofyan",
+    "soleh","subhan","subhi","sudirman","sugeng","sugianto","suharto","sulaiman",
+    "supri","surya","susanto","syaiful","tegar","teguh","topan","umar","wahid",
+    "wahyudi","wandi","willy","wisnu","yasin","yogi","yudha","yulian","yusuf",
+    "zaenal","zainal","zaki","zuhal","faiz","faizal","fajri","fakhri","faris",
+    "habib","hafidz","hakim","harun","haykal","haza","heru","hikam","ibra",
+    "imam","ipang","irvan","irwan","ivan","jasper","javier","jeremy","kevin",
+    "khafi","khoirul","kinan","krisna","lucky","luqman","made","malik","mansur",
+    "marco","marsh","martin","mas","masrul","maulidan","maxiel","mikael","nabil",
+    "nadir","najib","naldi","nasir","noval","oky","oscar","panca","paras",
+    "parno","pras","rafi","rafly","raka","raki","ralan","ramadhan","rana",
+    "randy","rano","ranto","rayhan","razan","rehan","reihan","renaldi","rendy",
+    "reno","riant","rico","rido","rifki","rifky","rihan","rimba","rino",
+    "risal","rivan","rivandi","riyan","riyandi","ryan","sandy","satria","sigit",
+  ];
+
+  if (femaleSuffixes.some(s => lower.endsWith(s) || lastWord === s)) return "Ibu Gambuh";
+  if (femaleFirstNames.includes(firstWord)) return "Ibu Gambuh";
+  if (maleSuffixes.some(s => lower.endsWith(s))) return "PNKB";
+  if (maleFirstNames.includes(firstWord)) return "PNKB";
+
+  return null; // unknown, don't override
+}
+
 export default function AdminTimGambuhPage() {
   const [members, setMembers] = useState<TimGambuhItem[]>([]);
   const [daerahList, setDaerahList] = useState<DaerahItem[]>([]);
@@ -44,6 +115,7 @@ export default function AdminTimGambuhPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState("");
   const [copiedLink, setCopiedLink] = useState(false);
+  const [autoDetected, setAutoDetected] = useState(false);
   const [form, setForm] = useState({
     nama: "",
     daerahId: "",
@@ -90,12 +162,8 @@ export default function AdminTimGambuhPage() {
   const handleOpenAdd = () => {
     setIsEditing(false);
     setEditId("");
-    setForm({
-      nama: "",
-      daerahId: "",
-      desaId: "",
-      tipe: "PNKB",
-    });
+    setAutoDetected(false);
+    setForm({ nama: "", daerahId: "", desaId: "", tipe: "PNKB" });
     setFilteredDesaList([]);
     setShowModal(true);
   };
@@ -103,6 +171,7 @@ export default function AdminTimGambuhPage() {
   const handleOpenEdit = (member: TimGambuhItem) => {
     setIsEditing(true);
     setEditId(member.id);
+    setAutoDetected(false);
     setForm({
       nama: member.nama,
       daerahId: member.daerahId ? String(member.daerahId) : "",
@@ -393,21 +462,39 @@ export default function AdminTimGambuhPage() {
                   className="form-control"
                   placeholder="Masukkan nama lengkap"
                   value={form.nama}
-                  onChange={(e) => setForm({ ...form, nama: e.target.value })}
+                  onChange={(e) => {
+                    const nama = e.target.value;
+                    const detected = detectGenderFromName(nama);
+                    if (detected) {
+                      setForm({ ...form, nama, tipe: detected });
+                      setAutoDetected(true);
+                    } else {
+                      setForm({ ...form, nama });
+                      setAutoDetected(false);
+                    }
+                  }}
                   required
                 />
               </div>
 
               <div className="form-group" style={{ marginBottom: "16px" }}>
-                <label className="form-label">Tipe Tim Gambuh *</label>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                  <label className="form-label" style={{ margin: 0 }}>Tipe Tim *</label>
+                  {autoDetected && (
+                    <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "20px", backgroundColor: form.tipe === "Ibu Gambuh" ? "#fff0f6" : "#eff6ff", color: form.tipe === "Ibu Gambuh" ? "#be185d" : "#2563eb", border: `1px solid ${form.tipe === "Ibu Gambuh" ? "#f9a8d4" : "#bfdbfe"}` }}>
+                      ✨ Auto-deteksi dari nama
+                    </span>
+                  )}
+                </div>
                 <select
                   className="form-control"
                   value={form.tipe}
-                  onChange={(e) => setForm({ ...form, tipe: e.target.value as any })}
+                  onChange={(e) => { setForm({ ...form, tipe: e.target.value as any }); setAutoDetected(false); }}
                   required
+                  style={{ borderColor: autoDetected ? (form.tipe === "Ibu Gambuh" ? "#f9a8d4" : "#bfdbfe") : undefined }}
                 >
-                  <option value="PNKB">PNKB</option>
-                  <option value="Ibu Gambuh">Ibu Gambuh</option>
+                  <option value="PNKB">♂ PNKB (Laki-laki)</option>
+                  <option value="Ibu Gambuh">♀ Ibu Gambuh (Perempuan)</option>
                 </select>
               </div>
 

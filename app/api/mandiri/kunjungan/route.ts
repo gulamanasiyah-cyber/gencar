@@ -66,8 +66,11 @@ export async function GET(request: NextRequest) {
             pemilihanId: mandiriKunjungan.pemilihanId,
             pemilihJenisKelamin: g1.jenisKelamin,
             terpilihJenisKelamin: g2.jenisKelamin,
+            assignedCallerId: mandiriPemilihan.assignedCallerId,
             assignedCallerNama: uCaller.nama,
+            assignedCaller2Id: mandiriPemilihan.assignedCaller2Id,
             assignedCaller2Nama: uCaller2.nama,
+            assignedGuardId: mandiriPemilihan.assignedGuardId,
             assignedGuardNama: uGuard.nama
         })
         .from(mandiriKunjungan)

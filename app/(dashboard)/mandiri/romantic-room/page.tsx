@@ -3,12 +3,12 @@
 
 
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Swal from "sweetalert2";
 import {
     Heart, MessageSquare, User, Phone, MapPin, ClipboardList,
     CheckCircle, Star, Download, Sparkles, Send, Timer,
-    Globe, Plus, Trash2, LogOut, Users, DoorOpen, Search, Undo2, Bell, Info, SlidersHorizontal
+    Globe, Plus, Trash2, LogOut, Users, DoorOpen, Search, Undo2, Bell, Info, SlidersHorizontal, Pencil
 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -100,6 +100,7 @@ export default function RomanticRoomPage() {
     const [attendanceCount, setAttendanceCount] = useState<number>(0);
     const [queueSearch, setQueueSearch] = useState("");
     const [roomSearch, setRoomSearch] = useState("");
+    const [expandedStaffRooms, setExpandedStaffRooms] = useState<Set<string>>(new Set());
     const [callerGenderFilter, setCallerGenderFilter] = useState("Semua");
     const [calledGenderFilter, setCalledGenderFilter] = useState("Semua");
     const [callerAgeFilter, setCallerAgeFilter] = useState("Semua");
@@ -197,7 +198,8 @@ export default function RomanticRoomPage() {
             const sortedRooms = Array.isArray(roomsJson)
                 ? [...roomsJson].sort((a, b) => a.nama.localeCompare(b.nama, undefined, { numeric: true, sensitivity: 'base' }))
                 : [];
-            setAllRooms(sortedRooms);
+            // Apply localStorage backup for KOSONG rooms whose DB staff came back null
+            setAllRooms(lsApplyToRooms(sortedRooms));
 
             if (isUserAdmin) {
                 const kgParam = targetKgId ? `&kegiatanId=${targetKgId}` : "";
@@ -339,7 +341,7 @@ export default function RomanticRoomPage() {
                         <label style="display:block; font-weight:700; margin-bottom: 6px;">Petugas Penunggu (Guard):</label>
                         <select id="edit_room_guard" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; outline:none; font-weight:600;">
                             <option value="">-- Belum Ditugaskan --</option>
-                            ${staffList.map(s => `<option value="${s.id}" ${s.id === room.assignedGuardId ? 'selected' : ''}>${s.name}</option>`).join("")}
+                            ${staffList.filter(s => s.role === 'PNKB' || s.role === 'Ibu Gambuh').map(s => `<option value="${s.id}" ${s.id === room.assignedGuardId ? 'selected' : ''}>${s.name} (${s.role})</option>`).join("")}
                         </select>
                     </div>
                 </div>
@@ -620,6 +622,86 @@ export default function RomanticRoomPage() {
         }
     };
 
+    const LS_KEY = 'kosong_room_staff_v1';
+
+    const lsSave = (roomId: string, field: 'caller' | 'caller2' | 'guard', staffId: string, staffName: string | null) => {
+        try {
+            const cache = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+            if (!cache[roomId]) cache[roomId] = {};
+            if (staffId) {
+                cache[roomId][field] = { id: staffId, name: staffName || '' };
+            } else {
+                delete cache[roomId][field];
+                if (Object.keys(cache[roomId]).length === 0) delete cache[roomId];
+            }
+            localStorage.setItem(LS_KEY, JSON.stringify(cache));
+        } catch {}
+    };
+
+    const lsApplyToRooms = (rooms: any[]) => {
+        try {
+            const cache = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+            if (!Object.keys(cache).length) return rooms;
+            return rooms.map(r => {
+                if (!cache[r.id]) return r;
+                const c = cache[r.id];
+                return {
+                    ...r,
+                    assignedCallerId:   r.assignedCallerId   ?? c.caller?.id   ?? null,
+                    assignedCallerNama: r.assignedCallerNama ?? c.caller?.name ?? null,
+                    assignedCaller2Id:   r.assignedCaller2Id   ?? c.caller2?.id   ?? null,
+                    assignedCaller2Nama: r.assignedCaller2Nama ?? c.caller2?.name ?? null,
+                    assignedGuardId:   r.assignedGuardId   ?? c.guard?.id   ?? null,
+                    assignedGuardNama: r.assignedGuardNama ?? c.guard?.name ?? null,
+                };
+            });
+        } catch {
+            return rooms;
+        }
+    };
+
+    const lsClearRoom = (roomId: string) => {
+        try {
+            const cache = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+            delete cache[roomId];
+            localStorage.setItem(LS_KEY, JSON.stringify(cache));
+        } catch {}
+    };
+
+    const handleQuickStaffChange = async (roomId: string, field: 'caller' | 'caller2' | 'guard', staffId: string) => {
+        const body: any = { action: "assign_staff" };
+        const fieldMap = { caller: 'assignedCallerId', caller2: 'assignedCaller2Id', guard: 'assignedGuardId' };
+        const nameMap = { caller: 'assignedCallerNama', caller2: 'assignedCaller2Nama', guard: 'assignedGuardNama' };
+        const apiField = fieldMap[field];
+        const nameField = nameMap[field];
+        body[apiField] = staffId || null;
+
+        const staff = staffList.find(s => s.id === staffId);
+
+        // Persist to localStorage immediately — survives refresh even if DB lags
+        lsSave(roomId, field, staffId, staff?.name || null);
+
+        // Optimistic update so the UI responds instantly
+        setAllRooms(prev => prev.map(r => r.id !== roomId ? r : {
+            ...r,
+            [apiField]: staffId || null,
+            [nameField]: staff?.name || null,
+        }));
+
+        try {
+            const res = await fetch(`/api/mandiri/rooms/${roomId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) throw new Error((await res.json()).error || "Gagal menyimpan");
+            fetchData();
+        } catch (err: any) {
+            fetchData();
+            Swal.fire({ title: "Gagal", text: err.message, icon: "error", timer: 2000, showConfirmButton: false });
+        }
+    };
+
     const handleDeleteRoom = async (id: string) => {
         const result = await Swal.fire({
             title: 'Hapus Ruangan?',
@@ -883,6 +965,7 @@ export default function RomanticRoomPage() {
                         hasilPenerima: formValues.hasilPenerima
                     })
                 });
+                lsClearRoom(id);
                 fetchData();
             } catch (err) {
                 Swal.fire("Error", "Gagal mengosongkan ruangan", "error");
@@ -912,6 +995,7 @@ export default function RomanticRoomPage() {
                     body: JSON.stringify({ action: "undo" })
                 });
                 if (res.ok) {
+                    lsClearRoom(id);
                     Swal.fire({
                         title: "Berhasil",
                         text: "Data berhasil dikembalikan ke antrean.",
@@ -1025,29 +1109,66 @@ export default function RomanticRoomPage() {
     };
 
     const handleEditRecord = async (item: any) => {
+        const hasilOptions = (current: string) => ['Menunggu', 'Lanjut', 'Ragu-ragu', 'Tidak Lanjut']
+            .map(v => `<option value="${v}" ${(current || 'Menunggu') === v ? 'selected' : ''}>${v}</option>`).join('');
+
+        const pnkbOptions = (current: string | null) =>
+            `<option value="">-- Belum Ditugaskan --</option>` +
+            staffList.filter(s => s.role === 'PNKB').map(s =>
+                `<option value="${s.id}" ${s.id === current ? 'selected' : ''}>${s.name}</option>`).join('');
+
+        const gambuhOptions = (current: string | null) =>
+            `<option value="">-- Belum Ditugaskan --</option>` +
+            staffList.filter(s => s.role === 'Ibu Gambuh').map(s =>
+                `<option value="${s.id}" ${s.id === current ? 'selected' : ''}>${s.name}</option>`).join('');
+
+        const guardOptions = (current: string | null) =>
+            `<option value="">-- Belum Ditugaskan --</option>` +
+            staffList.filter(s => s.role === 'PNKB' || s.role === 'Ibu Gambuh').map(s =>
+                `<option value="${s.id}" ${s.id === current ? 'selected' : ''}>${s.name} (${s.role})</option>`).join('');
+
+        const labelStyle = 'display:block;font-size:10px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:0.5px;margin-bottom:4px;margin-top:12px';
+        const selectStyle = 'width:100%;padding:7px 8px;border-radius:6px;border:1px solid #e2e8f0;font-size:12px;color:#1e293b;background:#fff;outline:none';
+        const dividerStyle = 'margin:14px 0 0;padding-top:10px;border-top:1px solid #f1f5f9;font-size:10px;font-weight:800;text-transform:uppercase;color:#94a3b8;letter-spacing:0.5px';
+
         const { value: formValues } = await Swal.fire({
-            title: 'Edit Hasil Pertemuan',
+            title: 'Edit Data',
+            width: 500,
             html: `
-                <div style="text-align:left">
-                    <p style="font-size:13px;color:#64748b;margin-bottom:16px">
-                        <b>${item.pemilihNama}</b> &amp; <b>${item.terpilihNama}</b>
-                    </p>
-                    <label style="font-size:11px;font-weight:800;text-transform:uppercase;color:#1e293b">Hasil Pemilih (${item.pemilihNama})</label>
-                    <select id="edit_pengirim" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e2e8f0;margin:6px 0 16px;font-size:13px">
-                        <option value="Lanjut" ${item.pemilihHasil === 'Lanjut' ? 'selected' : ''}>Lanjut</option>
-                        <option value="Ragu-ragu" ${item.pemilihHasil === 'Ragu-ragu' ? 'selected' : ''}>Ragu-ragu</option>
-                        <option value="Tidak Lanjut" ${item.pemilihHasil === 'Tidak Lanjut' ? 'selected' : ''}>Tidak Lanjut</option>
-                    </select>
-                    <label style="font-size:11px;font-weight:800;text-transform:uppercase;color:#1e293b">Hasil Terpilih (${item.terpilihNama})</label>
-                    <select id="edit_penerima" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e2e8f0;margin:6px 0 16px;font-size:13px">
-                        <option value="Lanjut" ${item.terpilihHasil === 'Lanjut' ? 'selected' : ''}>Lanjut</option>
-                        <option value="Ragu-ragu" ${item.terpilihHasil === 'Ragu-ragu' ? 'selected' : ''}>Ragu-ragu</option>
-                        <option value="Tidak Lanjut" ${item.terpilihHasil === 'Tidak Lanjut' ? 'selected' : ''}>Tidak Lanjut</option>
-                    </select>
-                    <label style="font-size:11px;font-weight:800;text-transform:uppercase;color:#1e293b">Nomor Room</label>
-                    <select id="edit_room" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e2e8f0;margin:6px 0 0;font-size:13px">
+                <div style="text-align:left;font-family:inherit">
+                    <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;margin-bottom:4px;font-size:12px;color:#64748b">
+                        <b style="color:#1e293b">${item.pemilihNama}</b>
+                        <span style="margin:0 6px;color:#cbd5e1">&amp;</span>
+                        <b style="color:#1e293b">${item.terpilihNama}</b>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px">
+                        <div>
+                            <label style="${labelStyle}">Hasil Pemilih</label>
+                            <select id="edit_pengirim" style="${selectStyle}">${hasilOptions(item.pemilihHasil)}</select>
+                        </div>
+                        <div>
+                            <label style="${labelStyle}">Hasil Terpilih</label>
+                            <select id="edit_penerima" style="${selectStyle}">${hasilOptions(item.terpilihHasil)}</select>
+                        </div>
+                    </div>
+
+                    <label style="${labelStyle}">Nomor Room</label>
+                    <select id="edit_room" style="${selectStyle}">
+                        <option value="">-- Tidak di Room --</option>
                         ${allRooms.map(r => `<option value="${r.id}" ${r.id === item.roomId ? 'selected' : ''}>${r.nama}</option>`).join('')}
                     </select>
+
+                    <div style="${dividerStyle}">Tim Petugas</div>
+
+                    <label style="${labelStyle}">Petugas Pemanggil 1 (PNKB)</label>
+                    <select id="edit_caller1" style="${selectStyle}">${pnkbOptions(item.assignedCallerId)}</select>
+
+                    <label style="${labelStyle}">Petugas Pemanggil 2 (Ibu Gambuh)</label>
+                    <select id="edit_caller2" style="${selectStyle}">${gambuhOptions(item.assignedCaller2Id)}</select>
+
+                    <label style="${labelStyle}">Tim Penunggu (PNKB / Ibu Gambuh)</label>
+                    <select id="edit_guard" style="${selectStyle}">${guardOptions(item.assignedGuardId)}</select>
                 </div>
             `,
             focusConfirm: false,
@@ -1058,7 +1179,10 @@ export default function RomanticRoomPage() {
             preConfirm: () => ({
                 hasilPengirim: (document.getElementById('edit_pengirim') as HTMLSelectElement).value,
                 hasilPenerima: (document.getElementById('edit_penerima') as HTMLSelectElement).value,
-                roomId: (document.getElementById('edit_room') as HTMLSelectElement).value,
+                roomId: (document.getElementById('edit_room') as HTMLSelectElement).value || undefined,
+                assignedCallerId: (document.getElementById('edit_caller1') as HTMLSelectElement).value || null,
+                assignedCaller2Id: (document.getElementById('edit_caller2') as HTMLSelectElement).value || null,
+                assignedGuardId: (document.getElementById('edit_guard') as HTMLSelectElement).value || null,
             })
         });
 
@@ -1263,6 +1387,12 @@ export default function RomanticRoomPage() {
         terpilihJenisKelamin: q.penerimaJenisKelamin,
         pemilihTanggalLahir: q.pengirimTanggalLahir,
         terpilihTanggalLahir: q.penerimaTanggalLahir,
+        assignedCallerId: q.assignedCallerId || null,
+        assignedCallerNama: q.assignedCallerNama || null,
+        assignedCaller2Id: q.assignedCaller2Id || null,
+        assignedCaller2Nama: q.assignedCaller2Nama || null,
+        assignedGuardId: q.assignedGuardId || null,
+        assignedGuardNama: q.assignedGuardNama || null,
         isQueue: true
     }));
 
@@ -1709,9 +1839,14 @@ export default function RomanticRoomPage() {
                                             {room.status === "Terisi" && room.startedAt && (
                                                 <RoomTimer startTime={room.startedAt} />
                                             )}
-                                            <button className="btn-delete-room" onClick={() => handleDeleteRoom(room.id)}>
-                                                <Trash2 size={14} />
-                                            </button>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                                                <button className="btn-edit-room" onClick={() => handleShowRoomDetails(room)} title="Edit Ruangan">
+                                                    <Pencil size={12} />
+                                                </button>
+                                                <button className="btn-delete-room" onClick={() => handleDeleteRoom(room.id)} title="Hapus Ruangan">
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
                                         </div>
                                         <div className="room-middle">
                                             {room.status === "Terisi" ? (
@@ -1747,29 +1882,73 @@ export default function RomanticRoomPage() {
                                             )}
                                         </div>
                                         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', width: '100%', gap: '6px' }}>
-                                            {/* Staff Assignment Info */}
-                                            {room.status === "Terisi" && (room.assignedCallerNama || room.assignedCaller2Nama || room.assignedGuardNama) && (
-                                                <div className="room-staff-info" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: '6px', paddingTop: '6px', borderTop: '1px dashed #e2e8f0' }}>
-                                                    <div style={{ display: 'flex', gap: '4px', flex: 1, minWidth: '50%' }}>
-                                                        {room.assignedCallerNama && (
-                                                            <span className="staff-badge caller" style={{ fontSize: '8px', fontWeight: 800, padding: '1px 4px', borderRadius: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-flex', alignItems: 'center', gap: '2px', backgroundColor: '#eff6ff', color: '#2563eb' }} title={`Pemanggil 1: ${room.assignedCallerNama}`}>
-                                                                📢 {room.assignedCallerNama.split(" ")[0]}
-                                                            </span>
-                                                        )}
-                                                        {room.assignedCaller2Nama && (
-                                                            <span className="staff-badge caller" style={{ fontSize: '8px', fontWeight: 800, padding: '1px 4px', borderRadius: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-flex', alignItems: 'center', gap: '2px', backgroundColor: '#eff6ff', color: '#2563eb' }} title={`Pemanggil 2: ${room.assignedCaller2Nama}`}>
-                                                                📢 {room.assignedCaller2Nama.split(" ")[0]}
-                                                            </span>
-                                                        )}
+                                            {/* Staff Assignment — inline dropdowns */}
+                                            {(() => {
+                                                const hasStaff = room.assignedCallerId || room.assignedCaller2Id || room.assignedGuardId;
+                                                const isExpanded = expandedStaffRooms.has(room.id);
+                                                const showDropdowns = hasStaff || isExpanded;
+                                                const selectBase: React.CSSProperties = {
+                                                    fontSize: '11px', fontWeight: 800, borderRadius: '4px',
+                                                    border: '1px solid', cursor: 'pointer', outline: 'none',
+                                                    padding: '2px 2px', width: '100%', overflow: 'hidden',
+                                                    appearance: 'none' as const, WebkitAppearance: 'none' as const,
+                                                };
+                                                const isKosong = room.status === 'Kosong';
+                                                if (!showDropdowns) {
+                                                    return (
+                                                        <div style={{ paddingTop: '6px', borderTop: isKosong ? '1px dashed #f9a8d4' : '1px dashed #e2e8f0', display: 'flex', justifyContent: 'center' }}>
+                                                            <button
+                                                                onClick={() => setExpandedStaffRooms(prev => { const s = new Set(prev); s.add(room.id); return s; })}
+                                                                title="Tambah Tim Petugas"
+                                                                style={{ fontSize: '9px', fontWeight: 700, color: isKosong ? '#db2777' : '#94a3b8', background: isKosong ? 'linear-gradient(90deg,#fce7f3,#fdf2f8)' : 'none', border: isKosong ? '1px dashed #f9a8d4' : '1px dashed #cbd5e1', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+                                                            >
+                                                                <span style={{ fontSize: '11px', lineHeight: 1 }}>+</span> Tim Petugas
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                }
+                                                return (
+                                                    <div style={{ paddingTop: '6px', borderTop: isKosong ? '1px dashed #f9a8d4' : '1px dashed #e2e8f0', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '3px' }}>
+                                                        {/* Caller 1 - PNKB */}
+                                                        <select
+                                                            value={room.assignedCallerId || ""}
+                                                            onChange={e => handleQuickStaffChange(room.id, 'caller', e.target.value)}
+                                                            title="Pemanggil 1 (PNKB)"
+                                                            style={{ ...selectBase, borderColor: '#bfdbfe', background: room.assignedCallerId ? '#eff6ff' : '#f8fafc', color: room.assignedCallerId ? '#2563eb' : '#94a3b8' }}
+                                                        >
+                                                            <option value="">📢 P1</option>
+                                                            {staffList.filter(s => s.role === 'PNKB').map(s => (
+                                                                <option key={s.id} value={s.id}>📢 {s.name.split(" ")[0]}</option>
+                                                            ))}
+                                                        </select>
+                                                        {/* Caller 2 - Ibu Gambuh */}
+                                                        <select
+                                                            value={room.assignedCaller2Id || ""}
+                                                            onChange={e => handleQuickStaffChange(room.id, 'caller2', e.target.value)}
+                                                            title="Pemanggil 2 (Ibu Gambuh)"
+                                                            style={{ ...selectBase, borderColor: '#e9d5ff', background: room.assignedCaller2Id ? '#fdf4ff' : '#f8fafc', color: room.assignedCaller2Id ? '#9333ea' : '#94a3b8' }}
+                                                        >
+                                                            <option value="">📢 P2</option>
+                                                            {staffList.filter(s => s.role === 'Ibu Gambuh').map(s => (
+                                                                <option key={s.id} value={s.id}>📢 {s.name.split(" ")[0]}</option>
+                                                            ))}
+                                                        </select>
+                                                        {/* Guard - PNKB + Ibu Gambuh */}
+                                                        <select
+                                                            value={room.assignedGuardId || ""}
+                                                            onChange={e => handleQuickStaffChange(room.id, 'guard', e.target.value)}
+                                                            title="Penunggu (PNKB / Ibu Gambuh)"
+                                                            style={{ ...selectBase, borderColor: '#a7f3d0', background: room.assignedGuardId ? '#ecfdf5' : '#f8fafc', color: room.assignedGuardId ? '#059669' : '#94a3b8' }}
+                                                        >
+                                                            <option value="">🚪 Jg</option>
+                                                            {staffList.filter(s => s.role === 'PNKB' || s.role === 'Ibu Gambuh').map(s => (
+                                                                <option key={s.id} value={s.id}>🚪 {s.name.split(" ")[0]} ({s.role === 'PNKB' ? 'P' : 'G'})</option>
+                                                            ))}
+                                                        </select>
                                                     </div>
-                                                    {room.assignedGuardNama ? (
-                                                        <span className="staff-badge guard" style={{ fontSize: '8px', fontWeight: 800, padding: '1px 4px', borderRadius: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '48%', display: 'inline-flex', alignItems: 'center', gap: '2px', backgroundColor: '#ecfdf5', color: '#059669' }} title={`Penunggu: ${room.assignedGuardNama}`}>
-                                                            🚪 {room.assignedGuardNama.split(" ")[0]}
-                                                        </span>
-                                                    ) : <span />}
-                                                </div>
-                                            )}
-                                            <div className="room-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', borderTop: (room.status === "Terisi" && (room.assignedCallerNama || room.assignedCaller2Nama || room.assignedGuardNama)) ? 'none' : '1px solid rgba(0,0,0,0.05)', paddingTop: '6px', marginTop: 0 }}>
+                                                );
+                                            })()}
+                                            <div className="room-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', borderTop: room.status === 'Kosong' ? '1px solid rgba(219,39,119,0.15)' : '1px solid rgba(0,0,0,0.05)', color: room.status === 'Kosong' ? '#be185d' : undefined, paddingTop: '6px', marginTop: 0 }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                     <span className={`status-dot ${room.status?.toLowerCase()}`}></span>
                                                     {room.status}
@@ -1786,7 +1965,7 @@ export default function RomanticRoomPage() {
                                                         display: 'flex', 
                                                         alignItems: 'center', 
                                                         justifyContent: 'center',
-                                                        color: '#94a3b8',
+                                                        color: room.status === 'Kosong' ? '#f9a8d4' : '#94a3b8',
                                                         transition: 'color 0.2s'
                                                     }}
                                                     onMouseEnter={(e) => e.currentTarget.style.color = '#3b82f6'}
@@ -1962,16 +2141,14 @@ export default function RomanticRoomPage() {
                                                         </td>
                                                         <td className="text-center">
                                                             <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                                                                <button className="btn-act btn-edit" onClick={() => handleEditRecord(item)} title="Edit Hasil">✏️</button>
                                                                 {!item.isQueue && (
-                                                                    <>
-                                                                        <button className="btn-act btn-edit" onClick={() => handleEditRecord(item)} title="Edit Hasil">✏️</button>
-                                                                        <button className="btn-act btn-return" onClick={() => handleReturnToQueue(item)} title="Kembalikan ke Antrean">↩️</button>
-                                                                        <button className="btn-act btn-del" onClick={() => handleDeleteRecord(item)} title="Hapus Permanen">🗑️</button>
-                                                                    </>
+                                                                    <button className="btn-act btn-return" onClick={() => handleReturnToQueue(item)} title="Kembalikan ke Antrean">↩️</button>
                                                                 )}
                                                                 {item.isQueue && (
-                                                                    <button className="btn-act btn-del" onClick={() => handleDeleteQueue(item)} title="Hapus Antrean">🗑️</button>
+                                                                    <button className="btn-act btn-return" onClick={() => handleDeleteQueue(item)} title="Undo Antrean">↩️</button>
                                                                 )}
+                                                                <button className="btn-act btn-del" onClick={() => handleDeleteRecord(item)} title="Hapus Permanen">🗑️</button>
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -2058,16 +2235,14 @@ export default function RomanticRoomPage() {
                                                 </div>
 
                                                 <div className="card-actions-row">
+                                                    <button className="btn-act-mobile btn-edit-mobile" onClick={() => handleEditRecord(item)}>✏️ Edit</button>
                                                     {!item.isQueue && (
-                                                        <>
-                                                            <button className="btn-act-mobile btn-edit-mobile" onClick={() => handleEditRecord(item)}>✏️ Edit</button>
-                                                            <button className="btn-act-mobile btn-return-mobile" onClick={() => handleReturnToQueue(item)}>↩️ Antrean</button>
-                                                            <button className="btn-act-mobile btn-del-mobile" onClick={() => handleDeleteRecord(item)}>🗑️ Hapus</button>
-                                                        </>
+                                                        <button className="btn-act-mobile btn-return-mobile" onClick={() => handleReturnToQueue(item)}>↩️ Antrean</button>
                                                     )}
                                                     {item.isQueue && (
-                                                        <button className="btn-act-mobile btn-del-mobile" style={{ width: '100%' }} onClick={() => handleDeleteQueue(item)}>🗑️ Hapus Antrean</button>
+                                                        <button className="btn-act-mobile btn-return-mobile" onClick={() => handleDeleteQueue(item)}>↩️ Undo</button>
                                                     )}
+                                                    <button className="btn-act-mobile btn-del-mobile" onClick={() => handleDeleteRecord(item)}>🗑️ Hapus</button>
                                                 </div>
                                             </div>
                                         ))}
@@ -2191,19 +2366,37 @@ export default function RomanticRoomPage() {
                         align-items: start;
                     }
 
-                    .room-tile { min-width: 0; border-radius: 10px; border: 1px solid #e2e8f0; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; transition: all 0.3s; background: white; }
-                    .room-tile.terisi { background: #f0fdf4; border-color: #bbf7d0; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.05); }
-                    .room-tile.terisi.not-started { background: #fffbeb; border-color: #fde68a; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.04); }
-                    .room-tile.kosong { background: #fff1f2; border-color: #fecdd3; opacity: 0.8; }
-                    .room-tile:hover { transform: scale(1.02); }
-                    
-                    .room-top { display: flex; justify-content: space-between; align-items: center; }
-                    .room-name { font-weight: 800; font-size: 12px; color: #1e293b; }
-                    .btn-delete-room { color: #94a3b8; background: none; border: none; cursor: pointer; padding: 0; transition: color 0.2s; display: flex; align-items: center; }
-                    .btn-delete-room:hover { color: #ef4444; }
+                    .room-tile { min-width: 0; border-radius: 14px; border: 2px solid #e2e8f0; padding: 10px 10px 8px; display: flex; flex-direction: column; gap: 6px; transition: all 0.25s; background: white; position: relative; overflow: hidden; }
+                    .room-tile::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: #e2e8f0; }
+                    .room-tile.terisi { background: linear-gradient(160deg, #ecfdf5 0%, #ffffff 80%); border-color: #34d399; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.18); }
+                    .room-tile.terisi::before { background: linear-gradient(90deg, #059669, #34d399, #6ee7b7); }
+                    .room-tile.terisi.not-started { background: linear-gradient(160deg, #fffbeb 0%, #ffffff 80%); border-color: #fbbf24; box-shadow: 0 4px 20px rgba(245, 158, 11, 0.2); }
+                    .room-tile.terisi.not-started::before { background: linear-gradient(90deg, #d97706, #f59e0b, #fcd34d); }
+
+                    /* ── Elegant Pink – KOSONG ── */
+                    .room-tile.kosong { background: linear-gradient(145deg, #fce7f3 0%, #fdf2f8 45%, #fff0f7 100%); border: 2px solid #f9a8d4; box-shadow: 0 6px 24px rgba(219, 39, 119, 0.18), 0 1px 4px rgba(219, 39, 119, 0.08); }
+                    .room-tile.kosong::before { background: linear-gradient(90deg, #9d174d, #be185d, #db2777, #ec4899, #f9a8d4); height: 5px; }
+                    .room-tile.kosong:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(219, 39, 119, 0.28); }
+                    .room-tile.kosong .room-name { color: #9d174d; }
+                    .room-tile.kosong .room-footer { border-top: 1px solid rgba(219,39,119,0.15); color: #be185d; }
+
+                    .room-tile:not(.kosong):hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,0.14); }
+
+                    .room-top { display: flex; justify-content: space-between; align-items: center; margin-top: 2px; }
+                    .room-name { font-weight: 900; font-size: 13px; color: #1e293b; letter-spacing: -0.2px; }
+                    .btn-edit-room { color: #3b82f6; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; cursor: pointer; padding: 3px 5px; transition: all 0.18s; display: flex; align-items: center; }
+                    .btn-edit-room:hover { color: #1d4ed8; background: #dbeafe; border-color: #93c5fd; transform: scale(1.08); }
+                    .btn-delete-room { color: #ef4444; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; padding: 3px 5px; transition: all 0.18s; display: flex; align-items: center; }
+                    .btn-delete-room:hover { color: #dc2626; background: #fee2e2; border-color: #fca5a5; transform: scale(1.08); }
+
+                    /* KOSONG card — harmonized rose-pink for edit, warm-red for delete */
+                    .room-tile.kosong .btn-edit-room { color: #be185d; background: rgba(252,231,243,0.9); border-color: #f9a8d4; }
+                    .room-tile.kosong .btn-edit-room:hover { color: #9d174d; background: #fce7f3; border-color: #f472b6; transform: scale(1.08); }
+                    .room-tile.kosong .btn-delete-room { color: #e11d48; background: rgba(255,241,242,0.9); border-color: #fda4af; }
+                    .room-tile.kosong .btn-delete-room:hover { color: #be123c; background: #ffe4e6; border-color: #fb7185; transform: scale(1.08); }
                     
                     .room-middle { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; }
-                    .empty-label { color: #f43f5e; font-weight: 900; font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; }
+                    .empty-label { color: #9d174d; font-weight: 900; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; padding: 5px 14px; background: linear-gradient(90deg, #fda4af, #f9a8d4, #fbcfe8); border-radius: 20px; border: none; display: inline-block; box-shadow: 0 2px 10px rgba(219,39,119,0.28), inset 0 1px 0 rgba(255,255,255,0.5); }
                     
                     .occupied-pair { display: flex; flex-direction: column; gap: 5px; width: 100%; }
                     .pair-member { display: flex; align-items: center; gap: 6px; justify-content: center; min-width: 0; }
@@ -2220,9 +2413,10 @@ export default function RomanticRoomPage() {
                     .btn-undo-room:hover { background: #475569; transform: scale(1.05); }
                     
                     .room-footer { border-top: 1px solid rgba(0,0,0,0.05); padding-top: 6px; display: flex; align-items: center; gap: 6px; font-size: 9px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-top: auto; }
-                    .status-dot { width: 6px; height: 6px; border-radius: 50%; }
-                    .status-dot.kosong { background: #f43f5e; box-shadow: 0 0 6px rgba(244, 63, 94, 0.4); }
-                    .status-dot.terisi { background: #22c55e; box-shadow: 0 0 6px rgba(34, 197, 94, 0.4); }
+                    .status-dot { width: 7px; height: 7px; border-radius: 50%; }
+                    .status-dot.kosong { background: #ec4899; box-shadow: 0 0 8px rgba(236, 72, 153, 0.6); animation: pulseDot 2s ease-in-out infinite; }
+                    .status-dot.terisi { background: #22c55e; box-shadow: 0 0 8px rgba(34, 197, 94, 0.6); }
+                    @keyframes pulseDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
                     .history-box { grid-column: span 2; margin-top: 10px; }
                     .history-table { width: 100%; border-collapse: separate; border-spacing: 0; }

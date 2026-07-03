@@ -41,23 +41,37 @@ export async function PATCH(
       return NextResponse.json({ success: true });
     }
 
-    const { hasilPengirim, hasilPenerima, roomId } = body;
+    const { hasilPengirim, hasilPenerima, roomId, assignedCallerId, assignedCaller2Id, assignedGuardId } = body;
 
-    const valid = ["Lanjut", "Ragu-ragu", "Tidak Lanjut"];
-    if (!valid.includes(hasilPengirim) || !valid.includes(hasilPenerima)) {
-      return NextResponse.json({ error: "Nilai hasil tidak valid" }, { status: 400 });
+    const valid = ["Lanjut", "Ragu-ragu", "Tidak Lanjut", "Menunggu"];
+    if (hasilPengirim && !valid.includes(hasilPengirim)) {
+      return NextResponse.json({ error: "Nilai hasil pemilih tidak valid" }, { status: 400 });
+    }
+    if (hasilPenerima && !valid.includes(hasilPenerima)) {
+      return NextResponse.json({ error: "Nilai hasil terpilih tidak valid" }, { status: 400 });
     }
 
-    await db.update(mandiriPemilihan)
-      .set({ hasilPengirim, hasilPenerima })
-      .where(eq(mandiriPemilihan.id, params.pemilihanId));
+    const pemilihanUpdate: any = {};
+    if (hasilPengirim !== undefined) pemilihanUpdate.hasilPengirim = hasilPengirim === "Menunggu" ? null : hasilPengirim;
+    if (hasilPenerima !== undefined) pemilihanUpdate.hasilPenerima = hasilPenerima === "Menunggu" ? null : hasilPenerima;
+    if (assignedCallerId !== undefined) pemilihanUpdate.assignedCallerId = assignedCallerId || null;
+    if (assignedCaller2Id !== undefined) pemilihanUpdate.assignedCaller2Id = assignedCaller2Id || null;
+    if (assignedGuardId !== undefined) pemilihanUpdate.assignedGuardId = assignedGuardId || null;
+
+    if (Object.keys(pemilihanUpdate).length > 0) {
+      await db.update(mandiriPemilihan)
+        .set(pemilihanUpdate)
+        .where(eq(mandiriPemilihan.id, params.pemilihanId));
+    }
 
     // Clean up matched participants if both chose 'Lanjut'
-    try {
-      const { handleMatchCleanup } = await import("@/lib/matchCleanup");
-      await handleMatchCleanup(params.pemilihanId);
-    } catch (cleanupErr) {
-      console.error("Failed to run match cleanup in kunjungan:", cleanupErr);
+    if (hasilPengirim === "Lanjut" && hasilPenerima === "Lanjut") {
+      try {
+        const { handleMatchCleanup } = await import("@/lib/matchCleanup");
+        await handleMatchCleanup(params.pemilihanId);
+      } catch (cleanupErr) {
+        console.error("Failed to run match cleanup in kunjungan:", cleanupErr);
+      }
     }
 
     if (roomId) {
