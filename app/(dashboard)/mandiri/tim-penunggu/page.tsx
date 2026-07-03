@@ -361,12 +361,6 @@ export default function TimPenungguOperatorPage() {
             room.penerimaNo?.toLowerCase().includes(query)
         );
     }).sort((a, b) => {
-        const aIsMine = a.assignedCallerId === myId || a.assignedGuardId === myId;
-        const bIsMine = b.assignedCallerId === myId || b.assignedGuardId === myId;
-        
-        if (aIsMine && !bIsMine) return -1;
-        if (!aIsMine && bIsMine) return 1;
-        
         return a.nama.localeCompare(b.nama, undefined, { numeric: true, sensitivity: 'base' });
     });
 
@@ -435,14 +429,10 @@ export default function TimPenungguOperatorPage() {
                             <div className="empty-state">Tidak ada ruangan ditemukan</div>
                         ) : (
                             filteredRooms.map((room) => (
-                                <div key={room.id} className={`room-tile ${room.status?.toLowerCase()} ${room.status === "Terisi" && !room.startedAt ? "not-started" : ""} ${room.assignedGuardId === myId || room.assignedCallerId === myId ? "my-assigned-room" : ""}`} onClick={() => setSelectedRoom(room)} style={{ cursor: "pointer" }}>
+                                <div key={room.id} className={`room-tile ${room.status?.toLowerCase()} ${room.status === "Terisi" && !room.startedAt ? "not-started" : ""}`} onClick={() => setSelectedRoom(room)} style={{ cursor: "pointer" }}>
                                     <div className="room-top">
                                         <span className="room-name">{room.nama}</span>
-                                        {(room.assignedGuardId === myId || room.assignedCallerId === myId) && (
-                                            <span className="my-task-badge" style={{ backgroundColor: room.assignedGuardId === myId ? '#10b981' : '#3b82f6', color: 'white', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '4px' }}>
-                                                {room.assignedGuardId === myId ? 'Penunggu' : 'Pemanggil'}
-                                            </span>
-                                        )}
+
                                         {room.status === "Terisi" && room.startedAt && (
                                             <RoomTimer startTime={room.startedAt} />
                                         )}
@@ -465,60 +455,31 @@ export default function TimPenungguOperatorPage() {
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '6px', fontSize: '10px', width: '100%', padding: '4px 0', borderTop: '1px dashed #f1f5f9' }}>
                                                     {room.assignedCallerNama && (
                                                         <div style={{ color: '#2563eb', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                            📢 <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>Pemanggil: {room.assignedCallerNama} {room.assignedCallerId === myId ? '(Anda)' : ''}</span>
+                                                            📢 <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>Pemanggil: {room.assignedCallerNama}</span>
                                                         </div>
                                                     )}
                                                     {room.assignedGuardNama && (
                                                         <div style={{ color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                            🚪 <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>Penunggu: {room.assignedGuardNama} {room.assignedGuardId === myId ? '(Anda)' : ''}</span>
+                                                            🚪 <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>Penunggu: {room.assignedGuardNama}</span>
                                                         </div>
                                                     )}
                                                 </div>
 
                                                 <div className="action-row">
-                                                    {room.assignedGuardId === myId ? (
-                                                        room.startedAt ? (
-                                                            <button 
-                                                                className="btn-clear" 
-                                                                onClick={(e) => { e.stopPropagation(); handleClearRoom(room.id); }}
-                                                            >
-                                                                <LogOut size={12} /> Selesaikan Sesi
-                                                            </button>
-                                                        ) : (
-                                                            <button 
-                                                                className="btn-start-timer" 
-                                                                onClick={(e) => { e.stopPropagation(); handleStartRoom(room.id); }}
-                                                            >
-                                                                <Timer size={12} fill="white" /> Mulai Sesi
-                                                            </button>
-                                                        )
-                                                    ) : room.assignedCallerId === myId ? (
-                                                        <div className="non-assigned-companion" style={{
-                                                            fontSize: '11px',
-                                                            color: '#2563eb',
-                                                            textAlign: 'center',
-                                                            width: '100%',
-                                                            padding: '6px',
-                                                            background: '#eff6ff',
-                                                            borderRadius: '6px',
-                                                            border: '1px solid #bfdbfe',
-                                                            fontWeight: '600'
-                                                        }}>
-                                                            Tugas Anda: Pemanggil
-                                                        </div>
+                                                    {room.startedAt ? (
+                                                        <button 
+                                                            className="btn-clear" 
+                                                            onClick={(e) => { e.stopPropagation(); handleClearRoom(room.id); }}
+                                                        >
+                                                            <LogOut size={12} /> Selesaikan Sesi
+                                                        </button>
                                                     ) : (
-                                                        <div className="non-assigned-companion" style={{
-                                                            fontSize: '11px',
-                                                            color: '#94a3b8',
-                                                            textAlign: 'center',
-                                                            width: '100%',
-                                                            padding: '6px',
-                                                            background: '#f8fafc',
-                                                            borderRadius: '6px',
-                                                            border: '1px solid #cbd5e1'
-                                                        }}>
-                                                            Bukan Ruangan Anda
-                                                        </div>
+                                                        <button 
+                                                            className="btn-start-timer" 
+                                                            onClick={(e) => { e.stopPropagation(); handleStartRoom(room.id); }}
+                                                        >
+                                                            <Timer size={12} fill="white" /> Mulai Sesi
+                                                        </button>
                                                     )}
                                                 </div>
                                             </div>
@@ -609,8 +570,8 @@ export default function TimPenungguOperatorPage() {
                                                 <span style={{ fontSize: "14px" }}>📢</span>
                                                 <div>
                                                     <div style={{ fontSize: "10px", color: "#64748b", fontWeight: 600 }}>Pemanggil</div>
-                                                    <div style={{ fontSize: "13px", fontWeight: 700, color: selectedRoom.assignedCallerId === myId ? "#2563eb" : "#0f172a" }}>
-                                                        {selectedRoom.assignedCallerNama} {selectedRoom.assignedCallerId === myId ? "(Anda)" : ""}
+                                                    <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>
+                                                        {selectedRoom.assignedCallerNama}
                                                     </div>
                                                 </div>
                                             </div>
@@ -620,8 +581,8 @@ export default function TimPenungguOperatorPage() {
                                                 <span style={{ fontSize: "14px" }}>🚪</span>
                                                 <div>
                                                     <div style={{ fontSize: "10px", color: "#64748b", fontWeight: 600 }}>Penunggu</div>
-                                                    <div style={{ fontSize: "13px", fontWeight: 700, color: selectedRoom.assignedGuardId === myId ? "#059669" : "#0f172a" }}>
-                                                        {selectedRoom.assignedGuardNama} {selectedRoom.assignedGuardId === myId ? "(Anda)" : ""}
+                                                    <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>
+                                                        {selectedRoom.assignedGuardNama}
                                                     </div>
                                                 </div>
                                             </div>
@@ -629,39 +590,28 @@ export default function TimPenungguOperatorPage() {
                                     </div>
                                 )}
 
-                                {/* Action buttons — only for assigned guard */}
-                                {selectedRoom.assignedGuardId === myId && (
-                                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                                        {!selectedRoom.startedAt ? (
-                                            <button onClick={() => { setSelectedRoom(null); handleStartRoom(selectedRoom.id); }} style={{
-                                                background: "linear-gradient(135deg,#d97706,#b45309)", color: "white", border: "none",
-                                                borderRadius: "10px", padding: "12px", fontSize: "13px", fontWeight: 800,
-                                                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
-                                                boxShadow: "0 4px 12px rgba(217,119,6,0.3)"
-                                            }}>
-                                                <Timer size={14} fill="white" /> Mulai Sesi
-                                            </button>
-                                        ) : (
-                                            <button onClick={() => { setSelectedRoom(null); handleClearRoom(selectedRoom.id); }} style={{
-                                                background: "linear-gradient(135deg,#166534,#14532d)", color: "white", border: "none",
-                                                borderRadius: "10px", padding: "12px", fontSize: "13px", fontWeight: 800,
-                                                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
-                                                boxShadow: "0 4px 12px rgba(22,101,52,0.3)"
-                                            }}>
-                                                <LogOut size={14} /> Selesaikan Sesi
-                                            </button>
-                                        )}
-
-                                    </div>
-                                )}
-                                {selectedRoom.assignedCallerId === myId && (
-                                    <div style={{
-                                        background: "#eff6ff", borderRadius: "10px", padding: "12px", textAlign: "center",
-                                        color: "#2563eb", fontWeight: 700, fontSize: "13px", border: "1px solid #bfdbfe"
-                                    }}>
-                                        📢 Tugas Anda: Pemanggil — Tunggu instruksi Penunggu
-                                    </div>
-                                )}
+                                {/* Action buttons */}
+                                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                                    {!selectedRoom.startedAt ? (
+                                        <button onClick={() => { setSelectedRoom(null); handleStartRoom(selectedRoom.id); }} style={{
+                                            background: "linear-gradient(135deg,#d97706,#b45309)", color: "white", border: "none",
+                                            borderRadius: "10px", padding: "12px", fontSize: "13px", fontWeight: 800,
+                                            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                                            boxShadow: "0 4px 12px rgba(217,119,6,0.3)"
+                                        }}>
+                                            <Timer size={14} fill="white" /> Mulai Sesi
+                                        </button>
+                                    ) : (
+                                        <button onClick={() => { setSelectedRoom(null); handleClearRoom(selectedRoom.id); }} style={{
+                                            background: "linear-gradient(135deg,#166534,#14532d)", color: "white", border: "none",
+                                            borderRadius: "10px", padding: "12px", fontSize: "13px", fontWeight: 800,
+                                            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                                            boxShadow: "0 4px 12px rgba(22,101,52,0.3)"
+                                        }}>
+                                            <LogOut size={14} /> Selesaikan Sesi
+                                        </button>
+                                    )}
+                                </div>
                             </>
                         ) : (
                             <div style={{ textAlign: "center", padding: "30px 0", color: "#94a3b8" }}>
