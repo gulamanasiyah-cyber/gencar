@@ -302,11 +302,7 @@ export default function MandiriDesaTreePage() {
             <h2 style={{ fontSize: "24px", fontWeight: 700, color: "#0f172a", marginBottom: "6px" }}>Kelola Wilayah & Kelompok (Tree View)</h2>
             <p style={{ color: "#64748b", fontSize: "14px" }}>Kelola daerah rujukan, desa, dan kelompok peserta dalam satu peta hirarki struktur</p>
           </div>
-<<<<<<< HEAD
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-=======
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
->>>>>>> 2974e76d7d7472f2ccd8d3352d381c7b2682f134
             <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#f8fafc", padding: "10px 14px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
               <span style={{ fontSize: "14px", fontWeight: 600, color: "#475569" }}>Filter Kegiatan:</span>
               <select
@@ -332,7 +328,6 @@ export default function MandiriDesaTreePage() {
               </select>
             </div>
             <button
-<<<<<<< HEAD
               onClick={handleShowAllLinks}
               style={{
                 display: "flex", alignItems: "center", gap: "6px",
@@ -341,24 +336,11 @@ export default function MandiriDesaTreePage() {
                 color: "#475569", fontSize: "14px", fontWeight: 600,
                 cursor: "pointer", transition: "all 0.2s",
                 boxShadow: "0 1px 3px rgba(0,0,0,0.06)"
-=======
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => {
-                const url = `${window.location.origin}/mandiri/daftar-wilayah`;
-                navigator.clipboard.writeText(url);
-                Swal.fire({ icon: "success", title: "Link Disalin!", text: "Link pendaftaran daerah, desa & kelompok berhasil disalin ke clipboard.", timer: 1500, showConfirmButton: false });
->>>>>>> 2974e76d7d7472f2ccd8d3352d381c7b2682f134
               }}
               onMouseEnter={e => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.color = '#6366f1'; }}
               onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#475569'; }}
             >
-<<<<<<< HEAD
               <Link2 size={15} /> Link Pendaftaran
-=======
-              <Link2 size={16} />
-              Link Pendaftaran
->>>>>>> 2974e76d7d7472f2ccd8d3352d381c7b2682f134
             </button>
           </div>
         </div>
