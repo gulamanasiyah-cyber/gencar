@@ -270,6 +270,54 @@ export default function AdminTimGambuhPage() {
     }
   };
 
+  const handleDeleteAll = async () => {
+    if (members.length === 0) {
+      Swal.fire({
+        icon: "info",
+        title: "Info",
+        text: "Tidak ada data untuk dihapus",
+      });
+      return;
+    }
+
+    const confirm = await Swal.fire({
+      title: "Hapus Semua Data?",
+      text: "Apakah Anda yakin ingin menghapus SEMUA data Tim Gambuh pada kegiatan aktif ini? Tindakan ini tidak dapat dibatalkan.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#64748b",
+      confirmButtonText: "Ya, Hapus Semua!",
+      cancelButtonText: "Batal",
+    });
+
+    if (confirm.isConfirmed) {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/admin/tim-gambuh?action=deleteAll`, { method: "DELETE" });
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "Gagal menghapus semua data");
+        }
+
+        Swal.fire({
+          icon: "success",
+          title: "Terhapus",
+          text: "Semua data Tim Gambuh berhasil dihapus",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+
+        fetchData();
+      } catch (err: any) {
+        Swal.fire({ icon: "error", title: "Error", text: err.message });
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
   const handleCopyLink = () => {
     const link = `${window.location.origin}/mandiri/daftar-tim-gambuh`;
     navigator.clipboard.writeText(link).then(() => {
@@ -304,6 +352,13 @@ export default function AdminTimGambuhPage() {
             <p>Tambah dan kelola anggota Tim PNKB & Gambuh untuk kegiatan aktif</p>
           </div>
           <div style={{ display: "flex", gap: "10px" }}>
+            <button 
+              onClick={handleDeleteAll} 
+              className="btn btn-outline" 
+              style={{ display: "flex", alignItems: "center", gap: "8px", margin: 0, color: "#ef4444", borderColor: "#fecaca" }}
+            >
+              <Trash2 size={16} /> Hapus Semua Data
+            </button>
             <button 
               onClick={handleCopyLink} 
               className="btn btn-outline" 

@@ -86,3 +86,34 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Gagal menyimpan data" }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getSession();
+    if (!session || !["admin", "pengurus_daerah", "kmm_daerah", "admin_romantic_room", "tim_pnkb_gambuh"].includes(session.role)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const searchParams = request.nextUrl.searchParams;
+    const action = searchParams.get("action");
+
+    if (action === "deleteAll") {
+      // Get active kegiatanId
+      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+      const kegiatanId = activeSetting[0]?.value || "";
+
+      if (!kegiatanId) {
+        return NextResponse.json({ error: "Tidak ada kegiatan mandiri yang sedang aktif" }, { status: 400 });
+      }
+
+      await db.delete(timGambuh).where(eq(timGambuh.kegiatanId, kegiatanId));
+
+      return NextResponse.json({ success: true });
+    }
+
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+  } catch (error) {
+    console.error("DELETE tim-gambuh error:", error);
+    return NextResponse.json({ error: "Gagal menghapus data" }, { status: 500 });
+  }
+}
