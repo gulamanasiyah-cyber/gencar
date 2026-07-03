@@ -6,18 +6,25 @@ import Topbar from "@/components/Topbar";
 
 import { useState, useEffect, useCallback } from "react";
 import Swal from "sweetalert2";
+import * as XLSX from "xlsx";
 
 interface MandiriItem {
    id: string;
    nomorUrut?: number;
    statusMandiri: string;
+   statusPeserta?: string;
+   dibayarkanSenilai?: number | null;
+   buktiPembayaran?: string | null;
    catatan: string;
    generusId: string;
    nama: string;
    jenisKelamin: string;
    kategoriUsia: string;
+   tanggalLahir?: string | null;
+   pekerjaan?: string | null;
    desaNama: string;
    desaKota: string;
+   kelompokNama?: string;
    noTelp: string;
    foto: string;
    createdAt: string;
@@ -28,6 +35,17 @@ interface MandiriItem {
 }
 
 interface KegiatanOption { id: string; judul: string; kota: string; }
+
+function hitungUmur(tanggalLahir?: string | null): string {
+   if (!tanggalLahir) return "-";
+   const lahir = new Date(tanggalLahir);
+   if (isNaN(lahir.getTime())) return "-";
+   const now = new Date();
+   let umur = now.getFullYear() - lahir.getFullYear();
+   const belumUlangTahun = now.getMonth() < lahir.getMonth() || (now.getMonth() === lahir.getMonth() && now.getDate() < lahir.getDate());
+   if (belumUlangTahun) umur--;
+   return `${umur} th`;
+}
 
 export default function MandiriPage() {
    const [data, setData] = useState<MandiriItem[]>([]);
@@ -40,6 +58,7 @@ export default function MandiriPage() {
    const [regStatus, setRegStatus] = useState("1");
    const [regTitle, setRegTitle] = useState("");
    const [regDesc, setRegDesc] = useState("");
+   const [regStatusPeserta, setRegStatusPeserta] = useState("Utusan Daerah");
    const [isClosed, setIsClosed] = useState(false);
    const [kegiatanList, setKegiatanList] = useState<KegiatanOption[]>([]);
    const [selectedKegiatanId, setSelectedKegiatanId] = useState("");
@@ -61,6 +80,7 @@ export default function MandiriPage() {
             setIsClosed(statusVal === "0");
             setRegTitle(s.mandiri_registration_title || "");
             setRegDesc(s.mandiri_registration_description || "");
+            setRegStatusPeserta(s.mandiri_registration_status_peserta || "Utusan Daerah");
 
             const kList = await kegiatanRes.json();
             if (Array.isArray(kList)) {
@@ -109,9 +129,14 @@ export default function MandiriPage() {
           <label class="form-label">Deskripsi Kegiatan</label>
           <textarea id="swal-desc" class="form-control" rows="3" placeholder="Contoh: Diikuti oleh seluruh usia mandiri..." style="margin-bottom: 12px">${regDesc}</textarea>
           <label class="form-label">Status Pendaftaran</label>
-          <select id="swal-status" class="form-control">
+          <select id="swal-status" class="form-control" style="margin-bottom: 12px">
             <option value="1" ${regStatus === "1" ? "selected" : ""}>Buka (Open)</option>
             <option value="0" ${regStatus === "0" ? "selected" : ""}>Tutup (Closed)</option>
+          </select>
+          <label class="form-label">Status Peserta</label>
+          <select id="swal-status-peserta" class="form-control">
+            <option value="Utusan Daerah" ${regStatusPeserta === "Utusan Daerah" ? "selected" : ""}>Utusan Daerah</option>
+            <option value="Person" ${regStatusPeserta === "Person" ? "selected" : ""}>Person</option>
           </select>
         </div>
       `,
@@ -128,6 +153,7 @@ export default function MandiriPage() {
                title: titleText,
                desc: (document.getElementById("swal-desc") as HTMLTextAreaElement).value,
                status: (document.getElementById("swal-status") as HTMLSelectElement).value,
+               statusPeserta: (document.getElementById("swal-status-peserta") as HTMLSelectElement).value,
             };
          },
          footer: "Nama & deskripsi akan muncul di form publik"
@@ -150,6 +176,11 @@ export default function MandiriPage() {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ key: "mandiri_registration_status", value: formValues.status }),
+               }),
+               fetch("/api/mandiri/settings", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ key: "mandiri_registration_status_peserta", value: formValues.statusPeserta }),
                })
             ];
 
@@ -169,6 +200,7 @@ export default function MandiriPage() {
             setRegTitle(formValues.title);
             setRegDesc(formValues.desc);
             setRegStatus(formValues.status);
+            setRegStatusPeserta(formValues.statusPeserta);
             setIsClosed(formValues.status === "0");
             if (formValues.id) setSelectedKegiatanId(formValues.id);
             Swal.fire({ icon: "success", title: "Berhasil disimpan", timer: 1000, showConfirmButton: false });
@@ -212,7 +244,7 @@ export default function MandiriPage() {
 
    const handleUpdate = async (item: MandiriItem) => {
       const { value: formValues } = await Swal.fire({
-         title: "Update Status Mandiri",
+         title: "Update Status Akun",
          html: `
         <div style="text-align: left">
           <label class="form-label">Status</label>
@@ -277,10 +309,52 @@ export default function MandiriPage() {
       }
    };
 
+   const handleExportExcel = async () => {
+      try {
+         const params = new URLSearchParams({ search, sort, page: "1", limit: "9999" });
+         if (selectedKegiatanId) params.set("kegiatanId", selectedKegiatanId);
+         const res = await fetch(`/api/mandiri?${params}`);
+         const json = await res.json();
+         const rows: MandiriItem[] = Array.isArray(json.data) ? json.data : [];
+
+         if (rows.length === 0) {
+            Swal.fire({ icon: "warning", title: "Tidak Ada Data", text: "Tidak ada data peserta untuk diekspor." });
+            return;
+         }
+
+         const exportData = rows.map((item) => ({
+            "No. Peserta": item.nomorUrut ?? "-",
+            "No. Unik": item.nomorUnik,
+            "Nama": item.nama,
+            "JK": item.jenisKelamin === "L" ? "Laki-laki" : "Perempuan",
+            "Umur": hitungUmur(item.tanggalLahir),
+            "Pekerjaan": item.pekerjaan || "-",
+            "Daerah": item.desaKota,
+            "Desa": item.desaNama,
+            "Kelompok": item.kelompokNama && item.kelompokNama !== "N/A" ? item.kelompokNama : "-",
+            "Kehadiran": item.keterangan === "pulang" ? "Pulang" : item.isHadir === 1 ? "Hadir" : "Belum Hadir",
+            "Status Akun": item.statusMandiri,
+            "Status Peserta": item.statusPeserta || "Utusan Daerah",
+            "Dibayarkan Senilai": item.statusPeserta === "Person"
+               ? (item.dibayarkanSenilai ? `Rp ${Number(item.dibayarkanSenilai).toLocaleString("id-ID")}` : "-")
+               : "Gratis",
+            "Catatan": item.catatan || "-",
+         }));
+
+         const ws = XLSX.utils.json_to_sheet(exportData);
+         const wb = XLSX.utils.book_new();
+         XLSX.utils.book_append_sheet(wb, ws, "Peserta Mandiri");
+         const namaKegiatan = (regTitle || "Peserta_Mandiri").replace(/\s+/g, "_");
+         const tanggal = new Date().toISOString().slice(0, 10);
+         XLSX.writeFile(wb, `${namaKegiatan}_${tanggal}.xlsx`);
+      } catch (e) {
+         Swal.fire({ icon: "error", title: "Gagal", text: "Gagal mengekspor data ke Excel." });
+      }
+   };
 
    return (
       <div style={{ display: "flex", minHeight: "calc(100vh - 64px)" }}>
-         <div style={{ flex: 1, position: "relative" }}>
+         <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
             <Topbar title={regTitle || "Usia Mandiri / Persiapan Nikah"} role={userRole} />
 
             <div className="page-content">
@@ -307,7 +381,7 @@ export default function MandiriPage() {
                      <h2>{regTitle || "Pengelolaan Peserta Mandiri"}</h2>
                      <p>Kelola data muda-mudi yang memasuki usia mandiri / persiapan nikah</p>
                   </div>
-                  <div style={{ display: "flex", gap: "10px" }}>
+                  <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                      <button
                         className={`btn ${regStatus === "1" ? 'btn-success' : 'btn-danger'}`}
                         onClick={handleSettings}
@@ -332,6 +406,18 @@ export default function MandiriPage() {
                         </svg>
                         Bagikan Link
                      </button>
+                     {userRole === "admin_romantic_room" && (
+                        <button
+                           className="btn btn-secondary"
+                           onClick={handleExportExcel}
+                           title="Export Data Peserta ke Excel"
+                        >
+                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16 }}>
+                              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                           </svg>
+                           Export Excel
+                        </button>
+                     )}
                   </div>
                </div>
 
@@ -402,10 +488,15 @@ export default function MandiriPage() {
                                        <th>Foto</th>
                                        <th>Nama</th>
                                        <th>JK</th>
-                                       <th>Kategori</th>
+                                       <th>Umur</th>
+                                       <th>Pekerjaan</th>
                                        <th>Daerah / Desa</th>
+                                       <th>Kelompok</th>
                                        <th style={{ textAlign: "center" }}>Kehadiran</th>
-                                       <th>Status Mandiri</th>
+                                       <th>Status Akun</th>
+                                       <th>Status Peserta</th>
+                                       <th>Dibayarkan Senilai</th>
+                                       <th>Foto Bukti Bayar</th>
                                        <th>Catatan</th>
                                        <th>Aksi</th>
                                     </tr>
@@ -443,9 +534,13 @@ export default function MandiriPage() {
                                           </td>
                                           <td data-label="Nama" style={{ fontWeight: 500 }}>{item.nama}</td>
                                           <td data-label="JK">{item.jenisKelamin}</td>
-                                          <td data-label="Kategori">{item.kategoriUsia}</td>
+                                          <td data-label="Umur">{hitungUmur(item.tanggalLahir)}</td>
+                                          <td data-label="Pekerjaan">{item.pekerjaan || "-"}</td>
                                           <td data-label="Daerah / Desa" style={{ fontSize: 12, opacity: 0.8 }}>
                                              {item.desaKota} / {item.desaNama}
+                                          </td>
+                                          <td data-label="Kelompok" style={{ fontSize: 12, opacity: 0.8 }}>
+                                             {item.kelompokNama && item.kelompokNama !== "N/A" ? item.kelompokNama : "-"}
                                           </td>
                                           <td data-label="Kehadiran" style={{ textAlign: "center" }}>
                                              {item.keterangan === "pulang" ? (
@@ -463,13 +558,44 @@ export default function MandiriPage() {
                                                 <span className="badge badge-gray">Belum Hadir</span>
                                              )}
                                           </td>
-                                          <td data-label="Status Mandiri">
+                                          <td data-label="Status Akun">
                                              <span className={`badge ${item.statusMandiri === "Aktif" ? "badge-blue" : "badge-gray"}`}>
                                                 {item.statusMandiri}
                                              </span>
                                           </td>
+                                          <td data-label="Status Peserta">
+                                             <span className={`badge ${item.statusPeserta === "Person" ? "badge-purple" : "badge-blue"}`}>
+                                                {item.statusPeserta || "Utusan Daerah"}
+                                             </span>
+                                          </td>
+                                          <td data-label="Dibayarkan Senilai">
+                                             {item.statusPeserta !== "Person" ? (
+                                                <span className="badge badge-green">Gratis</span>
+                                             ) : item.dibayarkanSenilai ? (
+                                                <span style={{ fontWeight: 600, color: "#166534" }}>
+                                                   Rp {Number(item.dibayarkanSenilai).toLocaleString("id-ID")}
+                                                </span>
+                                             ) : (
+                                                <span style={{ color: "#94a3b8", fontSize: 12 }}>-</span>
+                                             )}
+                                          </td>
+                                          <td data-label="Foto Bukti Bayar">
+                                             {item.statusPeserta !== "Person" ? (
+                                                <span className="badge badge-green">Gratis</span>
+                                             ) : item.buktiPembayaran ? (
+                                                <a href={item.buktiPembayaran} target="_blank" rel="noopener noreferrer" title="Lihat bukti pembayaran ukuran penuh">
+                                                   <img
+                                                      src={item.buktiPembayaran}
+                                                      alt="Bukti Pembayaran"
+                                                      style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", border: "1px solid #e2e8f0" }}
+                                                   />
+                                                </a>
+                                             ) : (
+                                                <span style={{ color: "#94a3b8", fontSize: 12 }}>-</span>
+                                             )}
+                                          </td>
                                           <td data-label="Catatan" style={{ fontSize: 12, maxWidth: "150px", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-                                             {item.catatan || "-"}
+                                             {item.catatan || "gratis"}
                                           </td>
                                           <td data-label="Aksi">
                                              <div className="flex gap-2">
@@ -521,7 +647,7 @@ export default function MandiriPage() {
                                              <span className={`gender-badge ${item.jenisKelamin === 'L' ? 'male' : 'female'}`}>
                                                 {item.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan'}
                                              </span>
-                                             <span className="category-badge">{item.kategoriUsia}</span>
+                                             <span className="category-badge">{hitungUmur(item.tanggalLahir)}</span>
                                           </div>
                                        </div>
                                     </div>
@@ -531,10 +657,18 @@ export default function MandiriPage() {
                                           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
                                           <circle cx="12" cy="10" r="3" />
                                        </svg>
-                                       <span className="location-text">{item.desaKota} / {item.desaNama}</span>
+                                       <span className="location-text">
+                                          {item.desaKota} / {item.desaNama}
+                                          {item.kelompokNama && item.kelompokNama !== "N/A" ? ` / ${item.kelompokNama}` : ""}
+                                       </span>
                                     </div>
 
                                     <div className="status-row">
+                                       <div className="status-item">
+                                          <span className="status-label">Pekerjaan</span>
+                                          <span style={{ fontSize: 12 }}>{item.pekerjaan || "-"}</span>
+                                       </div>
+
                                        <div className="status-item">
                                           <span className="status-label">Kehadiran</span>
                                           {item.keterangan === "pulang" ? (
@@ -554,10 +688,44 @@ export default function MandiriPage() {
                                        </div>
 
                                        <div className="status-item">
-                                          <span className="status-label">Status Mandiri</span>
+                                          <span className="status-label">Status Akun</span>
                                           <span className={`badge ${item.statusMandiri === "Aktif" ? "badge-blue" : "badge-gray"}`}>
                                              {item.statusMandiri}
                                           </span>
+                                       </div>
+                                       <div className="status-item">
+                                          <span className="status-label">Status Peserta</span>
+                                          <span className={`badge ${item.statusPeserta === "Person" ? "badge-purple" : "badge-blue"}`}>
+                                             {item.statusPeserta || "Utusan Daerah"}
+                                          </span>
+                                       </div>
+                                       <div className="status-item">
+                                          <span className="status-label">Dibayarkan Senilai</span>
+                                          {item.statusPeserta !== "Person" ? (
+                                             <span className="badge badge-green">Gratis</span>
+                                          ) : item.dibayarkanSenilai ? (
+                                             <span style={{ fontSize: 12, fontWeight: 600, color: "#166534" }}>
+                                                Rp {Number(item.dibayarkanSenilai).toLocaleString("id-ID")}
+                                             </span>
+                                          ) : (
+                                             <span style={{ color: "#94a3b8", fontSize: 12 }}>-</span>
+                                          )}
+                                       </div>
+                                       <div className="status-item">
+                                          <span className="status-label">Foto Bukti Bayar</span>
+                                          {item.statusPeserta !== "Person" ? (
+                                             <span className="badge badge-green">Gratis</span>
+                                          ) : item.buktiPembayaran ? (
+                                             <a href={item.buktiPembayaran} target="_blank" rel="noopener noreferrer" title="Lihat bukti pembayaran ukuran penuh">
+                                                <img
+                                                   src={item.buktiPembayaran}
+                                                   alt="Bukti Pembayaran"
+                                                   style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", border: "1px solid #e2e8f0" }}
+                                                />
+                                             </a>
+                                          ) : (
+                                             <span style={{ color: "#94a3b8", fontSize: 12 }}>-</span>
+                                          )}
                                        </div>
                                     </div>
 
@@ -634,6 +802,11 @@ export default function MandiriPage() {
          <style jsx>{`
             .desktop-only-table {
                display: block;
+               overflow-x: auto;
+               -webkit-overflow-scrolling: touch;
+            }
+            .desktop-only-table table {
+               min-width: 1500px;
             }
             .mobile-only-cards {
                display: none;
@@ -662,7 +835,7 @@ export default function MandiriPage() {
                z-index: 10;
                box-shadow: 0 1px 0 #e2e8f0;
             }
-            @media (max-width: 768px) {
+            @media (max-width: 1024px) {
                .desktop-only-table {
                   display: none;
                }

@@ -614,7 +614,7 @@ export default function AdminUsersPage() {
             <>
               {/* 🖥️ Desktop Table View */}
               <div className="table-wrapper desktop-only">
-                <table>
+                <table className="responsive-table">
                   <thead>
                     <tr>
                       <th>Nama</th>
@@ -628,9 +628,9 @@ export default function AdminUsersPage() {
                   <tbody>
                     {data.map((user) => (
                       <tr key={user.id}>
-                        <td style={{ fontWeight: 500 }}>{user.name}</td>
-                        <td className="text-muted">{user.email}</td>
-                        <td>
+                        <td data-label="Nama" style={{ fontWeight: 500 }}>{user.name}</td>
+                        <td data-label="Email" className="text-muted">{user.email}</td>
+                        <td data-label="Profil">
                           {["pengurus_daerah", "desa", "kelompok"].includes(user.role) ? (
                             <span className="text-gray-400" style={{ fontSize: 10 }}>-</span>
                           ) : (
@@ -650,12 +650,12 @@ export default function AdminUsersPage() {
                             </div>
                           )}
                         </td>
-                        <td>
+                        <td data-label="Role">
                           <span className={`badge ${roleColors[user.role] || "badge-gray"}`}>
                             {user.role}
                           </span>
                         </td>
-                        <td>
+                        <td data-label="Desa/Kelompok">
                           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                             {["desa", "kelompok", "creator", "generus", "usia_mandiri", "peserta", "tim_pnkb"].includes(user.role) ? (
                               <>
@@ -673,7 +673,7 @@ export default function AdminUsersPage() {
                             ) : "-"}
                           </div>
                         </td>
-                        <td>
+                        <td data-label="Aksi">
                           <div className="flex gap-2">
                             <select className="form-control" style={{ padding: "4px 8px", fontSize: 12, width: "auto" }} value={user.role} onChange={(e) => updateUser(user.id, { role: e.target.value })}>
                               <option value="generus">Generus</option>

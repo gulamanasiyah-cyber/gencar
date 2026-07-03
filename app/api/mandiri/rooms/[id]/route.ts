@@ -204,14 +204,21 @@ export async function PATCH(
                         occupiedRoomStaff.flatMap(r => [r.assignedCallerId, r.assignedCaller2Id, r.assignedGuardId].filter(Boolean) as string[])
                     );
 
-                    // Pick best candidate: prefer not busy, pick randomly among free
+                    // Pick best candidate: prefer not busy, pick randomly among free.
+                    // If the narrow pool is exhausted by exclusions (e.g. everyone in it
+                    // is already assigned to another role in this room), widen the search
+                    // to the full staff roster before ever reusing an excluded person —
+                    // only reuse someone as an absolute last resort when truly no one else exists.
                     const pickBest = (pool: typeof allStaff, excludeIds: Set<string> = new Set()): string | null => {
                         if (pool.length === 0) return null;
-                        const eligible = pool.filter(s => !excludeIds.has(s.id));
-                        if (eligible.length === 0) return pool[0]?.id ?? null;
-                        const free = eligible.filter(s => !busyIds.has(s.id));
-                        const candidates = free.length > 0 ? free : eligible;
-                        return candidates[Math.floor(Math.random() * candidates.length)].id;
+                        const pickFrom = (candidatesPool: typeof allStaff) => {
+                            const eligible = candidatesPool.filter(s => !excludeIds.has(s.id));
+                            if (eligible.length === 0) return null;
+                            const free = eligible.filter(s => !busyIds.has(s.id));
+                            const candidates = free.length > 0 ? free : eligible;
+                            return candidates[Math.floor(Math.random() * candidates.length)].id;
+                        };
+                        return pickFrom(pool) ?? pickFrom(allStaff) ?? pool[0]?.id ?? null;
                     };
 
                     // Normalise IDs to numbers to avoid type-mismatch (SQLite can return mixed types)
@@ -238,7 +245,7 @@ export async function PATCH(
                     const gambuhExact = gambuhStaff.filter(s => matchDesa(s, pnDesa, pnDaerah));
                     const gambuhDaerah = gambuhStaff.filter(s => matchDaerah(s, pnDaerah));
                     const caller2Pool = gambuhExact.length > 0 ? gambuhExact : gambuhDaerah.length > 0 ? gambuhDaerah : gambuhStaff;
-                    assignedCaller2Id = pickBest(caller2Pool);
+                    assignedCaller2Id = pickBest(caller2Pool, new Set([assignedCallerId].filter(Boolean) as string[]));
 
                     console.log(`[RoomAssign] pgDesa=${pgDesa} pgDaerah=${pgDaerah} pnDesa=${pnDesa} pnDaerah=${pnDaerah}`);
                     console.log(`[RoomAssign] pnkbExact=${pnkbExact.length} pnkbDaerah=${pnkbDaerah.length} gambuhExact=${gambuhExact.length} gambuhDaerah=${gambuhDaerah.length}`);

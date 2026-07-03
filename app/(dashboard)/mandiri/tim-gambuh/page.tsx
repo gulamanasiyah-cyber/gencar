@@ -3,11 +3,21 @@
 import Topbar from "@/components/Topbar";
 import { useState, useEffect, useCallback } from "react";
 import Swal from "sweetalert2";
-import { 
-    Timer, LogOut, Search, Undo2, RefreshCw, BookOpen
+import {
+    Timer, LogOut, Search, Undo2, RefreshCw, BookOpen, FileSpreadsheet
 } from "lucide-react";
 import { getPusherClient } from "@/lib/pusher-client";
 import Link from "next/link";
+import * as XLSX from "xlsx";
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+function formatWaktuIndonesia(value: any): string {
+    if (!value) return "-";
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return "-";
+    return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
 
 function RoomTimer({ startTime }: { startTime: string }) {
     const [timeLeft, setTimeLeft] = useState<string>("");
@@ -72,6 +82,10 @@ export default function TimGambuhOperatorPage() {
     const [myId, setMyId] = useState<string>("");
     const [myName, setMyName] = useState<string>("");
     const [selectedRoom, setSelectedRoom] = useState<any>(null);
+    const [visitHistory, setVisitHistory] = useState<any[]>([]);
+    const [queueData, setQueueData] = useState<any[]>([]);
+    const [reportSearch, setReportSearch] = useState("");
+    const [resultFilter, setResultFilter] = useState("Semua");
 
     const showSelectIdentityModal = useCallback(async (forced = false) => {
         Swal.fire({
@@ -206,16 +220,18 @@ export default function TimGambuhOperatorPage() {
             });
 
             if (isConfirmed && selectedId) {
-                const selectedItem = data.find((d: any) => d.id === selectedId);
+                const selectedItem = data.find((d: any) => String(d.id).trim() === String(selectedId).trim());
                 if (selectedItem) {
-                    localStorage.setItem("my_tim_pnkb_gambuh_id", selectedItem.id);
-                    localStorage.setItem("my_tim_pnkb_gambuh_nama", selectedItem.nama);
-                    setMyId(selectedItem.id);
-                    setMyName(selectedItem.nama);
+                    const normalizedId = String(selectedItem.id).trim();
+                    const normalizedNama = String(selectedItem.nama || "").trim();
+                    localStorage.setItem("my_tim_pnkb_gambuh_id", normalizedId);
+                    localStorage.setItem("my_tim_pnkb_gambuh_nama", normalizedNama);
+                    setMyId(normalizedId);
+                    setMyName(normalizedNama);
                     Swal.fire({
                         icon: 'success',
                         title: 'Identitas Disimpan',
-                        text: `Anda sekarang bertindak sebagai: ${selectedItem.nama}`,
+                        text: `Anda sekarang bertindak sebagai: ${normalizedNama}`,
                         timer: 2000,
                         showConfirmButton: false
                     });
@@ -237,6 +253,23 @@ export default function TimGambuhOperatorPage() {
                     : [];
                 setAllRooms(sortedRooms);
             }
+
+            const kunjunganRes = await fetch("/api/mandiri/kunjungan", { credentials: "include" });
+            if (kunjunganRes.ok) {
+                const kunjunganJson = await kunjunganRes.json();
+                setVisitHistory(Array.isArray(kunjunganJson) ? kunjunganJson : []);
+            } else {
+                console.error("Failed to fetch visit history", kunjunganRes.status, await kunjunganRes.text());
+            }
+
+            const queueRes = await fetch("/api/mandiri/pilih?all=true", { credentials: "include" });
+            if (queueRes.ok) {
+                const queueJson = await queueRes.json();
+                const waiting = Array.isArray(queueJson) ? queueJson.filter((q: any) => q.status === "Menunggu") : [];
+                setQueueData(waiting);
+            } else {
+                console.error("Failed to fetch queue", queueRes.status, await queueRes.text());
+            }
         } catch (err) {
             console.error("Error fetching rooms:", err);
         } finally {
@@ -255,8 +288,8 @@ export default function TimGambuhOperatorPage() {
             });
 
         // Initialize identity from localStorage
-        const savedId = localStorage.getItem("my_tim_pnkb_gambuh_id") || "";
-        const savedNama = localStorage.getItem("my_tim_pnkb_gambuh_nama") || "";
+        const savedId = (localStorage.getItem("my_tim_pnkb_gambuh_id") || "").trim();
+        const savedNama = (localStorage.getItem("my_tim_pnkb_gambuh_nama") || "").trim();
         if (savedId) {
             setMyId(savedId);
             setMyName(savedNama);
@@ -430,25 +463,291 @@ export default function TimGambuhOperatorPage() {
         }
     };
 
+    const handleEditReportRecord = async (item: any) => {
+        const { value: formValues } = await Swal.fire({
+            title: 'Edit Hasil Pertemuan',
+            html: `
+                <div style="text-align:left">
+                    <p style="font-size:13px;color:#64748b;margin-bottom:16px">
+                        <b>${item.pemilihNama}</b> &amp; <b>${item.terpilihNama}</b>
+                    </p>
+                    <label style="font-size:11px;font-weight:800;text-transform:uppercase;color:#1e293b">Hasil Pemilih (${item.pemilihNama})</label>
+                    <select id="edit_pengirim" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e2e8f0;margin:6px 0 16px;font-size:13px">
+                        <option value="Lanjut" ${item.pemilihHasil === 'Lanjut' ? 'selected' : ''}>Lanjut</option>
+                        <option value="Ragu-ragu" ${item.pemilihHasil === 'Ragu-ragu' ? 'selected' : ''}>Ragu-ragu</option>
+                        <option value="Tidak Lanjut" ${item.pemilihHasil === 'Tidak Lanjut' ? 'selected' : ''}>Tidak Lanjut</option>
+                    </select>
+                    <label style="font-size:11px;font-weight:800;text-transform:uppercase;color:#1e293b">Hasil Terpilih (${item.terpilihNama})</label>
+                    <select id="edit_penerima" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e2e8f0;margin:6px 0 16px;font-size:13px">
+                        <option value="Lanjut" ${item.terpilihHasil === 'Lanjut' ? 'selected' : ''}>Lanjut</option>
+                        <option value="Ragu-ragu" ${item.terpilihHasil === 'Ragu-ragu' ? 'selected' : ''}>Ragu-ragu</option>
+                        <option value="Tidak Lanjut" ${item.terpilihHasil === 'Tidak Lanjut' ? 'selected' : ''}>Tidak Lanjut</option>
+                    </select>
+                </div>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Simpan',
+            cancelButtonText: 'Batal',
+            confirmButtonColor: '#1e293b',
+            preConfirm: () => ({
+                hasilPengirim: (document.getElementById('edit_pengirim') as HTMLSelectElement).value,
+                hasilPenerima: (document.getElementById('edit_penerima') as HTMLSelectElement).value,
+            })
+        });
+
+        if (!formValues) return;
+        try {
+            const res = await fetch(`/api/mandiri/kunjungan/${item.pemilihanId || item.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(formValues)
+            });
+            if (!res.ok) throw new Error((await res.json()).error);
+            Swal.fire({ title: "Berhasil", text: "Data berhasil diupdate.", icon: "success", timer: 1500, showConfirmButton: false });
+            fetchData();
+        } catch (err: any) {
+            Swal.fire("Error", err.message, "error");
+        }
+    };
+
+    const handleReturnReportToQueue = async (item: any) => {
+        const result = await Swal.fire({
+            title: 'Kembalikan ke Antrean?',
+            html: `Pasangan <b>${item.pemilihNama}</b> &amp; <b>${item.terpilihNama}</b> akan dikembalikan ke daftar antrean. Data hasil pertemuan akan dihapus.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#f59e0b',
+            confirmButtonText: 'Ya, Kembalikan!',
+            cancelButtonText: 'Batal'
+        });
+
+        if (!result.isConfirmed) return;
+        try {
+            const res = await fetch(`/api/mandiri/kunjungan/${item.pemilihanId || item.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "return_to_queue" })
+            });
+            if (!res.ok) throw new Error((await res.json()).error);
+            Swal.fire({ title: "Berhasil", text: "Pasangan dikembalikan ke daftar antrean.", icon: "success", timer: 1500, showConfirmButton: false });
+            fetchData();
+        } catch (err: any) {
+            Swal.fire("Error", err.message, "error");
+        }
+    };
+
+    const handleDeleteReportRecord = async (item: any) => {
+        const result = await Swal.fire({
+            title: 'Hapus Record Ini?',
+            html: `Data pertemuan <b>${item.pemilihNama}</b> &amp; <b>${item.terpilihNama}</b> akan dihapus permanen termasuk data pemilihan. Tindakan ini tidak dapat dibatalkan.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            confirmButtonText: 'Ya, Hapus Permanen!',
+            cancelButtonText: 'Batal'
+        });
+
+        if (!result.isConfirmed) return;
+        try {
+            const res = await fetch(`/api/mandiri/kunjungan/${item.pemilihanId || item.id}`, { method: "DELETE" });
+            if (!res.ok) throw new Error((await res.json()).error);
+            Swal.fire({ title: "Terhapus!", text: "Record berhasil dihapus permanen.", icon: "success", timer: 1500, showConfirmButton: false });
+            fetchData();
+        } catch (err: any) {
+            Swal.fire("Error", err.message, "error");
+        }
+    };
+
+    const handleDeleteReportQueue = async (item: any) => {
+        const result = await Swal.fire({
+            title: 'Hapus Antrean?',
+            html: `Antrean antara <b>${item.pemilihNama}</b> &amp; <b>${item.terpilihNama}</b> akan dihapus.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            confirmButtonText: 'Ya, Hapus!',
+            cancelButtonText: 'Batal'
+        });
+
+        if (!result.isConfirmed) return;
+        try {
+            const res = await fetch(`/api/mandiri/kunjungan/${item.id}`, { method: "DELETE" });
+            if (!res.ok) throw new Error((await res.json()).error);
+            Swal.fire({ title: "Terhapus!", text: "Antrean berhasil dihapus.", icon: "success", timer: 1500, showConfirmButton: false });
+            fetchData();
+        } catch (err: any) {
+            Swal.fire("Error", err.message, "error");
+        }
+    };
+
+    const normalizeId = (value: any) => (value == null ? "" : String(value).trim());
+    const normalizedMyId = normalizeId(myId);
+
     // Filter Rooms based on search & Sort so that rooms assigned to me come first
     const filteredRooms = allRooms.filter(room => {
         const query = roomSearch.toLowerCase();
-        return (
+        const matchesSearch = (
             room.nama.toLowerCase().includes(query) ||
             room.pengirimNama?.toLowerCase().includes(query) ||
             room.penerimaNama?.toLowerCase().includes(query) ||
             room.pengirimNo?.toLowerCase().includes(query) ||
             room.penerimaNo?.toLowerCase().includes(query)
         );
+
+        // Only show rooms with an active session assigned to me (by admin romantic
+        // room or the system's auto-assignment). Kosong rooms carry no assignment
+        // (it's cleared when a session ends), so they're hidden entirely too.
+        const assignedCallerId = normalizeId(room.assignedCallerId);
+        const assignedCaller2Id = normalizeId(room.assignedCaller2Id);
+        const assignedGuardId = normalizeId(room.assignedGuardId);
+        const isAssignedToMe = assignedGuardId === normalizedMyId || assignedCallerId === normalizedMyId || assignedCaller2Id === normalizedMyId;
+        if (room.status !== "Terisi" || !isAssignedToMe) return false;
+
+        return matchesSearch;
     }).sort((a, b) => {
-        const aIsMine = a.assignedCallerId === myId || a.assignedGuardId === myId;
-        const bIsMine = b.assignedCallerId === myId || b.assignedGuardId === myId;
+        const aIsMine = normalizeId(a.assignedCallerId) === normalizedMyId || normalizeId(a.assignedGuardId) === normalizedMyId;
+        const bIsMine = normalizeId(b.assignedCallerId) === normalizedMyId || normalizeId(b.assignedGuardId) === normalizedMyId;
         
         if (aIsMine && !bIsMine) return -1;
         if (!aIsMine && bIsMine) return 1;
         
         return a.nama.localeCompare(b.nama, undefined, { numeric: true, sensitivity: 'base' });
     });
+
+    // Laporan hasil peserta & panitia: gabungan antrean (Menunggu) + riwayat
+    // pertemuan selesai, persis seperti tampilan di halaman Admin Romantic Room.
+    const normalizedQueue = queueData.map((q) => ({
+        id: q.id,
+        pemilihNomorUrut: q.pengirimNomorUrut,
+        pemilihNo: q.pengirimNo,
+        pemilihNama: q.pengirimNama,
+        pemilihStatus: q.pengirimStatus,
+        pemilihKota: q.pengirimKota,
+        pemilihDesa: q.pengirimDesa,
+        pemilihHasil: "Menunggu",
+        terpilihNomorUrut: q.penerimaNomorUrut,
+        terpilihNo: q.penerimaNo,
+        terpilihNama: q.penerimaNama,
+        terpilihStatus: q.penerimaStatus,
+        terpilihKota: q.penerimaKota,
+        terpilihDesa: q.penerimaDesa,
+        terpilihHasil: "Menunggu",
+        roomNama: "Antrean",
+        createdAt: q.createdAt,
+        status: "Menunggu",
+        pemilihWa: q.pengirimWa,
+        terpilihWa: q.penerimaWa,
+        assignedCallerNama: null,
+        assignedCaller2Nama: null,
+        assignedGuardNama: null,
+        isQueue: true,
+    }));
+
+    const normalizedActiveRooms = allRooms
+        .filter((r) => r.status === "Terisi")
+        .map((r) => ({
+            id: r.id,
+            pemilihNomorUrut: r.pengirimNomorUrut,
+            pemilihNo: r.pengirimNo,
+            pemilihNama: r.pengirimNama,
+            pemilihStatus: r.pengirimStatus,
+            pemilihKota: r.pengirimKota,
+            pemilihDesa: r.pengirimDesa,
+            pemilihHasil: "Menunggu",
+            terpilihNomorUrut: r.penerimaNomorUrut,
+            terpilihNo: r.penerimaNo,
+            terpilihNama: r.penerimaNama,
+            terpilihStatus: r.penerimaStatus,
+            terpilihKota: r.penerimaKota,
+            terpilihDesa: r.penerimaDesa,
+            terpilihHasil: "Menunggu",
+            roomNama: r.nama,
+            createdAt: r.startedAt || r.updatedAt,
+            status: "Berlangsung",
+            pemilihWa: r.pengirimWa,
+            terpilihWa: r.penerimaWa,
+            assignedCallerNama: r.assignedCallerNama,
+            assignedCaller2Nama: r.assignedCaller2Nama,
+            assignedGuardNama: r.assignedGuardNama,
+        }));
+
+    const combinedReportList = [
+        ...normalizedQueue,
+        ...normalizedActiveRooms,
+        ...visitHistory.map((h) => ({ ...h, status: "Selesai" })),
+    ];
+
+    const reportData = combinedReportList.filter((item) => {
+        const query = reportSearch.toLowerCase();
+        const matchesSearch = !query || (
+            item.pemilihNama?.toLowerCase().includes(query) ||
+            item.terpilihNama?.toLowerCase().includes(query) ||
+            item.roomNama?.toLowerCase().includes(query)
+        );
+        if (!matchesSearch) return false;
+
+        if (resultFilter === "Semua") return true;
+
+        if (resultFilter === "Sedang Menunggu") {
+            return item.status === "Menunggu";
+        }
+
+        if (item.status === "Menunggu") return false;
+
+        const res1 = item.pemilihHasil;
+        const res2 = item.terpilihHasil;
+
+        if (resultFilter === "Lanjut - Lanjut") {
+            return res1 === "Lanjut" && res2 === "Lanjut";
+        } else if (resultFilter === "Lanjut - Tidak Lanjut") {
+            return (res1 === "Lanjut" && res2 === "Tidak Lanjut") || (res1 === "Tidak Lanjut" && res2 === "Lanjut");
+        } else if (resultFilter === "Tidak Lanjut - Tidak Lanjut") {
+            return res1 === "Tidak Lanjut" && res2 === "Tidak Lanjut";
+        } else if (resultFilter === "Ragu-ragu - Ragu-ragu") {
+            return res1 === "Ragu-ragu" && res2 === "Ragu-ragu";
+        } else if (resultFilter === "Lanjut - Ragu-ragu") {
+            return (res1 === "Lanjut" && res2 === "Ragu-ragu") || (res1 === "Ragu-ragu" && res2 === "Lanjut");
+        } else if (resultFilter === "Tidak Lanjut - Ragu-ragu") {
+            return (res1 === "Tidak Lanjut" && res2 === "Ragu-ragu") || (res1 === "Ragu-ragu" && res2 === "Tidak Lanjut");
+        }
+
+        return true;
+    });
+
+    const handleExportReportExcel = () => {
+        if (reportData.length === 0) {
+            Swal.fire({ icon: "warning", title: "Tidak Ada Data", text: "Belum ada laporan hasil untuk diekspor." });
+            return;
+        }
+
+        const exportData = reportData.map((item) => ({
+            "Ruangan": item.roomNama || "-",
+            "No. Peserta 1": item.pemilihNomorUrut || item.pemilihNo || "-",
+            "Nama Peserta 1": item.pemilihNama || "-",
+            "Daerah/Desa Peserta 1": `${item.pemilihKota || "-"} / ${item.pemilihDesa || "-"}`,
+            "WhatsApp Peserta 1": item.pemilihWa || "-",
+            "Status Peserta 1": item.pemilihStatus || "-",
+            "Hasil Peserta 1": item.pemilihHasil || "-",
+            "No. Peserta 2": item.terpilihNomorUrut || item.terpilihNo || "-",
+            "Nama Peserta 2": item.terpilihNama || "-",
+            "Daerah/Desa Peserta 2": `${item.terpilihKota || "-"} / ${item.terpilihDesa || "-"}`,
+            "WhatsApp Peserta 2": item.terpilihWa || "-",
+            "Status Peserta 2": item.terpilihStatus || "-",
+            "Hasil Peserta 2": item.terpilihHasil || "-",
+            "Status": item.status || "-",
+            "Pemanggil 1": item.assignedCallerNama || "-",
+            "Pemanggil 2": item.assignedCaller2Nama || "-",
+            "Penunggu": item.assignedGuardNama || "-",
+            "Waktu": formatWaktuIndonesia(item.createdAt),
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Laporan Hasil");
+        const tanggal = new Date().toISOString().slice(0, 10);
+        XLSX.writeFile(wb, `Laporan_Hasil_${(myName || "Tim_Gambuh").replace(/\s+/g, "_")}_${tanggal}.xlsx`);
+    };
 
     return (
         <div className="operator-layout">
@@ -512,7 +811,9 @@ export default function TimGambuhOperatorPage() {
 
                     <div className="grid-rooms">
                         {filteredRooms.length === 0 ? (
-                            <div className="empty-state">Tidak ada ruangan ditemukan</div>
+                            <div className="empty-state">
+                                {roomSearch ? "Tidak ada ruangan ditemukan" : "Belum ada ruangan yang ditugaskan untuk Anda saat ini"}
+                            </div>
                         ) : (
                             filteredRooms.map((room) => (
                                 <div key={room.id} className={`room-tile ${room.status?.toLowerCase()} ${room.status === "Terisi" && !room.startedAt ? "not-started" : ""} ${room.assignedGuardId === myId || room.assignedCallerId === myId || room.assignedCaller2Id === myId ? "my-assigned-room" : ""}`} onClick={() => setSelectedRoom(room)} style={{ cursor: "pointer" }}>
@@ -567,35 +868,20 @@ export default function TimGambuhOperatorPage() {
                                                 </div>
 
                                                 <div className="action-row">
-                                                    {(room.assignedGuardId === myId || room.assignedCallerId === myId || room.assignedCaller2Id === myId) ? (
-                                                        room.startedAt ? (
-                                                            <button
-                                                                className="btn-clear"
-                                                                onClick={(e) => { e.stopPropagation(); handleClearRoom(room.id); }}
-                                                            >
-                                                                <LogOut size={12} /> Selesaikan Sesi
-                                                            </button>
-                                                        ) : (
-                                                            <button
-                                                                className="btn-start-timer"
-                                                                onClick={(e) => { e.stopPropagation(); handleStartRoom(room.id); }}
-                                                            >
-                                                                <Timer size={12} fill="white" /> Mulai Sesi
-                                                            </button>
-                                                        )
+                                                    {room.startedAt ? (
+                                                        <button
+                                                            className="btn-clear"
+                                                            onClick={(e) => { e.stopPropagation(); handleClearRoom(room.id); }}
+                                                        >
+                                                            <LogOut size={12} /> Selesaikan Sesi
+                                                        </button>
                                                     ) : (
-                                                        <div className="non-assigned-companion" style={{
-                                                            fontSize: '11px',
-                                                            color: '#94a3b8',
-                                                            textAlign: 'center',
-                                                            width: '100%',
-                                                            padding: '6px',
-                                                            background: '#f8fafc',
-                                                            borderRadius: '6px',
-                                                            border: '1px solid #cbd5e1'
-                                                        }}>
-                                                            Bukan Ruangan Anda
-                                                        </div>
+                                                        <button
+                                                            className="btn-start-timer"
+                                                            onClick={(e) => { e.stopPropagation(); handleStartRoom(room.id); }}
+                                                        >
+                                                            <Timer size={12} fill="white" /> Mulai Sesi
+                                                        </button>
                                                     )}
                                                 </div>
                                             </div>
@@ -611,6 +897,139 @@ export default function TimGambuhOperatorPage() {
                             ))
                         )}
                     </div>
+                </div>
+
+                <div className="card shadow-sm" style={{ marginTop: '20px' }}>
+                    <div className="card-header-inner">
+                        <h3>Laporan Hasil Peserta & Panitia</h3>
+                        <button
+                            className="btn-refresh"
+                            onClick={handleExportReportExcel}
+                            title="Export Laporan ke Excel"
+                            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                        >
+                            <FileSpreadsheet size={16} /> Export Excel
+                        </button>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '10px', margin: '0 16px 16px', flexWrap: 'wrap' }}>
+                        <div className="search-bar-container" style={{ flex: '1 1 240px' }}>
+                            <Search size={16} />
+                            <input
+                                type="text"
+                                placeholder="Cari nama peserta atau ruangan..."
+                                value={reportSearch}
+                                onChange={(e) => setReportSearch(e.target.value)}
+                            />
+                        </div>
+                        <select
+                            className="filter-select"
+                            value={resultFilter}
+                            onChange={(e) => setResultFilter(e.target.value)}
+                        >
+                            <option value="Semua">Tampilkan Semua Hasil</option>
+                            <option value="Sedang Menunggu">Sedang Menunggu</option>
+                            <option value="Lanjut - Lanjut">Lanjut - Lanjut</option>
+                            <option value="Lanjut - Tidak Lanjut">Lanjut - Tidak Lanjut</option>
+                            <option value="Tidak Lanjut - Tidak Lanjut">Tidak Lanjut - Tidak Lanjut</option>
+                            <option value="Ragu-ragu - Ragu-ragu">Ragu-ragu - Ragu-ragu</option>
+                            <option value="Lanjut - Ragu-ragu">Lanjut - Ragu-ragu</option>
+                            <option value="Tidak Lanjut - Ragu-ragu">Tidak Lanjut - Ragu-ragu</option>
+                        </select>
+                    </div>
+
+                    {reportData.length === 0 ? (
+                        <div className="empty-state">Belum ada laporan hasil pertemuan</div>
+                    ) : (
+                        <div className="table-wrapper">
+                            <table className="responsive-table">
+                                <thead>
+                                    <tr>
+                                        <th>No. Peserta 1</th>
+                                        <th>Nama Peserta 1</th>
+                                        <th>Daerah/Desa Peserta 1</th>
+                                        <th>WhatsApp Peserta 1</th>
+                                        <th>Status Peserta 1</th>
+                                        <th>Hasil Peserta 1</th>
+                                        <th>No. Peserta 2</th>
+                                        <th>Nama Peserta 2</th>
+                                        <th>Daerah/Desa Peserta 2</th>
+                                        <th>WhatsApp Peserta 2</th>
+                                        <th>Status Peserta 2</th>
+                                        <th>Hasil Peserta 2</th>
+                                        <th>Status</th>
+                                        <th>Ruangan</th>
+                                        <th>Pemanggil 1</th>
+                                        <th>Pemanggil 2</th>
+                                        <th>Penunggu</th>
+                                        <th>Waktu</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {reportData.map((item) => {
+                                        const hasilBadgeClass = (hasil: string) =>
+                                            hasil === "Lanjut" ? "badge-green"
+                                            : hasil === "Tidak Lanjut" ? "badge-red"
+                                            : hasil === "Ragu-ragu" ? "badge-orange"
+                                            : hasil === "Menunggu" ? "badge-blue"
+                                            : "badge-gray";
+                                        return (
+                                            <tr key={item.id}>
+                                                <td data-label="No. Peserta 1">{item.pemilihNomorUrut || item.pemilihNo || "-"}</td>
+                                                <td data-label="Nama Peserta 1">{item.pemilihNama || "-"}</td>
+                                                <td data-label="Daerah/Desa Peserta 1">{item.pemilihKota || "-"} / {item.pemilihDesa || "-"}</td>
+                                                <td data-label="WhatsApp Peserta 1">{item.pemilihWa || "-"}</td>
+                                                <td data-label="Status Peserta 1">{item.pemilihStatus || "-"}</td>
+                                                <td data-label="Hasil Peserta 1">
+                                                    <span className={`badge ${hasilBadgeClass(item.pemilihHasil)}`}>
+                                                        {item.pemilihHasil || "-"}
+                                                    </span>
+                                                </td>
+                                                <td data-label="No. Peserta 2">{item.terpilihNomorUrut || item.terpilihNo || "-"}</td>
+                                                <td data-label="Nama Peserta 2">{item.terpilihNama || "-"}</td>
+                                                <td data-label="Daerah/Desa Peserta 2">{item.terpilihKota || "-"} / {item.terpilihDesa || "-"}</td>
+                                                <td data-label="WhatsApp Peserta 2">{item.terpilihWa || "-"}</td>
+                                                <td data-label="Status Peserta 2">{item.terpilihStatus || "-"}</td>
+                                                <td data-label="Hasil Peserta 2">
+                                                    <span className={`badge ${hasilBadgeClass(item.terpilihHasil)}`}>
+                                                        {item.terpilihHasil || "-"}
+                                                    </span>
+                                                </td>
+                                                <td data-label="Status">
+                                                    <span className={`badge ${item.status === "Menunggu" ? "badge-blue" : item.status === "Berlangsung" ? "badge-orange" : "badge-green"}`}>
+                                                        {item.status}
+                                                    </span>
+                                                </td>
+                                                <td data-label="Ruangan">{item.roomNama || "-"}</td>
+                                                <td data-label="Pemanggil 1">{item.assignedCallerNama || "-"}</td>
+                                                <td data-label="Pemanggil 2">{item.assignedCaller2Nama || "-"}</td>
+                                                <td data-label="Penunggu">{item.assignedGuardNama || "-"}</td>
+                                                <td data-label="Waktu">{formatWaktuIndonesia(item.createdAt)}</td>
+                                                <td data-label="Aksi">
+                                                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                                        {item.status === "Menunggu" && (
+                                                            <button className="btn-act btn-del" onClick={() => handleDeleteReportQueue(item)} title="Hapus Antrean">🗑️</button>
+                                                        )}
+                                                        {item.status === "Selesai" && (
+                                                            <>
+                                                                <button className="btn-act btn-edit" onClick={() => handleEditReportRecord(item)} title="Edit Hasil">✏️</button>
+                                                                <button className="btn-act btn-return" onClick={() => handleReturnReportToQueue(item)} title="Kembalikan ke Antrean">↩️</button>
+                                                                <button className="btn-act btn-del" onClick={() => handleDeleteReportRecord(item)} title="Hapus Permanen">🗑️</button>
+                                                            </>
+                                                        )}
+                                                        {item.status === "Berlangsung" && (
+                                                            <span style={{ color: '#94a3b8', fontSize: '11px' }}>-</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
 
             </div>
@@ -821,6 +1240,25 @@ export default function TimGambuhOperatorPage() {
                 .search-bar-container input:focus {
                     border-color: #3b82f6;
                 }
+                .filter-select {
+                    padding: 10px 12px;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 8px;
+                    font-size: 13px;
+                    color: #334155;
+                    background: white;
+                    outline: none;
+                    cursor: pointer;
+                    transition: border-color 0.2s;
+                }
+                .filter-select:focus {
+                    border-color: #3b82f6;
+                }
+                .btn-act { border: none; border-radius: 4px; padding: 3px 7px; font-size: 12px; cursor: pointer; transition: opacity 0.2s; }
+                .btn-act:hover { opacity: 0.75; }
+                .btn-edit { background: #eff6ff; }
+                .btn-del { background: #fef2f2; }
+                .btn-return { background: #fffbeb; }
                 .card {
                     background: white;
                     border-radius: 12px;

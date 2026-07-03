@@ -52,20 +52,6 @@ const navItems = [
     ],
   },
   {
-    section: "Usia Mandiri/Nikah",
-    roles: ["admin", "admin_romantic_room"],
-    items: [
-      { href: "/mandiri", label: "Registrasi Peserta", icon: "sparkles" },
-      { href: "/mandiri/kegiatan", label: "Kegiatan", icon: "calendar" },
-      { href: "/mandiri/absensi", label: "Absensi", icon: "absensi" },
-      { href: "/mandiri/pulang", label: "Daftar Pulang", icon: "logout", roles: ["admin_romantic_room"] },
-      { href: "/admin/katalog", label: "Katalog Peserta", icon: "katalog" },
-      { href: "/mandiri/romantic-room", label: "Romantic Room", icon: "romantic", roles: ["admin_romantic_room"] },
-      { href: "/mandiri/tim-gambuh", label: "Panel Tim PNKB & Gambuh", icon: "romantic", roles: ["admin_romantic_room"] },
-      { href: "/mandiri/desa", label: "Kelola Daerah / Desa", icon: "desa" },
-    ],
-  },
-  {
     section: "Data & Konten",
     items: [
       { href: "/generus", label: "Data Generus", icon: "users" },

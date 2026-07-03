@@ -9,7 +9,7 @@ import { aliasedTable } from "drizzle-orm";
 export async function GET(request: NextRequest) {
     try {
         const session = await getSession();
-        if (!session || !["admin", "admin_romantic_room", "tim_pnkb", "pengurus_daerah", "kmm_daerah"].includes(session.role)) {
+        if (!session || !["admin", "admin_romantic_room", "tim_pnkb", "tim_pnkb_gambuh", "pengurus_daerah", "kmm_daerah"].includes(session.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -66,6 +66,9 @@ export async function GET(request: NextRequest) {
             pemilihanId: mandiriKunjungan.pemilihanId,
             pemilihJenisKelamin: g1.jenisKelamin,
             terpilihJenisKelamin: g2.jenisKelamin,
+            assignedCallerId: mandiriPemilihan.assignedCallerId,
+            assignedCaller2Id: mandiriPemilihan.assignedCaller2Id,
+            assignedGuardId: mandiriPemilihan.assignedGuardId,
             assignedCallerNama: uCaller.nama,
             assignedCaller2Nama: uCaller2.nama,
             assignedGuardNama: uGuard.nama

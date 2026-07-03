@@ -133,7 +133,7 @@ export default function AdminBeritaPage() {
             </div>
           ) : (
             <div className="table-wrapper">
-              <table>
+              <table className="responsive-table">
                 <thead>
                   <tr>
                     <th>Judul</th>
@@ -146,18 +146,18 @@ export default function AdminBeritaPage() {
                 <tbody>
                   {data.map((item) => (
                     <tr key={item.id}>
-                      <td>
+                      <td data-label="Judul">
                         <div style={{ fontWeight: 500 }}>{item.judul}</div>
                         {item.ringkasan && <div className="text-sm text-muted" style={{ maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.ringkasan}</div>}
                       </td>
-                      <td>{item.authorName || "Anonim"}</td>
-                      <td className="text-muted">{formatDate(item.createdAt)}</td>
-                      <td>
+                      <td data-label="Penulis">{item.authorName || "Anonim"}</td>
+                      <td className="text-muted" data-label="Tanggal">{formatDate(item.createdAt)}</td>
+                      <td data-label="Status">
                         <span className={`badge ${item.status === "published" ? "badge-green" : item.status === "pending" ? "badge-orange" : "badge-red"}`}>
                           {item.status}
                         </span>
                       </td>
-                      <td>
+                      <td data-label="Aksi">
                         <div className="flex gap-2">
                           <Link href={`/berita/${item.id}`} className="btn btn-sm btn-secondary">Baca</Link>
                           <Link href={`/berita/${item.id}/edit`} className="btn btn-sm btn-info">Edit</Link>

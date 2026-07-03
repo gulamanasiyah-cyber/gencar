@@ -579,10 +579,10 @@ export default function RomanticRoomPage() {
         }
     };
 
-    const handleBulkCreateRooms = async () => {
+    const handleBulkCreateRooms = async (count: number) => {
         const result = await Swal.fire({
-            title: 'Buat 10 Ruangan?',
-            text: "Sistem akan otomatis membuat 10 ruangan baru",
+            title: `Buat ${count} Ruangan?`,
+            text: `Sistem akan otomatis membuat ${count} ruangan baru`,
             icon: 'question',
             showCancelButton: true,
             confirmButtonText: 'Ya, Buat!',
@@ -602,7 +602,7 @@ export default function RomanticRoomPage() {
                 const prefix = "Room";
                 const startCount = allRooms.length + 1;
                 const promises = [];
-                for (let i = 0; i < 10; i++) {
+                for (let i = 0; i < count; i++) {
                     promises.push(
                         fetch("/api/mandiri/rooms", {
                             method: "POST",
@@ -612,7 +612,7 @@ export default function RomanticRoomPage() {
                     );
                 }
                 await Promise.all(promises);
-                Swal.fire("Berhasil", "10 Ruangan 'Room' berhasil dibuat", "success");
+                Swal.fire("Berhasil", `${count} Ruangan 'Room' berhasil dibuat`, "success");
                 fetchData();
             } catch (err) {
                 Swal.fire("Error", "Gagal membuat beberapa ruangan", "error");
@@ -1680,7 +1680,10 @@ export default function RomanticRoomPage() {
                                 <button className="btn-delete-all" onClick={handleDeleteAllRooms}>
                                     <Trash2 size={12} /> Clear All
                                 </button>
-                                <button className="btn-add-room-bulk" onClick={handleBulkCreateRooms}>
+                                <button className="btn-add-room-bulk" onClick={() => handleBulkCreateRooms(5)}>
+                                    <Plus size={14} /> +5 Rooms
+                                </button>
+                                <button className="btn-add-room-bulk" onClick={() => handleBulkCreateRooms(10)}>
                                     <Plus size={14} /> +10 Rooms
                                 </button>
                                 <button className="btn-add-room" onClick={handleCreateRoom}>

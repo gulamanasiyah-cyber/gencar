@@ -771,7 +771,7 @@ function AbsensiContent() {
               </div>
             ) : (
               <div className="table-wrapper">
-                <table>
+                <table className="responsive-table">
                   <thead>
                     <tr>
                       <th>#</th>
@@ -785,24 +785,24 @@ function AbsensiContent() {
                   <tbody>
                     {filteredAbsensiList.map((item, i) => (
                       <tr key={item.id}>
-                        <td className="text-muted">{i + 1}</td>
-                        <td>
+                        <td className="text-muted" data-label="#">{i + 1}</td>
+                        <td data-label="Kegiatan & Deskripsi">
                           <div style={{ fontWeight: 500 }}>{allKegiatan.find(k => k.id === selectedKegiatan)?.judul || "-"}</div>
                           <div className="text-sm text-muted" style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis" }}>{allKegiatan.find(k => k.id === selectedKegiatan)?.deskripsi || "-"}</div>
                         </td>
-                        <td>
+                        <td data-label="Nama">
                           <div style={{ fontWeight: 500 }}>{item.generusNama}</div>
                           <div className="text-sm text-muted" style={{ fontFamily: "monospace", marginBottom: "2px" }}>{item.generusNomorUnik}</div>
                           {(item.desaNama || item.kelompokNama) && (
                             <div className="text-sm text-muted" style={{ fontSize: "11px" }}>{item.desaNama} {item.desaNama && item.kelompokNama ? '•' : ''} {item.kelompokNama}</div>
                           )}
                         </td>
-                        <td><span className="badge badge-blue">{item.generusKategori}</span></td>
-                        <td className="text-sm text-muted">
+                        <td data-label="Kategori"><span className="badge badge-blue">{item.generusKategori}</span></td>
+                        <td className="text-sm text-muted" data-label="Waktu">
                           {item.timestamp ? new Date(item.timestamp).toLocaleTimeString("id-ID") : "-"}
                         </td>
-                        <td>
-                          <button 
+                        <td data-label="Aksi">
+                          <button
                             style={{ padding: "4px 8px", background: "none", border: "none", color: "var(--danger)", cursor: "pointer", display: "flex", alignItems: "center" }}
                             onClick={() => handleDelete(item.id, item.generusNama)}
                             title="Hapus Kehadiran"

@@ -3,7 +3,7 @@
 import Topbar from "@/components/Topbar";
 import { useState, useEffect, useCallback } from "react";
 import Swal from "sweetalert2";
-import { Plus, Trash2, ChevronDown, ChevronRight, MapPin, Map, Users, Info, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronRight, MapPin, Map, Users, Info, ToggleLeft, ToggleRight, Link2 } from "lucide-react";
 
 interface MandiriDaerahItem { id: number; nama: string; isActive?: number; }
 interface MandiriDesaItem { id: number; nama: string; mandiriDaerahId: number; daerahNama: string | null; kota: string | null; }
@@ -280,29 +280,43 @@ export default function MandiriDesaTreePage() {
             <h2 style={{ fontSize: "24px", fontWeight: 700, color: "#0f172a", marginBottom: "6px" }}>Kelola Wilayah & Kelompok (Tree View)</h2>
             <p style={{ color: "#64748b", fontSize: "14px" }}>Kelola daerah rujukan, desa, dan kelompok peserta dalam satu peta hirarki struktur</p>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#f8fafc", padding: "10px 14px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
-            <span style={{ fontSize: "14px", fontWeight: 600, color: "#475569" }}>Filter Kegiatan:</span>
-            <select
-              value={selectedKegiatan}
-              onChange={(e) => setSelectedKegiatan(e.target.value)}
-              style={{
-                padding: "8px 12px",
-                borderRadius: "8px",
-                border: "1px solid #cbd5e1",
-                fontSize: "14px",
-                fontWeight: 500,
-                color: "#1e293b",
-                backgroundColor: "#fff",
-                outline: "none",
-                minWidth: "220px",
-                cursor: "pointer"
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#f8fafc", padding: "10px 14px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+              <span style={{ fontSize: "14px", fontWeight: 600, color: "#475569" }}>Filter Kegiatan:</span>
+              <select
+                value={selectedKegiatan}
+                onChange={(e) => setSelectedKegiatan(e.target.value)}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  border: "1px solid #cbd5e1",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  color: "#1e293b",
+                  backgroundColor: "#fff",
+                  outline: "none",
+                  minWidth: "220px",
+                  cursor: "pointer"
+                }}
+              >
+                <option value="">Pilih Kegiatan</option>
+                {kegiatanList.map(k => (
+                  <option key={k.id} value={k.id}>{k.judul}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                const url = `${window.location.origin}/mandiri/daftar-wilayah`;
+                navigator.clipboard.writeText(url);
+                Swal.fire({ icon: "success", title: "Link Disalin!", text: "Link pendaftaran daerah, desa & kelompok berhasil disalin ke clipboard.", timer: 1500, showConfirmButton: false });
               }}
             >
-              <option value="">Pilih Kegiatan</option>
-              {kegiatanList.map(k => (
-                <option key={k.id} value={k.id}>{k.judul}</option>
-              ))}
-            </select>
+              <Link2 size={16} />
+              Link Pendaftaran
+            </button>
           </div>
         </div>
 

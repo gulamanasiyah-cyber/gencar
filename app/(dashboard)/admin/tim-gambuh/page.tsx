@@ -289,7 +289,7 @@ export default function AdminTimGambuhPage() {
               Tidak ada data anggota Tim Gambuh yang terdaftar di aktivitas ini.
             </div>
           ) : (
-            <table className="table" style={{ width: "100%", borderCollapse: "collapse" }}>
+            <table className="table responsive-table" style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid #e2e8f0", backgroundColor: "#f8fafc" }}>
                   <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: "#64748b" }}>NAMA</th>
@@ -302,8 +302,8 @@ export default function AdminTimGambuhPage() {
               <tbody>
                 {filteredMembers.map((member) => (
                   <tr key={member.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                    <td style={{ padding: "16px", fontWeight: "600", color: "#0f172a" }}>{member.nama}</td>
-                    <td style={{ padding: "16px" }}>
+                    <td data-label="NAMA" style={{ padding: "16px", fontWeight: "600", color: "#0f172a" }}>{member.nama}</td>
+                    <td data-label="TIPE" style={{ padding: "16px" }}>
                       <span
                         style={{
                           display: "inline-flex",
@@ -320,9 +320,9 @@ export default function AdminTimGambuhPage() {
                         <Shield size={12} /> {member.tipe}
                       </span>
                     </td>
-                    <td style={{ padding: "16px", color: "#334155" }}>{member.daerahNama || "-"}</td>
-                    <td style={{ padding: "16px", color: "#334155" }}>{member.desaNama || "-"}</td>
-                    <td style={{ padding: "16px", textAlign: "right" }}>
+                    <td data-label="DAERAH" style={{ padding: "16px", color: "#334155" }}>{member.daerahNama || "-"}</td>
+                    <td data-label="DESA" style={{ padding: "16px", color: "#334155" }}>{member.desaNama || "-"}</td>
+                    <td data-label="AKSI" style={{ padding: "16px", textAlign: "right" }}>
                       <div style={{ display: "inline-flex", gap: "8px" }}>
                         <button
                           onClick={() => handleOpenEdit(member)}

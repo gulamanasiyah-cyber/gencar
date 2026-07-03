@@ -568,7 +568,7 @@ export default function RundownPage() {
                 </div>
               ) : (
                 <div className="table-wrapper">
-                  <table>
+                  <table className="responsive-table">
                     <thead>
                       <tr>
                         <th style={{ width: "100px" }}>Waktu</th>
@@ -581,12 +581,12 @@ export default function RundownPage() {
                     <tbody>
                       {rundownItems.map((item) => (
                         <tr key={item.id}>
-                          <td style={{ fontWeight: 600 }}>{item.waktu}</td>
-                          <td style={{ fontWeight: 500 }}>{item.agenda}</td>
-                          <td>{item.pic || "-"}</td>
-                          <td>{item.keterangan || "-"}</td>
+                          <td data-label="Waktu" style={{ fontWeight: 600 }}>{item.waktu}</td>
+                          <td data-label="Agenda" style={{ fontWeight: 500 }}>{item.agenda}</td>
+                          <td data-label="PIC">{item.pic || "-"}</td>
+                          <td data-label="Keterangan">{item.keterangan || "-"}</td>
                           {canEditItems && (
-                            <td>
+                            <td data-label="Aksi">
                               <div className="flex gap-2">
                                 <button className="btn btn-sm btn-secondary" onClick={() => { setEditItem(item); setShowModal(true); }}>Edit</button>
                                 <button className="btn btn-sm btn-danger" onClick={() => handleDelete(item.id)}>Hapus</button>

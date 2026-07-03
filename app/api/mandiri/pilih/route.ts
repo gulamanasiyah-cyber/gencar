@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
         const session = await getSession();
         if (session) {
             currentGenerusId = session.generusId || null;
-            isAdmin = ["admin", "kmm_daerah", "admin_romantic_room", "pengurus_daerah", "tim_pnkb"].includes(session.role);
+            isAdmin = ["admin", "kmm_daerah", "admin_romantic_room", "pengurus_daerah", "tim_pnkb", "tim_pnkb_gambuh"].includes(session.role);
         }
 
         // If not logged in but has token, verify token

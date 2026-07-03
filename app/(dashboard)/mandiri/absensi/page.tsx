@@ -956,7 +956,7 @@ function AbsensiContent() {
               </div>
             ) : (
               <div className="table-wrapper">
-                <table>
+                <table className="responsive-table">
                   <thead>
                     <tr>
                       <th className="table-hide-mobile">#</th>
@@ -969,18 +969,18 @@ function AbsensiContent() {
                   <tbody>
                     {filteredAbsensi.map((item, i) => (
                       <tr key={item.id}>
-                        <td className="text-muted table-hide-mobile">{i + 1}</td>
-                        <td>
+                        <td className="text-muted table-hide-mobile" data-label="#">{i + 1}</td>
+                        <td data-label="Peserta">
                           <div style={{ fontWeight: 600, color: "var(--text)", fontSize: "14px" }}>{item.generusNama}</div>
                           <div className="text-sm text-muted" style={{ fontWeight: 600, color: "var(--primary)" }}>
                             {(item.nomorPeserta && isNaN(Number(item.nomorPeserta))) ? item.nomorPeserta : (item.nomorPeserta ? `#${item.nomorPeserta}` : 'PANITIA')}
                           </div>
                         </td>
-                        <td><span className="badge badge-blue" style={{ fontSize: "10px" }}>{item.desaKota || item.desaNama || "Umum"}</span></td>
-                        <td className="text-sm text-muted table-hide-mobile">
+                        <td data-label="Daerah"><span className="badge badge-blue" style={{ fontSize: "10px" }}>{item.desaKota || item.desaNama || "Umum"}</span></td>
+                        <td className="text-sm text-muted table-hide-mobile" data-label="Waktu">
                           {item.timestamp ? new Date(item.timestamp).toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' }) : "-"}
                         </td>
-                        <td>
+                        <td data-label="Aksi">
                           <button
                             className="btn-icon text-red"
                             title="Hapus Kehadiran"

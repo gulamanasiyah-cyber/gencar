@@ -322,7 +322,7 @@ export default function MandiriPanitiaPage() {
                   <p>Belum ada panitia atau pengurus yang terdaftar.</p>
                 </div>
               ) : (
-                <table>
+                <table className="responsive-table">
                   <thead>
                     <tr>
                       <th>Foto</th>
@@ -341,24 +341,24 @@ export default function MandiriPanitiaPage() {
                   <tbody>
                     {data.map((item) => (
                       <tr key={item.id}>
-                        <td>
+                        <td data-label="Foto">
                           <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#f1f5f9", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>
                             {item.foto ? <img src={item.foto} alt={item.nama} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : item.nama.charAt(0)}
                           </div>
                         </td>
-                        <td style={{ fontWeight: 600 }}>{item.nama}</td>
-                        <td>{item.jenisKelamin}</td>
-                        <td>
+                        <td data-label="Nama" style={{ fontWeight: 600 }}>{item.nama}</td>
+                        <td data-label="JK">{item.jenisKelamin}</td>
+                        <td data-label="Dapukan">
                           <span className={`badge ${item.dapukan === "Pengurus" ? "badge-amber" : "badge-blue"}`}>
                             {item.dapukan}
                           </span>
                         </td>
-                        <td style={{ fontSize: 12, opacity: 0.8 }}>
+                        <td data-label="Daerah / Desa" style={{ fontSize: 12, opacity: 0.8 }}>
                           {item.desaKota} / {item.desaNama}
                         </td>
-                        <td style={{ fontSize: 13 }}>{item.noTelp}</td>
-                        <td style={{ fontFamily: "monospace", fontSize: 14, fontWeight: "700", color: "var(--primary)" }}>{item.nomorUnik}</td>
-                        <td style={{ textAlign: "center" }}>
+                        <td data-label="No. Telp" style={{ fontSize: 13 }}>{item.noTelp}</td>
+                        <td data-label="Nomor Unik" style={{ fontFamily: "monospace", fontSize: 14, fontWeight: "700", color: "var(--primary)" }}>{item.nomorUnik}</td>
+                        <td data-label="Status Kehadiran" style={{ textAlign: "center" }}>
                           {item.isHadir === 1 ? (
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
                               <span className="badge badge-green">Hadir</span>
@@ -368,9 +368,9 @@ export default function MandiriPanitiaPage() {
                             <span className="badge badge-gray">Belum Hadir</span>
                           )}
                         </td>
-                        <td style={{ textAlign: "center" }}>
-                           <button 
-                              className="btn-icon" 
+                        <td data-label="Lihat Kartu" style={{ textAlign: "center" }}>
+                           <button
+                              className="btn-icon"
                               title="Lihat Kartu"
                               onClick={() => handleViewCard(item)}
                               style={{ color: 'var(--primary)', background: 'var(--primary-light)', padding: '6px', borderRadius: '8px', border: 'none' }}
@@ -378,9 +378,9 @@ export default function MandiriPanitiaPage() {
                               <Eye size={18} />
                            </button>
                         </td>
-                        <td style={{ textAlign: "center" }}>
-                           <button 
-                              className="btn-icon" 
+                        <td data-label="Cetak PDF" style={{ textAlign: "center" }}>
+                           <button
+                              className="btn-icon"
                               title="Download PDF"
                               onClick={() => handleDownloadPDF(item)}
                               style={{ color: '#16a34a', background: '#f0fdf4', padding: '6px', borderRadius: '8px', border: 'none' }}
@@ -388,7 +388,7 @@ export default function MandiriPanitiaPage() {
                               <Printer size={18} />
                            </button>
                         </td>
-                        <td style={{ textAlign: "right" }}>
+                        <td data-label="Aksi" style={{ textAlign: "right" }}>
                           <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
                             <button className="btn btn-sm btn-secondary" onClick={() => handleUpdate(item)}>
                               Edit
