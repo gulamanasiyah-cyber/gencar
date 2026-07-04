@@ -445,8 +445,8 @@ export default function MandiriDaftarPage() {
       }
 
       const cleanNoTelp = form.noTelp.replace(/\D/g, "");
-      if (cleanNoTelp.length < 11) {
-        Swal.fire({ icon: "warning", title: "Nomor Telepon Tidak Valid", text: "Nomor telepon/WhatsApp minimal harus 11 atau 12 angka." });
+      if (cleanNoTelp.length < 10) {
+        Swal.fire({ icon: "warning", title: "Nomor Telepon Tidak Valid", text: "Nomor telepon/WhatsApp minimal harus 10 angka." });
         setLoading(false);
         return;
       }
@@ -903,9 +903,9 @@ export default function MandiriDaftarPage() {
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">No. Telepon / WhatsApp <span className="required">*</span></label>
-                <input name="noTelp" className="form-control" value={form.noTelp} onChange={handleChange} required placeholder="08xx-xxxx-xxxx" />
+                <input type="tel" name="noTelp" className="form-control" value={form.noTelp} onChange={handleChange} required minLength={10} placeholder="08xx-xxxx-xxxx" pattern="[0-9]*" inputMode="numeric" />
                 <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px", lineHeight: "1.3" }}>
-                  Minimal 11 atau 12 angka. Nomor ini tidak akan disebarluaskan, hanya untuk keperluan komunikasi antara muda/i dengan pengurus.
+                  Minimal 10 angka. Nomor ini tidak akan disebarluaskan, hanya untuk keperluan komunikasi antara muda/i dengan pengurus.
                 </p>
               </div>
               <div className="form-group">

@@ -41,7 +41,7 @@ export async function PATCH(
       return NextResponse.json({ success: true });
     }
 
-    const { hasilPengirim, hasilPenerima, roomId, assignedCallerId, assignedCaller2Id, assignedGuardId } = body;
+    const { hasilPengirim, hasilPenerima, roomId, assignedCallerId, assignedCaller2Id, assignedGuardId, statusWaPengirim, statusWaPenerima } = body;
 
     const valid = ["Lanjut", "Ragu-ragu", "Tidak Lanjut", "Menunggu"];
     if (hasilPengirim && !valid.includes(hasilPengirim)) {
@@ -57,6 +57,8 @@ export async function PATCH(
     if (assignedCallerId !== undefined) pemilihanUpdate.assignedCallerId = assignedCallerId || null;
     if (assignedCaller2Id !== undefined) pemilihanUpdate.assignedCaller2Id = assignedCaller2Id || null;
     if (assignedGuardId !== undefined) pemilihanUpdate.assignedGuardId = assignedGuardId || null;
+    if (statusWaPengirim !== undefined) pemilihanUpdate.statusWaPengirim = statusWaPengirim || null;
+    if (statusWaPenerima !== undefined) pemilihanUpdate.statusWaPenerima = statusWaPenerima || null;
 
     if (Object.keys(pemilihanUpdate).length > 0) {
       await db.update(mandiriPemilihan)

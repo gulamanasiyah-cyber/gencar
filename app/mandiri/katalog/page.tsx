@@ -368,6 +368,7 @@ export default function PublicKatalogPage() {
                 jenisKelamin: data.jenisKelamin,
                 role: userRole,
                 noTelp: data.noTelp,
+                status: data.status,
               });
 
               // Bind OneSignal to existing user phone number
@@ -935,11 +936,9 @@ export default function PublicKatalogPage() {
             mandiriDesaKota: resData.mandiriDesaKota,
             jenisKelamin: resData.jenisKelamin,
             role: resData.role || "Peserta",
+            status: resData.status,
           });
           Swal.fire({ title: `Selamat Datang, ${resData.nama}!`, text: "Berhasil masuk ke Katalog Peserta.", icon: "success", timer: 2000, showConfirmButton: false, toast: true, position: 'top-end' });
-        } else if (resData.status === "waiting") {
-          setStatus("waiting");
-          setErrorMsg("Silakan lakukan absensi terlebih dahulu di meja panitia.");
         } else if (resData.status === "multi_login") {
           setErrorMsg("Nomor Unik ini sudah digunakan di perangkat lain (Single Session).");
           setStatus("error");
@@ -1240,6 +1239,7 @@ export default function PublicKatalogPage() {
               data.filter(item => item.id !== currentUser?.id && item.nomorUrut !== currentUser?.nomorUrut).map((item) => {
                 const isPulang = item.keterangan?.toLowerCase() === "pulang";
                 const isTidakHadir = item.keterangan?.toLowerCase() === "alpha" || item.keterangan?.toLowerCase() === "izin";
+                const isBelumHadir = item.isHadir === 0;
                 const isUnavailable = isPulang || isTidakHadir;
                 return (
                   <div key={item.id} className={`participant-card ${isUnavailable ? "is-pulang" : ""}`} style={{ position: "relative", opacity: isUnavailable ? 1 : undefined, filter: isUnavailable ? "none" : undefined }}>
@@ -1357,6 +1357,10 @@ export default function PublicKatalogPage() {
                             const isMaxed = selectedIds.length >= 3;
                             const isDisabled = isFull || isMaxed;
 
+                            if (currentUser?.status === "waiting" || isBelumHadir) {
+                              return null;
+                            }
+
                             return boxLoveStatus === "open" ? (
                               <button
                                 className={`btn-primary ${isDisabled ? "disabled" : ""}`}
@@ -1441,7 +1445,7 @@ export default function PublicKatalogPage() {
                           lineHeight: 1.5,
                           backdropFilter: "blur(4px)"
                         }}>
-                          Mohon maaf peserta {item.nama} {isPulang ? "pulang lebih awal" : "tidak hadir"}, Anda tidak bisa memilih peserta tersebut.
+                          Mohon maaf peserta {item.nama} {isPulang ? "pulang lebih awal" : (isBelumHadir ? "belum melakukan absensi kehadiran" : "tidak hadir")}, Anda tidak bisa memilih peserta tersebut.
                         </div>
                       </div>
                     )}
@@ -1890,51 +1894,82 @@ export default function PublicKatalogPage() {
 
               {/* CTA */}
               <div className="dm-cta">
-                {isMe ? (
-                  <button className="dm-btn dm-btn-disabled" disabled>Ini Profil Anda</button>
-                ) : sp.keterangan?.toLowerCase() === "pulang" ? (
-                  <div style={{ textAlign: "center", color: "#ef4444", fontSize: "13px", fontWeight: "600", padding: "12px", background: "#fef2f2", borderRadius: "14px", border: "1px solid #fee2e2" }}>Mohon maaf, peserta {sp.nama} pulang lebih awal, Anda tidak bisa memilih peserta tersebut.</div>
-                ) : sp.handshakeStatus ? (() => {
-                  if (sp.handshakeStatus === "Selesai") {
-                    return <button className="dm-btn dm-btn-disabled" disabled><Users size={18} />Sudah Bertemu</button>;
+                {(() => {
+                  if (isMe) {
+                    return <button className="dm-btn dm-btn-disabled" disabled>Ini Profil Anda</button>;
                   }
-                  if (sp.handshakeStatus === "Diterima") {
-                    return <button className="dm-btn dm-btn-disabled" disabled><Users size={18} />Dalam Ruangan</button>;
+
+                  const isPulang = sp.keterangan?.toLowerCase() === "pulang";
+                  const isTidakHadir = sp.keterangan?.toLowerCase() === "alpha" || sp.keterangan?.toLowerCase() === "izin";
+                  const isBelumHadir = sp.isHadir === 0;
+                  
+                  if (isPulang || isTidakHadir || isBelumHadir) {
+                    return (
+                      <div style={{ textAlign: "center", color: "#ef4444", fontSize: "13px", fontWeight: "600", padding: "12px", background: "#fef2f2", borderRadius: "14px", border: "1px solid #fee2e2" }}>
+                        Mohon maaf, peserta {sp.nama} {isPulang ? "pulang lebih awal" : (isBelumHadir ? "belum melakukan absensi kehadiran" : "tidak hadir")}, Anda tidak bisa memilih peserta tersebut.
+                      </div>
+                    );
                   }
-                  if (sp.handshakeStatus === "Menunggu") {
-                    if (isSelected) {
+
+                  if (currentUser?.status === "waiting") {
+                    return (
+                      <div style={{ textAlign: "center", color: "#64748b", fontSize: "13px", fontWeight: "600", padding: "12px", background: "#f1f5f9", borderRadius: "14px", border: "1px solid #e2e8f0" }}>
+                        Anda belum melakukan absensi kehadiran. Silakan absen terlebih dahulu untuk dapat memilih peserta.
+                      </div>
+                    );
+                  }
+
+                  if (sp.handshakeStatus) {
+                    if (sp.handshakeStatus === "Selesai") {
+                      return <button className="dm-btn dm-btn-disabled" disabled><Users size={18} />Sudah Bertemu</button>;
+                    }
+                    if (sp.handshakeStatus === "Diterima") {
+                      return <button className="dm-btn dm-btn-disabled" disabled><Users size={18} />Dalam Ruangan</button>;
+                    }
+                    if (sp.handshakeStatus === "Menunggu") {
+                      if (isSelected) {
+                        return (
+                          <button className="dm-btn dm-btn-danger" onClick={() => handleCancelSelection(String(sp.id), sp.nama)}>
+                            <X size={18} />Batalkan Pilihan
+                          </button>
+                        );
+                      }
+                      return <button className="dm-btn dm-btn-disabled" disabled><Clock size={18} />Dalam Antrean</button>;
+                    }
+                  }
+
+                  if (isSelected) {
+                    const sel = selections.find((s: any) => String(s.penerimaId) === String(sp.id));
+                    const isWaiting = sel && sel.status === "Menunggu";
+                    if (isWaiting) {
                       return (
                         <button className="dm-btn dm-btn-danger" onClick={() => handleCancelSelection(String(sp.id), sp.nama)}>
                           <X size={18} />Batalkan Pilihan
                         </button>
                       );
+                    } else {
+                      return <button className="dm-btn dm-btn-selected" disabled><CheckCircle2 size={18} />Sudah Terpilih</button>;
                     }
-                    return <button className="dm-btn dm-btn-disabled" disabled><Clock size={18} />Dalam Antrean</button>;
                   }
-                  return null;
-                })() : isSelected ? (() => {
-                  const sel = selections.find((s: any) => String(s.penerimaId) === String(sp.id));
-                  const isWaiting = sel && sel.status === "Menunggu";
-                  if (isWaiting) {
+
+                  if (isFull) {
+                    return <button className="dm-btn dm-btn-disabled" disabled>Peserta Penuh (5/5)</button>;
+                  }
+
+                  if (isMaxed) {
+                    return <button className="dm-btn dm-btn-disabled" disabled>Batas Pilihan Tercapai (3/3)</button>;
+                  }
+
+                  if (boxLoveStatus === "open") {
                     return (
-                      <button className="dm-btn dm-btn-danger" onClick={() => handleCancelSelection(String(sp.id), sp.nama)}>
-                        <X size={18} />Batalkan Pilihan
+                      <button className="dm-btn" style={{ background: accentGrad }} onClick={() => handleConfirmSelection(String(sp.id), sp.nama)}>
+                        <Heart size={18} fill="white" />Pilih Peserta Ini
                       </button>
                     );
-                  } else {
-                    return (
-                      <button className="dm-btn dm-btn-selected" disabled><CheckCircle2 size={18} />Sudah Terpilih</button>
-                    );
                   }
-                })() : isFull ? (
-                  <button className="dm-btn dm-btn-disabled" disabled>Peserta Penuh (5/5)</button>
-                ) : isMaxed ? (
-                  <button className="dm-btn dm-btn-disabled" disabled>Batas Pilihan Tercapai (3/3)</button>
-                ) : boxLoveStatus === "open" ? (
-                  <button className="dm-btn" style={{ background: accentGrad }} onClick={() => handleConfirmSelection(String(sp.id), sp.nama)}>
-                    <Heart size={18} fill="white" />Pilih Peserta Ini
-                  </button>
-                ) : null}
+
+                  return null;
+                })()}
               </div>
 
             </div>

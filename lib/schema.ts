@@ -263,6 +263,8 @@ export const mandiriPemilihan = sqliteTable("mandiri_pemilihan", {
   status: text("status", { enum: ["Menunggu", "Diterima", "Ditolak", "Selesai"] }).default("Menunggu"),
   hasilPengirim: text("hasil_pengirim"), // Lanjut / Tidak Lanjut
   hasilPenerima: text("hasil_penerima"), // Lanjut / Tidak Lanjut
+  statusWaPengirim: text("status_wa_pengirim"), // Terkirim, Gagal Terkirim, Nomor Tidak Valid
+  statusWaPenerima: text("status_wa_penerima"), // Terkirim, Gagal Terkirim, Nomor Tidak Valid
   statusTunggu: text("status_tunggu").default("antrean"), // 'antrean', 'dipanggil'
   assignedCallerId: text("assigned_caller_id").references(() => timGambuh.id, { onDelete: "set null" }),
   assignedCaller2Id: text("assigned_caller2_id").references(() => timGambuh.id, { onDelete: "set null" }),
@@ -516,7 +518,8 @@ export const timGambuh = sqliteTable("tim_gambuh", {
   daerahId: integer("daerah_id").references(() => mandiriDaerah.id, { onDelete: "cascade" }),
   desaId: integer("desa_id").references(() => mandiriDesa.id, { onDelete: "cascade" }),
   kelompokId: integer("kelompok_id").references(() => mandiriKelompok.id, { onDelete: "cascade" }),
-  tipe: text("tipe", { enum: ["PNKB", "Ibu Gambuh", "Tim Penunggu"] }).notNull(),
+  tipe: text("tipe", { enum: ["PNKB", "Ibu Gambuh", "Tim Penunggu", "Penunggu PNKB", "Penunggu Ibu Gambuh"] }).notNull(),
+  noTelp: text("no_telp"),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 }, (table) => ({

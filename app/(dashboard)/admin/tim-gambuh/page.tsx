@@ -12,7 +12,7 @@ interface TimGambuhItem {
   daerahNama: string | null;
   desaId: number | null;
   desaNama: string | null;
-  tipe: "PNKB" | "Ibu Gambuh";
+  tipe: "PNKB" | "Ibu Gambuh" | "Penunggu PNKB" | "Penunggu Ibu Gambuh";
   createdAt: string | null;
 }
 
@@ -28,7 +28,7 @@ interface DesaItem {
 }
 
 // Indonesian name-based gender detection
-function detectGenderFromName(nama: string): "PNKB" | "Ibu Gambuh" | null {
+function detectGenderFromName(nama: string): "PNKB" | "Ibu Gambuh" | "Penunggu PNKB" | "Penunggu Ibu Gambuh" | null {
   if (!nama.trim()) return null;
   const lower = nama.toLowerCase().trim();
   const firstWord = lower.split(/\s+/)[0];
@@ -110,7 +110,7 @@ export default function AdminTimGambuhPage() {
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterType, setFilterType] = useState<"All" | "PNKB" | "Ibu Gambuh">("All");
+  const [filterType, setFilterType] = useState<"All" | "PNKB" | "Ibu Gambuh" | "Penunggu PNKB" | "Penunggu Ibu Gambuh">("All");
 
   // Form State
   const [showModal, setShowModal] = useState(false);
@@ -122,7 +122,7 @@ export default function AdminTimGambuhPage() {
     nama: "",
     daerahId: "",
     desaId: "",
-    tipe: "PNKB" as "PNKB" | "Ibu Gambuh",
+    tipe: "PNKB" as "PNKB" | "Ibu Gambuh" | "Penunggu PNKB" | "Penunggu Ibu Gambuh",
   });
 
   const fetchData = useCallback(async () => {
@@ -403,6 +403,8 @@ export default function AdminTimGambuhPage() {
                 <option value="All">Semua Tipe</option>
                 <option value="PNKB">PNKB</option>
                 <option value="Ibu Gambuh">Ibu Gambuh</option>
+                <option value="Penunggu PNKB">Penunggu PNKB</option>
+                <option value="Penunggu Ibu Gambuh">Penunggu Ibu Gambuh</option>
               </select>
             </div>
             <div style={{ width: "250px" }}>
@@ -455,8 +457,8 @@ export default function AdminTimGambuhPage() {
                           borderRadius: "20px",
                           fontSize: "12px",
                           fontWeight: "700",
-                          backgroundColor: member.tipe === "PNKB" ? "#eff6ff" : "#fef2f2",
-                          color: member.tipe === "PNKB" ? "#2563eb" : "#dc2626",
+                          backgroundColor: member.tipe === "PNKB" || member.tipe === "Penunggu PNKB" ? "#eff6ff" : "#fef2f2",
+                          color: member.tipe === "PNKB" || member.tipe === "Penunggu PNKB" ? "#2563eb" : "#dc2626",
                         }}
                       >
                         <Shield size={12} /> {member.tipe}
@@ -568,6 +570,8 @@ export default function AdminTimGambuhPage() {
                 >
                   <option value="PNKB">♂ PNKB (Laki-laki)</option>
                   <option value="Ibu Gambuh">♀ Ibu Gambuh (Perempuan)</option>
+                  <option value="Penunggu PNKB">♂ Penunggu PNKB</option>
+                  <option value="Penunggu Ibu Gambuh">♀ Penunggu Ibu Gambuh</option>
                 </select>
               </div>
 

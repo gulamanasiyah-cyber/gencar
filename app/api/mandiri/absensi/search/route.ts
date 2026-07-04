@@ -14,8 +14,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const q = searchParams.get("q") || "";
     let kegiatanId = searchParams.get("kegiatanId") || "";
+    const showAll = searchParams.get("showAll") === "true";
 
-    if (!q) return NextResponse.json([]);
+    if (!q && !showAll) return NextResponse.json([]);
 
     if (!kegiatanId) {
       const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
@@ -23,6 +24,9 @@ export async function GET(request: NextRequest) {
     }
 
     if (!kegiatanId) return NextResponse.json([]);
+
+    const limitRecords = showAll ? 2000 : 10;
+    const limitCombined = showAll ? 4000 : 15;
 
     const dataGenerus = await db
       .select({
@@ -40,17 +44,17 @@ export async function GET(request: NextRequest) {
       .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
       .where(
         and(
-          or(
+          q ? or(
             like(generus.nama, `%${q}%`),
             like(generus.nomorUnik, `%${q}%`)
-          ),
+          ) : undefined,
           or(
             sql`${mandiri.id} IS NOT NULL`,
             sql`${idCardBuilderData.id} IS NOT NULL`
           )
         )
       )
-      .limit(10);
+      .limit(limitRecords);
 
     // Also search specifically in form_panitia_dan_pengurus for those not yet in generus or those with different info
     const dataPanitia = await db
@@ -68,14 +72,14 @@ export async function GET(request: NextRequest) {
       .where(
         and(
           eq(formPanitiaDanPengurus.kegiatanId, kegiatanId),
-          or(
+          q ? or(
             like(formPanitiaDanPengurus.nama, `%${q}%`),
             like(formPanitiaDanPengurus.nomorUnik, `%${q}%`),
             like(formPanitiaDanPengurus.noTelp, `%${q}%`)
-          )
+          ) : undefined
         )
       )
-      .limit(10);
+      .limit(limitRecords);
 
     // Combine and deduplicate by nama + nomorUnik
     const combined = [...dataGenerus, ...dataPanitia];
@@ -85,7 +89,7 @@ export async function GET(request: NextRequest) {
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
-    }).slice(0, 15);
+    }).slice(0, limitCombined);
 
     return NextResponse.json(data);
   } catch (error) {

@@ -148,8 +148,8 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(generus.desaId, Number(desaId)));
     }
 
-    // Only show those who have attended
-    conditions.push(eq(mandiriAbsensi.kegiatanId, kegiatanId));
+    // Only show participants registered for the active activity
+    conditions.push(eq(mandiri.kegiatanId, kegiatanId));
 
     if (onlyChosen) {
       if (currentParticipantId) {
@@ -207,6 +207,7 @@ export async function GET(request: NextRequest) {
         nomorUrut: mandiri.nomorUrut,
         panitiaStatus: formPanitiaDanPengurus.dapukan,
         keterangan: mandiriAbsensi.keterangan,
+        isHadir: sql<number>`CASE WHEN ${mandiriAbsensi.id} IS NOT NULL THEN 1 ELSE 0 END`,
         selectedCount: sql<number>`(
           SELECT count(*) 
           FROM mandiri_pemilihan 
@@ -229,7 +230,7 @@ export async function GET(request: NextRequest) {
       })
       .from(generus)
       .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-      .innerJoin(mandiriAbsensi, eq(generus.id, mandiriAbsensi.generusId))
+      .leftJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId)))
       .leftJoin(desa, eq(generus.desaId, desa.id))
       .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
@@ -243,7 +244,7 @@ export async function GET(request: NextRequest) {
       .select({ count: sql<number>`count(*)` })
       .from(generus)
       .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-      .innerJoin(mandiriAbsensi, eq(generus.id, mandiriAbsensi.generusId));
+      .leftJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId)));
 
     // Dynamic joins for count query if filters are present
     if (search || status !== "all") {

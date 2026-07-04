@@ -8,15 +8,16 @@ const rateLimit = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
 const RATE_LIMIT_MAX = 10;           // max 10 attempts per window
 
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, val] of rateLimit) {
-    if (now > val.resetAt) rateLimit.delete(key);
-  }
-}, 60_000);
-
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
+  
+  // Lazy cleanup to avoid setInterval in Edge Runtime which causes 502 Bad Gateway
+  if (Math.random() < 0.1) {
+    rateLimit.forEach((val, key) => {
+      if (now > val.resetAt) rateLimit.delete(key);
+    });
+  }
+
   const entry = rateLimit.get(ip);
   if (!entry || now > entry.resetAt) {
     rateLimit.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });

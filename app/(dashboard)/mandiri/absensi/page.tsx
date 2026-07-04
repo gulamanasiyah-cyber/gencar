@@ -182,17 +182,24 @@ function AbsensiContent() {
     }
   }, [scannerType, scanMode]);
 
-  const handleSearch = async (q: string) => {
+  const handleSearch = async (q: string, showAll: boolean = false) => {
     setSearchQuery(q);
-    if (!q) { setSearchResults([]); return; }
+    if (!q && !showAll) { setSearchResults([]); return; }
     try {
-      const res = await fetch(`/api/mandiri/absensi/search?q=${encodeURIComponent(q)}&kegiatanId=${selectedKegiatan}`);
+      const res = await fetch(`/api/mandiri/absensi/search?q=${encodeURIComponent(q)}&kegiatanId=${selectedKegiatan}${showAll ? '&showAll=true' : ''}`);
       if (!res.ok) throw new Error("Search failed");
       const data = await res.json();
       setSearchResults(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Search error:", err);
       setSearchResults([]);
+    }
+  };
+
+  const handleKeyDownSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSearch(searchQuery, true);
     }
   };
 
@@ -846,26 +853,44 @@ function AbsensiContent() {
                       <input
                         type="text"
                         className="form-control"
-                        placeholder="Nama atau nomor unik..."
+                        placeholder="Nama atau nomor unik... (Tekan Enter untuk semua)"
                         value={searchQuery}
-                        onChange={(e) => handleSearch(e.target.value)} />
+                        onChange={(e) => handleSearch(e.target.value)}
+                        onKeyDown={handleKeyDownSearch} />
                     </div>
                     {searchResults.length > 0 && (
                       <div style={{ marginTop: 8, border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
-                        {searchResults.map((g) => (
-                          <div
-                            key={g.id}
-                            className="search-result-item"
-                            style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
-                            onClick={() => recordAbsensi(g.id)}
-                          >
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontWeight: 500, fontSize: "14px" }}>{g.nama}</div>
-                              <div className="text-sm text-muted">No: {g.nomorPeserta} • {g.desaNama}</div>
+                        {searchResults.map((g) => {
+                          const isAlreadyRecorded = absensiList.some(a => a.generusId === g.id);
+                          return (
+                            <div
+                              key={g.id}
+                              className={`search-result-item ${isAlreadyRecorded ? "disabled" : ""}`}
+                              style={{ 
+                                padding: "10px 14px", 
+                                borderBottom: "1px solid var(--border)", 
+                                display: "flex", 
+                                justifyContent: "space-between", 
+                                alignItems: "center", 
+                                cursor: isAlreadyRecorded ? "default" : "pointer",
+                                opacity: isAlreadyRecorded ? 0.7 : 1
+                              }}
+                              onClick={() => {
+                                if (!isAlreadyRecorded) recordAbsensi(g.id);
+                              }}
+                            >
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 500, fontSize: "14px", color: isAlreadyRecorded ? "#64748b" : "inherit" }}>{g.nama}</div>
+                                <div className="text-sm text-muted">No: {g.nomorPeserta} • {g.desaNama}</div>
+                              </div>
+                              {isAlreadyRecorded ? (
+                                <span className="badge" style={{ background: "#e2e8f0", color: "#475569" }}>Sudah Tercatat</span>
+                              ) : (
+                                <span className="badge badge-green">Catat</span>
+                              )}
                             </div>
-                            <span className="badge badge-green">Catat</span>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div></>

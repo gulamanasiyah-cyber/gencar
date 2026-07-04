@@ -7,13 +7,13 @@ import { v4 as uuidv4 } from "uuid";
 
 export async function POST(request: NextRequest) {
   try {
-    const { nama, daerahId, desaId, kelompokId, tipe } = await request.json();
+    const { nama, noTelp, daerahId, desaId, kelompokId, tipe } = await request.json();
 
-    if (!nama || !tipe || !daerahId || !desaId || !kelompokId) {
-      return NextResponse.json({ error: "Nama, Tipe, Daerah, Desa, dan Kelompok wajib diisi" }, { status: 400 });
+    if (!nama || !noTelp || !tipe || !daerahId || !desaId || !kelompokId) {
+      return NextResponse.json({ error: "Nama, No WhatsApp, Tipe, Daerah, Desa, dan Kelompok wajib diisi" }, { status: 400 });
     }
 
-    if (!["PNKB", "Ibu Gambuh"].includes(tipe)) {
+    if (!["PNKB", "Ibu Gambuh", "Penunggu PNKB", "Penunggu Ibu Gambuh"].includes(tipe)) {
       return NextResponse.json({ error: "Tipe tidak valid" }, { status: 400 });
     }
 
@@ -32,7 +32,8 @@ export async function POST(request: NextRequest) {
       daerahId: daerahId ? Number(daerahId) : null,
       desaId: desaId ? Number(desaId) : null,
       kelompokId: kelompokId ? Number(kelompokId) : null,
-      tipe: tipe as "PNKB" | "Ibu Gambuh",
+      tipe: tipe as "PNKB" | "Ibu Gambuh" | "Penunggu PNKB" | "Penunggu Ibu Gambuh",
+      noTelp: noTelp
     });
 
     return NextResponse.json({ success: true, id });

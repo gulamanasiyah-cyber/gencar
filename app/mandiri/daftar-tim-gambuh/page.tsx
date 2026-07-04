@@ -11,6 +11,7 @@ interface Kelompok { id: number; nama: string; mandiriDesaId: number; }
 export default function DaftarTimGambuhPage() {
   const [form, setForm] = useState({
     nama: "",
+    noTelp: "",
     tipe: "PNKB",
     daerahId: "",
     desaId: "",
@@ -91,8 +92,14 @@ export default function DaftarTimGambuhPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      if (!form.nama || !form.tipe || !form.daerahId || !form.desaId || !form.kelompokId) {
-        Swal.fire({ icon: "warning", title: "Data Belum Lengkap", text: "Mohon isi nama, tipe, daerah, desa, dan kelompok Anda." });
+      if (!form.nama || !form.noTelp || !form.tipe || !form.daerahId || !form.desaId || !form.kelompokId) {
+        Swal.fire({ icon: "warning", title: "Data Belum Lengkap", text: "Mohon isi semua data yang diperlukan." });
+        setLoading(false);
+        return;
+      }
+      
+      if (form.noTelp.replace(/[^0-9]/g, "").length < 10) {
+        Swal.fire({ icon: "warning", title: "Nomor Tidak Valid", text: "Nomor WhatsApp minimal 10 angka." });
         setLoading(false);
         return;
       }
@@ -178,10 +185,18 @@ export default function DaftarTimGambuhPage() {
             </div>
 
             <div className="form-group">
+              <label className="form-label">Nomor WhatsApp <span className="required">*</span></label>
+              <input type="tel" name="noTelp" className="form-control" value={form.noTelp} onChange={handleChange} required minLength={10} placeholder="Contoh: 081234567890" pattern="[0-9]*" inputMode="numeric" />
+              <small style={{ color: "var(--text-muted)", fontSize: "11px", marginTop: "4px", display: "block" }}>Minimal 10 angka.</small>
+            </div>
+
+            <div className="form-group">
               <label className="form-label">Tipe Tim Gambuh <span className="required">*</span></label>
               <select name="tipe" className="form-control" value={form.tipe} onChange={handleChange} required>
                 <option value="PNKB">PNKB</option>
                 <option value="Ibu Gambuh">Ibu Gambuh</option>
+                <option value="Penunggu PNKB">Penunggu PNKB</option>
+                <option value="Penunggu Ibu Gambuh">Penunggu Ibu Gambuh</option>
               </select>
             </div>
 
