@@ -4,7 +4,7 @@ import { verifyToken } from "@/lib/auth";
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const PUBLIC_PATHS = ["/login", "/register", "/api/auth/login", "/api/auth/register", "/api/auth/desa", "/api/auth/kelompok", "/api/auth/reset-password", "/api/settings", "/api/public", "/api/upload", "/api/sholat", "/mandiri/katalog", "/mandiri/daftar", "/api/mandiri/pilih", "/api/mandiri/komentar", "/api/mandiri/box-love", "/api/mandiri/rooms", "/api/debug-db", "/api/webhook/fonnte"];
+  const PUBLIC_PATHS = ["/login", "/register", "/api/auth/login", "/api/auth/register", "/api/auth/desa", "/api/auth/kelompok", "/api/auth/reset-password", "/api/settings", "/api/public", "/api/sholat", "/mandiri/katalog", "/mandiri/daftar", "/api/mandiri/pilih", "/api/mandiri/komentar", "/api/mandiri/box-love", "/api/mandiri/rooms", "/api/webhook/fonnte"];
 
   // Allow public paths
   if (PUBLIC_PATHS.some((path) => pathname.startsWith(path))) {
@@ -60,6 +60,7 @@ export async function middleware(request: NextRequest) {
       !pathname.startsWith("/mandiri/tim-gambuh") &&
       !pathname.startsWith("/mandiri/tim-penunggu") &&
       !pathname.startsWith("/admin/katalog") &&
+      !pathname.startsWith("/tim-gambuh/katalog") &&
       !pathname.startsWith("/api/public/mandiri") &&
       !pathname.startsWith("/api/mandiri/rooms") &&
       !pathname.startsWith("/api/mandiri/kunjungan") &&

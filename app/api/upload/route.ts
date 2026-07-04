@@ -99,8 +99,7 @@ export async function POST(request: NextRequest) {
     console.error("Cloudinary upload error details:", error);
     return NextResponse.json(
       {
-        error: "Gagal mengupload foto ke Cloudinary: " + (error.message || "Unknown error"),
-        details: error.stack,
+        error: "Gagal mengupload foto. Silakan coba lagi.",
       },
       { status: 500 }
     );

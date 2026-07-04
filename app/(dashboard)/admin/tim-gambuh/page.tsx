@@ -105,6 +105,8 @@ export default function AdminTimGambuhPage() {
   const [filteredDesaList, setFilteredDesaList] = useState<DesaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState("");
+  const [kegiatanList, setKegiatanList] = useState<any[]>([]);
+  const [selectedKegiatanId, setSelectedKegiatanId] = useState<string>("active");
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -126,21 +128,23 @@ export default function AdminTimGambuhPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [membersRes, daerahsRes, desasRes] = await Promise.all([
-        fetch("/api/admin/tim-gambuh").then((r) => r.json()),
+      const [membersRes, daerahsRes, desasRes, kegiatanRes] = await Promise.all([
+        fetch(`/api/admin/tim-gambuh?kegiatanId=${selectedKegiatanId}`).then((r) => r.json()),
         fetch("/api/public/mandiri/daerah").then((r) => r.json()),
         fetch("/api/public/mandiri/desa").then((r) => r.json()),
+        fetch("/api/mandiri/kegiatan").then((r) => r.json()),
       ]);
 
       setMembers(Array.isArray(membersRes) ? membersRes : []);
       setDaerahList(Array.isArray(daerahsRes) ? daerahsRes : []);
       setDesaList(Array.isArray(desasRes) ? desasRes : []);
+      setKegiatanList(Array.isArray(kegiatanRes) ? kegiatanRes : []);
     } catch (err) {
       console.error("Error fetching Tim Gambuh data:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedKegiatanId]);
 
   useEffect(() => {
     fetchData();
@@ -399,6 +403,20 @@ export default function AdminTimGambuhPage() {
                 <option value="All">Semua Tipe</option>
                 <option value="PNKB">PNKB</option>
                 <option value="Ibu Gambuh">Ibu Gambuh</option>
+              </select>
+            </div>
+            <div style={{ width: "250px" }}>
+              <select
+                className="form-control"
+                value={selectedKegiatanId}
+                onChange={(e) => setSelectedKegiatanId(e.target.value)}
+                style={{ margin: 0 }}
+              >
+                <option value="active">Kegiatan Aktif</option>
+                <option value="all">Semua Kegiatan</option>
+                {kegiatanList.map((k) => (
+                  <option key={k.id} value={k.id}>{k.judul}</option>
+                ))}
               </select>
             </div>
           </div>

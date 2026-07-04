@@ -764,7 +764,7 @@ export default function TimGambuhOperatorPage() {
                         <button className="btn-identity" onClick={() => showSelectIdentityModal(false)} title="Ubah Identitas">
                             Ubah Identitas
                         </button>
-                        <Link href="/admin/katalog" className="btn-refresh" title="Katalog Peserta" style={{
+                        <Link href="/tim-gambuh/katalog" className="btn-refresh" title="Katalog Peserta" style={{
                             display: 'flex',
                             alignItems: 'center',
                             gap: '6px',

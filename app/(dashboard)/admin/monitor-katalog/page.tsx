@@ -13,7 +13,6 @@ import {
   Briefcase, Heart, Globe, Calendar, Lock, ClipboardList,
   Download, Eye, EyeOff, ChevronDown, ChevronUp, Settings2, Users, Share2, Music, Utensils, Printer, Home, Instagram, QrCode, FileSpreadsheet, FileText, X, ArrowUpDown
 } from "lucide-react";
-import { getPusherClient } from "@/lib/pusher-client";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import html2canvas from "html2canvas";
@@ -43,7 +42,6 @@ export default function AdminKatalogPage() {
   const [kegiatanList, setKegiatanList] = useState<{ id: string; judul: string; kota: string }[]>([]);
   const [selectedKegiatanId, setSelectedKegiatanId] = useState("");
   const [boxLoveStatus, setBoxLoveStatus] = useState<string>("closed");
-  const [activeRooms, setActiveRooms] = useState<any[]>([]);
   const [selectedParticipant, setSelectedParticipant] = useState<GenerusItem | null>(null);
   const cardCanvasRef = useRef<HTMLCanvasElement>(null);
   const singleCardRef = useRef<HTMLDivElement>(null);
@@ -168,44 +166,6 @@ export default function AdminKatalogPage() {
     }
     init();
   }, []);
-
-  useEffect(() => {
-    let interval: any;
-    const fetchRooms = async () => {
-      try {
-        const r = await fetch("/api/mandiri/rooms", { cache: "no-store" });
-        if (r.ok) {
-          const rJson = await r.json();
-          setActiveRooms(Array.isArray(rJson) ? rJson : []);
-        }
-      } catch (e) {}
-    };
-
-    if (isAuthorized) {
-      fetchRooms();
-      interval = setInterval(fetchRooms, 10000);
-
-      const pusher = getPusherClient();
-      if (pusher) {
-        const channel = pusher.subscribe("taaruf-channel");
-        channel.bind("room-changed", () => {
-          fetchRooms();
-          fetchData();
-        });
-        channel.bind("taaruf-changed", () => {
-          fetchRooms();
-          fetchData();
-        });
-        return () => {
-          clearInterval(interval);
-          channel.unbind("room-changed");
-          channel.unbind("taaruf-changed");
-          pusher.unsubscribe("taaruf-channel");
-        };
-      }
-    }
-    return () => clearInterval(interval);
-  }, [isAuthorized, fetchData]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -642,10 +602,12 @@ export default function AdminKatalogPage() {
                 <Share2 size={16} />
               </button>
             )}
-            <button className={`btn-box-love ${boxLoveStatus === "open" ? "active" : ""}`} onClick={handleToggleBoxLove}>
-              <Heart size={16} />
-              <span>Box Love {boxLoveStatus === "open" ? "(ON)" : "(OFF)"}</span>
-            </button>
+            {myProfile?.role === "admin" && (
+              <button className={`btn-box-love ${boxLoveStatus === "open" ? "active" : ""}`} onClick={handleToggleBoxLove}>
+                <Heart size={16} />
+                <span>Box Love {boxLoveStatus === "open" ? "(ON)" : "(OFF)"}</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -779,11 +741,9 @@ export default function AdminKatalogPage() {
       </div>
 
       <div className="grid-section">
-        {data.map((item) => {
-          const isPulang = item.keterangan === "pulang";
-          return (
-          <div key={item.id} className={`participant-card gender-${item.jenisKelamin?.toLowerCase()} ${isPulang ? "disabled" : ""}`} style={{ position: "relative" }}>
-            <div className="card-inner" style={{ filter: isPulang ? "blur(3px)" : "none", pointerEvents: isPulang ? "none" : "auto" }}>
+        {data.map((item) => (
+          <div key={item.id} className={`participant-card gender-${item.jenisKelamin?.toLowerCase()}`}>
+            <div className="card-inner">
               <div className="card-main">
                 <div className="card-photo-col">
                   <div className="photo-wrapper photo-clickable" onClick={() => setZoomPhoto(item)} title="Lihat foto">
@@ -854,27 +814,6 @@ export default function AdminKatalogPage() {
                 </div>
               </div>
 
-              {/* Active Room Badge */}
-              {(() => {
-                const room = activeRooms.find(r => r.status === "Terisi" && (r.pengirimNama === item.nama || r.penerimaNama === item.nama));
-                if (room) {
-                  return (
-                    <div style={{ marginTop: '20px', padding: '20px', background: '#fdf4ff', border: '2px solid #fbcfe8', borderRadius: '16px', fontSize: '14px', color: '#831843', width: '100%' }}>
-                      <div style={{ fontWeight: '800', fontSize: '18px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Heart size={20} className="text-pink-500" /> Sedang di {room.nama}
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '15px' }}>
-                        <div><span style={{ fontWeight: '700' }}>Bersama:</span> {item.nama === room.pengirimNama ? room.penerimaNama : room.pengirimNama}</div>
-                        <div><span style={{ fontWeight: '700' }}>Pemanggil 1:</span> {room.assignedCallerNama || '-'}</div>
-                        <div><span style={{ fontWeight: '700' }}>Pemanggil 2:</span> {room.assignedCaller2Nama || '-'}</div>
-                        <div><span style={{ fontWeight: '700' }}>Penunggu:</span> {room.assignedGuardNama || '-'}</div>
-                      </div>
-                    </div>
-                  );
-                }
-                return null;
-              })()}
-
               <div className="card-footer">
                 <button className="footer-btn btn-id-card" onClick={() => setSelectedParticipant(item)}>
                   <Sparkles size={14} />
@@ -882,40 +821,8 @@ export default function AdminKatalogPage() {
                 </button>
               </div>
             </div>
-
-            {isPulang && (
-              <div style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 10,
-                padding: "24px"
-              }}>
-                <div style={{
-                  background: "rgba(255, 255, 255, 0.95)",
-                  padding: "20px",
-                  borderRadius: "20px",
-                  textAlign: "center",
-                  color: "#ef4444",
-                  fontWeight: 700,
-                  fontSize: "14px",
-                  boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
-                  border: "2px solid #fee2e2",
-                  lineHeight: 1.5,
-                  backdropFilter: "blur(4px)"
-                }}>
-                  Mohon maaf, peserta {item.nama} pulang lebih awal.
-                </div>
-              </div>
-            )}
           </div>
-          );
-        })}
+        ))}
       </div>
 
       {zoomPhoto && (
