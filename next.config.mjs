@@ -70,7 +70,7 @@ const nextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(self), microphone=()',
+            value: 'camera=(self), microphone=(), geolocation=(), payment=(), usb=()',
           },
           {
             key: 'Strict-Transport-Security',
@@ -79,6 +79,10 @@ const nextConfig = {
           {
             key: 'X-Permitted-Cross-Domain-Policies',
             value: 'none',
+          },
+          {
+            key: 'X-DNS-Prefetch-Control',
+            value: 'off',
           }
         ],
       },
