@@ -148,129 +148,27 @@ export async function PATCH(
                 }
             }
 
-            // Auto-assign staff based on participants' daerah+desa
-            let assignedCallerId: string | null = null;
-            let assignedCaller2Id: string | null = null;
-            let assignedGuardId: string | null = null;
+            // Retrieve current room staff assignment so we don't overwrite manual selections
+            const currentRoom = await db.query.mandiriRooms.findFirst({
+                where: eq(mandiriRooms.id, roomId)
+            });
+
+            let assignedCallerId: string | null = currentRoom?.assignedCallerId || null;
+            let assignedCaller2Id: string | null = currentRoom?.assignedCaller2Id || null;
+            let assignedGuardId: string | null = currentRoom?.assignedGuardId || null;
             let callerNama: string | null = null;
             let caller2Nama: string | null = null;
             let guardNama: string | null = null;
 
-            if (kegiatanId) {
-                try {
-                    // Helper: resolve mandiriDesaId for a generusId (check generus, fallback to formPanitiaDanPengurus)
-                    const resolveDesaId = async (generusId: string): Promise<number | null> => {
-                        const [gRow] = await db.select({ mandiriDesaId: generus.mandiriDesaId })
-                            .from(generus).where(eq(generus.id, generusId)).limit(1);
-                        if (gRow?.mandiriDesaId) return gRow.mandiriDesaId;
-                        const [pRow] = await db.select({ mandiriDesaId: formPanitiaDanPengurus.mandiriDesaId })
-                            .from(formPanitiaDanPengurus).where(eq(formPanitiaDanPengurus.generusId, generusId)).limit(1);
-                        return pRow?.mandiriDesaId ?? null;
-                    };
-                    const resolveDaerahId = async (desaId: number): Promise<number | null> => {
-                        const [dRow] = await db.select({ mandiriDaerahId: mandiriDesa.mandiriDaerahId })
-                            .from(mandiriDesa).where(eq(mandiriDesa.id, desaId)).limit(1);
-                        return dRow?.mandiriDaerahId ?? null;
-                    };
-
-                    const pengirimDesaId = await resolveDesaId(pemilihan.pengirimId);
-                    const pengirimDaerahId = pengirimDesaId ? await resolveDaerahId(pengirimDesaId) : null;
-                    const penerimaDesaId = await resolveDesaId(pemilihan.penerimaId);
-                    const penerimaDaerahId = penerimaDesaId ? await resolveDaerahId(penerimaDesaId) : null;
-
-                    console.log(`[RoomAssign] pengirimDesaId=${pengirimDesaId} pengirimDaerahId=${pengirimDaerahId} | penerimaDesaId=${penerimaDesaId} penerimaDaerahId=${penerimaDaerahId}`);
-
-                    // Fetch all active staff for this kegiatan
-                    const allStaff = await db.select({
-                        id: timGambuh.id,
-                        nama: timGambuh.nama,
-                        tipe: timGambuh.tipe,
-                        daerahId: timGambuh.daerahId,
-                        desaId: timGambuh.desaId,
-                    })
-                    .from(timGambuh)
-                    .where(eq(timGambuh.kegiatanId, kegiatanId));
-
-                    // Get busy staff IDs from other occupied rooms
-                    const occupiedRoomStaff = await db.select({
-                        assignedCallerId: mandiriRooms.assignedCallerId,
-                        assignedCaller2Id: mandiriRooms.assignedCaller2Id,
-                        assignedGuardId: mandiriRooms.assignedGuardId,
-                    })
-                    .from(mandiriRooms)
-                    .where(and(eq(mandiriRooms.status, "Terisi"), sql`${mandiriRooms.id} != ${roomId}`));
-
-                    const busyIds = new Set<string>(
-                        occupiedRoomStaff.flatMap(r => [r.assignedCallerId, r.assignedCaller2Id, r.assignedGuardId].filter(Boolean) as string[])
-                    );
-
-                    // Pick best candidate: prefer not busy, pick randomly among free.
-                    // If the narrow pool is exhausted by exclusions (e.g. everyone in it
-                    // is already assigned to another role in this room), widen the search
-                    // to the full staff roster before ever reusing an excluded person —
-                    // only reuse someone as an absolute last resort when truly no one else exists.
-                    const pickBest = (pool: typeof allStaff, excludeIds: Set<string> = new Set()): string | null => {
-                        if (pool.length === 0) return null;
-                        const pickFrom = (candidatesPool: typeof allStaff) => {
-                            const eligible = candidatesPool.filter(s => !excludeIds.has(s.id));
-                            if (eligible.length === 0) return null;
-                            const free = eligible.filter(s => !busyIds.has(s.id));
-                            const candidates = free.length > 0 ? free : eligible;
-                            return candidates[Math.floor(Math.random() * candidates.length)].id;
-                        };
-                        return pickFrom(pool) ?? pickFrom(allStaff) ?? pool[0]?.id ?? null;
-                    };
-
-                    // Normalise IDs to numbers to avoid type-mismatch (SQLite can return mixed types)
-                    const pgDesa = pengirimDesaId != null ? Number(pengirimDesaId) : null;
-                    const pgDaerah = pengirimDaerahId != null ? Number(pengirimDaerahId) : null;
-                    const pnDesa = penerimaDesaId != null ? Number(penerimaDesaId) : null;
-                    const pnDaerah = penerimaDaerahId != null ? Number(penerimaDaerahId) : null;
-
-                    const matchDesa = (s: typeof allStaff[0], desaId: number | null, daerahId: number | null) =>
-                        desaId != null && daerahId != null &&
-                        Number(s.desaId) === desaId && Number(s.daerahId) === daerahId;
-                    const matchDaerah = (s: typeof allStaff[0], daerahId: number | null) =>
-                        daerahId != null && Number(s.daerahId) === daerahId;
-
-                    // Caller 1: PNKB from pengirim's daerah+desa → daerah-only → any PNKB
-                    const pnkbStaff = allStaff.filter(s => s.tipe === 'PNKB');
-                    const pnkbExact = pnkbStaff.filter(s => matchDesa(s, pgDesa, pgDaerah));
-                    const pnkbDaerah = pnkbStaff.filter(s => matchDaerah(s, pgDaerah));
-                    const caller1Pool = pnkbExact.length > 0 ? pnkbExact : pnkbDaerah.length > 0 ? pnkbDaerah : pnkbStaff;
-                    assignedCallerId = pickBest(caller1Pool);
-
-                    // Caller 2: Ibu Gambuh from penerima's daerah+desa → daerah-only → any Ibu Gambuh
-                    const gambuhStaff = allStaff.filter(s => s.tipe === 'Ibu Gambuh');
-                    const gambuhExact = gambuhStaff.filter(s => matchDesa(s, pnDesa, pnDaerah));
-                    const gambuhDaerah = gambuhStaff.filter(s => matchDaerah(s, pnDaerah));
-                    const caller2Pool = gambuhExact.length > 0 ? gambuhExact : gambuhDaerah.length > 0 ? gambuhDaerah : gambuhStaff;
-                    assignedCaller2Id = pickBest(caller2Pool, new Set([assignedCallerId].filter(Boolean) as string[]));
-
-                    console.log(`[RoomAssign] pgDesa=${pgDesa} pgDaerah=${pgDaerah} pnDesa=${pnDesa} pnDaerah=${pnDaerah}`);
-                    console.log(`[RoomAssign] pnkbExact=${pnkbExact.length} pnkbDaerah=${pnkbDaerah.length} gambuhExact=${gambuhExact.length} gambuhDaerah=${gambuhDaerah.length}`);
-                    console.log(`[RoomAssign] gambuhStaff:`, gambuhStaff.map(s => `${s.nama}(daerah=${s.daerahId},desa=${s.desaId})`));
-
-                    // Guard: any tipe from either participant's daerah+desa, not already chosen
-                    const chosenIds = new Set<string>([assignedCallerId, assignedCaller2Id].filter(Boolean) as string[]);
-                    const guardCandidates = (() => {
-                        const exactMatch = allStaff.filter(s =>
-                            matchDesa(s, pgDesa, pgDaerah) || matchDesa(s, pnDesa, pnDaerah)
-                        );
-                        if (exactMatch.length > 0) return exactMatch;
-                        const daerahMatch = allStaff.filter(s =>
-                            matchDaerah(s, pgDaerah) || matchDaerah(s, pnDaerah)
-                        );
-                        return daerahMatch.length > 0 ? daerahMatch : allStaff;
-                    })();
-                    assignedGuardId = pickBest(guardCandidates, chosenIds);
-
-                    callerNama = allStaff.find(s => s.id === assignedCallerId)?.nama ?? null;
-                    caller2Nama = allStaff.find(s => s.id === assignedCaller2Id)?.nama ?? null;
-                    guardNama = allStaff.find(s => s.id === assignedGuardId)?.nama ?? null;
-                } catch (staffErr) {
-                    console.error("Staff auto-assignment error:", staffErr);
-                }
+            if (assignedCallerId || assignedCaller2Id || assignedGuardId) {
+                const staffList = await db.select({
+                    id: timGambuh.id,
+                    nama: timGambuh.nama
+                }).from(timGambuh);
+                
+                callerNama = staffList.find(s => s.id === assignedCallerId)?.nama ?? null;
+                caller2Nama = staffList.find(s => s.id === assignedCaller2Id)?.nama ?? null;
+                guardNama = staffList.find(s => s.id === assignedGuardId)?.nama ?? null;
             }
 
             if (pemilihan) {
