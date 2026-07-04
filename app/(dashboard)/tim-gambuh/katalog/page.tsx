@@ -789,9 +789,11 @@ export default function AdminKatalogPage() {
       <div className="grid-section">
         {data.map((item) => {
           const isPulang = item.keterangan === "pulang";
+          const isTidakHadir = item.keterangan === "alpha" || item.keterangan === "izin";
+          const isUnavailable = isPulang || isTidakHadir;
           return (
-          <div key={item.id} className={`participant-card gender-${item.jenisKelamin?.toLowerCase()} ${isPulang ? "disabled" : ""}`} style={{ position: "relative" }}>
-            <div className="card-inner" style={{ filter: isPulang ? "blur(3px)" : "none", pointerEvents: isPulang ? "none" : "auto" }}>
+          <div key={item.id} className={`participant-card gender-${item.jenisKelamin?.toLowerCase()} ${isUnavailable ? "disabled" : ""}`} style={{ position: "relative" }}>
+            <div className="card-inner" style={{ filter: isUnavailable ? "blur(3px)" : "none", pointerEvents: isUnavailable ? "none" : "auto" }}>
               <div className="card-main">
                 <div className="card-photo-col">
                   <div className="photo-wrapper photo-clickable" onClick={() => setZoomPhoto(item)} title="Lihat foto">
@@ -886,7 +888,7 @@ export default function AdminKatalogPage() {
 
             </div>
 
-            {isPulang && (
+            {isUnavailable && (
               <div style={{
                 position: "absolute",
                 top: 0,
@@ -912,7 +914,7 @@ export default function AdminKatalogPage() {
                   lineHeight: 1.5,
                   backdropFilter: "blur(4px)"
                 }}>
-                  Mohon maaf, peserta {item.nama} pulang lebih awal, Anda tidak bisa memproses peserta tersebut.
+                  Mohon maaf, peserta {item.nama} {isPulang ? "pulang lebih awal" : "tidak hadir"}, Anda tidak bisa memproses peserta tersebut.
                 </div>
               </div>
             )}

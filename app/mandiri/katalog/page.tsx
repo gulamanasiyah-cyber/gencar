@@ -1239,9 +1239,11 @@ export default function PublicKatalogPage() {
             ) : (
               data.filter(item => item.id !== currentUser?.id && item.nomorUrut !== currentUser?.nomorUrut).map((item) => {
                 const isPulang = item.keterangan?.toLowerCase() === "pulang";
+                const isTidakHadir = item.keterangan?.toLowerCase() === "alpha" || item.keterangan?.toLowerCase() === "izin";
+                const isUnavailable = isPulang || isTidakHadir;
                 return (
-                  <div key={item.id} className={`participant-card ${isPulang ? "is-pulang" : ""}`} style={{ position: "relative", opacity: isPulang ? 1 : undefined, filter: isPulang ? "none" : undefined }}>
-                    <div style={isPulang ? { filter: "blur(5px) grayscale(0.6)", opacity: 0.7, pointerEvents: "none", userSelect: "none" } : {}}>
+                  <div key={item.id} className={`participant-card ${isUnavailable ? "is-pulang" : ""}`} style={{ position: "relative", opacity: isUnavailable ? 1 : undefined, filter: isUnavailable ? "none" : undefined }}>
+                    <div style={isUnavailable ? { filter: "blur(5px) grayscale(0.6)", opacity: 0.7, pointerEvents: "none", userSelect: "none" } : {}}>
                       <div className="card-image-wrapper">
                         <img
                           src={item.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.nama)}&background=random`}
@@ -1293,7 +1295,7 @@ export default function PublicKatalogPage() {
                         <div className="card-actions">
                           <button className="btn-secondary" onClick={() => openDetail(item)}>Detail Profil</button>
                           {item.nomorUrut !== currentUser?.nomorUrut && (() => {
-                            if (isPulang) return null;
+                            if (isUnavailable) return null;
                             const isSelected = selectedIds.includes(String(item.id));
                             const sel = selections.find((s: any) => String(s.penerimaId) === String(item.id));
                             const isWaiting = sel && sel.status === "Menunggu";
@@ -1413,10 +1415,13 @@ export default function PublicKatalogPage() {
                         )}
                       </div>
                     </div>
-                    {isPulang && (
+                    {isUnavailable && (
                       <div style={{
                         position: "absolute",
-                        top: 0, left: 0, right: 0, bottom: 0,
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -1436,7 +1441,7 @@ export default function PublicKatalogPage() {
                           lineHeight: 1.5,
                           backdropFilter: "blur(4px)"
                         }}>
-                          Mohon maaf peserta {item.nama} pulang lebih awal, Anda tidak bisa memilih peserta tersebut.
+                          Mohon maaf peserta {item.nama} {isPulang ? "pulang lebih awal" : "tidak hadir"}, Anda tidak bisa memilih peserta tersebut.
                         </div>
                       </div>
                     )}

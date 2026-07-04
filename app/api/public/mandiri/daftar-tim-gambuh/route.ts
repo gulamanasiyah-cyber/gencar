@@ -7,10 +7,10 @@ import { v4 as uuidv4 } from "uuid";
 
 export async function POST(request: NextRequest) {
   try {
-    const { nama, daerahId, desaId, tipe } = await request.json();
+    const { nama, daerahId, desaId, kelompokId, tipe } = await request.json();
 
-    if (!nama || !tipe || !daerahId || !desaId) {
-      return NextResponse.json({ error: "Nama, Tipe, Daerah, dan Desa wajib diisi" }, { status: 400 });
+    if (!nama || !tipe || !daerahId || !desaId || !kelompokId) {
+      return NextResponse.json({ error: "Nama, Tipe, Daerah, Desa, dan Kelompok wajib diisi" }, { status: 400 });
     }
 
     if (!["PNKB", "Ibu Gambuh"].includes(tipe)) {
@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
       kegiatanId,
       daerahId: daerahId ? Number(daerahId) : null,
       desaId: desaId ? Number(desaId) : null,
+      kelompokId: kelompokId ? Number(kelompokId) : null,
       tipe: tipe as "PNKB" | "Ibu Gambuh",
     });
 

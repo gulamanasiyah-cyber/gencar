@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import Link from "next/link";
 
-interface Desa { id: number; nama: string; kota: string; }
-interface Kelompok { id: number; nama: string; mandiriDaerahId: number; }
+interface Daerah { id: number; nama: string; kota: string; }
+interface Desa { id: number; nama: string; mandiriDaerahId: number; }
+interface Kelompok { id: number; nama: string; mandiriDesaId: number; }
 
 export default function DaftarTimGambuhPage() {
   const [form, setForm] = useState({
@@ -13,11 +14,14 @@ export default function DaftarTimGambuhPage() {
     tipe: "PNKB",
     daerahId: "",
     desaId: "",
+    kelompokId: "",
   });
 
-  const [daerahList, setDaerahList] = useState<Desa[]>([]);
-  const [desaList, setDesaList] = useState<Kelompok[]>([]);
-  const [filteredDesaList, setFilteredDesaList] = useState<Kelompok[]>([]);
+  const [daerahList, setDaerahList] = useState<Daerah[]>([]);
+  const [desaList, setDesaList] = useState<Desa[]>([]);
+  const [filteredDesaList, setFilteredDesaList] = useState<Desa[]>([]);
+  const [kelompokList, setKelompokList] = useState<Kelompok[]>([]);
+  const [filteredKelompokList, setFilteredKelompokList] = useState<Kelompok[]>([]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [isClosed, setIsClosed] = useState(false);
@@ -46,12 +50,16 @@ export default function DaftarTimGambuhPage() {
     Promise.all([
       fetch("/api/public/mandiri/daerah").then((r) => r.json()),
       fetch("/api/public/mandiri/desa").then((r) => r.json()),
-    ]).then(([daerahs, desas]) => {
+      fetch("/api/public/mandiri/kelompok").then((r) => r.json()),
+    ]).then(([daerahs, desas, kelompoks]) => {
       if (Array.isArray(daerahs)) {
         setDaerahList(daerahs);
       }
       if (Array.isArray(desas)) {
         setDesaList(desas);
+      }
+      if (Array.isArray(kelompoks)) {
+        setKelompokList(kelompoks);
       }
     });
   }, []);
@@ -62,8 +70,17 @@ export default function DaftarTimGambuhPage() {
     } else {
       setFilteredDesaList([]);
     }
-    setForm(prev => ({ ...prev, desaId: "" }));
+    setForm(prev => ({ ...prev, desaId: "", kelompokId: "" }));
   }, [form.daerahId, desaList]);
+
+  useEffect(() => {
+    if (form.desaId) {
+      setFilteredKelompokList(kelompokList.filter(k => k.mandiriDesaId === Number(form.desaId)));
+    } else {
+      setFilteredKelompokList([]);
+    }
+    setForm(prev => ({ ...prev, kelompokId: "" }));
+  }, [form.desaId, kelompokList]);
 
   const handleChange = (e: any) => {
     const { name, value } = e.target;
@@ -74,8 +91,8 @@ export default function DaftarTimGambuhPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      if (!form.nama || !form.tipe || !form.daerahId || !form.desaId) {
-        Swal.fire({ icon: "warning", title: "Data Belum Lengkap", text: "Mohon isi nama, tipe, daerah, dan desa Anda." });
+      if (!form.nama || !form.tipe || !form.daerahId || !form.desaId || !form.kelompokId) {
+        Swal.fire({ icon: "warning", title: "Data Belum Lengkap", text: "Mohon isi nama, tipe, daerah, desa, dan kelompok Anda." });
         setLoading(false);
         return;
       }
@@ -181,6 +198,14 @@ export default function DaftarTimGambuhPage() {
               <select name="desaId" className="form-control" value={form.desaId} onChange={handleChange} disabled={!form.daerahId} required>
                 <option value="">-- Pilih Desa --</option>
                 {filteredDesaList.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Kelompok <span className="required">*</span></label>
+              <select name="kelompokId" className="form-control" value={form.kelompokId} onChange={handleChange} disabled={!form.desaId} required>
+                <option value="">-- Pilih Kelompok --</option>
+                {filteredKelompokList.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
               </select>
             </div>
 

@@ -513,6 +513,7 @@ export const timGambuh = sqliteTable("tim_gambuh", {
   kegiatanId: text("kegiatan_id").references(() => mandiriKegiatan.id, { onDelete: "cascade" }),
   daerahId: integer("daerah_id").references(() => mandiriDaerah.id, { onDelete: "cascade" }),
   desaId: integer("desa_id").references(() => mandiriDesa.id, { onDelete: "cascade" }),
+  kelompokId: integer("kelompok_id").references(() => mandiriKelompok.id, { onDelete: "cascade" }),
   tipe: text("tipe", { enum: ["PNKB", "Ibu Gambuh", "Tim Penunggu"] }).notNull(),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
