@@ -653,7 +653,7 @@ export default function PublicKatalogPage() {
 
         await Swal.fire({
           title: "Berhasil",
-          text: "Berhasil, Semoga alloh berikan pengampunan dan jodoh yg barokah",
+          text: "Semoga alloh berikan pengampunan dan jodoh yg barokah",
           icon: "success",
           confirmButtonText: "Aamiin",
           confirmButtonColor: "#3b82f6"
