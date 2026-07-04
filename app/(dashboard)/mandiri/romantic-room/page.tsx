@@ -202,10 +202,21 @@ export default function RomanticRoomPage() {
             setAllRooms(lsApplyToRooms(sortedRooms));
 
             if (isUserAdmin) {
-                const kgParam = targetKgId ? `&kegiatanId=${targetKgId}` : "";
+                const kgParam = targetKgId ? `kegiatanId=${targetKgId}` : "";
+                const qParam = kgParam ? `&${kgParam}` : "";
+                const qmParam = kgParam ? `?${kgParam}` : "";
 
-                // Fetch All Selections for Queue
-                const qRes = await fetch(`/api/mandiri/pilih?all=true${kgParam}`);
+                // Parallelize all dependent requests to massively improve load speed
+                const [qRes, histRes, pRes, statsRes, desaRes, staffRes] = await Promise.all([
+                    fetch(`/api/mandiri/pilih?all=true${qParam}`),
+                    fetch(`/api/mandiri/kunjungan${qmParam}`, { headers: h }),
+                    fetch(`/api/mandiri?limit=1000&onlyAttended=true${qParam}`, { headers: h }),
+                    fetch(`/api/mandiri/stats/attendance${qmParam}`),
+                    fetch("/api/mandiri/desa"),
+                    fetch(`/api/mandiri/staff${qmParam}`)
+                ]);
+
+                // 1. Process Queue
                 const qJson = await qRes.json();
                 const waiting = Array.isArray(qJson) ? qJson.filter((q: any) => q.status === "Menunggu") : [];
                 // Sort ascending by createdAt (earliest first / paling awal di atas)
@@ -216,25 +227,19 @@ export default function RomanticRoomPage() {
                 });
                 setAllQueue(waiting);
 
-                // Fetch Visit History
-                const histKgParam = targetKgId ? `?kegiatanId=${targetKgId}` : "";
-                const histRes = await fetch(`/api/mandiri/kunjungan${histKgParam}`, { headers: h });
+                // 2. Process Visit History
                 const histJson = await histRes.json();
                 setVisitHistory(Array.isArray(histJson) ? histJson : []);
 
-                // Fetch All Participants for Manual Dropdown (only those present/attended)
-                const pRes = await fetch(`/api/mandiri?limit=1000&onlyAttended=true${kgParam}`, { headers: h });
+                // 3. Process Participants
                 const pJson = await pRes.json();
                 setAllParticipants(Array.isArray(pJson.data) ? pJson.data : []);
 
-                // Fetch Attendance Stats
-                const statsKgParam = targetKgId ? `?kegiatanId=${targetKgId}` : "";
-                const statsRes = await fetch(`/api/mandiri/stats/attendance${statsKgParam}`);
+                // 4. Process Attendance Stats
                 const statsJson = await statsRes.json();
                 setAttendanceCount(statsJson.count || 0);
 
-                // Fetch Cities & Villages
-                const desaRes = await fetch("/api/mandiri/desa");
+                // 5. Process Cities & Villages
                 const desaJson = await desaRes.json();
                 if (Array.isArray(desaJson)) {
                     setAllVillages(desaJson);
@@ -242,8 +247,7 @@ export default function RomanticRoomPage() {
                     setAllCities(cities);
                 }
 
-                // Fetch Staff list for assignments
-                const staffRes = await fetch("/api/mandiri/staff");
+                // 6. Process Staff list for assignments
                 if (staffRes.ok) {
                     const staffJson = await staffRes.json();
                     setStaffList(Array.isArray(staffJson) ? staffJson : []);

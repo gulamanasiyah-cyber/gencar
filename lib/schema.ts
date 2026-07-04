@@ -286,7 +286,9 @@ export const mandiriRooms = sqliteTable("mandiri_rooms", {
   assignedGuardId: text("assigned_guard_id").references(() => timGambuh.id, { onDelete: "set null" }),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
-});
+}, (table) => ({
+  kegiatanIdIdx: index("mandiri_rooms_kegiatan_id_idx").on(table.kegiatanId),
+}));
 
 export const mandiriKuisioner = sqliteTable("mandiri_kuisioner", {
   id: text("id").primaryKey(),
