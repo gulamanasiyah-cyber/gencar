@@ -218,6 +218,15 @@ export default function AdminKatalogDetailPage({ params }: { params: { id: strin
                     <p>{data.makananMinumanFavorit || "Belum ada preferensi yang ditampilkan."}</p>
                   </div>
                 </div>
+                <div className="passion-card-item">
+                  <div className="passion-icon icon-heart" style={{ background: '#fdf2f8', color: '#db2777' }}>
+                    <Heart size={24} />
+                  </div>
+                  <div className="passion-content">
+                    <label>Kriteria Pasangan</label>
+                    <p>{data.kriteriaPasangan || "Belum ada kriteria pasangan yang dicantumkan."}</p>
+                  </div>
+                </div>
               </div>
             </div>
 

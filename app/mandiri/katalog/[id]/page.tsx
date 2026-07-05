@@ -331,6 +331,13 @@ export default function PublicKatalogDetailPage({ params }: { params: { id: stri
                             <p>{data.makananMinumanFavorit || "-"}</p>
                         </div>
                     </div>
+                    <div className="passion-item">
+                        <div className="passion-icon"><Heart size={24} /></div>
+                        <div className="passion-info">
+                            <label>Kriteria Pasangan</label>
+                            <p>{data.kriteriaPasangan || "-"}</p>
+                        </div>
+                    </div>
                 </div>
             </div>
           </div>

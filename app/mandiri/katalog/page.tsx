@@ -1781,6 +1781,10 @@ export default function PublicKatalogPage() {
                     <span className="label">Makanan & Minuman Favorit</span>
                     <span className="value">{myFullProfile.makananMinumanFavorit || "-"}</span>
                   </div>
+                  <div className="profile-info-row">
+                    <span className="label">Kriteria Pasangan</span>
+                    <span className="value">{myFullProfile.kriteriaPasangan || "-"}</span>
+                  </div>
                 </div>
               </div>
 
@@ -1884,6 +1888,7 @@ export default function PublicKatalogPage() {
                   <div className="dm-field"><span className="dm-label">Suku</span><span className="dm-val">{sp.suku || "-"}</span></div>
                   <div className="dm-field"><span className="dm-label">Hobi</span><span className="dm-val">{sp.hobi || "-"}</span></div>
                   <div className="dm-field dm-field-full"><span className="dm-label">Makanan/Minuman Favorit</span><span className="dm-val">{sp.makananMinumanFavorit || "-"}</span></div>
+                  <div className="dm-field dm-field-full"><span className="dm-label">Kriteria Pasangan</span><span className="dm-val">{sp.kriteriaPasangan || "-"}</span></div>
                   <div className="dm-field dm-field-full"><span className="dm-label">Alamat</span><span className="dm-val">{sp.alamat || "-"}</span></div>
                 </div>
               </div>

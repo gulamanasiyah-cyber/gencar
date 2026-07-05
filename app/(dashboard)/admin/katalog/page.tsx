@@ -1009,6 +1009,12 @@ export default function AdminKatalogPage() {
                     <span className="pd-value">{profileDetail.makananMinumanFavorit}</span>
                   </div>
                 )}
+                {profileDetail.kriteriaPasangan && (
+                  <div className="pd-item pd-item-full">
+                    <span className="pd-label">Kriteria Pasangan</span>
+                    <span className="pd-value">{profileDetail.kriteriaPasangan}</span>
+                  </div>
+                )}
                 {profileDetail.alamat && (
                   <div className="pd-item pd-item-full">
                     <span className="pd-label">Alamat</span>

@@ -39,6 +39,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         suku: generus.suku,
         foto: generus.foto,
         instagram: generus.instagram,
+        kriteriaPasangan: generus.kriteriaPasangan,
         role: users.role,
         createdAt: generus.createdAt,
         nomorUrut: mandiri.nomorUrut,
@@ -105,7 +106,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       nama, tempatLahir, tanggalLahir, jenisKelamin, kategoriUsia, 
       alamat, noTelp, noTelpOrtu, pendidikan, pekerjaan, statusNikah, 
       desaId, kelompokId, mandiriDesaId, mandiriKelompokId,
-      hobi, makananMinumanFavorit, suku, foto, instagram, namaOrtu, kategori 
+      hobi, makananMinumanFavorit, suku, foto, instagram, namaOrtu, kategori,
+      kriteriaPasangan
     } = body;
 
     await db
@@ -133,6 +135,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         suku,
         foto,
         instagram,
+        kriteriaPasangan,
         updatedAt: new Date().toISOString(),
       })
       .where(eq(generus.id, targetId));

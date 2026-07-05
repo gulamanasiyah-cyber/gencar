@@ -32,6 +32,7 @@ export interface GenerusItem {
   generusId?: string | null;
   createdAt?: string | null;
   instagram?: string | null;
+  kriteriaPasangan?: string | null;
   nomorUrut?: number | null;
   kota?: string | null;
   mandiriDesaKota?: string | null;
