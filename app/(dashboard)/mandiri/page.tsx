@@ -439,8 +439,8 @@ export default function MandiriPage() {
             "JK": item.jenisKelamin === "L" ? "Laki-laki" : "Perempuan",
             "Umur": hitungUmur(item.tanggalLahir),
             "Pekerjaan": item.pekerjaan || "-",
-            "Daerah": item.desaKota,
-            "Desa": item.desaNama,
+            "Daerah": item.desaKota && item.desaKota !== "N/A" ? item.desaKota : "-",
+            "Desa": item.desaNama && item.desaNama !== "N/A" ? item.desaNama : "-",
             "Kelompok": item.kelompokNama && item.kelompokNama !== "N/A" ? item.kelompokNama : "-",
             "Kehadiran": item.keterangan === "pulang" ? "Pulang" : item.isHadir === 1 ? "Hadir" : "Belum Hadir",
             "Status Akun": item.statusMandiri,
@@ -657,7 +657,7 @@ export default function MandiriPage() {
                                           <td data-label="Umur">{hitungUmur(item.tanggalLahir)}</td>
                                           <td data-label="Pekerjaan">{item.pekerjaan || "-"}</td>
                                           <td data-label="Daerah / Desa" style={{ fontSize: 12, opacity: 0.8 }}>
-                                             {item.desaKota} / {item.desaNama}
+                                             {item.desaKota && item.desaKota !== "N/A" ? item.desaKota : "-"} / {item.desaNama && item.desaNama !== "N/A" ? item.desaNama : "-"}
                                           </td>
                                           <td data-label="Kelompok" style={{ fontSize: 12, opacity: 0.8 }}>
                                              {item.kelompokNama && item.kelompokNama !== "N/A" ? item.kelompokNama : "-"}
@@ -778,7 +778,7 @@ export default function MandiriPage() {
                                           <circle cx="12" cy="10" r="3" />
                                        </svg>
                                        <span className="location-text">
-                                          {item.desaKota} / {item.desaNama}
+                                          {item.desaKota && item.desaKota !== "N/A" ? item.desaKota : "-"} / {item.desaNama && item.desaNama !== "N/A" ? item.desaNama : "-"}
                                           {item.kelompokNama && item.kelompokNama !== "N/A" ? ` / ${item.kelompokNama}` : ""}
                                        </span>
                                     </div>

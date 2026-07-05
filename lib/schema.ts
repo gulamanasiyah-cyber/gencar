@@ -43,6 +43,7 @@ export const generus = sqliteTable("generus", {
   mandiriDesaId: integer("mandiri_desa_id").references(() => mandiriDesa.id, { onDelete: "set null" }),
   mandiriKelompokId: integer("mandiri_kelompok_id").references(() => mandiriKelompok.id, { onDelete: "set null" }),
   instagram: text("instagram"),
+  kriteriaPasangan: text("kriteria_pasangan"),
   isGenerus: integer("is_generus").default(0),
   createdBy: text("created_by"),
   createdAt: text("created_at").default(sql`(datetime('now'))`),

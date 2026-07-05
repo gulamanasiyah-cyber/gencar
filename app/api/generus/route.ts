@@ -232,6 +232,7 @@ export async function GET(request: NextRequest) {
         suku: generus.suku,
         hobi: generus.hobi,
         makananMinumanFavorit: generus.makananMinumanFavorit,
+        kriteriaPasangan: generus.kriteriaPasangan,
         createdAt: generus.createdAt,
         panitiaStatus: formPanitiaDanPengurus.dapukan,
         keterangan: mandiriAbsensi.keterangan,

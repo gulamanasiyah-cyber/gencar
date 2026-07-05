@@ -354,7 +354,7 @@ export default function MandiriPanitiaPage() {
                           </span>
                         </td>
                         <td data-label="Daerah / Desa" style={{ fontSize: 12, opacity: 0.8 }}>
-                          {item.desaKota} / {item.desaNama}
+                          {item.desaKota && item.desaKota !== "N/A" ? item.desaKota : "-"} / {item.desaNama && item.desaNama !== "N/A" ? item.desaNama : "-"}
                         </td>
                         <td data-label="No. Telp" style={{ fontSize: 13 }}>{item.noTelp}</td>
                         <td data-label="Nomor Unik" style={{ fontFamily: "monospace", fontSize: 14, fontWeight: "700", color: "var(--primary)" }}>{item.nomorUnik}</td>

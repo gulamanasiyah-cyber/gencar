@@ -202,6 +202,7 @@ export async function GET(request: NextRequest) {
         hobi: generus.hobi,
         makananMinumanFavorit: generus.makananMinumanFavorit,
         instagram: generus.instagram,
+        kriteriaPasangan: generus.kriteriaPasangan,
         alamat: generus.alamat,
         role: users.role,
         nomorUrut: mandiri.nomorUrut,

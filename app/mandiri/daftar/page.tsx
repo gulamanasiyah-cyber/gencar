@@ -43,6 +43,7 @@ export default function MandiriDaftarPage() {
     mandiriDesaId: "",
     mandiriKelompokId: "",
     instagram: "",
+    kriteriaPasangan: "",
     dibayarkanSenilai: "",
     buktiPembayaran: "",
   });
@@ -922,6 +923,18 @@ export default function MandiriDaftarPage() {
               <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px" }}>
                 Gunakan username Instagram tanpa simbol @.
               </p>
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">Kriteria Pasangan (Opsional)</label>
+              <textarea
+                name="kriteriaPasangan"
+                className="form-control"
+                value={form.kriteriaPasangan}
+                onChange={handleChange}
+                placeholder="Kriteria pasangan yang diinginkan (contoh: mandiri, sholeh/sholehah, suka membaca, dll.)"
+                rows={3}
+              />
             </div>
 
             <div className="form-group">

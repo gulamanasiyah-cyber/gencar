@@ -50,6 +50,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         noTelp: sql<string>`NULL`,
         alamat: generus.alamat,
         instagram: generus.instagram,
+        kriteriaPasangan: generus.kriteriaPasangan,
       })
       .from(generus)
       .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
