@@ -403,8 +403,6 @@ export default function AdminTimGambuhPage() {
                 <option value="All">Semua Tipe</option>
                 <option value="PNKB">PNKB</option>
                 <option value="Ibu Gambuh">Ibu Gambuh</option>
-                <option value="Penunggu PNKB">Penunggu PNKB</option>
-                <option value="Penunggu Ibu Gambuh">Penunggu Ibu Gambuh</option>
               </select>
             </div>
             <div style={{ width: "250px" }}>
@@ -570,8 +568,6 @@ export default function AdminTimGambuhPage() {
                 >
                   <option value="PNKB">♂ PNKB (Laki-laki)</option>
                   <option value="Ibu Gambuh">♀ Ibu Gambuh (Perempuan)</option>
-                  <option value="Penunggu PNKB">♂ Penunggu PNKB</option>
-                  <option value="Penunggu Ibu Gambuh">♀ Penunggu Ibu Gambuh</option>
                 </select>
               </div>
 

@@ -129,10 +129,8 @@ export default function TimGambuhOperatorPage() {
                                 <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Tipe *</label>
                                 <select id="new-member-tipe" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:13px;color:#1e293b;background:#fff;outline:none;cursor:pointer;">
                                     <option value="">-- Pilih Tipe --</option>
-                                    <option value="PNKB">PNKB (Pemanggil 1)</option>
-                                    <option value="Ibu Gambuh">Ibu Gambuh (Pemanggil 2)</option>
-                                    <option value="Penunggu PNKB">Penunggu PNKB</option>
-                                    <option value="Penunggu Ibu Gambuh">Penunggu Ibu Gambuh</option>
+                                    <option value="PNKB">PNKB</option>
+                                    <option value="Ibu Gambuh">Ibu Gambuh</option>
                                 </select>
                             </div>
                             <button type="button" id="btn-save-member" style="width:100%;background:#3b82f6;color:#fff;border:none;padding:8px 16px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;">
