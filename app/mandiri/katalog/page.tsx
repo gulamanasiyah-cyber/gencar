@@ -376,23 +376,11 @@ export default function PublicKatalogPage() {
                 noTelp: data.noTelp,
               });
 
-              // Bind OneSignal to existing user phone number
+              // Bind FCM to existing user phone number
               if (typeof window !== "undefined" && data.noTelp) {
-                let cleanPhone = data.noTelp.trim().replace(/[^0-9]/g, "");
-                if (cleanPhone.startsWith("0")) {
-                  cleanPhone = "62" + cleanPhone.slice(1);
-                }
-                const OneSignal = (window as any).OneSignal;
-                if (OneSignal) {
-                  OneSignal.push(async () => {
-                    try {
-                      console.log("Binding existing user to OneSignal with phone:", cleanPhone);
-                      await OneSignal.login(cleanPhone);
-                    } catch (e) {
-                      console.error("OneSignal login error:", e);
-                    }
-                  });
-                }
+                import("@/lib/fcm-client").then(({ registerFCM }) => {
+                  registerFCM(data.noTelp);
+                }).catch(e => console.error("FCM client import failed:", e));
               }
 
               if (data.jenisKelamin) {
@@ -1011,6 +999,14 @@ export default function PublicKatalogPage() {
             jenisKelamin: resData.jenisKelamin,
             role: resData.role || "Peserta",
           });
+
+          // Bind FCM to existing user phone number on login
+          if (typeof window !== "undefined" && resData.noTelp) {
+            import("@/lib/fcm-client").then(({ registerFCM }) => {
+              registerFCM(resData.noTelp);
+            }).catch((e) => console.error("FCM login registration failed:", e));
+          }
+
           Swal.fire({ title: `Selamat Datang, ${resData.nama}!`, text: "Berhasil masuk ke Katalog Peserta.", icon: "success", timer: 2000, showConfirmButton: false, toast: true, position: 'top-end' });
         } else if (resData.status === "waiting") {
           setStatus("waiting");

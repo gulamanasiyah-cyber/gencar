@@ -4,7 +4,6 @@ import { Inter, Plus_Jakarta_Sans, Merriweather, Montserrat } from "next/font/go
 import "./globals.css";
 import PageTransition from "@/components/PageTransition";
 import ThemeConfig from "@/components/ThemeConfig";
-import OneSignalInit from "@/components/OneSignalInit";
 import { Suspense } from "react";
 
 const inter = Inter({
@@ -52,7 +51,6 @@ export default function RootLayout({
       <body className={`${inter.variable} ${plusJakartaSans.variable} ${merriweather.variable} ${montserrat.variable}`} suppressHydrationWarning>
         <Suspense fallback={null}>
           <ThemeConfig />
-          <OneSignalInit />
           <PageTransition />
         </Suspense>
         {children}

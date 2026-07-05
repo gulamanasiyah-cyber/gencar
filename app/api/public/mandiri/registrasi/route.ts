@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { generus, mandiri, settings, desa, kelompok, users, mandiriDesa, mandiriDaerah, mandiriKegiatan } from "@/lib/schema";
-import { sendOneSignalNotification } from "@/lib/onesignal";
 import { eq, desc, and, or, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 
@@ -176,13 +175,6 @@ export async function POST(request: NextRequest) {
             catatan: catatanPembayaran
         });
 
-        // Send OneSignal push notification
-        await sendOneSignalNotification({
-          headings: "Pendaftaran Sukses! 🎉",
-          contents: `Halo ${nama}, pendaftaran Anda untuk kegiatan "${activeKegNama}" berhasil. Nomor Urut Anda adalah #${nextNr}.`,
-          externalUserIds: [noTelp]
-        });
-
         return NextResponse.json({ success: true, generusId: duplicate.id, nomorUnik: duplicate.nomorUnik, nomorUrut: nextNr });
     }
 
@@ -273,13 +265,6 @@ export async function POST(request: NextRequest) {
       dibayarkanSenilai: statusPeserta === "Person" ? Number(dibayarkanSenilai) : null,
       buktiPembayaran: statusPeserta === "Person" ? buktiPembayaran : null,
       catatan: catatanPembayaran
-    });
-
-    // Send OneSignal push notification
-    await sendOneSignalNotification({
-      headings: "Pendaftaran Sukses! 🎉",
-      contents: `Halo ${nama}, pendaftaran Anda untuk kegiatan "${activeKegNama}" berhasil. Nomor Urut Anda adalah #${nextNr}.`,
-      externalUserIds: [noTelp]
     });
 
     return NextResponse.json({ success: true, generusId, nomorUnik, nomorUrut: nextNr });
