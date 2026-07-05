@@ -84,6 +84,9 @@ export async function GET(request: NextRequest) {
         desaKota: sql<string>`COALESCE(${mandiriDaerah.nama}, 'Luar JB2')`,
         desaNama: sql<string>`COALESCE(${mandiriDesa.nama}, ${desa.nama}, 'N/A')`,
         kelompokNama: sql<string>`COALESCE(${mandiriKelompok.nama}, ${kelompok.nama}, 'N/A')`,
+        mandiriDaerahId: mandiriDesa.mandiriDaerahId,
+        mandiriDesaId: generus.mandiriDesaId,
+        mandiriKelompokId: generus.mandiriKelompokId,
         noTelp: generus.noTelp,
         foto: generus.foto,
         createdAt: mandiri.createdAt,
@@ -275,7 +278,10 @@ export async function PUT(request: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const { id: mandiriId, statusMandiri, catatan, resetDevice, statusPeserta, dibayarkanSenilai } = body;
+    const { 
+      id: mandiriId, statusMandiri, catatan, resetDevice, statusPeserta, dibayarkanSenilai,
+      generusId, nama, noTelp, jenisKelamin, tanggalLahir, pekerjaan, mandiriDesaId, mandiriKelompokId
+    } = body;
 
     if (!mandiriId) return NextResponse.json({ error: "ID wajib diisi" }, { status: 400 });
 
@@ -295,9 +301,36 @@ export async function PUT(request: NextRequest) {
     
     if (resetDevice) updateData.deviceId = null;
 
-    await db.update(mandiri)
-      .set(updateData)
-      .where(eq(mandiri.id, mandiriId));
+    // Run updates concurrently
+    const promises: any[] = [
+      db.update(mandiri).set(updateData).where(eq(mandiri.id, mandiriId))
+    ];
+
+    if (generusId) {
+      const genUpdate: any = {};
+      if (nama !== undefined) genUpdate.nama = nama;
+      if (noTelp !== undefined) genUpdate.noTelp = noTelp;
+      if (jenisKelamin !== undefined) genUpdate.jenisKelamin = jenisKelamin;
+      if (tanggalLahir !== undefined) genUpdate.tanggalLahir = tanggalLahir;
+      if (pekerjaan !== undefined) genUpdate.pekerjaan = pekerjaan;
+      if (mandiriDesaId !== undefined) genUpdate.mandiriDesaId = mandiriDesaId ? Number(mandiriDesaId) : null;
+      if (mandiriKelompokId !== undefined) genUpdate.mandiriKelompokId = mandiriKelompokId ? Number(mandiriKelompokId) : null;
+
+      if (Object.keys(genUpdate).length > 0) {
+        promises.push(db.update(generus).set(genUpdate).where(eq(generus.id, generusId)));
+        
+        // Update user profile if needed (for syncing desa/kelompok/nama)
+        const userUpdate: any = {};
+        if (nama !== undefined) userUpdate.name = nama;
+        if (mandiriDesaId !== undefined) userUpdate.mandiriDesaId = mandiriDesaId ? Number(mandiriDesaId) : null;
+        if (mandiriKelompokId !== undefined) userUpdate.mandiriKelompokId = mandiriKelompokId ? Number(mandiriKelompokId) : null;
+        if (Object.keys(userUpdate).length > 0) {
+          promises.push(db.update(users).set(userUpdate).where(eq(users.generusId, generusId)));
+        }
+      }
+    }
+
+    await Promise.all(promises);
 
     return NextResponse.json({ success: true });
   } catch (error) {
