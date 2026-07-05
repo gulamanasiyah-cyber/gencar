@@ -1929,7 +1929,7 @@ export default function RomanticRoomPage() {
                                                 const selectBase: React.CSSProperties = {
                                                     fontSize: '11px', fontWeight: 800, borderRadius: '4px',
                                                     border: '1px solid', cursor: 'pointer', outline: 'none',
-                                                    padding: '2px 2px', width: '100%', overflow: 'hidden',
+                                                    padding: '4px 6px', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis',
                                                     appearance: 'none' as const, WebkitAppearance: 'none' as const,
                                                 };
                                                 const isKosong = room.status === 'Kosong';
@@ -1947,7 +1947,7 @@ export default function RomanticRoomPage() {
                                                     );
                                                 }
                                                 return (
-                                                    <div style={{ paddingTop: '6px', borderTop: isKosong ? '1px dashed #f9a8d4' : '1px dashed #e2e8f0', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '3px' }}>
+                                                    <div style={{ paddingTop: '6px', borderTop: isKosong ? '1px dashed #f9a8d4' : '1px dashed #e2e8f0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                                         {/* Caller 1 - PNKB */}
                                                         <select
                                                             value={room.assignedCallerId || ""}
@@ -1955,9 +1955,9 @@ export default function RomanticRoomPage() {
                                                             title="Pemanggil 1 (PNKB)"
                                                             style={{ ...selectBase, borderColor: '#bfdbfe', background: room.assignedCallerId ? '#eff6ff' : '#f8fafc', color: room.assignedCallerId ? '#2563eb' : '#94a3b8' }}
                                                         >
-                                                            <option value="">📢 P1</option>
+                                                            <option value="">📢 Pemanggil 1 (Belum)</option>
                                                             {staffList.filter(s => s.role === 'PNKB').map(s => (
-                                                                <option key={s.id} value={s.id}>📢 {s.name.split(" ")[0]}</option>
+                                                                <option key={s.id} value={s.id}>📢 {s.name}</option>
                                                             ))}
                                                         </select>
                                                         {/* Caller 2 - Ibu Gambuh */}
@@ -1967,9 +1967,9 @@ export default function RomanticRoomPage() {
                                                             title="Pemanggil 2 (Ibu Gambuh)"
                                                             style={{ ...selectBase, borderColor: '#e9d5ff', background: room.assignedCaller2Id ? '#fdf4ff' : '#f8fafc', color: room.assignedCaller2Id ? '#9333ea' : '#94a3b8' }}
                                                         >
-                                                            <option value="">📢 P2</option>
+                                                            <option value="">📢 Pemanggil 2 (Belum)</option>
                                                             {staffList.filter(s => s.role === 'Ibu Gambuh').map(s => (
-                                                                <option key={s.id} value={s.id}>📢 {s.name.split(" ")[0]}</option>
+                                                                <option key={s.id} value={s.id}>📢 {s.name}</option>
                                                             ))}
                                                         </select>
                                                         {/* Guard - PNKB + Ibu Gambuh */}
@@ -1979,9 +1979,9 @@ export default function RomanticRoomPage() {
                                                             title="Penunggu (PNKB / Ibu Gambuh)"
                                                             style={{ ...selectBase, borderColor: '#a7f3d0', background: room.assignedGuardId ? '#ecfdf5' : '#f8fafc', color: room.assignedGuardId ? '#059669' : '#94a3b8' }}
                                                         >
-                                                            <option value="">🚪 Jg</option>
+                                                            <option value="">🚪 Penunggu (Belum)</option>
                                                             {staffList.filter(s => s.role === 'PNKB' || s.role === 'Ibu Gambuh').map(s => (
-                                                                <option key={s.id} value={s.id}>🚪 {s.name.split(" ")[0]} ({s.role === 'PNKB' ? 'P' : 'G'})</option>
+                                                                <option key={s.id} value={s.id}>🚪 {s.name} ({s.role === 'PNKB' ? 'P' : 'G'})</option>
                                                             ))}
                                                         </select>
                                                     </div>
