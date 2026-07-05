@@ -1314,7 +1314,6 @@ export default function RomanticRoomPage() {
             "Daerah/Kota Pemilih": item.pemilihKota || "-",
             "Desa Pemilih": item.pemilihDesa || "-",
             "WhatsApp Pemilih": item.pemilihWa || "-",
-            "Status WA Pemilih": item.statusWaPengirim || "Belum",
             "Status Pemilih": item.pemilihStatus,
             "Hasil Pemilih": item.pemilihHasil || "-",
             "Nomor Peserta Terpilih": item.terpilihNomorUrut || item.terpilihNo || "-",
@@ -1323,7 +1322,6 @@ export default function RomanticRoomPage() {
             "Daerah/Kota Terpilih": item.terpilihKota || "-",
             "Desa Terpilih": item.terpilihDesa || "-",
             "WhatsApp Terpilih": item.terpilihWa || "-",
-            "Status WA Terpilih": item.statusWaPenerima || "Belum",
             "Status Terpilih": item.terpilihStatus,
             "Hasil Terpilih": item.terpilihHasil || "-",
             "Nomor Room": item.roomNama,
@@ -2097,14 +2095,12 @@ export default function RomanticRoomPage() {
                                                     <th>Nama Pemilih</th>
                                                     <th>Daerah / Desa Pemilih</th>
                                                     <th>WhatsApp Pemilih</th>
-                                                    <th>Status WA Pemilih</th>
                                                     <th>Status Pemilih</th>
                                                     <th>Hasil Pemilih</th>
                                                     <th>Nomor Peserta Terpilih</th>
                                                     <th>Nama Terpilih</th>
                                                     <th>Daerah / Desa Terpilih</th>
                                                     <th>WhatsApp Terpilih</th>
-                                                    <th>Status WA Terpilih</th>
                                                     <th>Status Terpilih</th>
                                                     <th>Hasil Terpilih</th>
                                                     <th className="text-center">Status</th>
@@ -2122,11 +2118,6 @@ export default function RomanticRoomPage() {
                                                         <td className="font-bold">{item.pemilihNama}</td>
                                                         <td style={{ fontSize: '11px' }}>{item.pemilihKota || '-'} / {item.pemilihDesa || '-'}</td>
                                                         <td style={{ fontSize: '11px' }}>{item.pemilihWa || '-'}</td>
-                                                        <td>
-                                                            <span className={`result-badge ${item.statusWaPengirim === 'Terkirim' ? 'badge-success' : item.statusWaPengirim === 'Gagal Terkirim' ? 'badge-warning' : item.statusWaPengirim === 'Nomor Tidak Valid' ? 'badge-danger' : 'badge-info'}`}>
-                                                                {item.statusWaPengirim || "Belum"}
-                                                            </span>
-                                                        </td>
                                                         <td>{item.pemilihStatus}</td>
                                                         <td>
                                                             {item.pemilihHasil && (
@@ -2143,11 +2134,6 @@ export default function RomanticRoomPage() {
                                                         <td className="font-bold">{item.terpilihNama}</td>
                                                         <td style={{ fontSize: '11px' }}>{item.terpilihKota || '-'} / {item.terpilihDesa || '-'}</td>
                                                         <td style={{ fontSize: '11px' }}>{item.terpilihWa || '-'}</td>
-                                                        <td>
-                                                            <span className={`result-badge ${item.statusWaPenerima === 'Terkirim' ? 'badge-success' : item.statusWaPenerima === 'Gagal Terkirim' ? 'badge-warning' : item.statusWaPenerima === 'Nomor Tidak Valid' ? 'badge-danger' : 'badge-info'}`}>
-                                                                {item.statusWaPenerima || "Belum"}
-                                                            </span>
-                                                        </td>
                                                         <td>{item.terpilihStatus}</td>
                                                         <td>
                                                             {item.terpilihHasil && (
@@ -2247,13 +2233,6 @@ export default function RomanticRoomPage() {
                                                         </div>
                                                         <div className="member-subtext">{item.pemilihKota || '-'} / {item.pemilihDesa || '-'}</div>
                                                         <div className="member-subtext">WA: {item.pemilihWa || '-'}</div>
-                                                        {item.statusWaPengirim && (
-                                                            <div className="member-subtext" style={{ marginTop: '2px' }}>
-                                                                <span className={`result-badge ${item.statusWaPengirim === 'Terkirim' ? 'badge-success' : item.statusWaPengirim === 'Gagal Terkirim' ? 'badge-warning' : item.statusWaPengirim === 'Nomor Tidak Valid' ? 'badge-danger' : 'badge-info'}`}>
-                                                                    Status WA: {item.statusWaPengirim}
-                                                                </span>
-                                                            </div>
-                                                        )}
                                                         <div className="member-result">
                                                             {item.pemilihHasil && (
                                                                 <span className={`result-badge ${item.pemilihHasil === 'Lanjut' ? 'badge-success' :
@@ -2284,13 +2263,6 @@ export default function RomanticRoomPage() {
                                                         </div>
                                                         <div className="member-subtext">{item.terpilihKota || '-'} / {item.terpilihDesa || '-'}</div>
                                                         <div className="member-subtext">WA: {item.terpilihWa || '-'}</div>
-                                                        {item.statusWaPenerima && (
-                                                            <div className="member-subtext" style={{ marginTop: '2px' }}>
-                                                                <span className={`result-badge ${item.statusWaPenerima === 'Terkirim' ? 'badge-success' : item.statusWaPenerima === 'Gagal Terkirim' ? 'badge-warning' : item.statusWaPenerima === 'Nomor Tidak Valid' ? 'badge-danger' : 'badge-info'}`}>
-                                                                    Status WA: {item.statusWaPenerima}
-                                                                </span>
-                                                            </div>
-                                                        )}
                                                         <div className="member-result">
                                                             {item.terpilihHasil && (
                                                                 <span className={`result-badge ${item.terpilihHasil === 'Lanjut' ? 'badge-success' :

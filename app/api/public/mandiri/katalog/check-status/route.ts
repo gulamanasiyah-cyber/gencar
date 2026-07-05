@@ -125,7 +125,8 @@ export async function GET(request: NextRequest) {
       mandiriDesaKota: user[0]?.mandiriDesaKota,
       jenisKelamin: user[0]?.jenisKelamin,
       role: user[0]?.role || "Peserta",
-      sessionToken: finalSessionToken
+      sessionToken: finalSessionToken,
+      noTelp: user[0]?.noTelp
     };
 
     if (attendance.length > 0) {

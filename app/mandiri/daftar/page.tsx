@@ -495,15 +495,11 @@ export default function MandiriDaftarPage() {
 
       if (!res.ok) throw new Error(data.error || "Gagal mendaftar");
       
-      if (typeof window !== "undefined" && (window as any).OneSignal) {
-        try {
-          const OneSignal = (window as any).OneSignal;
-          OneSignal.push(() => {
-            OneSignal.login(cleanNoTelp);
-          });
-        } catch (e) {
-          console.warn("OneSignal login failed:", e);
-        }
+      // Bind FCM to newly registered phone number
+      if (typeof window !== "undefined" && cleanNoTelp) {
+        import("@/lib/fcm-client").then(({ registerFCM }) => {
+          registerFCM(cleanNoTelp);
+        }).catch(e => console.error("FCM client import failed:", e));
       }
 
       setSuccess(true);

@@ -486,23 +486,6 @@ export default function TimGambuhOperatorPage() {
                         <option value="Tidak Lanjut" ${item.terpilihHasil === 'Tidak Lanjut' ? 'selected' : ''}>Tidak Lanjut</option>
                     </select>
                     
-                    <hr style="border:0;border-top:1px dashed #cbd5e1;margin:16px 0" />
-                    
-                    <label style="font-size:11px;font-weight:800;text-transform:uppercase;color:#1e293b">Status WA Pemilih (${item.pemilihWa || '-'})</label>
-                    <select id="edit_wa_pengirim" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e2e8f0;margin:6px 0 16px;font-size:13px">
-                        <option value="" ${!item.statusWaPengirim ? 'selected' : ''}>-- Belum Dikirim --</option>
-                        <option value="Terkirim" ${item.statusWaPengirim === 'Terkirim' ? 'selected' : ''}>Terkirim</option>
-                        <option value="Gagal Terkirim" ${item.statusWaPengirim === 'Gagal Terkirim' ? 'selected' : ''}>Gagal Terkirim</option>
-                        <option value="Nomor Tidak Valid" ${item.statusWaPengirim === 'Nomor Tidak Valid' ? 'selected' : ''}>Nomor Tidak Valid</option>
-                    </select>
-                    
-                    <label style="font-size:11px;font-weight:800;text-transform:uppercase;color:#1e293b">Status WA Terpilih (${item.terpilihWa || '-'})</label>
-                    <select id="edit_wa_penerima" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e2e8f0;margin:6px 0 16px;font-size:13px">
-                        <option value="" ${!item.statusWaPenerima ? 'selected' : ''}>-- Belum Dikirim --</option>
-                        <option value="Terkirim" ${item.statusWaPenerima === 'Terkirim' ? 'selected' : ''}>Terkirim</option>
-                        <option value="Gagal Terkirim" ${item.statusWaPenerima === 'Gagal Terkirim' ? 'selected' : ''}>Gagal Terkirim</option>
-                        <option value="Nomor Tidak Valid" ${item.statusWaPenerima === 'Nomor Tidak Valid' ? 'selected' : ''}>Nomor Tidak Valid</option>
-                    </select>
                 </div>
             `,
             focusConfirm: false,
@@ -513,8 +496,6 @@ export default function TimGambuhOperatorPage() {
             preConfirm: () => ({
                 hasilPengirim: (document.getElementById('edit_pengirim') as HTMLSelectElement).value,
                 hasilPenerima: (document.getElementById('edit_penerima') as HTMLSelectElement).value,
-                statusWaPengirim: (document.getElementById('edit_wa_pengirim') as HTMLSelectElement).value,
-                statusWaPenerima: (document.getElementById('edit_wa_penerima') as HTMLSelectElement).value,
             })
         });
 
@@ -745,14 +726,12 @@ export default function TimGambuhOperatorPage() {
             "Nama Peserta 1": item.pemilihNama || "-",
             "Daerah/Desa Peserta 1": `${item.pemilihKota || "-"} / ${item.pemilihDesa || "-"}`,
             "WhatsApp Peserta 1": item.pemilihWa || "-",
-            "Status WA 1": item.statusWaPengirim || "Belum",
             "Status Peserta 1": item.pemilihStatus || "-",
             "Hasil Peserta 1": item.pemilihHasil || "-",
             "No. Peserta 2": item.terpilihNomorUrut || item.terpilihNo || "-",
             "Nama Peserta 2": item.terpilihNama || "-",
             "Daerah/Desa Peserta 2": `${item.terpilihKota || "-"} / ${item.terpilihDesa || "-"}`,
             "WhatsApp Peserta 2": item.terpilihWa || "-",
-            "Status WA 2": item.statusWaPenerima || "Belum",
             "Status Peserta 2": item.terpilihStatus || "-",
             "Hasil Peserta 2": item.terpilihHasil || "-",
             "Status": item.status || "-",
@@ -972,14 +951,12 @@ export default function TimGambuhOperatorPage() {
                                         <th>Nama Peserta 1</th>
                                         <th>Daerah/Desa Peserta 1</th>
                                         <th>WhatsApp Peserta 1</th>
-                                        <th>Status WA 1</th>
                                         <th>Status Peserta 1</th>
                                         <th>Hasil Peserta 1</th>
                                         <th>No. Peserta 2</th>
                                         <th>Nama Peserta 2</th>
                                         <th>Daerah/Desa Peserta 2</th>
                                         <th>WhatsApp Peserta 2</th>
-                                        <th>Status WA 2</th>
                                         <th>Status Peserta 2</th>
                                         <th>Hasil Peserta 2</th>
                                         <th>Status</th>
@@ -1006,11 +983,6 @@ export default function TimGambuhOperatorPage() {
                                                 <td data-label="Nama Peserta 1">{item.pemilihNama || "-"}</td>
                                                 <td data-label="Daerah/Desa Peserta 1">{item.pemilihKota || "-"} / {item.pemilihDesa || "-"}</td>
                                                 <td data-label="WhatsApp Peserta 1">{item.pemilihWa || "-"}</td>
-                                                <td data-label="Status WA 1">
-                                                    <span className={`badge ${item.statusWaPengirim === 'Terkirim' ? 'badge-green' : item.statusWaPengirim === 'Gagal Terkirim' ? 'badge-orange' : item.statusWaPengirim === 'Nomor Tidak Valid' ? 'badge-red' : 'badge-gray'}`}>
-                                                        {item.statusWaPengirim || "Belum"}
-                                                    </span>
-                                                </td>
                                                 <td data-label="Status Peserta 1">{item.pemilihStatus || "-"}</td>
                                                 <td data-label="Hasil Peserta 1">
                                                     <span className={`badge ${hasilBadgeClass(item.pemilihHasil)}`}>
@@ -1021,11 +993,6 @@ export default function TimGambuhOperatorPage() {
                                                 <td data-label="Nama Peserta 2">{item.terpilihNama || "-"}</td>
                                                 <td data-label="Daerah/Desa Peserta 2">{item.terpilihKota || "-"} / {item.terpilihDesa || "-"}</td>
                                                 <td data-label="WhatsApp Peserta 2">{item.terpilihWa || "-"}</td>
-                                                <td data-label="Status WA 2">
-                                                    <span className={`badge ${item.statusWaPenerima === 'Terkirim' ? 'badge-green' : item.statusWaPenerima === 'Gagal Terkirim' ? 'badge-orange' : item.statusWaPenerima === 'Nomor Tidak Valid' ? 'badge-red' : 'badge-gray'}`}>
-                                                        {item.statusWaPenerima || "Belum"}
-                                                    </span>
-                                                </td>
                                                 <td data-label="Status Peserta 2">{item.terpilihStatus || "-"}</td>
                                                 <td data-label="Hasil Peserta 2">
                                                     <span className={`badge ${hasilBadgeClass(item.terpilihHasil)}`}>

@@ -548,3 +548,16 @@ export const mandiriKegiatanDaerah = sqliteTable("mandiri_kegiatan_daerah", {
 export type MandiriKegiatanDaerah = typeof mandiriKegiatanDaerah.$inferSelect;
 export type NewMandiriKegiatanDaerah = typeof mandiriKegiatanDaerah.$inferInsert;
 
+export const fcmTokens = sqliteTable("fcm_tokens", {
+  id: text("id").primaryKey(),
+  phone: text("phone").notNull(),
+  token: text("token").notNull().unique(),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+}, (table) => ({
+  phoneIdx: index("fcm_tokens_phone_idx").on(table.phone),
+}));
+
+export type FcmToken = typeof fcmTokens.$inferSelect;
+export type NewFcmToken = typeof fcmTokens.$inferInsert;
+
+

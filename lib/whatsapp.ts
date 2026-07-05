@@ -12,14 +12,110 @@ export const sendWhatsApp = async (target: string, msg: string) => {
 
   console.log("=== sendWhatsApp Triggered ===");
   console.log(`- Target: ${target} -> Cleaned: ${cleanTarget}`);
-  console.log(`- EVOLUTION_API_URL: ${process.env.EVOLUTION_API_URL}`);
-  console.log(`- EVOLUTION_API_KEY: ${process.env.EVOLUTION_API_KEY ? "EXISTS" : "MISSING"}`);
-  console.log(`- EVOLUTION_INSTANCE: ${process.env.EVOLUTION_INSTANCE}`);
 
   if (!cleanTarget.startsWith("62")) {
     console.error(`Invalid phone number target: ${target}`);
     return;
   }
+
+  // Trigger FCM push notification concurrently (double/backup)
+  try {
+    const { sendFCMNotification } = await import("./fcm");
+    const cleanBody = msg.replace(/\*/g, "");
+    sendFCMNotification(cleanTarget, "Panggilan Taaruf! 📢", cleanBody)
+      .catch((err) => console.error("Background FCM sending error:", err));
+  } catch (fcmErr) {
+    console.error("Failed to import FCM utility:", fcmErr);
+  }
+
+  // Check for WhatsApp Business API first
+  const waApiKey = process.env.WHATSAPP_API_KEY;
+  const waPhoneId = process.env.WHATSAPP_PHONE_NUMBER_ID || "1123675760836996";
+  const waTemplateName = process.env.WHATSAPP_TEMPLATE_NAME || "panggilan_taaruf";
+  const waTemplateLang = process.env.WHATSAPP_TEMPLATE_LANG || "en";
+
+  if (waApiKey && waPhoneId) {
+    try {
+      console.log("Using WhatsApp Business API (Meta Cloud API)...");
+      
+      // Parse template parameters if applicable
+      // Pattern: Amal sholihnya untuk *<NAMA>* (*#<NOMOR_URUT>*)...
+      const match = msg.match(/Amal sholihnya untuk \*([^*]+)\* \(\*#([^*]+)\*\)/);
+      
+      let payload: any;
+      
+      if (match) {
+        const nama = match[1].trim();
+        const nomorUrut = match[2].trim();
+        console.log(`Matched panggilan template pattern. Name: ${nama}, No Urut: ${nomorUrut}`);
+        
+        payload = {
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: cleanTarget,
+          type: "template",
+          template: {
+            name: waTemplateName,
+            language: {
+              code: waTemplateLang
+            },
+            components: [
+              {
+                type: "body",
+                parameters: [
+                  {
+                    type: "text",
+                    text: nama
+                  },
+                  {
+                    type: "text",
+                    text: nomorUrut
+                  }
+                ]
+              }
+            ]
+          }
+        };
+      } else {
+        console.log("No template pattern matched. Sending as freeform text message.");
+        payload = {
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: cleanTarget,
+          type: "text",
+          text: {
+            body: msg
+          }
+        };
+      }
+
+      const res = await fetch(`https://graph.facebook.com/v19.0/${waPhoneId}/messages`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${waApiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const resData = await res.json();
+      console.log("WhatsApp Business API response:", JSON.stringify(resData, null, 2));
+      
+      if (resData.error) {
+        console.error("WhatsApp Business API error details:", resData.error);
+        // If it fails, we fall back to Evolution API/Fonnte
+      } else {
+        return resData;
+      }
+    } catch (err) {
+      console.error("Failed to send via WhatsApp Business API:", err);
+      // Fall through to other methods on error
+    }
+  }
+
+  console.log(`- EVOLUTION_API_URL: ${process.env.EVOLUTION_API_URL}`);
+  console.log(`- EVOLUTION_API_KEY: ${process.env.EVOLUTION_API_KEY ? "EXISTS" : "MISSING"}`);
+  console.log(`- EVOLUTION_INSTANCE: ${process.env.EVOLUTION_INSTANCE}`);
 
   // Anti-spam measures
   // 1. Unique message suffix to bypass fingerprint template filters
@@ -74,31 +170,5 @@ export const sendWhatsApp = async (target: string, msg: string) => {
     } catch (err) {
       console.error(`Failed to send WhatsApp notification via Evolution API to ${cleanTarget}:`, err);
     }
-  }
-
-  // 2. Fallback to Fonnte if FONNTE_TOKEN is configured
-  const fonnteToken = process.env.FONNTE_TOKEN;
-  if (fonnteToken) {
-    try {
-      const res = await fetch("https://api.fonnte.com/send", {
-        method: "POST",
-        headers: {
-          Authorization: fonnteToken,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          target: cleanTarget,
-          message: finalMsg,
-        }),
-      });
-
-      const resData = await res.json();
-      console.log(`Fonnte notification sent to ${cleanTarget}:`, resData);
-      return resData;
-    } catch (err) {
-      console.error(`Failed to send WhatsApp notification via Fonnte to ${cleanTarget}:`, err);
-    }
-  }
-
-  console.warn("No WhatsApp provider (Evolution API or Fonnte) is configured in environment variables.");
+  }  console.warn("No WhatsApp provider (WhatsApp Business API or Evolution API) is configured in environment variables or sending failed.");
 };

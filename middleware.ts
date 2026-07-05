@@ -10,7 +10,7 @@ const RATE_LIMIT_MAX = 10;           // max 10 attempts per window
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
-  
+
   // Lazy cleanup to avoid setInterval in Edge Runtime which causes 502 Bad Gateway
   if (Math.random() < 0.1) {
     rateLimit.forEach((val, key) => {
