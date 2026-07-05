@@ -275,14 +275,24 @@ export async function PUT(request: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const { id: mandiriId, statusMandiri, catatan, resetDevice } = body;
+    const { id: mandiriId, statusMandiri, catatan, resetDevice, statusPeserta, dibayarkanSenilai } = body;
 
     if (!mandiriId) return NextResponse.json({ error: "ID wajib diisi" }, { status: 400 });
 
     const entry = await db.query.mandiri.findFirst({ where: eq(mandiri.id, mandiriId) });
     if (!entry) return NextResponse.json({ error: "Data pendaftaran tidak ditemukan" }, { status: 404 });
 
-    const updateData: any = { statusMandiri, catatan, updatedAt: sql`(datetime('now'))` };
+    const updateData: any = { 
+      statusMandiri, 
+      catatan, 
+      statusPeserta,
+      updatedAt: sql`(datetime('now'))` 
+    };
+    
+    if (dibayarkanSenilai !== undefined) {
+      updateData.dibayarkanSenilai = dibayarkanSenilai;
+    }
+    
     if (resetDevice) updateData.deviceId = null;
 
     await db.update(mandiri)

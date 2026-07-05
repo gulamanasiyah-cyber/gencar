@@ -9,35 +9,35 @@ import { users } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { setSession } from "@/lib/auth";
+import { loginSchema } from "@/lib/validation";
+import { sanitizeString, detectPromptInjection } from "@/lib/sanitize";
 
 export async function POST(request: NextRequest) {
   try {
-    // Self-healing: migrate old role value to new
-    try {
-      const { sql } = await import("drizzle-orm");
-      await db.run(sql`UPDATE users SET role = 'tim_pnkb_gambuh' WHERE role = 'tim_gambuh'`);
-    } catch (_) {}
+    const rawBody = await request.json();
 
-    const { email, password } = await request.json();
-
-    if (!email || !password) {
-      return NextResponse.json({ error: "Email dan password diperlukan" }, { status: 400 });
+    // 1. Zod schema validation
+    const parsed = loginSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      const firstError = (parsed.error as any).issues?.[0]?.message || (parsed.error as any).errors?.[0]?.message || "Input tidak valid";
+      return NextResponse.json({ error: firstError }, { status: 400 });
     }
 
-    let user = await db.query.users.findFirst({
-      where: eq(users.email, email.toLowerCase()),
+    const { email, password } = parsed.data;
+
+    // 2. Prompt injection detection
+    if (detectPromptInjection(email) || detectPromptInjection(password)) {
+      return NextResponse.json({ error: "Input ditolak" }, { status: 400 });
+    }
+
+    // 3. Sanitize email
+    const cleanEmail = sanitizeString(email).toLowerCase();
+
+    const user = await db.query.users.findFirst({
+      where: eq(users.email, cleanEmail),
     });
 
-    // If not found in users, check users_old (Generus / Legacy)
-    let isLegacy = false;
-    if (!user) {
-        const { users } = await import("@/lib/schema");
-        user = await db.query.users.findFirst({
-            where: eq(users.email, email.toLowerCase()),
-        }) as any;
-        if (user) isLegacy = true;
-    }
-
+    // Generic error message to prevent user enumeration
     if (!user) {
       return NextResponse.json({ error: "Email atau password salah" }, { status: 401 });
     }

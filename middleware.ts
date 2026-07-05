@@ -1,10 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth";
 
+// ── In-Memory Rate Limiter ──────────────────────────────────────────
+// Tracks request counts per IP for sensitive endpoints (login, register).
+// Automatically evicts stale entries every 60s to prevent memory leaks.
+const rateLimit = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+const RATE_LIMIT_MAX = 10;           // max 10 attempts per window
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+
+  // Lazy cleanup to avoid setInterval in Edge Runtime which causes 502 Bad Gateway
+  if (Math.random() < 0.1) {
+    rateLimit.forEach((val, key) => {
+      if (now > val.resetAt) rateLimit.delete(key);
+    });
+  }
+
+  const entry = rateLimit.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimit.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+  entry.count++;
+  return entry.count > RATE_LIMIT_MAX;
+}
+// ─────────────────────────────────────────────────────────────────────
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const PUBLIC_PATHS = ["/login", "/register", "/api/auth/login", "/api/auth/register", "/api/auth/desa", "/api/auth/kelompok", "/api/auth/reset-password", "/api/settings", "/api/public", "/api/upload", "/api/sholat", "/mandiri/katalog", "/mandiri/daftar", "/api/mandiri/pilih", "/api/mandiri/komentar", "/api/mandiri/box-love", "/api/mandiri/rooms", "/api/debug-db", "/api/webhook/fonnte", "/firebase-messaging-sw.js", "/api/fcm/register", "/firebase-app-compat.js", "/firebase-messaging-compat.js"];
+  const PUBLIC_PATHS = ["/login", "/register", "/api/auth/login", "/api/auth/register", "/api/auth/desa", "/api/auth/kelompok", "/api/auth/reset-password", "/api/settings", "/api/public", "/api/sholat", "/mandiri/katalog", "/mandiri/daftar", "/api/mandiri/pilih", "/api/mandiri/komentar", "/api/mandiri/box-love", "/api/mandiri/rooms", "/api/webhook/fonnte"];
+
+  // ── Rate limit sensitive auth endpoints ──
+  if (pathname === "/api/auth/login" || pathname === "/api/auth/register") {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || request.headers.get("x-real-ip")
+      || "unknown";
+    if (isRateLimited(ip)) {
+      return NextResponse.json(
+        { error: "Terlalu banyak percobaan. Silakan coba lagi setelah 1 menit." },
+        { status: 429 }
+      );
+    }
+  }
 
   // Allow public paths
   if (PUBLIC_PATHS.some((path) => pathname.startsWith(path))) {
@@ -60,6 +100,7 @@ export async function middleware(request: NextRequest) {
       !pathname.startsWith("/mandiri/tim-gambuh") &&
       !pathname.startsWith("/mandiri/tim-penunggu") &&
       !pathname.startsWith("/admin/katalog") &&
+      !pathname.startsWith("/tim-gambuh/katalog") &&
       !pathname.startsWith("/api/public/mandiri") &&
       !pathname.startsWith("/api/mandiri/rooms") &&
       !pathname.startsWith("/api/mandiri/kunjungan") &&
@@ -143,4 +184,3 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
-

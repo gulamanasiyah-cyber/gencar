@@ -46,3 +46,11 @@ local.db-journal
 *.tsbuildinfo
 .next/
 node_modules/
+
+# security: prevent debug/test/migration scripts from being committed
+test-db.*
+check_db.*
+diff.txt
+*.mjs.bak
+scratch/
+pages_list.txt

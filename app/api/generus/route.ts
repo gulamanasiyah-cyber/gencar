@@ -206,8 +206,8 @@ export async function GET(request: NextRequest) {
         id: generus.id,
         nomorUnik: generus.nomorUnik,
         nama: generus.nama,
-        email: users.email,
-        passwordPlain: users.passwordPlain,
+        email: canSeePrivateData ? users.email : sql`NULL`,
+        passwordPlain: session.role === "admin" ? users.passwordPlain : sql`NULL`,
         role: users.role,
         desaNama: desa.nama,
         kelompokNama: kelompok.nama,
@@ -234,6 +234,7 @@ export async function GET(request: NextRequest) {
         makananMinumanFavorit: generus.makananMinumanFavorit,
         createdAt: generus.createdAt,
         panitiaStatus: formPanitiaDanPengurus.dapukan,
+        keterangan: mandiriAbsensi.keterangan,
     };
 
     // Sorting logic
@@ -254,7 +255,8 @@ export async function GET(request: NextRequest) {
         .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
         .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id))
         .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
-        .leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId));
+        .leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId))
+        .leftJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId)));
 
       if (mandiriOnly) {
         query = (query as any)
@@ -280,7 +282,8 @@ export async function GET(request: NextRequest) {
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
       .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id))
       .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
-      .leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId));
+      .leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId))
+      .leftJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId)));
 
     if (mandiriOnly) {
       dataQuery = (dataQuery as any)

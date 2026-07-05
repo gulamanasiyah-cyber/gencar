@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
                 .innerJoin(generus, eq(mandiri.generusId, generus.id))
                 .where(eq(generus.nomorUnik, nomorUnikReq))
                 .limit(1);
-            if (m.length > 0 && (m[0].lastSessionToken === tokenReq || m[0].lastSessionToken === null)) {
+            if (m.length > 0 && m[0].lastSessionToken && m[0].lastSessionToken === tokenReq) {
                 currentGenerusId = m[0].generusId;
             }
         }
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
                 .innerJoin(generus, eq(mandiri.generusId, generus.id))
                 .where(eq(generus.nomorUnik, nomorUnik))
                 .limit(1);
-            if (m.length > 0 && (m[0].lastSessionToken === token || m[0].lastSessionToken === null)) {
+            if (m.length > 0 && m[0].lastSessionToken && m[0].lastSessionToken === token) {
                 pengirimId = m[0].generusId;
             }
         }
@@ -300,7 +300,7 @@ export async function DELETE(request: NextRequest) {
                 .innerJoin(generus, eq(mandiri.generusId, generus.id))
                 .where(eq(generus.nomorUnik, nomorUnik))
                 .limit(1);
-            if (m.length > 0 && (m[0].lastSessionToken === token || m[0].lastSessionToken === null)) {
+            if (m.length > 0 && m[0].lastSessionToken && m[0].lastSessionToken === token) {
                 pengirimId = m[0].generusId;
             }
         }

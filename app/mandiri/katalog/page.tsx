@@ -36,15 +36,15 @@ function LocalBarcode({ value }: { value: string }) {
   }, [value]);
 
   return (
-    <canvas 
-      ref={canvasRef} 
-      style={{ 
-        maxWidth: "260px", 
-        width: "100%", 
-        height: "auto", 
+    <canvas
+      ref={canvasRef}
+      style={{
+        maxWidth: "260px",
+        width: "100%",
+        height: "auto",
         display: "block",
         margin: "0 auto"
-      }} 
+      }}
     />
   );
 }
@@ -77,12 +77,6 @@ export default function PublicKatalogPage() {
 
   // Box Love state
   const [boxLoveStatus, setBoxLoveStatus] = useState<string>("closed");
-  const [isBoxLoveOpen, setIsBoxLoveOpen] = useState(false);
-  const [boxLoveSearch, setBoxLoveSearch] = useState("");
-  const [boxLoveResults, setBoxLoveResults] = useState<any[]>([]);
-  const [boxLoveTarget, setBoxLoveTarget] = useState<any>(null);
-  const [boxLoveLoading, setBoxLoveLoading] = useState(false);
-  const [boxLoveSubmitting, setBoxLoveSubmitting] = useState(false);
 
   // Komentar state
   const [komentarNama, setKomentarNama] = useState("");
@@ -117,17 +111,17 @@ export default function PublicKatalogPage() {
     if (absenScannerRef.current) {
       try {
         await absenScannerRef.current.stop();
-      } catch {}
+      } catch { }
       absenScannerRef.current = null;
     }
     setScanningAbsen(false);
   };
 
   const startSelfAbsenScan = async () => {
-    const uniqueNo = currentUser?.nomorUnik || 
-                     myFullProfile?.nomorUnik || 
-                     (typeof window !== "undefined" && localStorage.getItem("attended_nomor_unik")) || 
-                     "";
+    const uniqueNo = currentUser?.nomorUnik ||
+      myFullProfile?.nomorUnik ||
+      (typeof window !== "undefined" && localStorage.getItem("attended_nomor_unik")) ||
+      "";
     if (!uniqueNo) {
       Swal.fire({ icon: "error", title: "Gagal", text: "Nomor Unik Anda tidak ditemukan. Pastikan Anda sudah login." });
       return;
@@ -136,9 +130,9 @@ export default function PublicKatalogPage() {
     setScanningAbsen(true);
     try {
       const { Html5Qrcode } = await import("html5-qrcode");
-      
+
       if (absenScannerRef.current) {
-        try { await absenScannerRef.current.stop(); } catch {}
+        try { await absenScannerRef.current.stop(); } catch { }
       }
 
       const scanner = new Html5Qrcode("katalog-qr-reader");
@@ -158,7 +152,7 @@ export default function PublicKatalogPage() {
             gain.gain.setValueAtTime(0.05, ctx.currentTime);
             osc.start();
             osc.stop(ctx.currentTime + 0.1);
-          } catch {}
+          } catch { }
 
           await scanner.stop();
           absenScannerRef.current = null;
@@ -204,7 +198,7 @@ export default function PublicKatalogPage() {
             Swal.fire({ icon: "error", title: "Error", text: "Terjadi kesalahan jaringan." });
           }
         },
-        () => {}
+        () => { }
       );
     } catch (e) {
       console.error("Self QR scan error:", e);
@@ -374,6 +368,7 @@ export default function PublicKatalogPage() {
                 jenisKelamin: data.jenisKelamin,
                 role: userRole,
                 noTelp: data.noTelp,
+                status: data.status,
               });
 
               // Bind FCM to existing user phone number
@@ -644,17 +639,27 @@ export default function PublicKatalogPage() {
           const errData = await res.json();
           throw new Error(errData.error || "Gagal memproses");
         }
+
+        await Swal.fire({
+          title: "Berhasil",
+          text: "Semoga alloh berikan pengampunan dan jodoh yg barokah",
+          icon: "success",
+          confirmButtonText: "Aamiin",
+          confirmButtonColor: "#3b82f6"
+        });
       } catch (e: any) {
         console.error("Failed to perform pulang API request:", e);
         Swal.fire("Gagal", e.message || "Gagal memproses data", "error");
         return;
       }
+    } else {
+      Swal.close();
     }
+
     localStorage.removeItem("attended_nomor_unik");
     localStorage.removeItem("attended_session_token");
     setHasAttended(false);
     unlockBodyScroll();
-    Swal.close();
     window.location.reload();
   };
 
@@ -677,86 +682,7 @@ export default function PublicKatalogPage() {
     window.scrollTo(0, scrollY);
   };
 
-  const openBoxLove = () => {
-    setIsBoxLoveOpen(true);
-    setBoxLoveSearch("");
-    setBoxLoveResults([]);
-    setBoxLoveTarget(null);
-    lockBodyScroll();
-  };
 
-  const closeBoxLove = () => {
-    setIsBoxLoveOpen(false);
-    unlockBodyScroll();
-  };
-
-  const searchBoxLove = async (q: string) => {
-    setBoxLoveSearch(q);
-    if (!q || q.length < 1) { setBoxLoveResults([]); return; }
-    setBoxLoveLoading(true);
-    const nomorUnik = localStorage.getItem("attended_nomor_unik");
-    const token = localStorage.getItem("attended_session_token");
-    const oppositeGender = currentUser?.jenisKelamin === "L" ? "P" : "L";
-    try {
-      // FIX: All params encoded via buildQuery
-      const qs = buildQuery({
-        action: "search",
-        q,
-        jenisKelamin: oppositeGender,
-        nomorUnik: nomorUnik || "",
-        token: token || "",
-      });
-      const res = await fetch(`/api/mandiri/box-love?${qs}`);
-      if (res.ok) {
-        const results = await res.json();
-        setBoxLoveResults(results);
-      }
-    } catch (e) {
-      console.error("searchBoxLove error:", e);
-    } finally {
-      setBoxLoveLoading(false);
-    }
-  };
-
-  const handleBoxLoveSubmit = async () => {
-    if (!boxLoveTarget) return;
-    const nomorUnik = localStorage.getItem("attended_nomor_unik");
-    const token = localStorage.getItem("attended_session_token");
-    setBoxLoveSubmitting(true);
-    try {
-      const res = await fetch("/api/mandiri/box-love", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "submit", nomorUnik, token, targetId: boxLoveTarget.id }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Gagal mengirim");
-
-      if (json.selections) {
-        setSelections(json.selections);
-        setSelectedIds(json.selections.map((s: any) => String(s.penerimaId)));
-        setStatusQueue(json.selections.find((s: any) => s.status === "Menunggu") || null);
-      }
-
-      const targetIdToUpdate = boxLoveTarget.id;
-      setData(prev => prev.map(item =>
-        item.id === targetIdToUpdate ? { ...item, selectedCount: (item.selectedCount || 0) + 1 } : item
-      ));
-
-      Swal.fire({
-        title: "Berhasil Masuk Box Love! 💝",
-        html: `Permintaan Anda ke <b>${boxLoveTarget.nama}</b> telah dikirim ke Daftar Antrean Romantic Room. Admin akan menghubungi Anda segera.`,
-        icon: "success",
-        timer: 4000,
-        showConfirmButton: false,
-      });
-      closeBoxLove();
-    } catch (err: any) {
-      Swal.fire("Gagal", err.message, "error");
-    } finally {
-      setBoxLoveSubmitting(false);
-    }
-  };
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -998,6 +924,7 @@ export default function PublicKatalogPage() {
             mandiriDesaKota: resData.mandiriDesaKota,
             jenisKelamin: resData.jenisKelamin,
             role: resData.role || "Peserta",
+            status: resData.status,
           });
 
           // Bind FCM to existing user phone number on login
@@ -1008,9 +935,6 @@ export default function PublicKatalogPage() {
           }
 
           Swal.fire({ title: `Selamat Datang, ${resData.nama}!`, text: "Berhasil masuk ke Katalog Peserta.", icon: "success", timer: 2000, showConfirmButton: false, toast: true, position: 'top-end' });
-        } else if (resData.status === "waiting") {
-          setStatus("waiting");
-          setErrorMsg("Silakan lakukan absensi terlebih dahulu di meja panitia.");
         } else if (resData.status === "multi_login") {
           setErrorMsg("Nomor Unik ini sudah digunakan di perangkat lain (Single Session).");
           setStatus("error");
@@ -1211,7 +1135,7 @@ export default function PublicKatalogPage() {
                   style={{ minWidth: 0, width: '100%' }}
                 />
                 {searchTerm && (
-                  <button 
+                  <button
                     className="clear-search-btn"
                     onClick={() => setSearchTerm("")}
                   >
@@ -1219,8 +1143,8 @@ export default function PublicKatalogPage() {
                   </button>
                 )}
               </div>
-              <button 
-                className={`btn-filter-toggle ${showFilters ? "active" : ""}`} 
+              <button
+                className={`btn-filter-toggle ${showFilters ? "active" : ""}`}
                 onClick={() => setShowFilters(!showFilters)}
                 title="Filter"
                 style={{ width: '44px', height: '44px', padding: 0 }}
@@ -1310,188 +1234,217 @@ export default function PublicKatalogPage() {
             ) : (
               data.filter(item => item.id !== currentUser?.id && item.nomorUrut !== currentUser?.nomorUrut).map((item) => {
                 const isPulang = item.keterangan?.toLowerCase() === "pulang";
+                const isTidakHadir = item.keterangan?.toLowerCase() === "alpha" || item.keterangan?.toLowerCase() === "izin";
+                const isBelumHadir = item.isHadir === 0;
+                const isUnavailable = isPulang || isTidakHadir;
                 return (
-                  <div key={item.id} className={`participant-card ${isPulang ? "is-pulang" : ""}`}>
-                    <div className="card-image-wrapper">
-                      <img
-                        src={item.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.nama)}&background=random`}
-                        alt={item.nama}
-                        className="card-image"
-                        loading="lazy"
-                      />
-                      <div className="floating-badge id-badge">#{item.nomorUrut || "-"}</div>
-                      {item.selectedCount >= 5 && (
-                        <div className="floating-badge full-badge" style={isPulang ? { top: '50px' } : undefined}>PENUH (5/5)</div>
-                      )}
-                      {isPulang && (
-                        <div className="floating-badge pulang-badge">PULANG</div>
-                      )}
-                      <div className={`floating-badge label-badge ${item.panitiaStatus ? "status-panitia" : ""}`}>
-                        {item.panitiaStatus ? "PANITIA" : "PESERTA"}
-                      </div>
-                    </div>
-
-                    <div className="card-content">
-                      <h2 className="card-name">{item.nama}</h2>
-                      <div className="card-location">
-                        <MapPin size={14} />
-                        <span>{item.mandiriDesaKota || "-"} • {item.mandiriDesaNama || item.desaNama || "-"}</span>
-                      </div>
-
-                      <div className="card-stats-grid">
-                        <div className="stat-pill"><Calendar size={14} /><span>{item.tanggalLahir ? `${new Date().getFullYear() - new Date(item.tanggalLahir).getFullYear()} Tahun` : "-"}</span></div>
-                        <div className="stat-pill"><GraduationCap size={14} /><span>{item.pendidikan || "-"}</span></div>
-                        <div className="stat-pill"><Heart size={14} /><span>{item.statusNikah || "Belum Menikah"}</span></div>
-                        <div className="stat-pill"><Briefcase size={14} /><span>{item.pekerjaan || "Swasta"}</span></div>
-                        <div className="stat-pill"><Globe size={14} /><span>{item.suku || "-"}</span></div>
-                        <div className="stat-pill">
-                          <Instagram size={14} />
-                          {item.instagram ? (
-                            <a href={`https://instagram.com/${item.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="card-instagram-link">
-                              @{item.instagram.replace('@', '')}
-                            </a>
-                          ) : <span>-</span>}
+                  <div key={item.id} className={`participant-card ${isUnavailable ? "is-pulang" : ""}`} style={{ position: "relative", opacity: isUnavailable ? 1 : undefined, filter: isUnavailable ? "none" : undefined }}>
+                    <div style={isUnavailable ? { filter: "blur(5px) grayscale(0.6)", opacity: 0.7, pointerEvents: "none", userSelect: "none" } : {}}>
+                      <div className="card-image-wrapper">
+                        <img
+                          src={item.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.nama)}&background=random`}
+                          alt={item.nama}
+                          className="card-image"
+                          loading="lazy"
+                        />
+                        <div className="floating-badge id-badge">#{item.nomorUrut || "-"}</div>
+                        {item.selectedCount >= 5 && (
+                          <div className="floating-badge full-badge" style={isPulang ? { top: '50px' } : undefined}>PENUH (5/5)</div>
+                        )}
+                        {isPulang && (
+                          <div className="floating-badge pulang-badge">PULANG</div>
+                        )}
+                        <div className={`floating-badge label-badge ${item.panitiaStatus ? "status-panitia" : ""}`}>
+                          {item.panitiaStatus ? "PANITIA" : "PESERTA"}
                         </div>
-                        <div className="stat-pill selection-count"><UserCheck size={14} /><span>Dipilih: {item.selectedCount || 0}/5</span></div>
                       </div>
 
-                      <div className="card-passions-mini">
-                        <div className="pass-pill"><Music size={12} /><span>Hobi: {item.hobi || "-"}</span></div>
-                        <div className="pass-pill"><Utensils size={12} /><span>Makan/Minuman: {item.makananMinumanFavorit || "-"}</span></div>
-                      </div>
+                      <div className="card-content">
+                        <h2 className="card-name">{item.nama}</h2>
+                        <div className="card-location">
+                          <MapPin size={14} />
+                          <span>{item.mandiriDesaKota || "-"} • {item.mandiriDesaNama || item.desaNama || "-"}</span>
+                        </div>
 
-                      <div className="card-actions">
-                        <button className="btn-secondary" onClick={() => openDetail(item)}>Detail Profil</button>
-                        {item.nomorUrut !== currentUser?.nomorUrut && (() => {
-                          if (isPulang) {
-                            return (
-                              <button
-                                className="btn-primary disabled"
-                                disabled
-                              >
-                                <LogOut size={16} />
-                                <span>Pulang</span>
-                              </button>
-                            );
-                          }
-                          const isSelected = selectedIds.includes(String(item.id));
-                          const sel = selections.find((s: any) => String(s.penerimaId) === String(item.id));
-                          const isWaiting = sel && sel.status === "Menunggu";
+                        <div className="card-stats-grid">
+                          <div className="stat-pill"><Calendar size={14} /><span>{item.tanggalLahir ? `${new Date().getFullYear() - new Date(item.tanggalLahir).getFullYear()} Tahun` : "-"}</span></div>
+                          <div className="stat-pill"><GraduationCap size={14} /><span>{item.pendidikan || "-"}</span></div>
+                          <div className="stat-pill"><Heart size={14} /><span>{item.statusNikah || "Belum Menikah"}</span></div>
+                          <div className="stat-pill"><Briefcase size={14} /><span>{item.pekerjaan || "Swasta"}</span></div>
+                          <div className="stat-pill"><Globe size={14} /><span>{item.suku || "-"}</span></div>
+                          <div className="stat-pill">
+                            <Instagram size={14} />
+                            {item.instagram ? (
+                              <a href={`https://instagram.com/${item.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="card-instagram-link">
+                                @{item.instagram.replace('@', '')}
+                              </a>
+                            ) : <span>-</span>}
+                          </div>
+                          <div className="stat-pill selection-count"><UserCheck size={14} /><span>Dipilih: {item.selectedCount || 0}/5</span></div>
+                        </div>
 
-                          if (item.handshakeStatus) {
-                            if (item.handshakeStatus === "Selesai") {
-                              return (
-                                <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
-                                  <Users size={16} />
-                                  <span>Sudah Bertemu</span>
-                                </button>
-                              );
-                            }
-                            if (item.handshakeStatus === "Diterima") {
-                              return (
-                                <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
-                                  <Users size={16} />
-                                  <span>Dalam Ruangan</span>
-                                </button>
-                              );
-                            }
-                            if (item.handshakeStatus === "Menunggu") {
-                              if (!isSelected) {
+                        <div className="card-passions-mini">
+                          <div className="pass-pill"><Music size={12} /><span>Hobi: {item.hobi || "-"}</span></div>
+                          <div className="pass-pill"><Utensils size={12} /><span>Makan/Minuman: {item.makananMinumanFavorit || "-"}</span></div>
+                        </div>
+
+                        <div className="card-actions">
+                          <button className="btn-secondary" onClick={() => openDetail(item)}>Detail Profil</button>
+                          {item.nomorUrut !== currentUser?.nomorUrut && (() => {
+                            if (isUnavailable) return null;
+                            const isSelected = selectedIds.includes(String(item.id));
+                            const sel = selections.find((s: any) => String(s.penerimaId) === String(item.id));
+                            const isWaiting = sel && sel.status === "Menunggu";
+
+                            if (item.handshakeStatus) {
+                              if (item.handshakeStatus === "Selesai") {
                                 return (
                                   <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
-                                    <Clock size={16} />
-                                    <span>Dalam Antrean</span>
+                                    <Users size={16} />
+                                    <span>Sudah Bertemu</span>
+                                  </button>
+                                );
+                              }
+                              if (item.handshakeStatus === "Diterima") {
+                                return (
+                                  <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
+                                    <Users size={16} />
+                                    <span>Dalam Ruangan</span>
+                                  </button>
+                                );
+                              }
+                              if (item.handshakeStatus === "Menunggu") {
+                                if (!isSelected) {
+                                  return (
+                                    <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
+                                      <Clock size={16} />
+                                      <span>Dalam Antrean</span>
+                                    </button>
+                                  );
+                                }
+                              }
+                            }
+
+                            if (isSelected) {
+                              if (isWaiting) {
+                                return (
+                                  <button
+                                    className="btn-danger"
+                                    onClick={() => handleCancelSelection(String(item.id), item.nama)}
+                                  >
+                                    <X size={16} />
+                                    <span>Batalkan Pilihan</span>
+                                  </button>
+                                );
+                              } else {
+                                return (
+                                  <button
+                                    className="btn-primary selected disabled"
+                                    disabled
+                                  >
+                                    <CheckCircle2 size={16} />
+                                    <span>Terpilih</span>
                                   </button>
                                 );
                               }
                             }
-                          }
 
-                          if (isSelected) {
-                            if (isWaiting) {
-                              return (
-                                <button
-                                  className="btn-danger"
-                                  onClick={() => handleCancelSelection(String(item.id), item.nama)}
-                                >
-                                  <X size={16} />
-                                  <span>Batalkan Pilihan</span>
-                                </button>
-                              );
-                            } else {
-                              return (
-                                <button
-                                  className="btn-primary selected disabled"
-                                  disabled
-                                >
-                                  <CheckCircle2 size={16} />
-                                  <span>Terpilih</span>
-                                </button>
-                              );
+                            const isFull = (item.selectedCount || 0) >= 5;
+                            const isMaxed = selectedIds.length >= 3;
+                            const isDisabled = isFull || isMaxed;
+
+                            if (currentUser?.status === "waiting" || isBelumHadir) {
+                              return null;
                             }
-                          }
 
-                          const isFull = (item.selectedCount || 0) >= 5;
-                          const isMaxed = selectedIds.length >= 3;
-                          const isDisabled = isFull || isMaxed;
-
-                          return (
-                            <button
-                              className={`btn-primary ${isDisabled ? "disabled" : ""}`}
-                              onClick={() => handleConfirmSelection(String(item.id), item.nama)}
-                              disabled={isDisabled}
-                            >
-                              <Heart size={16} />
-                              <span>{isFull ? "Penuh" : (isMaxed ? "Batas Tercapai" : "Pilih")}</span>
-                            </button>
-                          );
-                        })()}
-                      </div>
-
-                      {item.id !== currentUser?.id && (
-                        <div className="commentary-box">
-                          {sentComments.some(sc => sc.penerimaId === item.id) ? (
-                            <div className="comment-sent-indicator">
-                              <MessageSquare size={14} />
-                              <span>Komentar Anda: {sentComments.find(sc => sc.penerimaId === item.id)?.komentar}</span>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="commentary-header">
-                                <div className="anon-toggle">
-                                  <input type="checkbox" id={`anon-${item.id}`} checked={komentarAnon} onChange={(e) => setKomentarAnon(e.target.checked)} />
-                                  <label htmlFor={`anon-${item.id}`}>Anonim</label>
-                                </div>
-                                {!komentarAnon && (
-                                  <input
-                                    type="text"
-                                    className="comment-name-input"
-                                    placeholder="Nama Anda..."
-                                    value={komentarNama}
-                                    onChange={(e) => setKomentarNama(e.target.value)}
-                                    disabled={!!currentUser}
-                                    autoComplete="off"
-                                  />
-                                )}
-                              </div>
-                              <div className="comment-tags-label">Berikan Komentar Singkat:</div>
-                              <div className="comment-buttons">
-                                {["Humble", "Baik", "Pendiam", "Penyabar", "Friendly"].map(tag => (
-                                  <button
-                                    key={tag}
-                                    className={`btn-tag ${submittingKomentar === item.id ? "loading" : ""}`}
-                                    onClick={() => handleSendKomentar(item.id, item.nama, tag)}
-                                    disabled={!!submittingKomentar}
-                                  >
-                                    {tag}
-                                  </button>
-                                ))}
-                              </div>
-                            </>
-                          )}
+                            return boxLoveStatus === "open" ? (
+                              <button
+                                className={`btn-primary ${isDisabled ? "disabled" : ""}`}
+                                onClick={() => handleConfirmSelection(String(item.id), item.nama)}
+                                disabled={isDisabled}
+                              >
+                                <Heart size={16} />
+                                <span>{isFull ? "Penuh" : (isMaxed ? "Batas Tercapai" : "Pilih")}</span>
+                              </button>
+                            ) : null;
+                          })()}
                         </div>
-                      )}
+
+                        {item.id !== currentUser?.id && (
+                          <div className="commentary-box">
+                            {sentComments.some(sc => sc.penerimaId === item.id) ? (
+                              <div className="comment-sent-indicator">
+                                <MessageSquare size={14} />
+                                <span>Komentar Anda: {sentComments.find(sc => sc.penerimaId === item.id)?.komentar}</span>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="commentary-header">
+                                  <div className="anon-toggle">
+                                    <input type="checkbox" id={`anon-${item.id}`} checked={komentarAnon} onChange={(e) => setKomentarAnon(e.target.checked)} />
+                                    <label htmlFor={`anon-${item.id}`}>Anonim</label>
+                                  </div>
+                                  {!komentarAnon && (
+                                    <input
+                                      type="text"
+                                      className="comment-name-input"
+                                      placeholder="Nama Anda..."
+                                      value={komentarNama}
+                                      onChange={(e) => setKomentarNama(e.target.value)}
+                                      disabled={!!currentUser}
+                                      autoComplete="off"
+                                    />
+                                  )}
+                                </div>
+                                <div className="comment-tags-label">Berikan Komentar Singkat:</div>
+                                <div className="comment-buttons">
+                                  {["Humble", "Baik", "Pendiam", "Penyabar", "Friendly"].map(tag => (
+                                    <button
+                                      key={tag}
+                                      className={`btn-tag ${submittingKomentar === item.id ? "loading" : ""}`}
+                                      onClick={() => handleSendKomentar(item.id, item.nama, tag)}
+                                      disabled={!!submittingKomentar}
+                                    >
+                                      {tag}
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
+                    {isUnavailable && (
+                      <div style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        zIndex: 10,
+                        padding: "24px"
+                      }}>
+                        <div style={{
+                          background: "rgba(255, 255, 255, 0.95)",
+                          padding: "20px",
+                          borderRadius: "20px",
+                          textAlign: "center",
+                          color: "#ef4444",
+                          fontWeight: 700,
+                          fontSize: "14px",
+                          boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+                          border: "2px solid #fee2e2",
+                          lineHeight: 1.5,
+                          backdropFilter: "blur(4px)"
+                        }}>
+                          Mohon maaf peserta {item.nama} {isPulang ? "pulang lebih awal" : (isBelumHadir ? "belum melakukan absensi kehadiran" : "tidak hadir")}, Anda tidak bisa memilih peserta tersebut.
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })
@@ -1573,33 +1526,19 @@ export default function PublicKatalogPage() {
             </div>
           )}
 
-          {boxLoveStatus === "open" && (
-            <div className="box-love-section-card">
-              <div className="box-love-section-header">
-                <span className="emoji">💖</span>
-                <div>
-                  <h4>Kirim Box Love 💌</h4>
-                  <p>Punya incaran khusus? Masukkan nomor peserta mereka langsung ke Box Love!</p>
-                </div>
-              </div>
-              <button className="box-love-section-btn" onClick={openBoxLove}>
-                <Heart size={16} fill="white" />
-                <span>Buka Box Love Form</span>
-              </button>
-            </div>
-          )}
+
         </div>
       )}
 
       {/* TAB CONTENT: ABSEN */}
       {activeTab === "absen" && (() => {
-        const uniqueNo = currentUser?.nomorUnik || 
-                         myFullProfile?.nomorUnik || 
-                         (typeof window !== "undefined" && localStorage.getItem("attended_nomor_unik")) || 
-                         "";
+        const uniqueNo = currentUser?.nomorUnik ||
+          myFullProfile?.nomorUnik ||
+          (typeof window !== "undefined" && localStorage.getItem("attended_nomor_unik")) ||
+          "";
         return (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", padding: "24px 16px", minHeight: "60vh", justifyContent: "center" }}>
-            
+
             {/* Mode Toggle Switch */}
             <div style={{ display: "flex", gap: "6px", background: "#f1f5f9", padding: "4px", borderRadius: "10px", width: "100%", maxWidth: "340px", marginBottom: "4px" }}>
               <button
@@ -1646,7 +1585,7 @@ export default function PublicKatalogPage() {
             </div>
 
             <div style={{ background: "white", borderRadius: "20px", padding: "28px", boxShadow: "0 8px 32px rgba(0,0,0,0.10)", border: "1px solid #f1f5f9", textAlign: "center", width: "100%", maxWidth: "340px" }}>
-              
+
               {absenTabMode === "show_barcode" ? (
                 <>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", marginBottom: "6px" }}>
@@ -1686,7 +1625,8 @@ export default function PublicKatalogPage() {
 
                   <div style={{ position: "relative", width: "100%", height: "240px", borderRadius: "12px", overflow: "hidden", border: "2px dashed #cbd5e1", background: "#f8fafc", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                     <div id="katalog-qr-reader" style={{ width: "100%", height: "100%" }} />
-                    <style dangerouslySetInnerHTML={{__html: `
+                    <style dangerouslySetInnerHTML={{
+                      __html: `
                       #katalog-qr-reader video {
                         width: 100% !important;
                         height: 100% !important;
@@ -1915,21 +1855,21 @@ export default function PublicKatalogPage() {
             <div className="dm-sheet" onClick={e => e.stopPropagation()}>
 
               {/* HERO */}
-              <div className="dm-hero" style={{background: accentGrad}}>
-                <button className="dm-close" onClick={closeDetail}><X size={18}/></button>
+              <div className="dm-hero" style={{ background: accentGrad }}>
+                <button className="dm-close" onClick={closeDetail}><X size={18} /></button>
                 <div className="dm-avatar-wrap">
                   {sp.foto
-                    ? <img src={sp.foto} alt={sp.nama} className="dm-avatar-img"/>
-                    : <div className="dm-avatar-init" style={{background: accentColor}}>{sp.nama.charAt(0)}</div>
+                    ? <img src={sp.foto} alt={sp.nama} className="dm-avatar-img" />
+                    : <div className="dm-avatar-init" style={{ background: accentColor }}>{sp.nama.charAt(0)}</div>
                   }
                 </div>
                 <div className="dm-hero-badge">#{sp.nomorUrut || "-"}</div>
                 <h2 className="dm-name">{sp.nama}</h2>
-                <div className="dm-loc"><MapPin size={13}/><span>{sp.mandiriDesaKota || "-"} • {sp.mandiriDesaNama || sp.desaNama || "-"}</span></div>
+                <div className="dm-loc"><MapPin size={13} /><span>{sp.mandiriDesaKota || "-"} • {sp.mandiriDesaNama || sp.desaNama || "-"}</span></div>
                 <div className="dm-chips">
                   <span className="dm-chip">{isMale ? "👨 Laki-laki" : "👩 Perempuan"}</span>
                   <span className="dm-chip">{sp.statusNikah || "Belum Menikah"}</span>
-                  <span className="dm-chip"><UserCheck size={12}/> {sp.selectedCount || 0}/5</span>
+                  <span className="dm-chip"><UserCheck size={12} /> {sp.selectedCount || 0}/5</span>
                 </div>
               </div>
 
@@ -1950,51 +1890,82 @@ export default function PublicKatalogPage() {
 
               {/* CTA */}
               <div className="dm-cta">
-                {isMe ? (
-                  <button className="dm-btn dm-btn-disabled" disabled>Ini Profil Anda</button>
-                ) : sp.keterangan?.toLowerCase() === "pulang" ? (
-                  <button className="dm-btn dm-btn-disabled" disabled>Peserta Sudah Pulang</button>
-                ) : sp.handshakeStatus ? (() => {
-                  if (sp.handshakeStatus === "Selesai") {
-                    return <button className="dm-btn dm-btn-disabled" disabled><Users size={18}/>Sudah Bertemu</button>;
+                {(() => {
+                  if (isMe) {
+                    return <button className="dm-btn dm-btn-disabled" disabled>Ini Profil Anda</button>;
                   }
-                  if (sp.handshakeStatus === "Diterima") {
-                    return <button className="dm-btn dm-btn-disabled" disabled><Users size={18}/>Dalam Ruangan</button>;
+
+                  const isPulang = sp.keterangan?.toLowerCase() === "pulang";
+                  const isTidakHadir = sp.keterangan?.toLowerCase() === "alpha" || sp.keterangan?.toLowerCase() === "izin";
+                  const isBelumHadir = sp.isHadir === 0;
+                  
+                  if (isPulang || isTidakHadir || isBelumHadir) {
+                    return (
+                      <div style={{ textAlign: "center", color: "#ef4444", fontSize: "13px", fontWeight: "600", padding: "12px", background: "#fef2f2", borderRadius: "14px", border: "1px solid #fee2e2" }}>
+                        Mohon maaf, peserta {sp.nama} {isPulang ? "pulang lebih awal" : (isBelumHadir ? "belum melakukan absensi kehadiran" : "tidak hadir")}, Anda tidak bisa memilih peserta tersebut.
+                      </div>
+                    );
                   }
-                  if (sp.handshakeStatus === "Menunggu") {
-                    if (isSelected) {
+
+                  if (currentUser?.status === "waiting") {
+                    return (
+                      <div style={{ textAlign: "center", color: "#64748b", fontSize: "13px", fontWeight: "600", padding: "12px", background: "#f1f5f9", borderRadius: "14px", border: "1px solid #e2e8f0" }}>
+                        Anda belum melakukan absensi kehadiran. Silakan absen terlebih dahulu untuk dapat memilih peserta.
+                      </div>
+                    );
+                  }
+
+                  if (sp.handshakeStatus) {
+                    if (sp.handshakeStatus === "Selesai") {
+                      return <button className="dm-btn dm-btn-disabled" disabled><Users size={18} />Sudah Bertemu</button>;
+                    }
+                    if (sp.handshakeStatus === "Diterima") {
+                      return <button className="dm-btn dm-btn-disabled" disabled><Users size={18} />Dalam Ruangan</button>;
+                    }
+                    if (sp.handshakeStatus === "Menunggu") {
+                      if (isSelected) {
+                        return (
+                          <button className="dm-btn dm-btn-danger" onClick={() => handleCancelSelection(String(sp.id), sp.nama)}>
+                            <X size={18} />Batalkan Pilihan
+                          </button>
+                        );
+                      }
+                      return <button className="dm-btn dm-btn-disabled" disabled><Clock size={18} />Dalam Antrean</button>;
+                    }
+                  }
+
+                  if (isSelected) {
+                    const sel = selections.find((s: any) => String(s.penerimaId) === String(sp.id));
+                    const isWaiting = sel && sel.status === "Menunggu";
+                    if (isWaiting) {
                       return (
                         <button className="dm-btn dm-btn-danger" onClick={() => handleCancelSelection(String(sp.id), sp.nama)}>
-                          <X size={18}/>Batalkan Pilihan
+                          <X size={18} />Batalkan Pilihan
                         </button>
                       );
+                    } else {
+                      return <button className="dm-btn dm-btn-selected" disabled><CheckCircle2 size={18} />Sudah Terpilih</button>;
                     }
-                    return <button className="dm-btn dm-btn-disabled" disabled><Clock size={18}/>Dalam Antrean</button>;
                   }
-                  return null;
-                })() : isSelected ? (() => {
-                  const sel = selections.find((s: any) => String(s.penerimaId) === String(sp.id));
-                  const isWaiting = sel && sel.status === "Menunggu";
-                  if (isWaiting) {
+
+                  if (isFull) {
+                    return <button className="dm-btn dm-btn-disabled" disabled>Peserta Penuh (5/5)</button>;
+                  }
+
+                  if (isMaxed) {
+                    return <button className="dm-btn dm-btn-disabled" disabled>Batas Pilihan Tercapai (3/3)</button>;
+                  }
+
+                  if (boxLoveStatus === "open") {
                     return (
-                      <button className="dm-btn dm-btn-danger" onClick={() => handleCancelSelection(String(sp.id), sp.nama)}>
-                        <X size={18}/>Batalkan Pilihan
+                      <button className="dm-btn" style={{ background: accentGrad }} onClick={() => handleConfirmSelection(String(sp.id), sp.nama)}>
+                        <Heart size={18} fill="white" />Pilih Peserta Ini
                       </button>
                     );
-                  } else {
-                    return (
-                      <button className="dm-btn dm-btn-selected" disabled><CheckCircle2 size={18}/>Sudah Terpilih</button>
-                    );
                   }
-                })() : isFull ? (
-                  <button className="dm-btn dm-btn-disabled" disabled>Peserta Penuh (5/5)</button>
-                ) : isMaxed ? (
-                  <button className="dm-btn dm-btn-disabled" disabled>Batas Pilihan Tercapai (3/3)</button>
-                ) : (
-                  <button className="dm-btn" style={{background: accentGrad}} onClick={() => handleConfirmSelection(String(sp.id), sp.nama)}>
-                    <Heart size={18} fill="white"/>Pilih Peserta Ini
-                  </button>
-                )}
+
+                  return null;
+                })()}
               </div>
 
             </div>
@@ -2002,98 +1973,7 @@ export default function PublicKatalogPage() {
         );
       })()}
 
-      {/* BOX LOVE POPUP */}
-      {isBoxLoveOpen && (
-        <div className="bl-overlay" onClick={closeBoxLove}>
-          <div className="bl-popup" onClick={e => e.stopPropagation()}>
-            <div className="bl-header">
-              <div className="bl-logo">
-                <div className="bl-logo-icon">💝</div>
-                <div>
-                  <h2 className="bl-title">Box Love</h2>
-                  <p className="bl-subtitle">Ingin berkenalan? Masukkan ke Box Love!</p>
-                </div>
-              </div>
-              <button className="bl-close" onClick={closeBoxLove}><X size={20} /></button>
-            </div>
 
-            <div className="bl-notice">
-              <span>🔔 Admin akan menghubungi Anda untuk Romantic Room</span>
-            </div>
-
-            <div className="bl-body">
-              <div className="bl-section">
-                <div className="bl-section-label">
-                  <span>{currentUser?.jenisKelamin === "P" ? "👩" : "👨"}</span>
-                  <span>Peserta {currentUser?.jenisKelamin === "L" ? "Laki-laki" : "Perempuan"}</span>
-                </div>
-                <div className="bl-my-info">
-                  <div className="bl-my-avatar">
-                    {currentUser?.foto ? <img src={currentUser.foto} alt={currentUser.nama} /> : <span>{currentUser?.nama?.charAt(0) || "?"}</span>}
-                  </div>
-                  <div>
-                    <div className="bl-my-name">#{currentUser?.nomorUrut} {currentUser?.nama}</div>
-                    <div className="bl-my-loc">{currentUser?.mandiriDesaKota || "-"}</div>
-                  </div>
-                  <CheckCircle2 size={20} className="bl-check" />
-                </div>
-              </div>
-
-              <div className="bl-heart-divider">💗</div>
-
-              <div className="bl-section">
-                <div className="bl-section-label">
-                  <span>{currentUser?.jenisKelamin === "L" ? "👩" : "👨"}</span>
-                  <span>Peserta {currentUser?.jenisKelamin === "L" ? "Perempuan" : "Laki-laki"}</span>
-                </div>
-                <div className="bl-search-bar">
-                  <input
-                    type="text"
-                    inputMode="search"
-                    autoCorrect="off"
-                    autoComplete="off"
-                    placeholder={`Nomor peserta (${currentUser?.jenisKelamin === "L" ? "200-299" : "1-199"})`}
-                    value={boxLoveSearch}
-                    onChange={e => searchBoxLove(e.target.value)}
-                  />
-                  <Search size={18} className="bl-search-icon" />
-                </div>
-
-                {boxLoveLoading && <div className="bl-loading">Mencari...</div>}
-
-                {boxLoveResults.length > 0 && (
-                  <div className="bl-results">
-                    {boxLoveResults.map(r => (
-                      <div key={r.id} className={`bl-result-item ${boxLoveTarget?.id === r.id ? "selected" : ""}`} onClick={() => setBoxLoveTarget(r)}>
-                        <div className="bl-result-avatar">
-                          {r.foto ? <img src={r.foto} alt={r.nama} /> : <span>{r.nama?.charAt(0)}</span>}
-                        </div>
-                        <div className="bl-result-info">
-                          <div className="bl-result-name">#{r.nomorUrut} {r.nama}</div>
-                          <div className="bl-result-loc">{r.mandiriDesaKota || "-"} • {r.mandiriDesaNama || "-"}</div>
-                        </div>
-                        {boxLoveTarget?.id === r.id && <CheckCircle2 size={18} className="bl-check" />}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {boxLoveSearch.length > 0 && !boxLoveLoading && boxLoveResults.length === 0 && (
-                  <div className="bl-empty">Peserta tidak ditemukan</div>
-                )}
-              </div>
-            </div>
-
-            <div className="bl-footer">
-              <button className="bl-submit-btn" onClick={handleBoxLoveSubmit} disabled={!boxLoveTarget || boxLoveSubmitting}>
-                <Heart size={18} fill="white" />
-                <span>{boxLoveSubmitting ? "Mengirim..." : "Masukkan Box Love 💌"}</span>
-              </button>
-              <p className="bl-footer-note">Setelah dikirim, Admin Romantic Room akan memanggil Anda berdua untuk sesi perkenalan di Romantic Room.</p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* COMMENTS MODAL */}
       {isCommentsModalOpen && (

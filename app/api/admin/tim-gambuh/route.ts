@@ -6,22 +6,29 @@ import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
     if (!session || !["admin", "pengurus_daerah", "kmm_daerah", "admin_romantic_room", "tim_pnkb_gambuh"].includes(session.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get active kegiatanId from settings
-    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-    const kegiatanId = activeSetting[0]?.value || "";
+    const searchParams = request.nextUrl.searchParams;
+    const filterKegiatanId = searchParams.get("kegiatanId");
 
-    if (!kegiatanId) {
+    let targetKegiatanId = filterKegiatanId;
+
+    if (!targetKegiatanId || targetKegiatanId === "active") {
+      // Get active kegiatanId from settings
+      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+      targetKegiatanId = activeSetting[0]?.value || "";
+    }
+
+    if (!targetKegiatanId && targetKegiatanId !== "all") {
       return NextResponse.json([]);
     }
 
-    const data = await db.select({
+    let query: any = db.select({
       id: timGambuh.id,
       nama: timGambuh.nama,
       kegiatanId: timGambuh.kegiatanId,
@@ -34,9 +41,13 @@ export async function GET() {
     })
     .from(timGambuh)
     .leftJoin(mandiriDaerah, eq(timGambuh.daerahId, mandiriDaerah.id))
-    .leftJoin(mandiriDesa, eq(timGambuh.desaId, mandiriDesa.id))
-    .where(eq(timGambuh.kegiatanId, kegiatanId))
-    .orderBy(timGambuh.nama);
+    .leftJoin(mandiriDesa, eq(timGambuh.desaId, mandiriDesa.id));
+
+    if (targetKegiatanId !== "all") {
+      query = query.where(eq(timGambuh.kegiatanId, targetKegiatanId));
+    }
+
+    const data = await query.orderBy(timGambuh.nama);
 
     return NextResponse.json(data);
   } catch (error) {
@@ -66,8 +77,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Nama dan Tipe wajib diisi" }, { status: 400 });
     }
 
-    if (!["PNKB", "Ibu Gambuh"].includes(tipe)) {
-      return NextResponse.json({ error: "Tipe harus PNKB atau Ibu Gambuh" }, { status: 400 });
+    if (!["PNKB", "Ibu Gambuh", "Penunggu PNKB", "Penunggu Ibu Gambuh"].includes(tipe)) {
+      return NextResponse.json({ error: "Tipe tidak valid" }, { status: 400 });
     }
 
     const id = uuidv4();
@@ -77,7 +88,7 @@ export async function POST(request: NextRequest) {
       kegiatanId,
       daerahId: daerahId ? Number(daerahId) : null,
       desaId: desaId ? Number(desaId) : null,
-      tipe: tipe as "PNKB" | "Ibu Gambuh",
+      tipe: tipe as "PNKB" | "Ibu Gambuh" | "Penunggu PNKB" | "Penunggu Ibu Gambuh",
     });
 
     return NextResponse.json({ success: true, id });

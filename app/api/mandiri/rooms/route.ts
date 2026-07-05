@@ -169,6 +169,12 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
     try {
+        // Security: Only admin roles can delete all rooms
+        const session = await getSession();
+        if (!session || !["admin", "admin_romantic_room", "tim_pnkb"].includes(session.role)) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
         const activeKegiatanId = activeSetting[0]?.value || "";
 

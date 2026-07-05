@@ -198,7 +198,7 @@ const userNavs: Record<string, any[]> = {
       items: [
         { href: "/dashboard", label: "Dashboard", icon: "grid" },
         { href: "/mandiri/tim-gambuh", label: "Panel Tim PNKB & Gambuh", icon: "romantic" },
-        { href: "/admin/katalog", label: "Katalog Peserta", icon: "katalog" },
+        { href: "/tim-gambuh/katalog", label: "Katalog Peserta", icon: "katalog" },
       ],
     },
     {

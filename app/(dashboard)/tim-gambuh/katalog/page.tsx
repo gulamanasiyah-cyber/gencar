@@ -176,7 +176,19 @@ export default function AdminKatalogPage() {
         const r = await fetch("/api/mandiri/rooms", { cache: "no-store" });
         if (r.ok) {
           const rJson = await r.json();
-          setActiveRooms(Array.isArray(rJson) ? rJson : []);
+          let rooms = Array.isArray(rJson) ? rJson : [];
+          if (!rooms.some(r => r.status === "Terisi")) {
+            rooms.push({
+              status: "Terisi",
+              nama: "Room 1 (Preview)",
+              pengirimNama: "Budi Hermawan",
+              penerimaNama: "Dedi Kurniawan",
+              assignedCallerNama: "Bpk. Operator 1",
+              assignedCaller2Nama: "Ibu Operator 2",
+              assignedGuardNama: "Mas Penjaga"
+            });
+          }
+          setActiveRooms(rooms);
         }
       } catch (e) {}
     };
@@ -642,10 +654,6 @@ export default function AdminKatalogPage() {
                 <Share2 size={16} />
               </button>
             )}
-            <button className={`btn-box-love ${boxLoveStatus === "open" ? "active" : ""}`} onClick={handleToggleBoxLove}>
-              <Heart size={16} />
-              <span>Box Love {boxLoveStatus === "open" ? "(ON)" : "(OFF)"}</span>
-            </button>
           </div>
         </div>
 
@@ -781,9 +789,11 @@ export default function AdminKatalogPage() {
       <div className="grid-section">
         {data.map((item) => {
           const isPulang = item.keterangan === "pulang";
+          const isTidakHadir = item.keterangan === "alpha" || item.keterangan === "izin";
+          const isUnavailable = isPulang || isTidakHadir;
           return (
-          <div key={item.id} className={`participant-card gender-${item.jenisKelamin?.toLowerCase()} ${isPulang ? "disabled" : ""}`} style={{ position: "relative" }}>
-            <div className="card-inner" style={{ filter: isPulang ? "blur(3px)" : "none", pointerEvents: isPulang ? "none" : "auto" }}>
+          <div key={item.id} className={`participant-card gender-${item.jenisKelamin?.toLowerCase()} ${isUnavailable ? "disabled" : ""}`} style={{ position: "relative" }}>
+            <div className="card-inner" style={{ filter: isUnavailable ? "blur(3px)" : "none", pointerEvents: isUnavailable ? "none" : "auto" }}>
               <div className="card-main">
                 <div className="card-photo-col">
                   <div className="photo-wrapper photo-clickable" onClick={() => setZoomPhoto(item)} title="Lihat foto">
@@ -875,15 +885,10 @@ export default function AdminKatalogPage() {
                 return null;
               })()}
 
-              <div className="card-footer">
-                <button className="footer-btn btn-id-card" onClick={() => setSelectedParticipant(item)}>
-                  <Sparkles size={14} />
-                  <span>Lihat Kartu</span>
-                </button>
-              </div>
+
             </div>
 
-            {isPulang && (
+            {isUnavailable && (
               <div style={{
                 position: "absolute",
                 top: 0,
@@ -909,7 +914,7 @@ export default function AdminKatalogPage() {
                   lineHeight: 1.5,
                   backdropFilter: "blur(4px)"
                 }}>
-                  Mohon maaf, peserta {item.nama} pulang lebih awal.
+                  Mohon maaf, peserta {item.nama} {isPulang ? "pulang lebih awal" : "tidak hadir"}, Anda tidak bisa memproses peserta tersebut.
                 </div>
               </div>
             )}
@@ -1616,8 +1621,8 @@ export default function AdminKatalogPage() {
         /* Grid & Card Styles */
         .grid-section { 
           display: grid; 
-          grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); 
-          gap: 24px; 
+          grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); 
+          gap: 30px; 
         }
         .participant-card { 
           background: white; 
@@ -1638,9 +1643,9 @@ export default function AdminKatalogPage() {
           flex-direction: column;
         }
         .card-main {
-          padding: 24px;
+          padding: 32px;
           display: flex;
-          gap: 20px;
+          gap: 24px;
           flex: 1;
         }
         .card-photo-col {
@@ -1650,14 +1655,14 @@ export default function AdminKatalogPage() {
           gap: 12px;
         }
         .photo-wrapper {
-          width: 90px;
-          height: 90px;
-          border-radius: 24px;
+          width: 120px;
+          height: 120px;
+          border-radius: 28px;
           position: relative;
           background: #f8fafc;
           overflow: hidden;
-          border: 3px solid white;
-          box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+          border: 4px solid white;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.1);
         }
         .photo-wrapper img {
           width: 100%;
@@ -1670,7 +1675,7 @@ export default function AdminKatalogPage() {
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 32px;
+          font-size: 40px;
           font-weight: 900;
           color: #3b82f6;
           background: #eff6ff;
@@ -1714,7 +1719,7 @@ export default function AdminKatalogPage() {
           gap: 4px;
         }
         .participant-name {
-          font-size: 19px;
+          font-size: 24px;
           font-weight: 800;
           margin: 0;
           color: #0f172a;
@@ -1740,11 +1745,11 @@ export default function AdminKatalogPage() {
         .info-pill {
           display: flex;
           align-items: center;
-          gap: 4px;
-          padding: 4px 10px;
-          border-radius: 8px;
+          gap: 6px;
+          padding: 6px 12px;
+          border-radius: 10px;
           background: #f1f5f9;
-          font-size: 10px;
+          font-size: 12px;
           font-weight: 700;
           color: #475569;
         }
@@ -1784,8 +1789,8 @@ export default function AdminKatalogPage() {
         .contact-item {
           display: flex;
           align-items: center;
-          gap: 8px;
-          font-size: 12px;
+          gap: 10px;
+          font-size: 14px;
           font-weight: 600;
           color: #1e293b;
         }
@@ -1797,6 +1802,11 @@ export default function AdminKatalogPage() {
         }
         .wa-link-text:hover { 
           text-decoration: underline; 
+        }
+        
+        .address-item {
+          font-size: 13px !important;
+          color: #475569 !important;
         }
         
         .id-footer-grid {

@@ -25,3 +25,11 @@ export const registerSchema = z.object({
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
+
+/** Login payload validation — prevents malformed / injection payloads */
+export const loginSchema = z.object({
+  email: z.string().email("Format email tidak valid").trim().toLowerCase().max(255),
+  password: z.string().min(1, "Password wajib diisi").max(128, "Password terlalu panjang"),
+});
+
+export type LoginInput = z.infer<typeof loginSchema>;

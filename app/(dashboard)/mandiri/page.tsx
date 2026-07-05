@@ -247,12 +247,21 @@ export default function MandiriPage() {
          title: "Update Status Akun",
          html: `
         <div style="text-align: left">
-          <label class="form-label">Status</label>
+          <label class="form-label">Status Akun</label>
           <select id="swal-status" class="form-control" style="margin-bottom: 12px">
             <option value="Aktif" ${item.statusMandiri === "Aktif" ? "selected" : ""}>Aktif</option>
             <option value="Selesai" ${item.statusMandiri === "Selesai" ? "selected" : ""}>Selesai</option>
             <option value="Batal" ${item.statusMandiri === "Batal" ? "selected" : ""}>Batal</option>
           </select>
+          <label class="form-label">Status Peserta</label>
+          <select id="swal-status-peserta" class="form-control" style="margin-bottom: 12px" onchange="document.getElementById('swal-dibayarkan-container').style.display = this.value === 'Person' ? 'block' : 'none'">
+            <option value="Utusan Daerah" ${item.statusPeserta !== "Person" ? "selected" : ""}>Utusan Daerah</option>
+            <option value="Person" ${item.statusPeserta === "Person" ? "selected" : ""}>Person</option>
+          </select>
+          <div id="swal-dibayarkan-container" style="display: ${item.statusPeserta === "Person" ? 'block' : 'none'}">
+             <label class="form-label">Dibayarkan Senilai (Rp)</label>
+             <input type="number" id="swal-dibayarkan" class="form-control" style="margin-bottom: 12px" value="${item.dibayarkanSenilai || ''}" placeholder="Contoh: 150000" />
+          </div>
           <label class="form-label">Catatan</label>
           <textarea id="swal-catatan" class="form-control" style="margin-bottom: 12px">${item.catatan || ""}</textarea>
           <div style="margin-top: 15px; padding: 12px; background: #fff7ed; border: 1px solid #ffedd5; border-radius: 8px;">
@@ -269,6 +278,8 @@ export default function MandiriPage() {
          preConfirm: () => {
             return {
                statusMandiri: (document.getElementById("swal-status") as HTMLSelectElement).value,
+               statusPeserta: (document.getElementById("swal-status-peserta") as HTMLSelectElement).value,
+               dibayarkanSenilai: (document.getElementById("swal-dibayarkan") as HTMLInputElement).value || null,
                catatan: (document.getElementById("swal-catatan") as HTMLTextAreaElement).value,
                resetDevice: (document.getElementById("swal-reset-device") as HTMLInputElement).checked,
             };

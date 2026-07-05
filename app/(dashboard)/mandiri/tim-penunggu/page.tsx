@@ -268,8 +268,8 @@ export default function TimPenungguOperatorPage() {
                         <label style="display: block; font-weight: 700; font-size: 12px; color: #475569; margin-bottom: 8px;">Hasil Pengirim (${room.pengirimNama || 'Pria'}):</label>
                         <select id="swal-hasil-pengirim" class="swal2-select" style="width: 100%; margin: 0; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 14px;">
                             <option value="Lanjut">Lanjut</option>
+                            <option value="Ragu-ragu">Ragu-ragu</option>
                             <option value="Tidak Lanjut">Tidak Lanjut</option>
-                            <option value="Batal">Batal</option>
                         </select>
                     </div>
 
@@ -277,8 +277,8 @@ export default function TimPenungguOperatorPage() {
                         <label style="display: block; font-weight: 700; font-size: 12px; color: #475569; margin-bottom: 8px;">Hasil Penerima (${room.penerimaNama || 'Wanita'}):</label>
                         <select id="swal-hasil-penerima" class="swal2-select" style="width: 100%; margin: 0; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 14px;">
                             <option value="Lanjut">Lanjut</option>
+                            <option value="Ragu-ragu">Ragu-ragu</option>
                             <option value="Tidak Lanjut">Tidak Lanjut</option>
-                            <option value="Batal">Batal</option>
                         </select>
                     </div>
                 </div>
