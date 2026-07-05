@@ -351,18 +351,49 @@ export async function DELETE(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const mandiriId = searchParams.get("id");
+    const action = searchParams.get("action");
+    const kegiatanId = searchParams.get("kegiatanId");
+
+    if (action === "deleteAll") {
+      let conditions = [];
+      if (kegiatanId) {
+        conditions.push(eq(mandiri.kegiatanId, kegiatanId));
+      }
+
+      const query = db.select({ generusId: mandiri.generusId }).from(mandiri);
+      const entries = await (conditions.length > 0 ? query.where(and(...conditions)) : query);
+      
+      const generusIds = entries.map(e => e.generusId).filter(Boolean);
+
+      if (generusIds.length > 0) {
+        // Karena sqlite kadang foreign key cascase tidak aktif, kita hapus eksplisit
+        for (const genId of generusIds) {
+          if (genId) {
+            await db.delete(mandiriAbsensi).where(eq(mandiriAbsensi.generusId, genId));
+            await db.delete(absensi).where(eq(absensi.generusId, genId));
+            await db.delete(users).where(eq(users.generusId, genId));
+            await db.delete(mandiri).where(eq(mandiri.generusId, genId));
+            await db.delete(generus).where(eq(generus.id, genId));
+          }
+        }
+      }
+      return NextResponse.json({ success: true, message: "Semua data berhasil dihapus" });
+    }
 
     if (!mandiriId) return NextResponse.json({ error: "ID wajib diisi" }, { status: 400 });
 
     const entry = await db.query.mandiri.findFirst({ where: eq(mandiri.id, mandiriId) });
     if (!entry) return NextResponse.json({ error: "Data tidak ditemukan" }, { status: 404 });
 
-    // Hapus dulu record yg tidak punya onDelete cascade dari generus
+    // Hapus manual semua relasi karena sqlite kadang tidak mengaktifkan PRAGMA foreign_keys
     await Promise.all([
       db.delete(mandiriAbsensi).where(eq(mandiriAbsensi.generusId, entry.generusId)),
       db.delete(absensi).where(eq(absensi.generusId, entry.generusId)),
+      db.delete(users).where(eq(users.generusId, entry.generusId)),
+      db.delete(mandiri).where(eq(mandiri.generusId, entry.generusId)),
     ]);
-    // Hapus data generus (otomatis menghapus mandiri & users via cascade)
+    
+    // Hapus data utama generus
     await db.delete(generus).where(eq(generus.id, entry.generusId));
 
     return NextResponse.json({ success: true });

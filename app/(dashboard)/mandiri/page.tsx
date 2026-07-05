@@ -365,6 +365,42 @@ export default function MandiriPage() {
       }
    };
 
+   const handleDeleteAll = async () => {
+      if (data.length === 0) {
+         Swal.fire({ icon: "warning", title: "Data Kosong", text: "Tidak ada data peserta untuk dihapus." });
+         return;
+      }
+
+      const res = await Swal.fire({
+         title: "Hapus Semua Peserta?",
+         text: "Semua data registrasi dan akun peserta untuk kegiatan ini akan dihapus secara permanen. Anda tidak dapat mengembalikan tindakan ini!",
+         icon: "warning",
+         showCancelButton: true,
+         confirmButtonColor: "#ef4444",
+         cancelButtonColor: "#64748b",
+         confirmButtonText: "Ya, Hapus Semua!",
+         cancelButtonText: "Batal"
+      });
+
+      if (res.isConfirmed) {
+         try {
+            const params = new URLSearchParams({ action: "deleteAll" });
+            if (selectedKegiatanId) params.set("kegiatanId", selectedKegiatanId);
+            
+            const response = await fetch(`/api/mandiri?${params}`, { method: "DELETE" });
+            if (response.ok) {
+               Swal.fire({ icon: "success", title: "Terhapus!", text: "Semua data berhasil dihapus.", timer: 1500, showConfirmButton: false });
+               fetchData();
+            } else {
+               const errorData = await response.json();
+               throw new Error(errorData.error || "Gagal menghapus data");
+            }
+         } catch (e: any) {
+            Swal.fire({ icon: "error", title: "Error", text: e.message });
+         }
+      }
+   };
+
    const handleDelete = async (id: string) => {
       const res = await Swal.fire({
          title: "Hapus Peserta?",
@@ -479,6 +515,16 @@ export default function MandiriPage() {
                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                         </svg>
                         Bagikan Link
+                     </button>
+                     <button
+                        className="btn btn-danger"
+                        onClick={handleDeleteAll}
+                        title="Hapus Semua Data Peserta"
+                     >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16 }}>
+                           <polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        Hapus Semua
                      </button>
                      {userRole === "admin_romantic_room" && (
                         <button

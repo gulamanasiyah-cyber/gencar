@@ -263,6 +263,42 @@ function AbsensiContent() {
     }
   };
 
+  const deleteAllAbsensi = async () => {
+    if (!selectedKegiatan) {
+      Swal.fire({ icon: "warning", title: "Pilih Kegiatan", text: "Silakan pilih kegiatan terlebih dahulu" });
+      return;
+    }
+    
+    if (absensiList.length === 0) {
+      Swal.fire({ icon: "warning", title: "Data Kosong", text: "Tidak ada data absensi untuk dihapus" });
+      return;
+    }
+
+    const confirm = await Swal.fire({
+      title: "Hapus Semua Data Absensi?",
+      text: "PERINGATAN: Semua data kehadiran untuk kegiatan ini akan dihapus secara permanen. Anda tidak dapat mengembalikan tindakan ini!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Ya, Hapus Semua",
+      cancelButtonText: "Batal",
+      confirmButtonColor: "#ef4444",
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    try {
+      const res = await fetch(`/api/mandiri/absensi?kegiatanId=${selectedKegiatan}&action=deleteAll`, { method: "DELETE" });
+      if (res.ok) {
+        Swal.fire({ icon: "success", title: "Terhapus", text: "Semua data absensi berhasil dihapus", toast: true, position: "top-end", timer: 2000, showConfirmButton: false });
+        fetchAbsensi();
+      } else {
+        throw new Error("Gagal menghapus semua data");
+      }
+    } catch (e) {
+      Swal.fire({ icon: "error", title: "Error", text: "Terjadi kesalahan sistem saat menghapus data" });
+    }
+  };
+
   const startQRScan = async (forcedId?: string) => {
     if (!selectedKegiatan) {
       setMessage({ type: "error", text: "Pilih kegiatan terlebih dahulu" });
@@ -928,14 +964,19 @@ function AbsensiContent() {
 
           {/* Right: Attendance list */}
           <div className="card">
-            <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span className="card-title">Daftar Hadir Peserta</span>
                 <span className="badge badge-blue">{filteredAbsensi.length} dari {absensiList.length} hadir</span>
               </div>
-              <button className="btn btn-green btn-sm" onClick={handleExport} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <Download size={14} /> Export Excel
-              </button>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button className="btn btn-danger btn-sm" onClick={deleteAllAbsensi} disabled={!selectedKegiatan || absensiList.length === 0} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <Trash2 size={14} /> Hapus Semua
+                </button>
+                <button className="btn btn-green btn-sm" onClick={handleExport} disabled={absensiList.length === 0} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <Download size={14} /> Export Excel
+                </button>
+              </div>
             </div>
 
             <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border)", background: "#f8fafc" }}>

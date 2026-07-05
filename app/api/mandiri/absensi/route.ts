@@ -190,6 +190,19 @@ export async function DELETE(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
+    const kegiatanIdParam = searchParams.get("kegiatanId");
+    const action = searchParams.get("action");
+
+    if (action === "deleteAll" && kegiatanIdParam) {
+      await db.delete(mandiriAbsensi).where(eq(mandiriAbsensi.kegiatanId, kegiatanIdParam));
+      
+      try {
+        await pusherServer.trigger("taaruf-channel", "absensi-updated", { kegiatanId: kegiatanIdParam });
+      } catch (pusherErr) {
+        console.error("Pusher trigger error in DELETE ALL absensi:", pusherErr);
+      }
+      return NextResponse.json({ success: true, message: "Semua data absensi berhasil dihapus" });
+    }
 
     if (!id) return NextResponse.json({ error: "id absensi diperlukan" }, { status: 400 });
 

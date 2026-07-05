@@ -727,36 +727,7 @@ export default function MandiriDaftarPage() {
             </button>
           </div>
 
-          <div style={{ background: "#f8fafc", padding: "20px", borderRadius: "16px", border: "1px solid #e2e8f0", marginBottom: "20px", textAlign: "center" }}>
-            <p style={{ fontSize: "14px", color: "var(--text-muted)", marginBottom: "12px", lineHeight: "1.5" }}>
-              Silakan verifikasi pendaftaran Anda via WhatsApp agar akun dapat aktif dan terverifikasi di sistem.
-            </p>
-            <a 
-              href={`https://wa.me/${process.env.NEXT_PUBLIC_FONNTE_DEVICE || '6285119776224'}?text=${encodeURIComponent(`Saya ${result?.nama || form.nama || 'Peserta'}, siap hadir dalam acara taaruf kubro`)}`} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-                backgroundColor: "#25D366",
-                color: "white",
-                textDecoration: "none",
-                padding: "12px 24px",
-                borderRadius: "10px",
-                fontWeight: "700",
-                fontSize: "14px",
-                width: "100%",
-                boxShadow: "0 4px 12px rgba(37, 211, 102, 0.2)"
-              }}
-            >
-              💬 Konfirmasi ke WhatsApp
-            </a>
-            <p style={{ fontSize: "11px", color: "#64748b", marginTop: "8px", marginBottom: 0 }}>
-              Kirim pesan otomatis yang terisi di WhatsApp Anda tanpa mengubah isinya.
-            </p>
-          </div>
+
 
           <p style={{ fontSize: "14px", color: "var(--text-muted)", background: "#f8fafc", padding: "16px", borderRadius: "12px", lineHeight: "1.6", border: "1px solid #e2e8f0" }}>
             Setelah selesai melakukan absensi di meja admin, silakan klik tombol di bawah ini lalu login menggunakan <b>Nomor Unik (ID Login)</b> Anda untuk mengakses katalog.

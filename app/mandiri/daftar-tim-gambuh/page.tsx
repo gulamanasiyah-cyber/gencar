@@ -195,8 +195,6 @@ export default function DaftarTimGambuhPage() {
               <select name="tipe" className="form-control" value={form.tipe} onChange={handleChange} required>
                 <option value="PNKB">PNKB</option>
                 <option value="Ibu Gambuh">Ibu Gambuh</option>
-                <option value="Penunggu PNKB">Penunggu PNKB</option>
-                <option value="Penunggu Ibu Gambuh">Penunggu Ibu Gambuh</option>
               </select>
             </div>
 
