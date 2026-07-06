@@ -51,14 +51,12 @@ export async function verifyToken(token: string): Promise<JWTPayload | null> {
   }
 }
 
-import { cache } from "react";
-
-export const getSession = cache(async (): Promise<JWTPayload | null> => {
+export const getSession = async (): Promise<JWTPayload | null> => {
   const cookieStore = cookies();
   const token = cookieStore.get("auth-token")?.value;
   if (!token) return null;
   return await verifyToken(token);
-});
+};
 
 export async function setSession(payload: JWTPayload): Promise<void> {
   const token = await createToken(payload);
