@@ -77,6 +77,7 @@ export default function PublicKatalogPage() {
 
   // Box Love state
   const [boxLoveStatus, setBoxLoveStatus] = useState<string>("closed");
+  const [katalogPublicStatus, setKatalogPublicStatus] = useState<string>("closed");
 
   // Komentar state
   const [komentarNama, setKomentarNama] = useState("");
@@ -320,11 +321,12 @@ export default function PublicKatalogPage() {
         }
 
         // Concurrent fetching for all parallelizable initial endpoints
-        const [titleRes, descRes, filterRes, boxLoveRes, statusRes] = await Promise.all([
+        const [titleRes, descRes, filterRes, boxLoveRes, publicStatusRes, statusRes] = await Promise.all([
           fetch("/api/public/mandiri/settings?key=mandiri_registration_title"),
           fetch("/api/public/mandiri/settings?key=mandiri_registration_description"),
           fetch("/api/public/mandiri/filters"),
           fetch("/api/mandiri/box-love?action=status"),
+          fetch("/api/public/mandiri/settings?key=mandiri_katalog_public_status"),
           storedUnik ? fetch(`/api/public/mandiri/katalog/check-status?${buildQuery({
             nomorUnik: storedUnik,
             ...(storedToken ? { sessionToken: storedToken } : {}),
@@ -348,6 +350,11 @@ export default function PublicKatalogPage() {
         if (boxLoveRes.ok) {
           const boxLoveJson = await boxLoveRes.json();
           setBoxLoveStatus(boxLoveJson.value || "closed");
+        }
+
+        if (publicStatusRes.ok) {
+          const publicStatusJson = await publicStatusRes.json();
+          setKatalogPublicStatus(publicStatusJson.value || "closed");
         }
 
         if (statusRes && statusRes.ok) {
@@ -815,9 +822,15 @@ export default function PublicKatalogPage() {
     unlockBodyScroll();
   };
 
+  useEffect(() => {
+    if (!verifying && !isLocked && !hasAttended && katalogPublicStatus !== "closed") {
+      window.location.href = "/mandiri/katalog/login";
+    }
+  }, [verifying, isLocked, hasAttended, katalogPublicStatus]);
+
   // ─── Early returns ────────────────────────────────────────────────────────
 
-  if (isLocked) {
+  if (isLocked || (katalogPublicStatus === "closed" && !hasAttended)) {
     return (
       <div className="locked-container">
         <div className="locked-card">
@@ -852,208 +865,10 @@ export default function PublicKatalogPage() {
     );
   }
 
+
+
   if (!hasAttended) {
-    return (
-      <div className="login-backdrop">
-        <LoginModal
-          onVerified={(userData) => {
-            setHasAttended(true);
-            setCurrentUser(userData);
-            if (userData.jenisKelamin) setGender(userData.jenisKelamin === "L" ? "P" : "L");
-            if (userData.id) fetchUserComments(userData.id);
-          }}
-        />
-        <style jsx>{`
-          .login-backdrop {
-            min-height: 100vh;
-            background: #f1f5f9;
-            background-image:
-              radial-gradient(at 0% 0%, rgba(59,130,246,0.1) 0px, transparent 50%),
-              radial-gradient(at 100% 0%, rgba(236,72,153,0.1) 0px, transparent 50%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-          }
-        `}</style>
-      </div>
-    );
-  }
-
-  // ─── LoginModal (inner component) ─────────────────────────────────────────
-  function LoginModal({ onVerified }: { onVerified: (userData: any) => void }) {
-    const [unik, setUnik] = useState("");
-    const [status, setStatus] = useState<"idle" | "verifying" | "error" | "waiting">("idle");
-    const [errorMsg, setErrorMsg] = useState("");
-
-    const verify = async () => {
-      if (!unik.trim()) return;
-      setStatus("verifying");
-      setErrorMsg("");
-
-      let deviceId = localStorage.getItem("mandiri_device_id");
-      if (!deviceId) {
-        deviceId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        localStorage.setItem("mandiri_device_id", deviceId);
-      }
-
-      try {
-        // FIX: Use buildQuery so nomor unik (e.g. "MND123+456") is safely encoded
-        const qs = buildQuery({ nomorUnik: unik.trim(), deviceId });
-        const res = await fetch(`/api/public/mandiri/katalog/check-status?${qs}`);
-
-        // FIX: Check response Content-Type before .json() to avoid parse errors
-        const contentType = res.headers.get("content-type") || "";
-        if (!contentType.includes("application/json")) {
-          throw new Error(`Unexpected response: ${res.status}`);
-        }
-
-        const resData = await res.json();
-
-        if (resData.status === "attended" || resData.status === "waiting") {
-          localStorage.setItem("attended_nomor_unik", resData.nomorUnik || unik.trim());
-          localStorage.setItem("attended_session_token", resData.sessionToken);
-          localStorage.setItem("attended_nomor_urut_peserta", resData.nomorUrut);
-          localStorage.setItem("attended_role", resData.role || "Peserta");
-          onVerified({
-            id: resData.id,
-            nama: resData.nama,
-            nomorUrut: resData.nomorUrut,
-            nomorUnik: resData.nomorUnik || unik.trim(),
-            mandiriDesaNama: resData.mandiriDesaNama,
-            mandiriDesaKota: resData.mandiriDesaKota,
-            jenisKelamin: resData.jenisKelamin,
-            role: resData.role || "Peserta",
-            status: resData.status,
-          });
-
-          // Bind FCM to existing user phone number on login
-          if (typeof window !== "undefined" && resData.noTelp) {
-            import("@/lib/fcm-client").then(({ registerFCM }) => {
-              registerFCM(resData.noTelp);
-            }).catch((e) => console.error("FCM login registration failed:", e));
-          }
-
-          Swal.fire({ title: `Selamat Datang, ${resData.nama}!`, text: "Berhasil masuk ke Katalog Peserta.", icon: "success", timer: 2000, showConfirmButton: false, toast: true, position: 'top-end' });
-        } else if (resData.status === "multi_login") {
-          setErrorMsg("Nomor Unik ini sudah digunakan di perangkat lain (Single Session).");
-          setStatus("error");
-        } else if (resData.status === "not_found") {
-          setErrorMsg("Nomor Unik tidak ditemukan. Pastikan Anda sudah terdaftar.");
-          setStatus("error");
-        } else {
-          setErrorMsg(resData.error || "Terjadi kesalahan saat verifikasi.");
-          setStatus("error");
-        }
-      } catch (e: any) {
-        console.error("verify error:", e);
-        // FIX: Distinguish network error from unexpected response
-        if (e instanceof TypeError && e.message.includes("fetch")) {
-          setErrorMsg("Gagal terhubung ke server. Periksa koneksi internet Anda.");
-        } else {
-          setErrorMsg("Terjadi kesalahan. Coba lagi dalam beberapa saat.");
-        }
-        setStatus("error");
-      }
-    };
-
-    return (
-      <div className="modal-box">
-        <div className="modal-header">
-          <div className="icon-badge">
-            <Lock size={28} className="text-blue-500" />
-          </div>
-          <h2>Login Katalog</h2>
-          <p>Masukkan Nomor Unik Anda untuk akses penuh</p>
-        </div>
-
-        <div className="modal-body">
-          <div className="input-field">
-            <User size={18} className="input-icon" />
-            <input
-              type="text"
-              // FIX: inputMode & autoCapitalize for better mobile UX + avoid pattern mismatch
-              inputMode="text"
-              autoCapitalize="characters"
-              autoCorrect="off"
-              autoComplete="off"
-              spellCheck={false}
-              placeholder="Contoh: MND123456 atau PNB123456"
-              value={unik}
-              onChange={(e) => setUnik(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && verify()}
-              autoFocus
-            />
-          </div>
-
-          <button
-            className={`login-btn ${status === "verifying" ? "loading" : ""}`}
-            onClick={verify}
-            disabled={status === "verifying" || !unik.trim()}
-          >
-            {status === "verifying" ? (
-              <span className="flex items-center gap-2">
-                <span className="spinner-small"></span> Memproses...
-              </span>
-            ) : "Masuk Sekarang"}
-          </button>
-
-          {status === "error" && (
-            <div className="error-alert">
-              <ShieldCheck size={16} />
-              <span>{errorMsg}</span>
-            </div>
-          )}
-
-          {status === "waiting" && (
-            <div className="warning-alert">
-              <Calendar size={16} />
-              <span>{errorMsg}</span>
-            </div>
-          )}
-        </div>
-
-        <style jsx>{`
-          .modal-box {
-            background: rgba(255,255,255,0.95);
-            backdrop-filter: blur(10px);
-            width: 100%;
-            max-width: 420px;
-            padding: 40px;
-            border-radius: 32px;
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.1);
-            border: 1px solid rgba(255,255,255,0.5);
-            animation: modalFadeIn 0.5s cubic-bezier(0.16,1,0.3,1);
-          }
-          @keyframes modalFadeIn { from { opacity:0; transform:translateY(20px) scale(0.95); } to { opacity:1; transform:translateY(0) scale(1); } }
-          .modal-header { text-align:center; margin-bottom:32px; }
-          .icon-badge { width:64px; height:64px; background:#eff6ff; color:#3b82f6; display:flex; align-items:center; justify-content:center; border-radius:20px; margin:0 auto 20px; box-shadow:inset 0 0 0 1px rgba(59,130,246,0.1); }
-          h2 { font-size:26px; font-weight:800; color:#1e293b; margin-bottom:8px; letter-spacing:-0.025em; }
-          p { color:#64748b; font-size:15px; }
-          .modal-body { display:flex; flex-direction:column; gap:20px; }
-          .input-field { position:relative; }
-          .input-icon { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:#94a3b8; }
-          input {
-            width:100%; background:#f8fafc; border:2px solid #e2e8f0;
-            padding:16px 16px 16px 48px; border-radius:16px;
-            font-size:16px; font-weight:600; transition:all 0.2s; color:#1e293b;
-            /* FIX: Prevent iOS zoom on focus (min font-size 16px already set) */
-          }
-          input:focus { background:white; border-color:#3b82f6; box-shadow:0 0 0 4px rgba(59,130,246,0.1); outline:none; }
-          .login-btn { background:linear-gradient(135deg,#3b82f6,#2563eb); color:white; border:none; padding:16px; border-radius:16px; font-size:16px; font-weight:700; cursor:pointer; transition:all 0.3s; display:flex; align-items:center; justify-content:center; gap:10px; width:100%; }
-          .login-btn:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 10px 20px -5px rgba(59,130,246,0.4); }
-          .login-btn:disabled { opacity:0.6; cursor:not-allowed; }
-          .error-alert { padding:14px; background:#fef2f2; border-radius:12px; color:#b91c1c; font-size:14px; font-weight:600; display:flex; align-items:center; gap:10px; border:1px solid #fee2e2; }
-          .warning-alert { padding:14px; background:#fffbeb; border-radius:12px; color:#92400e; font-size:14px; font-weight:600; display:flex; align-items:center; gap:10px; border:1px solid #fef3c7; }
-          .modal-footer { margin-top:32px; text-align:center; border-top:1px solid #f1f5f9; padding-top:24px; }
-          .modal-footer p { font-size:14px; color:#64748b; margin:0; }
-          .modal-footer a { color:#3b82f6; text-decoration:none; font-weight:700; }
-          .modal-footer a:hover { text-decoration:underline; }
-          .spinner-small { width:18px; height:18px; border:2px solid rgba(255,255,255,0.3); border-top-color:white; border-radius:50%; animation:spin 0.8s linear infinite; }
-          @keyframes spin { to { transform:rotate(360deg); } }
-        `}</style>
-      </div>
-    );
+    return null; // Return empty while redirecting
   }
 
   const selectedNames = selections.map(item => `${item.penerimaNama} (#${item.penerimaNoUrut || item.penerimaNo})`);
@@ -1353,16 +1168,20 @@ export default function PublicKatalogPage() {
                               return null;
                             }
 
-                            return boxLoveStatus === "open" ? (
-                              <button
-                                className={`btn-primary ${isDisabled ? "disabled" : ""}`}
-                                onClick={() => handleConfirmSelection(String(item.id), item.nama)}
-                                disabled={isDisabled}
-                              >
-                                <Heart size={16} />
-                                <span>{isFull ? "Penuh" : (isMaxed ? "Batas Tercapai" : "Pilih")}</span>
-                              </button>
-                            ) : null;
+                            if (boxLoveStatus === "open") {
+                              return (
+                                <button
+                                  className={`btn-primary ${isDisabled ? "disabled" : ""}`}
+                                  onClick={() => handleConfirmSelection(String(item.id), item.nama)}
+                                  disabled={isDisabled}
+                                >
+                                  <Heart size={16} />
+                                  <span>{isFull ? "Penuh" : (isMaxed ? "Batas Tercapai" : "Pilih")}</span>
+                                </button>
+                              );
+                            }
+                            
+                            return null;
                           })()}
                         </div>
 
@@ -1956,6 +1775,8 @@ export default function PublicKatalogPage() {
                   if (isMaxed) {
                     return <button className="dm-btn dm-btn-disabled" disabled>Batas Pilihan Tercapai (3/3)</button>;
                   }
+
+
 
                   if (boxLoveStatus === "open") {
                     return (

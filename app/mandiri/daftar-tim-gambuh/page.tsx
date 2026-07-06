@@ -40,13 +40,15 @@ export default function DaftarTimGambuhPage() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/public/mandiri/settings?key=mandiri_registration_status")
-      .then(r => r.json())
-      .then(d => {
-        if (d.value === "0") {
-          setIsClosed(true);
-        }
-      });
+    Promise.all([
+      fetch("/api/public/mandiri/settings?key=mandiri_registration_status").then(r => r.json()),
+      fetch("/api/public/mandiri/settings?key=mandiri_daftar_tim_gambuh_status").then(r => r.json())
+    ]).then(([regStat, timStat]) => {
+      // If either the main registration is closed (0) or tim gambuh is explicitly closed
+      if (regStat.value === "0" || timStat.value === "closed") {
+        setIsClosed(true);
+      }
+    }).catch(console.error);
 
     Promise.all([
       fetch("/api/public/mandiri/daerah").then((r) => r.json()),

@@ -138,13 +138,13 @@ export default function PhotoUpload({ value, onChange, label, helperText }: Phot
       return;
     }
 
-    // Max 10MB
-    if (fileToProcess.size > 10 * 1024 * 1024) {
+    // Max 1MB
+    if (fileToProcess.size > 1 * 1024 * 1024) {
       setUploading(false);
       Swal.fire({ 
         icon: "error", 
         title: "File Terlalu Besar", 
-        text: "Ukuran foto maksimal adalah 10 MB.",
+        text: "Ukuran foto maksimal adalah 1 MB.",
         confirmButtonColor: "#3b82f6"
       });
       e.target.value = "";
@@ -288,8 +288,20 @@ export default function PhotoUpload({ value, onChange, label, helperText }: Phot
           </div>
         )}
       </div>
-      
-      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "10px", marginTop: "16px" }}>
+
+      <p style={{
+        fontSize: "12px",
+        color: "#ea580c",
+        textAlign: "center",
+        marginTop: "16px",
+        marginBottom: "6px",
+        fontWeight: "600",
+        padding: "0 10px"
+      }}>
+        ⚠️ Perhatian: Maksimal ukuran file foto adalah 1 MB
+      </p>
+
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "10px", marginTop: "8px" }}>
         <button 
           type="button" 
           onClick={startCamera}

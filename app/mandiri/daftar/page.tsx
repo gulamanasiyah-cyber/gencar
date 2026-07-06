@@ -388,52 +388,7 @@ export default function MandiriDaftarPage() {
     }
   };
 
-  const handleAddNewDaerah = async (name: string) => {
-    const res = await fetch("/api/public/mandiri/wilayah", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "daerah", nama: name })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      Swal.fire({ icon: "error", title: "Gagal", text: data.error || "Gagal menambah daerah baru" });
-      throw new Error(data.error);
-    }
-    setKotaList(prev => prev.includes(data.nama) ? prev : [...prev, data.nama].sort());
-    return { id: data.nama, name: data.nama };
-  };
 
-  const handleAddNewDesa = async (name: string) => {
-    if (!selectedKota) return { id: "", name: "" };
-    const res = await fetch("/api/public/mandiri/wilayah", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "desa", nama: name, kota: selectedKota })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      Swal.fire({ icon: "error", title: "Gagal", text: data.error || "Gagal menambah desa baru" });
-      throw new Error(data.error);
-    }
-    setDaerahList(prev => prev.some(item => item.id === data.id) ? prev : [...prev, { id: data.id, nama: data.nama, mandiriDaerahId: 0, daerahNama: selectedKota, kota: selectedKota }]);
-    return { id: data.id, name: data.nama };
-  };
-
-  const handleAddNewKelompok = async (name: string) => {
-    if (!form.mandiriDesaId) return { id: "", name: "" };
-    const res = await fetch("/api/public/mandiri/wilayah", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "kelompok", nama: name, parentId: Number(form.mandiriDesaId) })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      Swal.fire({ icon: "error", title: "Gagal", text: data.error || "Gagal menambah kelompok baru" });
-      throw new Error(data.error);
-    }
-    setDesaList(prev => prev.some(item => item.id === data.id) ? prev : [...prev, { id: data.id, nama: data.nama, mandiriDesaId: Number(form.mandiriDesaId) }]);
-    return { id: data.id, name: data.nama };
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -557,16 +512,15 @@ export default function MandiriDaftarPage() {
             });
           }
         } catch (err) {
-          console.error("Polling error:", err);
+          console.error("Status check error:", err);
         }
       };
 
-      const interval = setInterval(() => {
-        if (status !== "attended") checkStatus();
-      }, 3000);
-
-      return () => clearInterval(interval);
-    }, [result, status]);
+      // Execute once only (1 hit check)
+      if (status !== "attended") {
+        checkStatus();
+      }
+    }, [result]);
 
     const handleDownload = async () => {
       Swal.fire({
@@ -861,24 +815,22 @@ export default function MandiriDaftarPage() {
               <div className="form-group">
                 <label className="form-label">Daerah <span className="required">*</span></label>
                 <SearchableSelect
-                  placeholder="Pilih/Tambah Daerah..."
+                  placeholder="Pilih Daerah..."
                   options={kotaList.map(k => ({ id: k, name: k }))}
                   value={selectedKota}
                   onChange={(val) => setSelectedKota(val)}
-                  onAddNew={handleAddNewDaerah}
                 />
               </div>
               <div className="form-group">
                 <label className="form-label">Desa <span className="required">*</span></label>
                 <SearchableSelect
-                  placeholder="Pilih/Tambah Desa..."
+                  placeholder="Pilih Desa..."
                   options={filteredDaerahList.map(d => ({ id: d.id, name: d.nama }))}
                   value={form.mandiriDesaId}
                   onChange={(val) => {
                     setForm(prev => ({ ...prev, mandiriDesaId: val, mandiriKelompokId: "" }));
                   }}
                   disabled={!selectedKota}
-                  onAddNew={handleAddNewDesa}
                 />
               </div>
             </div>
@@ -886,14 +838,13 @@ export default function MandiriDaftarPage() {
             <div className="form-group">
               <label className="form-label">Kelompok <span className="required">*</span></label>
               <SearchableSelect
-                placeholder="Pilih/Tambah Kelompok..."
+                placeholder="Pilih Kelompok..."
                 options={filteredDesaList.map(k => ({ id: k.id, name: k.nama }))}
                 value={form.mandiriKelompokId}
                 onChange={(val) => {
                   setForm(prev => ({ ...prev, mandiriKelompokId: val }));
                 }}
                 disabled={!form.mandiriDesaId}
-                onAddNew={handleAddNewKelompok}
               />
             </div>
 
