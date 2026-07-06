@@ -1013,10 +1013,6 @@ export default function PublicKatalogPage() {
           )}
         </div>
 
-        <div className="modal-footer">
-          <p>Belum punya nomor? <Link href="/mandiri/daftar">Daftar Online</Link></p>
-        </div>
-
         <style jsx>{`
           .modal-box {
             background: rgba(255,255,255,0.95);
