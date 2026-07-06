@@ -54,7 +54,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://static.cloudflareinsights.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://res.cloudinary.com https://api.qrserver.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.qrserver.com wss://*.pusher.com https://*.pusher.com https://*.googleapis.com; frame-src 'self' https://www.youtube.com https://*.youtube.com https://www.google.com https://maps.google.com; worker-src 'self' blob:; frame-ancestors 'none';",
+            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://static.cloudflareinsights.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://res.cloudinary.com https://api.qrserver.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.qrserver.com wss://*.pusher.com https://*.pusher.com https://*.googleapis.com https://fcmregistrations.googleapis.com; frame-src 'self' https://www.youtube.com https://*.youtube.com https://www.google.com https://maps.google.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;",
           },
           {
             key: 'X-Frame-Options',
@@ -70,7 +70,7 @@ const nextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(self), microphone=(), geolocation=(), payment=(), usb=()',
+            value: 'camera=(self), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), serial=(), hid=(), interest-cohort=()',
           },
           {
             key: 'Strict-Transport-Security',
@@ -83,7 +83,25 @@ const nextConfig = {
           {
             key: 'X-DNS-Prefetch-Control',
             value: 'off',
-          }
+          },
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin',
+          },
+          {
+            key: 'Cross-Origin-Resource-Policy',
+            value: 'same-origin',
+          },
+        ],
+      },
+      {
+        // Prevent caching of authenticated API responses
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          },
         ],
       },
     ];

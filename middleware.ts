@@ -1,35 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth";
 
-// ── In-Memory Rate Limiter ──────────────────────────────────────────
-// Tracks request counts per IP for sensitive endpoints (login, register).
-// Automatically evicts stale entries every 60s to prevent memory leaks.
-const rateLimit = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
-const RATE_LIMIT_MAX = 10;           // max 10 attempts per window
+import { checkRateLimit, isTokenRevoked } from "@/lib/cache";
 
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-
-  // Lazy cleanup to avoid setInterval in Edge Runtime which causes 502 Bad Gateway
-  if (Math.random() < 0.1) {
-    rateLimit.forEach((val, key) => {
-      if (now > val.resetAt) rateLimit.delete(key);
-    });
-  }
-
-  const entry = rateLimit.get(ip);
-  if (!entry || now > entry.resetAt) {
-    rateLimit.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return false;
-  }
-  entry.count++;
-  return entry.count > RATE_LIMIT_MAX;
-}
-// ─────────────────────────────────────────────────────────────────────
+// ── Suspicious User-Agent Blocklist ──────────────────────────────────
+const BLOCKED_UA_PATTERNS = /sqlmap|nikto|nmap|masscan|dirbuster|gobuster|wfuzz|hydra|acunetix|nessus|openvas|nuclei/i;
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // ── Block malicious scanners/bots at the edge ──
+  const userAgent = request.headers.get("user-agent") || "";
+  if (BLOCKED_UA_PATTERNS.test(userAgent)) {
+    return new NextResponse(null, { status: 403 });
+  }
+
+  // ── Reject oversized API payloads (>5MB) ──
+  if (pathname.startsWith("/api/") && request.method === "POST") {
+    const contentLength = request.headers.get("content-length");
+    if (contentLength && parseInt(contentLength) > 5 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: "Payload terlalu besar (maks 5MB)" },
+        { status: 413 }
+      );
+    }
+  }
 
   const PUBLIC_PATHS = ["/login", "/register", "/api/auth/login", "/api/auth/register", "/api/auth/desa", "/api/auth/kelompok", "/api/auth/reset-password", "/api/settings", "/api/public", "/api/sholat", "/mandiri/katalog", "/mandiri/daftar", "/api/mandiri/pilih", "/api/mandiri/komentar", "/api/mandiri/box-love", "/api/mandiri/rooms", "/api/webhook/fonnte"];
 
@@ -38,7 +33,7 @@ export async function middleware(request: NextRequest) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
       || request.headers.get("x-real-ip")
       || "unknown";
-    if (isRateLimited(ip)) {
+    if (!checkRateLimit(ip).success) {
       return NextResponse.json(
         { error: "Terlalu banyak percobaan. Silakan coba lagi setelah 1 menit." },
         { status: 429 }
@@ -58,7 +53,13 @@ export async function middleware(request: NextRequest) {
 
   const token = request.cookies.get("auth-token")?.value;
 
-  if (!token) {
+  if (!token || isTokenRevoked(token)) {
+    if (token) {
+      // Clean up revoked token cookie
+      const response = NextResponse.redirect(new URL("/login", request.url));
+      response.cookies.delete("auth-token");
+      return response;
+    }
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

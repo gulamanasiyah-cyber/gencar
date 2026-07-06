@@ -1,8 +1,25 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
+const JWT_SECRET_RAW = process.env.JWT_SECRET;
+
+// ── Fail loudly if secret is missing or too weak ──
+if (!JWT_SECRET_RAW || JWT_SECRET_RAW.length < 32) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "[FATAL] JWT_SECRET must be set and at least 32 characters in production. " +
+      "Generate one with: openssl rand -base64 48"
+    );
+  } else {
+    console.warn(
+      "[AUTH] WARNING: JWT_SECRET is missing or weak. " +
+      "Using dev fallback. NEVER deploy this to production!"
+    );
+  }
+}
+
 const SECRET_KEY = new TextEncoder().encode(
-  process.env.JWT_SECRET || "fallback-secret-key-change-in-production"
+  JWT_SECRET_RAW || "dev-only-fallback-secret-DO-NOT-DEPLOY-THIS-1234"
 );
 
 export interface JWTPayload {
@@ -34,12 +51,14 @@ export async function verifyToken(token: string): Promise<JWTPayload | null> {
   }
 }
 
-export async function getSession(): Promise<JWTPayload | null> {
+import { cache } from "react";
+
+export const getSession = cache(async (): Promise<JWTPayload | null> => {
   const cookieStore = cookies();
   const token = cookieStore.get("auth-token")?.value;
   if (!token) return null;
   return await verifyToken(token);
-}
+});
 
 export async function setSession(payload: JWTPayload): Promise<void> {
   const token = await createToken(payload);
@@ -53,7 +72,13 @@ export async function setSession(payload: JWTPayload): Promise<void> {
   });
 }
 
+import { revokeToken } from "./cache";
+
 export async function clearSession(): Promise<void> {
   const cookieStore = cookies();
+  const token = cookieStore.get("auth-token")?.value;
+  if (token) {
+    revokeToken(token);
+  }
   cookieStore.delete("auth-token");
 }
