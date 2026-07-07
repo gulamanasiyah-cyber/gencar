@@ -241,7 +241,7 @@ export async function GET(request: NextRequest) {
         nomorUrut: mandiri.nomorUrut,
         panitiaStatus: formPanitiaDanPengurus.dapukan,
         keterangan: mandiriAbsensi.keterangan,
-        isHadir: sql<number>`CASE WHEN ${mandiriAbsensi.id} IS NOT NULL THEN 1 ELSE 0 END`,
+        isHadir: sql<number>`CASE WHEN ${mandiriAbsensi.id} IS NOT NULL THEN 1 ELSE 0 END`.mapWith(Number),
         selectedCount: sql<number>`(
           SELECT count(*) 
           FROM mandiri_pemilihan 

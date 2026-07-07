@@ -107,6 +107,7 @@ export default function PublicKatalogPage() {
   const [myFullProfile, setMyFullProfile] = useState<any>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
 
 
@@ -326,7 +327,11 @@ export default function PublicKatalogPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, page, gender, category, pendidikan, selectedKota, desaFilter, kelompokFilter, pekerjaanFilter, umurFilter, kriteriaFilter, hobiFilter, makananFilter, hasAttended]);
+  }, [search, page, gender, category, pendidikan, selectedKota, desaFilter, kelompokFilter, pekerjaanFilter, umurFilter, kriteriaFilter, hobiFilter, makananFilter, hasAttended, isAdmin]);
+
+  useEffect(() => {
+    if (hasAttended || isAdmin) fetchData();
+  }, [fetchData, hasAttended, isAdmin]);
 
   useEffect(() => {
     async function init() {
@@ -340,18 +345,18 @@ export default function PublicKatalogPage() {
         }
 
         // Concurrent fetching for all parallelizable initial endpoints
-        const [titleRes, descRes, filterRes, boxLoveRes, statusRes] = await Promise.all([
+        const [titleRes, descRes, filterRes, boxLoveRes, katalogStatusRes, profileRes, checkStatusRes] = await Promise.all([
           fetch("/api/public/mandiri/settings?key=mandiri_registration_title"),
           fetch("/api/public/mandiri/settings?key=mandiri_registration_description"),
           fetch("/api/public/mandiri/filters"),
           fetch("/api/mandiri/box-love?action=status"),
           fetch("/api/public/mandiri/settings?key=mandiri_katalog_public_status"),
+          fetch("/api/profile").catch(() => null),
           storedUnik ? fetch(`/api/public/mandiri/katalog/check-status?${buildQuery({
             nomorUnik: storedUnik,
             ...(storedToken ? { sessionToken: storedToken } : {}),
             deviceId,
-          })}`) : Promise.resolve(null),
-          fetch("/api/public/mandiri/settings?key=mandiri_katalog_public_status")
+          })}`) : Promise.resolve(null)
         ]);
 
         let title = "KATALOG PESERTA dan PANITIA";
@@ -377,9 +382,25 @@ export default function PublicKatalogPage() {
           const boxLoveJson = await boxLoveRes.json();
           setBoxLoveStatus(boxLoveJson.value || "closed");
         }
+        
+        if (katalogStatusRes && katalogStatusRes.ok) {
+          const json = await katalogStatusRes.json();
+          setKatalogPublicStatus(json.value || "closed");
+        }
 
-        if (statusRes && statusRes.ok) {
-          const rawText = await statusRes.text();
+        let userIsAdmin = false;
+        if (profileRes && profileRes.ok) {
+          try {
+            const profile = await profileRes.json();
+            if (profile && ["admin", "admin_romantic_room", "tim_pnkb", "tim_pnkb_gambuh"].includes(profile.role)) {
+              userIsAdmin = true;
+              setIsAdmin(true);
+            }
+          } catch (e) {}
+        }
+
+        if (checkStatusRes && checkStatusRes.ok) {
+          const rawText = await checkStatusRes.text();
           if (rawText) {
             const data = JSON.parse(rawText);
 
@@ -844,14 +865,14 @@ export default function PublicKatalogPage() {
   };
 
   useEffect(() => {
-    if (!verifying && !isLocked && !hasAttended && katalogPublicStatus !== "closed") {
+    if (!verifying && !isLocked && !hasAttended && !isAdmin && katalogPublicStatus !== "closed") {
       window.location.href = "/mandiri/katalog/login";
     }
-  }, [verifying, isLocked, hasAttended, katalogPublicStatus]);
+  }, [verifying, isLocked, hasAttended, katalogPublicStatus, isAdmin]);
 
   // ─── Early returns ────────────────────────────────────────────────────────
 
-  if (isLocked || (katalogPublicStatus === "closed" && !hasAttended)) {
+  if (isLocked || (katalogPublicStatus === "closed" && !hasAttended && !isAdmin)) {
     return (
       <div className="locked-container">
         <div className="locked-card">
@@ -888,7 +909,7 @@ export default function PublicKatalogPage() {
 
 
 
-  if (!hasAttended) {
+  if (!hasAttended && !isAdmin) {
     return null; // Return empty while redirecting
   }
 
@@ -1121,7 +1142,8 @@ export default function PublicKatalogPage() {
               data.filter(item => item.id !== currentUser?.id && item.nomorUrut !== currentUser?.nomorUrut).map((item) => {
                 const isPulang = item.keterangan?.toLowerCase() === "pulang";
                 const isTidakHadir = item.keterangan?.toLowerCase() === "alpha" || item.keterangan?.toLowerCase() === "izin";
-                const isBelumHadir = item.isHadir === 0;
+                // Hiding button if Panitia hasn't attended
+                const isBelumHadir = Number(item.isHadir) === 0 && Boolean(item.panitiaStatus);
                 const isUnavailable = isPulang || isTidakHadir;
                 return (
                   <div key={item.id} className={`participant-card ${isUnavailable ? "is-pulang" : ""}`} style={{ position: "relative", opacity: isUnavailable ? 1 : undefined, filter: isUnavailable ? "none" : undefined }}>

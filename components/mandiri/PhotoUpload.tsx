@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Camera, Upload, X, Check, RefreshCw, Image as ImageIcon } from "lucide-react";
+import { Camera, Upload, X, Check, RefreshCw, Image as ImageIcon, Info } from "lucide-react";
 import Swal from "sweetalert2";
 
 interface PhotoUploadProps {
@@ -138,13 +138,13 @@ export default function PhotoUpload({ value, onChange, label, helperText }: Phot
       return;
     }
 
-    // Max 1MB
-    if (fileToProcess.size > 1 * 1024 * 1024) {
+    // Max 10MB
+    if (fileToProcess.size > 10 * 1024 * 1024) {
       setUploading(false);
       Swal.fire({ 
         icon: "error", 
         title: "File Terlalu Besar", 
-        text: "Ukuran foto maksimal adalah 1 MB.",
+        text: "Ukuran foto maksimal adalah 10 MB.",
         confirmButtonColor: "#3b82f6"
       });
       e.target.value = "";
@@ -288,8 +288,26 @@ export default function PhotoUpload({ value, onChange, label, helperText }: Phot
           </div>
         )}
       </div>
+
+      <div style={{
+        background: "#fffbeb",
+        border: "1px solid #fde68a",
+        color: "#d97706",
+        padding: "8px 12px",
+        borderRadius: "12px",
+        fontSize: "12px",
+        fontWeight: "600",
+        textAlign: "center",
+        marginTop: "16px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "6px"
+      }}>
+        <Info size={14} /> Perhatian: Ukuran maksimal foto 10 MB
+      </div>
       
-      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "10px", marginTop: "16px" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "10px", marginTop: "12px" }}>
         <button 
           type="button" 
           onClick={startCamera}
