@@ -26,11 +26,14 @@ export async function GET(request: NextRequest) {
         }
 
         // If not logged in but has token, verify token
-        if (!currentGenerusId && nomorUnikReq && tokenReq) {
+        const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+        const kegiatanId = activeSetting[0]?.value || "";
+
+        if (!currentGenerusId && nomorUnikReq && tokenReq && kegiatanId) {
             const m = await db.select({ generusId: mandiri.generusId, lastSessionToken: mandiri.lastSessionToken })
                 .from(mandiri)
                 .innerJoin(generus, eq(mandiri.generusId, generus.id))
-                .where(eq(generus.nomorUnik, nomorUnikReq))
+                .where(and(eq(generus.nomorUnik, nomorUnikReq), eq(mandiri.kegiatanId, kegiatanId)))
                 .limit(1);
             if (m.length > 0 && m[0].lastSessionToken && m[0].lastSessionToken === tokenReq) {
                 currentGenerusId = m[0].generusId;
@@ -42,10 +45,9 @@ export async function GET(request: NextRequest) {
         }
 
         if (isAdmin && searchParams.get("all") === "true") {
-            let kegiatanId = searchParams.get("kegiatanId") || "";
-            if (!kegiatanId) {
-                const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-                kegiatanId = activeSetting[0]?.value || "";
+            let adminKegiatanId = searchParams.get("kegiatanId") || "";
+            if (!adminKegiatanId) {
+                adminKegiatanId = kegiatanId;
             }
 
             const g1 = alias(generus, "g1");
@@ -98,9 +100,9 @@ export async function GET(request: NextRequest) {
             .leftJoin(md2, eq(sql`COALESCE(${g2.mandiriDesaId}, ${pan2.mandiriDesaId})`, md2.id))
             .leftJoin(mda1, eq(md1.mandiriDaerahId, mda1.id))
             .leftJoin(mda2, eq(md2.mandiriDaerahId, mda2.id))
-            .leftJoin(abs1, and(eq(g1.id, abs1.generusId), eq(abs1.kegiatanId, kegiatanId)))
-            .leftJoin(abs2, and(eq(g2.id, abs2.generusId), eq(abs2.kegiatanId, kegiatanId)))
-            .where(eq(mandiriPemilihan.kegiatanId, kegiatanId))
+            .leftJoin(abs1, and(eq(g1.id, abs1.generusId), eq(abs1.kegiatanId, adminKegiatanId)))
+            .leftJoin(abs2, and(eq(g2.id, abs2.generusId), eq(abs2.kegiatanId, adminKegiatanId)))
+            .where(eq(mandiriPemilihan.kegiatanId, adminKegiatanId))
             .orderBy(desc(mandiriPemilihan.createdAt));
 
             return NextResponse.json(allSelections);
@@ -109,8 +111,6 @@ export async function GET(request: NextRequest) {
         const targetPengirimId = searchParams.get("pengirimId") || currentGenerusId;
         if (!targetPengirimId) return NextResponse.json({ error: "Identitas tidak ditemukan" }, { status: 400 });
 
-        const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-        const kegiatanId = activeSetting[0]?.value || "";
 
         const selections = await db.select({
             id: mandiriPemilihan.id,
@@ -150,13 +150,16 @@ export async function POST(request: NextRequest) {
             pengirimId = session.generusId || null;
         }
 
+        const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+        const kegiatanId = activeSetting[0]?.value || "";
+
         // Token validation for independent participants
-        if (!pengirimId && nomorUnik && token) {
+        if (!pengirimId && nomorUnik && token && kegiatanId) {
             // Try exact token match first
             const m = await db.select({ generusId: mandiri.generusId, lastSessionToken: mandiri.lastSessionToken })
                 .from(mandiri)
                 .innerJoin(generus, eq(mandiri.generusId, generus.id))
-                .where(eq(generus.nomorUnik, nomorUnik))
+                .where(and(eq(generus.nomorUnik, nomorUnik), eq(mandiri.kegiatanId, kegiatanId)))
                 .limit(1);
             if (m.length > 0 && m[0].lastSessionToken && m[0].lastSessionToken === token) {
                 pengirimId = m[0].generusId;
@@ -167,16 +170,27 @@ export async function POST(request: NextRequest) {
         if (!targetId) return NextResponse.json({ error: "Target pilihan tidak valid" }, { status: 400 });
         if (pengirimId === targetId) return NextResponse.json({ error: "Tidak dapat memilih diri sendiri" }, { status: 400 });
 
-        // Block selection if target is logged out (pulang)
-        const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-        const kegiatanId = activeSetting[0]?.value || "";
         if (kegiatanId) {
+            const pengirimAbs = await db.select({ keterangan: mandiriAbsensi.keterangan })
+                .from(mandiriAbsensi)
+                .where(and(eq(mandiriAbsensi.generusId, pengirimId), eq(mandiriAbsensi.kegiatanId, kegiatanId)))
+                .limit(1);
+            
+            if (pengirimAbs.length === 0) {
+                return NextResponse.json({ error: "Anda harus melakukan absensi terlebih dahulu sebelum dapat memilih" }, { status: 400 });
+            } else if (pengirimAbs[0].keterangan === "pulang" || pengirimAbs[0].keterangan === "izin" || pengirimAbs[0].keterangan === "alpha") {
+                return NextResponse.json({ error: "Status kehadiran Anda tidak mengizinkan untuk memilih" }, { status: 400 });
+            }
+
             const targetAbs = await db.select({ keterangan: mandiriAbsensi.keterangan })
                 .from(mandiriAbsensi)
                 .where(and(eq(mandiriAbsensi.generusId, targetId), eq(mandiriAbsensi.kegiatanId, kegiatanId)))
                 .limit(1);
-            if (targetAbs.length > 0 && targetAbs[0].keterangan === "pulang") {
-                return NextResponse.json({ error: "Peserta yang Anda pilih sudah logout (pulang)" }, { status: 400 });
+                
+            if (targetAbs.length === 0) {
+                return NextResponse.json({ error: "Peserta yang Anda pilih belum melakukan absensi" }, { status: 400 });
+            } else if (targetAbs[0].keterangan === "pulang" || targetAbs[0].keterangan === "izin" || targetAbs[0].keterangan === "alpha") {
+                return NextResponse.json({ error: "Status kehadiran peserta yang Anda pilih tidak mengizinkan untuk dipilih" }, { status: 400 });
             }
         }
 
@@ -294,11 +308,14 @@ export async function DELETE(request: NextRequest) {
         }
 
         // Token validation for independent participants
-        if (!pengirimId && nomorUnik && token) {
+        const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+        const kegiatanId = activeSetting[0]?.value || "";
+
+        if (!pengirimId && nomorUnik && token && kegiatanId) {
             const m = await db.select({ generusId: mandiri.generusId, lastSessionToken: mandiri.lastSessionToken })
                 .from(mandiri)
                 .innerJoin(generus, eq(mandiri.generusId, generus.id))
-                .where(eq(generus.nomorUnik, nomorUnik))
+                .where(and(eq(generus.nomorUnik, nomorUnik), eq(mandiri.kegiatanId, kegiatanId)))
                 .limit(1);
             if (m.length > 0 && m[0].lastSessionToken && m[0].lastSessionToken === token) {
                 pengirimId = m[0].generusId;
@@ -308,8 +325,6 @@ export async function DELETE(request: NextRequest) {
         if (!pengirimId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         if (!targetId) return NextResponse.json({ error: "Target pilihan tidak valid" }, { status: 400 });
 
-        const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-        const kegiatanId = activeSetting[0]?.value || "";
 
         const selection = await db.query.mandiriPemilihan.findFirst({
             where: and(

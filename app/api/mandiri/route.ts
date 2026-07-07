@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiri, generus, desa, kelompok, mandiriDesa, mandiriKelompok, users, mandiriKegiatan, mandiriAbsensi, absensi, settings, mandiriDaerah } from "@/lib/schema";
+import { mandiri, generus, desa, kelompok, mandiriDesa, mandiriKelompok, users, mandiriKegiatan, mandiriAbsensi, absensi, settings, mandiriDaerah, formPanitiaDanPengurus } from "@/lib/schema";
 import { eq, and, or, like, sql, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
@@ -301,6 +301,44 @@ export async function PUT(request: NextRequest) {
     
     if (resetDevice) updateData.deviceId = null;
 
+    let isGenderChanged = false;
+    let newNomorUrut = null;
+    
+    if (jenisKelamin !== undefined) {
+      const existingGenerus = await db.select({ jenisKelamin: generus.jenisKelamin })
+        .from(generus)
+        .where(eq(generus.id, entry.generusId || generusId))
+        .limit(1);
+        
+      const currentNomorUrut = entry.nomorUrut || 0;
+      const isMisaligned = (jenisKelamin === "L" && currentNomorUrut >= 200) || (jenisKelamin === "P" && currentNomorUrut > 0 && currentNomorUrut < 200);
+        
+      if ((existingGenerus.length > 0 && existingGenerus[0]?.jenisKelamin !== jenisKelamin) || isMisaligned) {
+        isGenderChanged = true;
+        const activeKegiatanId = entry.kegiatanId;
+        
+        if (jenisKelamin === "L") {
+            const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
+                .from(mandiri)
+                .where(and(
+                    sql`${mandiri.nomorUrut} < 200`,
+                    activeKegiatanId ? eq(mandiri.kegiatanId, activeKegiatanId) : sql`1=1`
+                ));
+            newNomorUrut = (lastRes[0]?.maxNr || 0) + 1;
+        } else {
+            const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
+                .from(mandiri)
+                .where(and(
+                    sql`${mandiri.nomorUrut} >= 200`,
+                    activeKegiatanId ? eq(mandiri.kegiatanId, activeKegiatanId) : sql`1=1`
+                ));
+            newNomorUrut = Math.max(lastRes[0]?.maxNr || 199, 199) + 1;
+        }
+        
+        updateData.nomorUrut = newNomorUrut;
+      }
+    }
+
     // Run updates concurrently
     const promises: any[] = [
       db.update(mandiri).set(updateData).where(eq(mandiri.id, mandiriId))
@@ -326,6 +364,18 @@ export async function PUT(request: NextRequest) {
         if (mandiriKelompokId !== undefined) userUpdate.mandiriKelompokId = mandiriKelompokId ? Number(mandiriKelompokId) : null;
         if (Object.keys(userUpdate).length > 0) {
           promises.push(db.update(users).set(userUpdate).where(eq(users.generusId, generusId)));
+        }
+        
+        // Update formPanitiaDanPengurus if this participant is also a Panitia
+        const panitiaUpdate: any = {};
+        if (nama !== undefined) panitiaUpdate.nama = nama;
+        if (noTelp !== undefined) panitiaUpdate.noTelp = noTelp;
+        if (jenisKelamin !== undefined) panitiaUpdate.jenisKelamin = jenisKelamin;
+        if (tanggalLahir !== undefined) panitiaUpdate.tanggalLahir = tanggalLahir;
+        if (mandiriDesaId !== undefined) panitiaUpdate.mandiriDesaId = mandiriDesaId ? Number(mandiriDesaId) : null;
+        if (mandiriKelompokId !== undefined) panitiaUpdate.mandiriKelompokId = mandiriKelompokId ? Number(mandiriKelompokId) : null;
+        if (Object.keys(panitiaUpdate).length > 0) {
+          promises.push(db.update(formPanitiaDanPengurus).set(panitiaUpdate).where(eq(formPanitiaDanPengurus.generusId, generusId)));
         }
       }
     }

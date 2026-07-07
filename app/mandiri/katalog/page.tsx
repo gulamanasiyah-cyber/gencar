@@ -59,6 +59,13 @@ export default function PublicKatalogPage() {
   const [category, setCategory] = useState("all");
   const [pendidikan, setPendidikan] = useState("all");
   const [desaFilter, setDesaFilter] = useState("all");
+  const [kelompokFilter, setKelompokFilter] = useState("all");
+  const [pekerjaanFilter, setPekerjaanFilter] = useState("all");
+  const [umurFilter, setUmurFilter] = useState("all");
+  const [kriteriaFilter, setKriteriaFilter] = useState("all");
+  const [hobiFilter, setHobiFilter] = useState("all");
+  const [makananFilter, setMakananFilter] = useState("all");
+
   const [kotaList, setKotaList] = useState<string[]>([]);
   const [selectedKota, setSelectedKota] = useState("all");
   const [page, setPage] = useState(1);
@@ -73,6 +80,12 @@ export default function PublicKatalogPage() {
   const [statusQueue, setStatusQueue] = useState<any>(null);
   const [pendidikanList, setPendidikanList] = useState<string[]>([]);
   const [wilayahList, setWilayahList] = useState<any[]>([]);
+  const [kelompokList, setKelompokList] = useState<any[]>([]);
+  const [pekerjaanList, setPekerjaanList] = useState<string[]>([]);
+  const [umurList, setUmurList] = useState<number[]>([]);
+  const [kriteriaList, setKriteriaList] = useState<string[]>([]);
+  const [hobiList, setHobiList] = useState<string[]>([]);
+  const [makananList, setMakananList] = useState<string[]>([]);
   const [selections, setSelections] = useState<any[]>([]);
 
   // Box Love state
@@ -282,6 +295,12 @@ export default function PublicKatalogPage() {
         status: category === "pilihan" ? "all" : category,
         pendidikan,
         mandiriDesaId: desaFilter,
+        kelompokId: kelompokFilter,
+        pekerjaan: pekerjaanFilter,
+        umur: umurFilter,
+        kriteria: kriteriaFilter,
+        hobi: hobiFilter,
+        makanan: makananFilter,
         kota: selectedKota,
         nomorUnik: storedUnik || "",
         sessionToken: storedToken || "",
@@ -306,7 +325,7 @@ export default function PublicKatalogPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, page, gender, category, pendidikan, selectedKota, desaFilter, hasAttended]);
+  }, [search, page, gender, category, pendidikan, selectedKota, desaFilter, kelompokFilter, pekerjaanFilter, umurFilter, kriteriaFilter, hobiFilter, makananFilter, hasAttended]);
 
   useEffect(() => {
     async function init() {
@@ -320,7 +339,7 @@ export default function PublicKatalogPage() {
         }
 
         // Concurrent fetching for all parallelizable initial endpoints
-        const [titleRes, descRes, filterRes, boxLoveRes, statusRes] = await Promise.all([
+        const [titleRes, descRes, filterRes, boxLoveRes, statusRes, lockedRes] = await Promise.all([
           fetch("/api/public/mandiri/settings?key=mandiri_registration_title"),
           fetch("/api/public/mandiri/settings?key=mandiri_registration_description"),
           fetch("/api/public/mandiri/filters"),
@@ -329,7 +348,8 @@ export default function PublicKatalogPage() {
             nomorUnik: storedUnik,
             ...(storedToken ? { sessionToken: storedToken } : {}),
             deviceId,
-          })}`) : Promise.resolve(null)
+          })}`) : Promise.resolve(null),
+          fetch("/api/public/mandiri/settings?key=mandiri_katalog_public_status")
         ]);
 
         let title = "KATALOG PESERTA dan PANITIA";
@@ -343,11 +363,26 @@ export default function PublicKatalogPage() {
           setPendidikanList(filterJson.pendidikan || []);
           setKotaList(filterJson.kota || []);
           setWilayahList(filterJson.wilayah || []);
+          setKelompokList(filterJson.kelompok || []);
+          setPekerjaanList(filterJson.pekerjaan || []);
+          setUmurList(filterJson.umur || []);
+          setKriteriaList(filterJson.kriteriaPasangan || []);
+          setHobiList(filterJson.hobi || []);
+          setMakananList(filterJson.makanan || []);
         }
 
         if (boxLoveRes.ok) {
           const boxLoveJson = await boxLoveRes.json();
           setBoxLoveStatus(boxLoveJson.value || "closed");
+        }
+
+        if (lockedRes && lockedRes.ok) {
+          const lockedJson = await lockedRes.json();
+          if (lockedJson.value !== "open") {
+            setIsLocked(true);
+            setVerifying(false);
+            return;
+          }
         }
 
         if (statusRes && statusRes.ok) {
@@ -1187,9 +1222,57 @@ export default function PublicKatalogPage() {
                 </div>
 
                 <div className="select-container">
-                  <select className="select-box" value={desaFilter} onChange={(e) => { setDesaFilter(e.target.value); setPage(1); }} disabled={selectedKota === "all"}>
+                  <select className="select-box" value={desaFilter} onChange={(e) => { setDesaFilter(e.target.value); setKelompokFilter("all"); setPage(1); }} disabled={selectedKota === "all"}>
                     <option value="all">Semua Desa</option>
                     {wilayahList.filter(w => w.kota === selectedKota).map(w => <option key={w.id} value={w.id}>{w.nama}</option>)}
+                  </select>
+                  <ChevronDown size={14} className="select-arrow" />
+                </div>
+
+                <div className="select-container">
+                  <select className="select-box" value={kelompokFilter} onChange={(e) => { setKelompokFilter(e.target.value); setPage(1); }} disabled={desaFilter === "all"}>
+                    <option value="all">Semua Kelompok</option>
+                    {kelompokList.filter(k => String(k.desaId) === desaFilter).map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                  </select>
+                  <ChevronDown size={14} className="select-arrow" />
+                </div>
+
+                <div className="select-container">
+                  <select className="select-box" value={umurFilter} onChange={(e) => { setUmurFilter(e.target.value); setPage(1); }}>
+                    <option value="all">Semua Umur</option>
+                    {umurList.map(u => <option key={u} value={u}>{u} Tahun</option>)}
+                  </select>
+                  <ChevronDown size={14} className="select-arrow" />
+                </div>
+
+                <div className="select-container">
+                  <select className="select-box" value={pekerjaanFilter} onChange={(e) => { setPekerjaanFilter(e.target.value); setPage(1); }}>
+                    <option value="all">Semua Pekerjaan</option>
+                    {pekerjaanList.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  <ChevronDown size={14} className="select-arrow" />
+                </div>
+
+                <div className="select-container">
+                  <select className="select-box" value={hobiFilter} onChange={(e) => { setHobiFilter(e.target.value); setPage(1); }}>
+                    <option value="all">Semua Hobi</option>
+                    {hobiList.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                  <ChevronDown size={14} className="select-arrow" />
+                </div>
+
+                <div className="select-container">
+                  <select className="select-box" value={makananFilter} onChange={(e) => { setMakananFilter(e.target.value); setPage(1); }}>
+                    <option value="all">Semua Makanan/Minuman</option>
+                    {makananList.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                  <ChevronDown size={14} className="select-arrow" />
+                </div>
+
+                <div className="select-container">
+                  <select className="select-box" value={kriteriaFilter} onChange={(e) => { setKriteriaFilter(e.target.value); setPage(1); }}>
+                    <option value="all">Semua Kriteria Pasangan</option>
+                    {kriteriaList.map(k => <option key={k} value={k}>{k}</option>)}
                   </select>
                   <ChevronDown size={14} className="select-arrow" />
                 </div>
@@ -1202,6 +1285,12 @@ export default function PublicKatalogPage() {
                   setPendidikan("all");
                   setSelectedKota("all");
                   setDesaFilter("all");
+                  setKelompokFilter("all");
+                  setPekerjaanFilter("all");
+                  setUmurFilter("all");
+                  setKriteriaFilter("all");
+                  setHobiFilter("all");
+                  setMakananFilter("all");
                   setPage(1);
                   setShowFilters(false);
                 }}>

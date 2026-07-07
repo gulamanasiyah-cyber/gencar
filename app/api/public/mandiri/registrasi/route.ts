@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, mandiri, settings, desa, kelompok, users, mandiriDesa, mandiriDaerah, mandiriKegiatan } from "@/lib/schema";
+import { generus, mandiri, settings, desa, kelompok, users, mandiriDesa, mandiriDaerah, mandiriKegiatan, formPanitiaDanPengurus } from "@/lib/schema";
 import { eq, desc, and, or, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 
@@ -75,10 +75,15 @@ export async function POST(request: NextRequest) {
       .from(mandiri)
       .innerJoin(generus, eq(mandiri.generusId, generus.id))
       .innerJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
+      .leftJoin(formPanitiaDanPengurus, and(
+          eq(generus.id, formPanitiaDanPengurus.generusId),
+          eq(formPanitiaDanPengurus.kegiatanId, activeKegiatanId)
+      ))
       .where(and(
         eq(mandiri.kegiatanId, activeKegiatanId),
         eq(mandiriDesa.mandiriDaerahId, targetDaerahId),
-        eq(generus.jenisKelamin, jenisKelamin)
+        eq(generus.jenisKelamin, jenisKelamin),
+        sql`${formPanitiaDanPengurus.id} IS NULL`
       ));
 
       const registeredCount = Number(countResult[0]?.count || 0);

@@ -20,22 +20,26 @@ export async function GET(request: NextRequest) {
       isAuthorizedModifier = true;
     }
 
+    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+    const kegiatanId = activeSetting[0]?.value || "";
+
     let currentParticipantId: string | null = null;
-    if (nUnik && sToken) {
+    if (nUnik && sToken && kegiatanId) {
       const authCheck = await db.select({ 
         role: formPanitiaDanPengurus.dapukan,
         generusId: generus.id
       })
       .from(generus)
-      .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
-      .leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId))
+      .leftJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, kegiatanId)))
+      .leftJoin(formPanitiaDanPengurus, and(eq(generus.id, formPanitiaDanPengurus.generusId), eq(formPanitiaDanPengurus.kegiatanId, kegiatanId)))
       .where(and(eq(generus.nomorUnik, nUnik), eq(mandiri.lastSessionToken, sToken)))
       .limit(1);
 
       if (authCheck.length > 0) {
         currentParticipantId = authCheck[0].generusId;
         if (authCheck[0].role === "Panitia" || authCheck[0].role === "Pengurus") {
-          isAuthorizedModifier = true;
+          // Panitia dan Pengurus tetap harus mengikuti status public open/close
+          // isAuthorizedModifier = true; 
         }
       }
     }
@@ -59,9 +63,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Katalog sedang tidak dibuka untuk publik." }, { status: 403 });
     }
 
-    // Get the active kegiatan from settings
-    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-    const kegiatanId = activeSetting[0]?.value || "";
 
     if (!kegiatanId) {
       return NextResponse.json({ data: [], total: 0, page: Number(searchParams.get("page") || "1"), limit: Number(searchParams.get("limit") || "20") });
@@ -77,6 +78,12 @@ export async function GET(request: NextRequest) {
     const mandiriDesaId = searchParams.get("mandiriDesaId") || "all";
     const desaId = searchParams.get("desaId") || "all";
     const kota = searchParams.get("kota") || "all";
+    const kelompokId = searchParams.get("kelompokId") || "all";
+    const pekerjaan = searchParams.get("pekerjaan") || "all";
+    const umur = searchParams.get("umur") || "all";
+    const kriteria = searchParams.get("kriteria") || "all";
+    const hobi = searchParams.get("hobi") || "all";
+    const makanan = searchParams.get("makanan") || "all";
     const onlyChosen = searchParams.get("onlyChosen") === "true";
 
     // Build conditions
@@ -140,8 +147,33 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(generus.mandiriDesaId, Number(mandiriDesaId)));
     }
 
+    if (kelompokId && kelompokId !== "all") {
+      conditions.push(eq(generus.mandiriKelompokId, Number(kelompokId)));
+    }
+
     if (kota && kota !== "all") {
       conditions.push(eq(mandiriDaerah.nama, kota));
+    }
+
+    if (pekerjaan && pekerjaan !== "all") {
+      conditions.push(like(generus.pekerjaan, `%${pekerjaan}%`));
+    }
+
+    if (hobi && hobi !== "all") {
+      conditions.push(like(generus.hobi, `%${hobi}%`));
+    }
+
+    if (makanan && makanan !== "all") {
+      conditions.push(like(generus.makananMinumanFavorit, `%${makanan}%`));
+    }
+
+    if (kriteria && kriteria !== "all") {
+      conditions.push(like(generus.kriteriaPasangan, `%${kriteria}%`));
+    }
+
+    if (umur && umur !== "all") {
+      // Cast the strftime to integer for accurate year subtraction comparison
+      conditions.push(sql`cast(strftime('%Y', 'now') as integer) - cast(strftime('%Y', ${generus.tanggalLahir}) as integer) = ${Number(umur)}`);
     }
 
     if (desaId && desaId !== "all") {

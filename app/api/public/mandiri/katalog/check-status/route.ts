@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
         noTelp: generus.noTelp
     })
     .from(generus)
-    .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
+    .leftJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, kegiatanId)))
     .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
     .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
     .leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId))
@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
             deviceId: deviceId || user[0]?.deviceId, 
             lastSessionToken: finalSessionToken 
           })
-          .where(eq(mandiri.generusId, generusId));
+          .where(and(eq(mandiri.generusId, generusId), eq(mandiri.kegiatanId, kegiatanId)));
     }
 
     // 3. Check if attended the latest activity

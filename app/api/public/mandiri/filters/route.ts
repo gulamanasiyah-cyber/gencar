@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, mandiri, mandiriDesa, desa, mandiriDaerah } from "@/lib/schema";
+import { generus, mandiri, mandiriDesa, mandiriKelompok, mandiriDaerah } from "@/lib/schema";
 import { eq, isNotNull, sql } from "drizzle-orm";
 
 export const dynamic = 'force-dynamic';
@@ -43,6 +43,60 @@ export async function GET(request: NextRequest) {
         return a.localeCompare(b);
       });
 
+    // Helper for clustering text
+    const clusterText = (data: any[], key: string) => {
+      const map = new Map<string, string>();
+      data.forEach(r => {
+        if (!r[key]) return;
+        // split by common separators if needed, or just normalize
+        const vals = r[key].split(/[\/,;]/);
+        vals.forEach((v: string) => {
+          let trimmed = v.trim();
+          if (!trimmed) return;
+          // Normalize for comparison
+          let normalized = trimmed.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+          if (!normalized) return;
+          // Keep the first formatted version we see
+          if (!map.has(normalized)) {
+            // Capitalize first letter of each word
+            const formatted = trimmed.replace(/\b\w/g, l => l.toUpperCase());
+            map.set(normalized, formatted);
+          }
+        });
+      });
+      return Array.from(map.values()).sort();
+    };
+
+    // Fetch all needed textual fields in one go
+    const textDataResult = await db
+      .select({ 
+        pekerjaan: generus.pekerjaan,
+        kriteriaPasangan: generus.kriteriaPasangan,
+        hobi: generus.hobi,
+        makanan: generus.makananMinumanFavorit,
+        tanggalLahir: generus.tanggalLahir
+      })
+      .from(generus)
+      .innerJoin(mandiri, eq(generus.id, mandiri.generusId));
+
+    const pekerjaan = clusterText(textDataResult, "pekerjaan");
+    const kriteriaPasangan = clusterText(textDataResult, "kriteriaPasangan");
+    const hobi = clusterText(textDataResult, "hobi");
+    const makanan = clusterText(textDataResult, "makanan");
+
+    // Calculate unique Umur
+    const umurSet = new Set<number>();
+    textDataResult.forEach(r => {
+      if (r.tanggalLahir) {
+        const birthDate = new Date(r.tanggalLahir);
+        if (!isNaN(birthDate.getTime())) {
+          const age = new Date().getFullYear() - birthDate.getFullYear();
+          if (age > 0 && age < 100) umurSet.add(age);
+        }
+      }
+    });
+    const umur = Array.from(umurSet).sort((a, b) => a - b);
+
     const kotaResult = await db
       .select({ 
         kota: mandiriDaerah.nama 
@@ -70,10 +124,30 @@ export async function GET(request: NextRequest) {
       .groupBy(mandiriDesa.id, mandiriDesa.nama, mandiriDaerah.nama)
       .orderBy(mandiriDesa.nama);
 
+    // Fetch unique kelompok
+    const kelompokResult = await db
+      .select({ 
+        id: mandiriKelompok.id, 
+        nama: mandiriKelompok.nama,
+        desaId: mandiriDesa.id
+      })
+      .from(mandiriKelompok)
+      .innerJoin(generus, eq(generus.mandiriKelompokId, mandiriKelompok.id))
+      .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
+      .innerJoin(mandiriDesa, eq(mandiriKelompok.mandiriDesaId, mandiriDesa.id))
+      .groupBy(mandiriKelompok.id, mandiriKelompok.nama, mandiriDesa.id)
+      .orderBy(mandiriKelompok.nama);
+
     return NextResponse.json({
       pendidikan,
       kota,
       wilayah: wilayahResult,
+      kelompok: kelompokResult,
+      pekerjaan,
+      kriteriaPasangan,
+      hobi,
+      makanan,
+      umur
     });
   } catch (error) {
     console.error("Public Filters GET error:", error);

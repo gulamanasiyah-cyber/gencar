@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
         nama, jenisKelamin, tempatLahir, tanggalLahir,
         alamat, noTelp, foto, 
         mandiriDesaId, mandiriKelompokId, dapukan,
-        pendidikan, pekerjaan, hobi, makananMinumanFavorit, instagram, suku
+        pendidikan, pekerjaan, hobi, makananMinumanFavorit, instagram, suku, kriteriaPasangan
     } = body;
 
     if (!nama || !jenisKelamin || !mandiriDesaId || !noTelp || !dapukan || !foto || !tempatLahir || !tanggalLahir || !pendidikan || !pekerjaan || !hobi || !makananMinumanFavorit) {
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
         await db.update(generus).set({
             nama, jenisKelamin, tempatLahir, tanggalLahir,
             alamat, noTelp, pendidikan, pekerjaan,
-            hobi, makananMinumanFavorit, suku, foto,
+            hobi, makananMinumanFavorit, suku, foto, kriteriaPasangan,
             mandiriDesaId: mandiriDesaId ? Number(mandiriDesaId) : null,
             mandiriKelompokId: mandiriKelompokId ? Number(mandiriKelompokId) : null,
             instagram: instagram || existingGenerus.instagram,
@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
             makananMinumanFavorit,
             suku,
             foto,
+            kriteriaPasangan,
             desaId: defaultDesaId,
             kelompokId: defaultKelId,
             mandiriDesaId: mandiriDesaId ? Number(mandiriDesaId) : null,
@@ -213,7 +214,13 @@ export async function POST(request: NextRequest) {
         });
     }
 
-    return NextResponse.json({ success: true, nomorUnik, nomorUrut: nextNr });
+    // Get nama kegiatan
+    const kegiatan = await db.query.mandiriKegiatan.findFirst({
+        where: eq(mandiriKegiatan.id, activeKegiatanId)
+    });
+    const namaKegiatan = kegiatan?.judul || "Kegiatan Mandiri";
+
+    return NextResponse.json({ success: true, nomorUnik, nomorUrut: nextNr, namaKegiatan });
 
   } catch (error) {
     console.error("Panitia Registration error:", error);

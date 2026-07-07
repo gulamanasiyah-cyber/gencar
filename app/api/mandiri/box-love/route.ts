@@ -28,22 +28,22 @@ export async function GET(request: NextRequest) {
       const nomorUnikReq = searchParams.get("nomorUnik");
       const tokenReq = searchParams.get("token");
 
+      // Get the active kegiatan from settings
+      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+      const kegiatanId = activeSetting[0]?.value || "";
+
       // Validate user session via token
-      if (nomorUnikReq && tokenReq) {
+      if (nomorUnikReq && tokenReq && kegiatanId) {
         const m = await db.select({ generusId: mandiri.generusId })
           .from(mandiri)
           .innerJoin(generus, eq(mandiri.generusId, generus.id))
-          .where(and(eq(generus.nomorUnik, nomorUnikReq), eq(mandiri.lastSessionToken, tokenReq)))
+          .where(and(eq(generus.nomorUnik, nomorUnikReq), eq(mandiri.kegiatanId, kegiatanId), eq(mandiri.lastSessionToken, tokenReq)))
           .limit(1);
         if (m.length === 0) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       } else {
         const session = await getSession();
         if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
-
-      // Get the active kegiatan from settings
-      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-      const kegiatanId = activeSetting[0]?.value || "";
 
       if (!kegiatanId) return NextResponse.json([]);
 
@@ -151,14 +151,17 @@ export async function POST(request: NextRequest) {
         pengirimId = session.generusId || null;
       }
 
-      if (!pengirimId && nomorUnik && token) {
+      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+      const kegiatanId = activeSetting[0]?.value || "";
+
+      if (!pengirimId && nomorUnik && token && kegiatanId) {
         const m = await db.select({
           generusId: mandiri.generusId,
           jenisKelamin: generus.jenisKelamin
         })
           .from(mandiri)
           .innerJoin(generus, eq(mandiri.generusId, generus.id))
-          .where(and(eq(generus.nomorUnik, nomorUnik), eq(mandiri.lastSessionToken, token)))
+          .where(and(eq(generus.nomorUnik, nomorUnik), eq(mandiri.kegiatanId, kegiatanId), eq(mandiri.lastSessionToken, token)))
           .limit(1);
         if (m.length > 0) {
           pengirimId = m[0].generusId;

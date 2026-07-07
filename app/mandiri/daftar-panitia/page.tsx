@@ -30,6 +30,7 @@ export default function PanitiaDaftarPage() {
     mandiriDesaId: "",
     mandiriKelompokId: "",
     instagram: "",
+    kriteriaPasangan: "",
     dapukan: "Panitia", 
   });
 
@@ -93,6 +94,14 @@ export default function PanitiaDaftarPage() {
     setForm(prev => ({ ...prev, mandiriDesaId: "", mandiriKelompokId: "" }));
   }, [selectedKota, daerahList]);
 
+  useEffect(() => {
+    if (form.mandiriDesaId) {
+      setFilteredDesaList(desaList.filter((d: any) => d.mandiriDesaId === Number(form.mandiriDesaId)));
+    } else {
+      setFilteredDesaList([]);
+    }
+  }, [form.mandiriDesaId, desaList]);
+
   const handleChange = (e: any) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -102,7 +111,7 @@ export default function PanitiaDaftarPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      if (!form.nama || !form.jenisKelamin || !form.mandiriDesaId || !form.tempatLahir || !form.tanggalLahir || !form.noTelp || !form.pendidikan || !form.pekerjaan || !form.hobi || !form.makananMinumanFavorit) {
+      if (!form.nama || !form.jenisKelamin || !form.mandiriDesaId || !form.mandiriKelompokId || !form.tempatLahir || !form.tanggalLahir || !form.noTelp || !form.pendidikan || !form.pekerjaan || !form.hobi || !form.makananMinumanFavorit) {
         Swal.fire({ icon: "warning", title: "Data Belum Lengkap", text: "Mohon lengkapi semua data wajib yang bertanda bintang (*)." });
         setLoading(false);
         return;
@@ -132,6 +141,45 @@ export default function PanitiaDaftarPage() {
       setSuccess(true);
       setResult(data);
       Swal.fire({ icon: "success", title: "Berhasil!", text: "Data Anda sebagai Panitia telah tercatat." });
+      
+      // Generate PDF Automatically
+      try {
+        const { jsPDF } = await import("jspdf");
+        const doc = new jsPDF();
+        
+        doc.setFontSize(22);
+        doc.setFont("helvetica", "bold");
+        doc.text("Bukti Pendaftaran Panitia", 105, 30, { align: "center" });
+
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Nama Kegiatan   : ${data.namaKegiatan || "Kegiatan Mandiri"}`, 20, 50);
+        doc.text(`Nama Lengkap    : ${form.nama}`, 20, 60);
+        doc.text(`Nomor Urut      : ${data.nomorUrut}`, 20, 70);
+        doc.text(`Kode Unik Login : ${data.nomorUnik}`, 20, 80);
+
+        // Fetch barcode image
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${data.nomorUnik}&margin=10`;
+        const qrRes = await fetch(qrUrl);
+        const qrBlob = await qrRes.blob();
+        const reader = new FileReader();
+        
+        const base64data = await new Promise<string>((resolve, reject) => {
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(qrBlob);
+        });
+
+        doc.addImage(base64data, "PNG", 75, 100, 60, 60);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text("Simpan file ini dan tunjukkan kepada panitia registrasi ulang.", 105, 170, { align: "center" });
+
+        doc.save(`Bukti_Panitia_${data.nomorUrut}_${form.nama.replace(/\\s+/g, '_')}.pdf`);
+      } catch (pdfErr) {
+        console.error("Gagal membuat PDF:", pdfErr);
+      }
     } catch (err: any) {
       Swal.fire({ icon: "error", title: "Gagal", text: err.message });
     } finally {
@@ -222,6 +270,10 @@ export default function PanitiaDaftarPage() {
     );
   }
 
+  const maxDate = new Date();
+  maxDate.setFullYear(maxDate.getFullYear() - 25);
+  const maxDateString = maxDate.toISOString().split("T")[0];
+
   if (isClosed) {
     return (
       <div className="auth-page">
@@ -287,23 +339,33 @@ export default function PanitiaDaftarPage() {
               </div>
               <div className="form-group">
                 <label className="form-label">Tanggal Lahir <span className="required">*</span></label>
-                <input name="tanggalLahir" type="date" className="form-control" value={form.tanggalLahir} onChange={handleChange} required />
+                <input name="tanggalLahir" type="date" className="form-control" value={form.tanggalLahir} onChange={handleChange} max={maxDateString} required />
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+            <div className="form-group">
+              <label className="form-label">Daerah <span className="required">*</span></label>
+              <select className="form-control" value={selectedKota} onChange={(e) => setSelectedKota(e.target.value)} required>
+                <option value="">Pilih Daerah</option>
+                {kotaList.map(k => <option key={k} value={k}>{k}</option>)}
+              </select>
+            </div>
+            
+            <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Daerah <span className="required">*</span></label>
-                <select className="form-control" value={selectedKota} onChange={(e) => setSelectedKota(e.target.value)} required>
-                  <option value="">Pilih Daerah</option>
-                  {kotaList.map(k => <option key={k} value={k}>{k}</option>)}
+                <label className="form-label">Desa <span className="required">*</span></label>
+                <select name="mandiriDesaId" className="form-control" value={form.mandiriDesaId} onChange={(e) => {
+                  setForm(prev => ({ ...prev, mandiriDesaId: e.target.value, mandiriKelompokId: "" }));
+                }} required disabled={!selectedKota}>
+                  <option value="">Pilih Desa</option>
+                  {filteredDaerahList.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Desa <span className="required">*</span></label>
-                <select name="mandiriDesaId" className="form-control" value={form.mandiriDesaId} onChange={handleChange} required disabled={!selectedKota}>
-                  <option value="">Pilih Desa</option>
-                  {filteredDaerahList.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
+                <label className="form-label">Kelompok <span className="required">*</span></label>
+                <select name="mandiriKelompokId" className="form-control" value={form.mandiriKelompokId} onChange={handleChange} required disabled={!form.mandiriDesaId}>
+                  <option value="">Pilih Kelompok</option>
+                  {filteredDesaList.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
                 </select>
               </div>
             </div>
@@ -342,6 +404,11 @@ export default function PanitiaDaftarPage() {
                 <label className="form-label">Favorit Makanan/Minuman <span className="required">*</span></label>
                 <input name="makananMinumanFavorit" className="form-control" value={form.makananMinumanFavorit} onChange={handleChange} required placeholder="Sate / Jus / dll" />
               </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Kriteria Pasangan (Opsional)</label>
+              <textarea name="kriteriaPasangan" className="form-control" value={form.kriteriaPasangan} onChange={handleChange} placeholder="Sebutkan kriteria pasangan yang Anda harapkan" rows={3} />
             </div>
 
             <div className="form-group">
