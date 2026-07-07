@@ -13,10 +13,6 @@ interface Desa { id: number; nama: string; kota: string; }
 interface Kelompok { id: number; nama: string; }
 
 export default function PanitiaDaftarPage() {
-  const maxDate = new Date();
-  maxDate.setFullYear(maxDate.getFullYear() - 25);
-  const maxDateString = maxDate.toISOString().split("T")[0];
-
   const [form, setForm] = useState({
     nama: "",
     jenisKelamin: "L",
@@ -345,17 +341,6 @@ export default function PanitiaDaftarPage() {
                   className="form-control" 
                   value={form.tanggalLahir} 
                   onChange={handleChange} 
-                  onFocus={(e) => {
-                    if (!form.tanggalLahir) {
-                      setForm(prev => ({ ...prev, tanggalLahir: maxDateString }));
-                    }
-                  }}
-                  onClick={(e) => {
-                    if (!form.tanggalLahir) {
-                      setForm(prev => ({ ...prev, tanggalLahir: maxDateString }));
-                    }
-                  }}
-                  max={maxDateString} 
                   required 
                 />
               </div>
