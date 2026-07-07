@@ -309,7 +309,7 @@ export default function PublicKatalogPage() {
         onlyChosen: category === "pilihan" ? "true" : "",
       });
 
-      const res = await fetch(`/api/public/mandiri/katalog?${qs}`);
+      const res = await fetch(`/api/public/mandiri/katalog?${qs}`, { cache: "no-store" });
 
       if (res.status === 403) {
         setIsLocked(true);
@@ -346,17 +346,17 @@ export default function PublicKatalogPage() {
 
         // Concurrent fetching for all parallelizable initial endpoints
         const [titleRes, descRes, filterRes, boxLoveRes, katalogStatusRes, profileRes, checkStatusRes] = await Promise.all([
-          fetch("/api/public/mandiri/settings?key=mandiri_registration_title"),
-          fetch("/api/public/mandiri/settings?key=mandiri_registration_description"),
-          fetch("/api/public/mandiri/filters"),
-          fetch("/api/mandiri/box-love?action=status"),
-          fetch("/api/public/mandiri/settings?key=mandiri_katalog_public_status"),
-          fetch("/api/profile").catch(() => null),
+          fetch("/api/public/mandiri/settings?key=mandiri_registration_title", { cache: "no-store" }),
+          fetch("/api/public/mandiri/settings?key=mandiri_registration_description", { cache: "no-store" }),
+          fetch("/api/public/mandiri/filters", { cache: "no-store" }),
+          fetch("/api/mandiri/box-love?action=status", { cache: "no-store" }),
+          fetch("/api/public/mandiri/settings?key=mandiri_katalog_public_status", { cache: "no-store" }),
+          fetch("/api/profile", { cache: "no-store" }).catch(() => null),
           storedUnik ? fetch(`/api/public/mandiri/katalog/check-status?${buildQuery({
             nomorUnik: storedUnik,
             ...(storedToken ? { sessionToken: storedToken } : {}),
             deviceId,
-          })}`) : Promise.resolve(null)
+          })}`, { cache: "no-store" }) : Promise.resolve(null)
         ]);
 
         let title = "KATALOG PESERTA dan PANITIA";
@@ -437,7 +437,7 @@ export default function PublicKatalogPage() {
               const selQs = buildQuery({ nomorUnik: storedUnik, token: storedToken || "" });
               const [commRes, selRes] = await Promise.all([
                 fetchUserComments(data.id),
-                fetch(`/api/mandiri/pilih?${selQs}`)
+                fetch(`/api/mandiri/pilih?${selQs}`, { cache: "no-store" })
               ]);
 
               if (selRes && selRes.ok) {
@@ -1261,24 +1261,22 @@ export default function PublicKatalogPage() {
                             const isMaxed = selectedIds.length >= 3;
                             const isDisabled = isFull || isMaxed;
 
+                            // Ensure button is visible for BOTH peserta and panitia AS LONG AS they are not waiting.
+                            // isBelumHadir already checks for Panitia attendance, and currentUser.status checks for the logged in user.
                             if (currentUser?.status === "waiting" || isBelumHadir) {
                               return null;
                             }
 
-                            if (boxLoveStatus === "open") {
-                              return (
-                                <button
-                                  className={`btn-primary ${isDisabled ? "disabled" : ""}`}
-                                  onClick={() => handleConfirmSelection(String(item.id), item.nama)}
-                                  disabled={isDisabled}
-                                >
-                                  <Heart size={16} />
-                                  <span>{isFull ? "Penuh" : (isMaxed ? "Batas Tercapai" : "Pilih")}</span>
-                                </button>
-                              );
-                            }
-                            
-                            return null;
+                            return (
+                              <button
+                                className={`btn-primary ${isDisabled ? "disabled" : ""}`}
+                                onClick={() => handleConfirmSelection(String(item.id), item.nama)}
+                                disabled={isDisabled}
+                              >
+                                <Heart size={16} />
+                                <span>{isFull ? "Penuh" : (isMaxed ? "Batas Tercapai" : "Pilih")}</span>
+                              </button>
+                            );
                           })()}
                         </div>
 
@@ -1875,15 +1873,11 @@ export default function PublicKatalogPage() {
 
 
 
-                  if (boxLoveStatus === "open") {
-                    return (
-                      <button className="dm-btn" style={{ background: accentGrad }} onClick={() => handleConfirmSelection(String(sp.id), sp.nama)}>
-                        <Heart size={18} fill="white" />Pilih Peserta Ini
-                      </button>
-                    );
-                  }
-
-                  return null;
+                  return (
+                    <button className="dm-btn" style={{ background: accentGrad }} onClick={() => handleConfirmSelection(String(sp.id), sp.nama)}>
+                      <Heart size={18} fill="white" />Pilih Peserta Ini
+                    </button>
+                  );
                 })()}
               </div>
 
