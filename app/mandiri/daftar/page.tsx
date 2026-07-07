@@ -757,6 +757,7 @@ export default function MandiriDaftarPage() {
                 value={form.foto} 
                 onChange={(url) => setForm(prev => ({ ...prev, foto: url }))}
                 helperText="Kirim foto yang terbaik & terbaru, foto bebas, dan muka tampak jelas (tidak tertutup masker)"
+                maxSizeMb={1}
               />
             </div>
 

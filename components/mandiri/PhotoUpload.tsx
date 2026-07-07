@@ -9,9 +9,10 @@ interface PhotoUploadProps {
   onChange: (url: string) => void;
   label?: string;
   helperText?: string;
+  maxSizeMb?: number;
 }
 
-export default function PhotoUpload({ value, onChange, label, helperText }: PhotoUploadProps) {
+export default function PhotoUpload({ value, onChange, label, helperText, maxSizeMb = 10 }: PhotoUploadProps) {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -32,8 +33,8 @@ export default function PhotoUpload({ value, onChange, label, helperText }: Phot
         throw new Error("Akses kamera membutuhkan koneksi HTTPS.");
       }
 
-      const s = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } 
+      const s = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }
       });
       setStream(s);
       setIsCameraOpen(true);
@@ -44,11 +45,11 @@ export default function PhotoUpload({ value, onChange, label, helperText }: Phot
       }, 100);
     } catch (err: any) {
       console.error("Camera access error:", err);
-      Swal.fire({ 
-        icon: "error", 
-        title: "Kamera Tidak Diakses", 
-        text: err.message.includes("HTTPS") 
-          ? err.message 
+      Swal.fire({
+        icon: "error",
+        title: "Kamera Tidak Diakses",
+        text: err.message.includes("HTTPS")
+          ? err.message
           : "Mohon izinkan akses kamera untuk mengambil foto. Jika tidak bisa, gunakan menu 'Pilih File' di bawah.",
         confirmButtonColor: "#3b82f6"
       });
@@ -111,10 +112,10 @@ export default function PhotoUpload({ value, onChange, label, helperText }: Phot
           toType: "image/jpeg",
           quality: 0.8
         });
-        
+
         const blobArray = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
-        fileToProcess = new File([blobArray], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { 
-          type: "image/jpeg" 
+        fileToProcess = new File([blobArray], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+          type: "image/jpeg"
         });
       } catch (err) {
         console.error("HEIC conversion failed:", err);
@@ -125,12 +126,12 @@ export default function PhotoUpload({ value, onChange, label, helperText }: Phot
     // Validate format after possible conversion
     const allowedExts = ["jpg", "jpeg", "png", "webp", "heic", "heif"];
     const fileExt = fileToProcess.name.split('.').pop()?.toLowerCase() || "";
-    
+
     if (!allowedExts.includes(fileExt) && !fileToProcess.type.startsWith("image/")) {
       setUploading(false);
-      Swal.fire({ 
-        icon: "error", 
-        title: "Format Tidak Didukung", 
+      Swal.fire({
+        icon: "error",
+        title: "Format Tidak Didukung",
         text: `Format file ${fileExt.toUpperCase()} tidak didukung. Mohon gunakan JPG, PNG, WEBP, atau HEIC.`,
         confirmButtonColor: "#3b82f6"
       });
@@ -138,13 +139,13 @@ export default function PhotoUpload({ value, onChange, label, helperText }: Phot
       return;
     }
 
-    // Max 10MB
-    if (fileToProcess.size > 10 * 1024 * 1024) {
+    // Max size check
+    if (fileToProcess.size > maxSizeMb * 1024 * 1024) {
       setUploading(false);
-      Swal.fire({ 
-        icon: "error", 
-        title: "File Terlalu Besar", 
-        text: "Ukuran foto maksimal adalah 10 MB.",
+      Swal.fire({
+        icon: "error",
+        title: "File Terlalu Besar",
+        text: `Ukuran foto maksimal adalah ${maxSizeMb} MB.`,
         confirmButtonColor: "#3b82f6"
       });
       e.target.value = "";
@@ -191,7 +192,7 @@ export default function PhotoUpload({ value, onChange, label, helperText }: Phot
       fd.append("file", compressed);
 
       const res = await fetch("/api/upload", { method: "POST", body: fd });
-      
+
       let json: any;
       const contentType = res.headers.get("content-type") || "";
       if (contentType.includes("application/json")) {
@@ -200,7 +201,7 @@ export default function PhotoUpload({ value, onChange, label, helperText }: Phot
         const text = await res.text();
         throw new Error(`Server error (${res.status}): ${text.substring(0, 200)}`);
       }
-      
+
       if (json.url) {
         setPreview(json.url);
         onChange(json.url);
@@ -219,11 +220,11 @@ export default function PhotoUpload({ value, onChange, label, helperText }: Phot
     } catch (err: any) {
       console.error("Upload error:", err);
       setPreview(value || null);
-      
+
       let errorMessage = err.message || "Terjadi kesalahan saat mengunggah foto.";
-      Swal.fire({ 
-        icon: "error", 
-        title: "Upload Gagal", 
+      Swal.fire({
+        icon: "error",
+        title: "Upload Gagal",
         text: errorMessage,
         confirmButtonColor: "#3b82f6"
       });
@@ -304,12 +305,12 @@ export default function PhotoUpload({ value, onChange, label, helperText }: Phot
         justifyContent: "center",
         gap: "6px"
       }}>
-        <Info size={14} /> Perhatian: Ukuran maksimal foto 10 MB
+        <Info size={14} /> Perhatian: Ukuran maksimal foto {maxSizeMb} MB
       </div>
-      
+
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "10px", marginTop: "12px" }}>
-        <button 
-          type="button" 
+        <button
+          type="button"
           onClick={startCamera}
           disabled={uploading}
           className="btn-camera"
@@ -333,8 +334,8 @@ export default function PhotoUpload({ value, onChange, label, helperText }: Phot
           <Camera size={18} /> Ambil Foto
         </button>
 
-        <button 
-          type="button" 
+        <button
+          type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
           style={{
@@ -356,21 +357,21 @@ export default function PhotoUpload({ value, onChange, label, helperText }: Phot
         >
           <Upload size={18} /> Galeri Perangkat
         </button>
-        
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          hidden 
-          accept="image/*" 
+
+        <input
+          type="file"
+          ref={fileInputRef}
+          hidden
+          accept="image/*"
           onChange={handleFileChange}
         />
       </div>
 
       {helperText && (
-        <p style={{ 
-          fontSize: "11px", 
-          color: "var(--text-muted)", 
-          marginTop: "12px", 
+        <p style={{
+          fontSize: "11px",
+          color: "var(--text-muted)",
+          marginTop: "12px",
           textAlign: "center",
           lineHeight: "1.5",
           maxWidth: "280px",
@@ -387,25 +388,25 @@ export default function PhotoUpload({ value, onChange, label, helperText }: Phot
           background: "rgba(0,0,0,0.95)", zIndex: 99999, display: "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center", padding: "20px", backdropFilter: "blur(8px)"
         }}>
-          <div style={{ 
-            position: "relative", 
-            width: "100%", 
-            maxWidth: "500px", 
-            aspectRatio: "3/4", 
-            background: "#000", 
-            borderRadius: "24px", 
+          <div style={{
+            position: "relative",
+            width: "100%",
+            maxWidth: "500px",
+            aspectRatio: "3/4",
+            background: "#000",
+            borderRadius: "24px",
             overflow: "hidden",
             boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
             border: "1px solid rgba(255,255,255,0.2)"
           }}>
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              playsInline 
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
               muted
-              style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)" }} 
+              style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)" }}
             />
-            
+
             {/* Guide Overlay */}
             <div style={{
               position: "absolute",
@@ -420,21 +421,21 @@ export default function PhotoUpload({ value, onChange, label, helperText }: Phot
               boxShadow: "0 0 0 1000px rgba(0,0,0,0.3)"
             }}></div>
 
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={stopCamera}
-              style={{ 
+              style={{
                 position: "absolute",
                 top: "20px",
                 right: "20px",
-                background: "rgba(0,0,0,0.5)", 
-                color: "white", 
-                border: "none", 
-                width: "40px", 
-                height: "40px", 
-                borderRadius: "50%", 
-                display: "flex", 
-                alignItems: "center", 
+                background: "rgba(0,0,0,0.5)",
+                color: "white",
+                border: "none",
+                width: "40px",
+                height: "40px",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
                 justifyContent: "center",
                 cursor: "pointer",
                 backdropFilter: "blur(10px)",
@@ -443,29 +444,29 @@ export default function PhotoUpload({ value, onChange, label, helperText }: Phot
               <X size={20} />
             </button>
 
-            <div style={{ 
-              position: "absolute", 
-              bottom: "30px", 
-              left: 0, 
-              width: "100%", 
-              display: "flex", 
-              justifyContent: "center", 
+            <div style={{
+              position: "absolute",
+              bottom: "30px",
+              left: 0,
+              width: "100%",
+              display: "flex",
+              justifyContent: "center",
               alignItems: "center",
               gap: "24px",
               padding: "0 20px"
             }}>
-              <button 
-                type="button" 
-                onClick={capturePhoto} 
-                style={{ 
-                  background: "white", 
-                  color: "#1e293b", 
-                  border: "none", 
-                  width: "70px", 
-                  height: "70px", 
-                  borderRadius: "50%", 
-                  display: "flex", 
-                  alignItems: "center", 
+              <button
+                type="button"
+                onClick={capturePhoto}
+                style={{
+                  background: "white",
+                  color: "#1e293b",
+                  border: "none",
+                  width: "70px",
+                  height: "70px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
                   justifyContent: "center",
                   cursor: "pointer",
                   boxShadow: "0 0 30px rgba(255,255,255,0.4)",
@@ -476,7 +477,7 @@ export default function PhotoUpload({ value, onChange, label, helperText }: Phot
               </button>
             </div>
           </div>
-          
+
           <p style={{ color: "white", marginTop: "24px", fontSize: "14px", fontWeight: "600", letterSpacing: "0.5px", background: "rgba(255,255,255,0.1)", padding: "8px 20px", borderRadius: "20px" }}>
             Posisikan wajah di dalam garis
           </p>
