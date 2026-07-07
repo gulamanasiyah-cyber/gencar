@@ -3,7 +3,7 @@
 import Topbar from "@/components/Topbar";
 import { useState, useEffect, useCallback } from "react";
 import Swal from "sweetalert2";
-import { Search, UserPlus, Edit2, Trash2, Shield, Link as LinkIcon, CheckCircle2 } from "lucide-react";
+import { Search, UserPlus, Edit2, Trash2, Shield, Link as LinkIcon, CheckCircle2, Lock, Unlock, ToggleLeft, ToggleRight } from "lucide-react";
 
 interface TimGambuhItem {
   id: string;
@@ -107,6 +107,8 @@ export default function AdminTimGambuhPage() {
   const [userRole, setUserRole] = useState("");
   const [kegiatanList, setKegiatanList] = useState<any[]>([]);
   const [selectedKegiatanId, setSelectedKegiatanId] = useState<string>("active");
+  const [registrationStatus, setRegistrationStatus] = useState<string>("closed");
+  const [togglingStatus, setTogglingStatus] = useState(false);
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -128,17 +130,19 @@ export default function AdminTimGambuhPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [membersRes, daerahsRes, desasRes, kegiatanRes] = await Promise.all([
+      const [membersRes, daerahsRes, desasRes, kegiatanRes, statusRes] = await Promise.all([
         fetch(`/api/admin/tim-gambuh?kegiatanId=${selectedKegiatanId}`).then((r) => r.json()),
         fetch("/api/public/mandiri/daerah").then((r) => r.json()),
         fetch("/api/public/mandiri/desa").then((r) => r.json()),
         fetch("/api/mandiri/kegiatan").then((r) => r.json()),
+        fetch("/api/public/mandiri/settings?key=mandiri_daftar_tim_gambuh_status").then((r) => r.json()),
       ]);
 
       setMembers(Array.isArray(membersRes) ? membersRes : []);
       setDaerahList(Array.isArray(daerahsRes) ? daerahsRes : []);
       setDesaList(Array.isArray(desasRes) ? desasRes : []);
       setKegiatanList(Array.isArray(kegiatanRes) ? kegiatanRes : []);
+      if (statusRes && statusRes.value) setRegistrationStatus(statusRes.value);
     } catch (err) {
       console.error("Error fetching Tim Gambuh data:", err);
     } finally {
@@ -339,6 +343,50 @@ export default function AdminTimGambuhPage() {
     });
   };
 
+  const toggleRegistration = async () => {
+    if (togglingStatus) return;
+    const newStatus = registrationStatus === "open" ? "closed" : "open";
+    
+    const confirm = await Swal.fire({
+      title: newStatus === "open" ? "Buka Pendaftaran?" : "Tutup Pendaftaran?",
+      text: newStatus === "open" 
+        ? "Form pendaftaran /mandiri/daftar-tim-gambuh akan dapat diakses kembali oleh publik." 
+        : "Form pendaftaran akan ditutup dan peserta tidak dapat mendaftar.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: newStatus === "open" ? "#10b981" : "#ef4444",
+      confirmButtonText: "Ya, Lanjutkan",
+      cancelButtonText: "Batal",
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    setTogglingStatus(true);
+    try {
+      const res = await fetch("/api/mandiri/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "mandiri_daftar_tim_gambuh_status", value: newStatus }),
+      });
+      if (res.ok) {
+        setRegistrationStatus(newStatus);
+        Swal.fire({
+          icon: "success",
+          title: "Berhasil",
+          text: `Status pendaftaran berhasil diubah menjadi ${newStatus === "open" ? "BUKA" : "TUTUP"}`,
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      } else {
+        throw new Error("Gagal menyimpan pengaturan.");
+      }
+    } catch (e: any) {
+      Swal.fire({ icon: "error", title: "Error", text: e.message });
+    } finally {
+      setTogglingStatus(false);
+    }
+  };
+
   // Filter & Search Logic
   const filteredMembers = members.filter((member) => {
     const matchesSearch = member.nama.toLowerCase().includes(searchQuery.toLowerCase());
@@ -355,7 +403,21 @@ export default function AdminTimGambuhPage() {
             <h2>Kelola Tim PNKB & Gambuh</h2>
             <p>Tambah dan kelola anggota Tim PNKB & Gambuh untuk kegiatan aktif</p>
           </div>
-          <div style={{ display: "flex", gap: "10px" }}>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <button 
+              onClick={toggleRegistration} 
+              className="btn btn-outline" 
+              style={{
+                 display: "flex", alignItems: "center", gap: "8px", margin: 0,
+                 color: registrationStatus === "open" ? "#10b981" : "#ef4444",
+                 borderColor: registrationStatus === "open" ? "#a7f3d0" : "#fecaca",
+                 backgroundColor: registrationStatus === "open" ? "#ecfdf5" : "#fef2f2"
+              }}
+              disabled={togglingStatus}
+            >
+              {registrationStatus === "open" ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+              <span style={{ fontWeight: 700 }}>Status: {registrationStatus === "open" ? "BUKA" : "TUTUP"}</span>
+            </button>
             <button 
               onClick={handleDeleteAll} 
               className="btn btn-outline" 

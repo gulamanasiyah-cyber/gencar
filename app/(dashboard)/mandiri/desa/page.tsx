@@ -20,6 +20,7 @@ export default function MandiriDesaTreePage() {
   const [newDaerahName, setNewDaerahName] = useState("");
   const [error, setError] = useState("");
   const [userRole, setUserRole] = useState("");
+  const [daftarWilayahStatus, setDaftarWilayahStatus] = useState("open");
   
   // Collapse/Expand state
   const [collapsedDaerahs, setCollapsedDaerahs] = useState<Record<number, boolean>>({});
@@ -48,15 +49,22 @@ export default function MandiriDesaTreePage() {
   useEffect(() => { 
     async function init() {
       try {
-        const kegRes = await fetch("/api/mandiri/kegiatan", { cache: 'no-store' });
+        const [kegRes, activeRes, statusRes] = await Promise.all([
+          fetch("/api/mandiri/kegiatan", { cache: 'no-store' }),
+          fetch("/api/public/mandiri/settings?key=mandiri_active_kegiatan_id", { cache: 'no-store' }),
+          fetch("/api/public/mandiri/settings?key=mandiri_daftar_wilayah_status", { cache: 'no-store' })
+        ]);
+        
         const kegs = await kegRes.json();
         setKegiatanList(Array.isArray(kegs) ? kegs : []);
 
-        const activeRes = await fetch("/api/public/mandiri/settings?key=mandiri_active_kegiatan_id", { cache: 'no-store' });
         const activeJson = await activeRes.json();
         const activeId = activeJson.value || (kegs.length > 0 ? kegs[0].id : "");
         setSelectedKegiatan(activeId);
         
+        const statusJson = await statusRes.json();
+        setDaftarWilayahStatus(statusJson.value || "open");
+
         fetchAll(activeId);
       } catch (err) {
         console.error("Init error in MandiriDesaPage:", err);
@@ -65,7 +73,32 @@ export default function MandiriDesaTreePage() {
     }
     init();
     fetch("/api/profile", { cache: 'no-store' }).then(r => r.json()).then(d => setUserRole(d.role || ""));
-  }, []);
+  }, [fetchAll]);
+
+  const handleToggleDaftarWilayah = async () => {
+    const newStatus = daftarWilayahStatus === "open" ? "closed" : "open";
+    try {
+      const res = await fetch("/api/mandiri/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: "mandiri_daftar_wilayah_status", value: newStatus }),
+      });
+      if(res.ok) {
+         setDaftarWilayahStatus(newStatus);
+         Swal.fire({ 
+           icon: 'success', 
+           title: 'Berhasil', 
+           text: `Pendaftaran wilayah sekarang ${newStatus === "open" ? 'dibuka' : 'ditutup'}.`, 
+           toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 
+         });
+      } else {
+         const err = await res.json();
+         Swal.fire({ icon: 'error', title: 'Gagal', text: err.error || "Gagal mengubah status pendaftaran wilayah" });
+      }
+    } catch(err) {
+      Swal.fire({ icon: 'error', title: 'Error', text: "Terjadi kesalahan koneksi" });
+    }
+  };
 
   useEffect(() => {
     if (selectedKegiatan) {
@@ -342,6 +375,29 @@ export default function MandiriDesaTreePage() {
             >
               <Link2 size={15} /> Link Pendaftaran
             </button>
+            <div style={{
+              display: "flex", alignItems: "center", gap: "10px",
+              padding: "8px 12px", borderRadius: "12px",
+              background: daftarWilayahStatus === "open" ? "#f0fdf4" : "#fef2f2",
+              border: `1px solid ${daftarWilayahStatus === "open" ? "#bbf7d0" : "#fecaca"}`
+            }}>
+              <span style={{ fontSize: "12.5px", fontWeight: 700, color: daftarWilayahStatus === "open" ? "#166534" : "#991b1b" }}>
+                Status: {daftarWilayahStatus === "open" ? "BUKA" : "TUTUP"}
+              </span>
+              <button
+                onClick={handleToggleDaftarWilayah}
+                style={{
+                  display: "flex", alignItems: "center", gap: "4px",
+                  padding: "4px 10px", borderRadius: "8px",
+                  background: daftarWilayahStatus === "open" ? "#dc2626" : "#16a34a",
+                  color: "#fff", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer", transition: "all 0.2s"
+                }}
+                title={`Klik untuk ${daftarWilayahStatus === "open" ? "menutup" : "membuka"} pendaftaran`}
+              >
+                {daftarWilayahStatus === "open" ? <ToggleLeft size={14} /> : <ToggleRight size={14} />}
+                {daftarWilayahStatus === "open" ? "Ubah ke Tutup" : "Ubah ke Buka"}
+              </button>
+            </div>
           </div>
         </div>
 

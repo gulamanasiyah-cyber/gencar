@@ -12,6 +12,7 @@ export default function MandiriDaftarWilayahPage() {
   const [daerahList, setDaerahList] = useState<Daerah[]>([]);
   const [desaList, setDesaList] = useState<Desa[]>([]);
   const [kelompokList, setKelompokList] = useState<Kelompok[]>([]);
+  const [status, setStatus] = useState("loading");
 
   const [daerahId, setDaerahId] = useState("");
   const [desaId, setDesaId] = useState("");
@@ -19,16 +20,21 @@ export default function MandiriDaftarWilayahPage() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [da, de, ke] = await Promise.all([
+      const [da, de, ke, statusRes] = await Promise.all([
         fetch("/api/public/mandiri/daerah", { cache: "no-store" }).then((r) => r.json()),
         fetch("/api/public/mandiri/desa?scope=all", { cache: "no-store" }).then((r) => r.json()),
         fetch("/api/public/mandiri/kelompok?scope=all", { cache: "no-store" }).then((r) => r.json()),
+        fetch("/api/public/mandiri/settings?key=mandiri_daftar_wilayah_status", { cache: "no-store" }),
       ]);
       setDaerahList(Array.isArray(da) ? da : []);
       setDesaList(Array.isArray(de) ? de : []);
       setKelompokList(Array.isArray(ke) ? ke : []);
+      
+      const statusJson = await statusRes.json();
+      setStatus(statusJson.value || "open");
     } catch (error) {
       console.error("Gagal mengambil data wilayah:", error);
+      setStatus("error");
     }
   }, []);
 
@@ -184,6 +190,44 @@ export default function MandiriDaftarWilayahPage() {
     setDesaId("");
     setKelompokId("");
   };
+
+  if (status === "loading") {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+        <div className="spinner" style={{ border: '4px solid #e2e8f0', borderTop: '4px solid #7c3aed', borderRadius: '50%', width: '40px', height: '40px', animation: 'spin 1s linear infinite' }}></div>
+      </div>
+    );
+  }
+
+  if (status === "closed") {
+    return (
+      <div className="auth-page" style={{ padding: "40px 20px", display: "flex", justifyContent: "center", alignItems: "flex-start", minHeight: "100vh", backgroundColor: "#f8fafc" }}>
+        <div className="auth-card" style={{ width: "100%", maxWidth: "500px", padding: "40px 32px", borderRadius: "16px", backgroundColor: "#fff", textAlign: "center", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)" }}>
+          
+          <div style={{ display: "inline-flex", justifyContent: "center", marginBottom: "20px" }}>
+            <div style={{ width: "64px", height: "64px", backgroundColor: "#fee2e2", borderRadius: "16px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <MapPin size={32} color="#ef4444" strokeWidth={2.5} />
+            </div>
+          </div>
+          
+          <h2 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#0f172a", marginBottom: "12px" }}>
+            Pendaftaran Wilayah Ditutup
+          </h2>
+          <p style={{ fontSize: "14px", color: "#64748b", lineHeight: "1.6", marginBottom: "24px" }}>
+            Mohon maaf, pendaftaran data wilayah rujukan baru (Daerah, Desa, Kelompok) saat ini sedang ditutup.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+        <p style={{ color: "#ef4444", fontWeight: 600 }}>Terjadi kesalahan koneksi. Silakan muat ulang halaman.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-page" style={{ padding: "40px 20px", display: "flex", justifyContent: "center", alignItems: "flex-start", minHeight: "100vh", backgroundColor: "#f8fafc" }}>

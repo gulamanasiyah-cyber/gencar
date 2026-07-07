@@ -59,7 +59,8 @@ export async function GET(request: NextRequest) {
     const publicStatusSet = await db.select().from(settings).where(eq(settings.key, "mandiri_katalog_public_status"));
     const isPublicOpen = publicStatusSet[0]?.value === "open";
 
-    if (!isPublicOpen && !isAuthorizedModifier) {
+    // If public view is closed, allow access ONLY if they are an authorized modifier OR a registered participant
+    if (!isPublicOpen && !isAuthorizedModifier && !currentParticipantId) {
       return NextResponse.json({ error: "Katalog sedang tidak dibuka untuk publik." }, { status: 403 });
     }
 

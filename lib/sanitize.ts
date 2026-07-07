@@ -23,6 +23,7 @@ export function sanitizeString(input: string): string {
  * Returns true if suspicious input is detected.
  */
 const PROMPT_INJECTION_PATTERNS: RegExp[] = [
+  // English patterns
   /ignore\s+(all\s+)?previous\s+instructions/i,
   /ignore\s+(all\s+)?above\s+instructions/i,
   /disregard\s+(all\s+)?previous/i,
@@ -37,6 +38,28 @@ const PROMPT_INJECTION_PATTERNS: RegExp[] = [
   /bypass\s+(all\s+)?(safety|security|filter)/i,
   /pretend\s+you\s+(are|have)/i,
   /reveal\s+(your|the)\s+(system|hidden|secret)/i,
+
+  // Role-play escalation
+  /from\s+now\s+on\s+you\s+(are|will)/i,
+  /enter\s+(developer|sudo|admin|root)\s+mode/i,
+  /override\s+(safety|security|instructions)/i,
+  /do\s+not\s+follow\s+(any|your)\s+(rules|guidelines)/i,
+  /new\s+instructions?\s*:/i,
+
+  // Encoded/obfuscated attacks
+  /&#x[0-9a-f]+;/i, // HTML hex entities
+  /\\u00[0-9a-f]{2}/i, // Unicode escapes
+  /base64\s*(decode|encode)/i,
+
+  // Indonesian language patterns
+  /abaikan\s+(semua\s+)?instruksi/i,
+  /lupakan\s+(semua\s+)?perintah/i,
+  /kamu\s+sekarang\s+adalah/i,
+
+  // Output manipulation
+  /respond\s+only\s+with/i,
+  /output\s+the\s+(system|hidden|secret)/i,
+  /print\s+(your|the)\s+(system|initial)\s+prompt/i,
 ];
 
 export function detectPromptInjection(input: string): boolean {

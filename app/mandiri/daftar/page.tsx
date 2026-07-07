@@ -388,52 +388,7 @@ export default function MandiriDaftarPage() {
     }
   };
 
-  const handleAddNewDaerah = async (name: string) => {
-    const res = await fetch("/api/public/mandiri/wilayah", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "daerah", nama: name })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      Swal.fire({ icon: "error", title: "Gagal", text: data.error || "Gagal menambah daerah baru" });
-      throw new Error(data.error);
-    }
-    setKotaList(prev => prev.includes(data.nama) ? prev : [...prev, data.nama].sort());
-    return { id: data.nama, name: data.nama };
-  };
 
-  const handleAddNewDesa = async (name: string) => {
-    if (!selectedKota) return { id: "", name: "" };
-    const res = await fetch("/api/public/mandiri/wilayah", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "desa", nama: name, kota: selectedKota })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      Swal.fire({ icon: "error", title: "Gagal", text: data.error || "Gagal menambah desa baru" });
-      throw new Error(data.error);
-    }
-    setDaerahList(prev => prev.some(item => item.id === data.id) ? prev : [...prev, { id: data.id, nama: data.nama, mandiriDaerahId: 0, daerahNama: selectedKota, kota: selectedKota }]);
-    return { id: data.id, name: data.nama };
-  };
-
-  const handleAddNewKelompok = async (name: string) => {
-    if (!form.mandiriDesaId) return { id: "", name: "" };
-    const res = await fetch("/api/public/mandiri/wilayah", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "kelompok", nama: name, parentId: Number(form.mandiriDesaId) })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      Swal.fire({ icon: "error", title: "Gagal", text: data.error || "Gagal menambah kelompok baru" });
-      throw new Error(data.error);
-    }
-    setDesaList(prev => prev.some(item => item.id === data.id) ? prev : [...prev, { id: data.id, nama: data.nama, mandiriDesaId: Number(form.mandiriDesaId) }]);
-    return { id: data.id, name: data.nama };
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -557,16 +512,15 @@ export default function MandiriDaftarPage() {
             });
           }
         } catch (err) {
-          console.error("Polling error:", err);
+          console.error("Status check error:", err);
         }
       };
 
-      const interval = setInterval(() => {
-        if (status !== "attended") checkStatus();
-      }, 3000);
-
-      return () => clearInterval(interval);
-    }, [result, status]);
+      // Execute once only (1 hit check)
+      if (status !== "attended") {
+        checkStatus();
+      }
+    }, [result]);
 
     const handleDownload = async () => {
       Swal.fire({
@@ -802,20 +756,15 @@ export default function MandiriDaftarPage() {
               />
             </div>
 
+            {/* --- SEKSI 1: INFORMASI PRIBADI --- */}
+            <h3 className="section-title" style={{ marginTop: "10px", marginBottom: "16px" }}>Informasi Pribadi</h3>
+            
             <div className="form-group">
               <label className="form-label">Nama Lengkap <span className="required">*</span></label>
               <input name="nama" className="form-control" value={form.nama} onChange={handleChange} required placeholder="Masukkan nama lengkap" />
               <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px" }}>
                 Contoh Format Penulisan: Raka Gladhi Pratama (Tanpa disingkat dan huruf kapital pada setiap awal kata)
               </p>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Jenis Kelamin <span className="required">*</span></label>
-              <select name="jenisKelamin" className="form-control" value={form.jenisKelamin} onChange={handleChange} required>
-                <option value="L">Laki-laki</option>
-                <option value="P">Perempuan</option>
-              </select>
             </div>
 
             <div className="form-row">
@@ -825,57 +774,89 @@ export default function MandiriDaftarPage() {
               </div>
               <div className="form-group">
                 <label className="form-label">Tanggal Lahir <span className="required">*</span></label>
-                <input name="tanggalLahir" type="date" className="form-control" value={form.tanggalLahir} onChange={handleChange} required />
+                <input 
+                  name="tanggalLahir" 
+                  type="date" 
+                  className="form-control" 
+                  value={form.tanggalLahir} 
+                  onChange={handleChange} 
+                  required 
+                  max={new Date(new Date().setFullYear(new Date().getFullYear() - 25)).toISOString().split("T")[0]}
+                />
               </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Jenis Kelamin <span className="required">*</span></label>
+                <select name="jenisKelamin" className="form-control" value={form.jenisKelamin} onChange={handleChange} required>
+                  <option value="L">Laki-laki</option>
+                  <option value="P">Perempuan</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Suku <span className="required">*</span></label>
+                <input name="suku" className="form-control" value={form.suku} onChange={handleChange} required placeholder="Betawi / Jawa / dll" />
+              </div>
+            </div>
+
+            {/* --- SEKSI 2: KONTAK & DOMISILI --- */}
+            <h3 className="section-title" style={{ marginTop: "24px", marginBottom: "16px" }}>Kontak & Domisili</h3>
+
+            <div className="form-group">
+              <label className="form-label">No. Telepon / WhatsApp <span className="required">*</span></label>
+              <input type="tel" name="noTelp" className="form-control" value={form.noTelp} onChange={handleChange} required minLength={10} placeholder="08xx-xxxx-xxxx" pattern="[0-9]*" inputMode="numeric" />
+              <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px", lineHeight: "1.3" }}>
+                Minimal 10 angka. Nomor ini tidak akan disebarluaskan, hanya untuk keperluan komunikasi antara muda/i dengan pengurus.
+              </p>
             </div>
 
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Daerah <span className="required">*</span></label>
                 <SearchableSelect
-                  placeholder="Pilih/Tambah Daerah..."
+                  placeholder="Pilih Daerah..."
                   options={kotaList.map(k => ({ id: k, name: k }))}
                   value={selectedKota}
                   onChange={(val) => setSelectedKota(val)}
-                  onAddNew={handleAddNewDaerah}
                 />
               </div>
               <div className="form-group">
                 <label className="form-label">Desa <span className="required">*</span></label>
                 <SearchableSelect
-                  placeholder="Pilih/Tambah Desa..."
+                  placeholder="Pilih Desa..."
                   options={filteredDaerahList.map(d => ({ id: d.id, name: d.nama }))}
                   value={form.mandiriDesaId}
                   onChange={(val) => {
                     setForm(prev => ({ ...prev, mandiriDesaId: val, mandiriKelompokId: "" }));
                   }}
                   disabled={!selectedKota}
-                  onAddNew={handleAddNewDesa}
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Kelompok <span className="required">*</span></label>
-                <SearchableSelect
-                  placeholder="Pilih/Tambah Kelompok..."
-                  options={filteredDesaList.map(k => ({ id: k.id, name: k.nama }))}
-                  value={form.mandiriKelompokId}
-                  onChange={(val) => {
-                    setForm(prev => ({ ...prev, mandiriKelompokId: val }));
-                  }}
-                  disabled={!form.mandiriDesaId}
-                  onAddNew={handleAddNewKelompok}
                 />
               </div>
             </div>
 
+            <div className="form-group">
+              <label className="form-label">Kelompok <span className="required">*</span></label>
+              <SearchableSelect
+                placeholder="Pilih Kelompok..."
+                options={filteredDesaList.map(k => ({ id: k.id, name: k.nama }))}
+                value={form.mandiriKelompokId}
+                onChange={(val) => {
+                  setForm(prev => ({ ...prev, mandiriKelompokId: val }));
+                }}
+                disabled={!form.mandiriDesaId}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Alamat Lengkap</label>
+              <textarea name="alamat" className="form-control" value={form.alamat} onChange={handleChange} placeholder="Alamat saat ini (opsional)" rows={2} style={{ minHeight: "80px" }} />
+            </div>
+
+            {/* --- SEKSI 3: LATAR BELAKANG --- */}
+            <h3 className="section-title" style={{ marginTop: "24px", marginBottom: "16px" }}>Latar Belakang & Minat</h3>
+
             <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">No. Telepon / WhatsApp <span className="required">*</span></label>
-                <input type="tel" name="noTelp" className="form-control" value={form.noTelp} onChange={handleChange} required minLength={10} placeholder="08xx-xxxx-xxxx" pattern="[0-9]*" inputMode="numeric" />
-                <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px", lineHeight: "1.3" }}>
-                  Minimal 10 angka. Nomor ini tidak akan disebarluaskan, hanya untuk keperluan komunikasi antara muda/i dengan pengurus.
-                </p>
-              </div>
               <div className="form-group">
                 <label className="form-label">Pendidikan Terakhir <span className="required">*</span></label>
                 <input name="pendidikan" className="form-control" value={form.pendidikan} onChange={handleChange} required placeholder="S1/SMA/dll" />
@@ -883,16 +864,9 @@ export default function MandiriDaftarPage() {
                   Contoh Penulisan: S1 - Psikologi atau SMA - IPA
                 </p>
               </div>
-            </div>
-
-            <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Pekerjaan <span className="required">*</span></label>
                 <input name="pekerjaan" className="form-control" value={form.pekerjaan} onChange={handleChange} required placeholder="Pekerjaan saat ini" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Suku <span className="required">*</span></label>
-                <input name="suku" className="form-control" value={form.suku} onChange={handleChange} required placeholder="Betawi / Jawa / dll" />
               </div>
             </div>
 
@@ -910,14 +884,14 @@ export default function MandiriDaftarPage() {
             <div className="form-group">
               <label className="form-label">Akun Instagram (Opsional)</label>
               <div style={{ display: "flex", alignItems: "center", position: "relative" }}>
-                <span style={{ position: "absolute", left: "10px", color: "var(--text-muted)" }}>@</span>
+                <span style={{ position: "absolute", left: "12px", color: "var(--text-muted)" }}>@</span>
                 <input
                   name="instagram"
                   className="form-control"
                   value={form.instagram}
                   onChange={handleChange}
                   placeholder="username_kamu"
-                  style={{ paddingLeft: "30px" }}
+                  style={{ paddingLeft: "32px" }}
                 />
               </div>
               <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px" }}>
@@ -935,11 +909,6 @@ export default function MandiriDaftarPage() {
                 placeholder="Kriteria pasangan yang diinginkan (contoh: mandiri, sholeh/sholehah, suka membaca, dll.)"
                 rows={3}
               />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Alamat Lengkap</label>
-              <textarea name="alamat" className="form-control" value={form.alamat} onChange={handleChange} placeholder="Alamat saat ini (opsional)" />
             </div>
 
             {regStatusPeserta === "Person" && (

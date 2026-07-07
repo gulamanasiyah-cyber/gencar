@@ -294,6 +294,13 @@ export default function Sidebar({ user }: SidebarProps) {
     .join("")
     .toUpperCase();
 
+  const isLinkActive = (href: string, currentPath: string) => {
+    if (href === "/" || href === "/dashboard" || href === "/mandiri") {
+      return currentPath === href;
+    }
+    return currentPath.startsWith(href);
+  };
+
   return (
     <>
       {loggingOut && <GlobalLoading />}
@@ -359,7 +366,7 @@ export default function Sidebar({ user }: SidebarProps) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`sidebar-link ${pathname.startsWith(item.href) && (item.href !== "/dashboard" || pathname === "/dashboard") ? "active" : ""}`}
+                    className={`sidebar-link ${isLinkActive(item.href, pathname) ? "active" : ""}`}
                   >
                     {icons[item.icon]}
                     <span className="sidebar-link-text">{item.label}</span>
