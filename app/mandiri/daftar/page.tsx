@@ -540,7 +540,7 @@ export default function MandiriDaftarPage() {
         const doc = new jsPDF({
           orientation: "portrait",
           unit: "mm",
-          format: [90, 160]
+          format: [90, 180]
         });
 
         const displayName = result?.nama || form.nama || "Peserta Mandiri";
@@ -621,6 +621,14 @@ export default function MandiriDaftarPage() {
         doc.setFontSize(8);
         doc.setTextColor(59, 130, 246);
         doc.textWithLink("Akses Katalog: https://gencar.my.id/mandiri/katalog", 45, 154, { url: "https://gencar.my.id/mandiri/katalog", align: "center" });
+
+        // 10. Login Instructions
+        doc.setFontSize(7);
+        doc.setTextColor(100, 116, 139);
+        doc.text("Tata Cara Buka Halaman Katalog:", 45, 161, { align: "center" });
+        doc.text("1. Buka link di atas melalui browser (HP/PC)", 45, 165, { align: "center" });
+        doc.text("2. Masukkan ID Login Anda pada halaman login", 45, 169, { align: "center" });
+        doc.text("3. Anda kini dapat mengakses data peserta", 45, 173, { align: "center" });
 
         // Save PDF
         doc.save(`TICKET_MANDIRI_${displayNomorUrut || displayNomorUnik}.pdf`);

@@ -180,6 +180,14 @@ export default function PanitiaDaftarPage() {
         doc.setTextColor(59, 130, 246);
         doc.textWithLink("Akses Katalog: https://gencar.my.id/mandiri/katalog", 105, 180, { url: "https://gencar.my.id/mandiri/katalog", align: "center" });
 
+        doc.setFontSize(10);
+        doc.setTextColor(100, 116, 139);
+        doc.text("Tata Cara Buka Halaman Katalog:", 105, 190, { align: "center" });
+        doc.setFontSize(9);
+        doc.text("1. Buka link di atas melalui browser (HP/PC)", 105, 196, { align: "center" });
+        doc.text("2. Masukkan Kode Unik Login Anda pada halaman login", 105, 202, { align: "center" });
+        doc.text("3. Anda kini dapat mengakses data peserta", 105, 208, { align: "center" });
+
         doc.save(`Bukti_Panitia_${data.nomorUrut}_${form.nama.replace(/\\s+/g, '_')}.pdf`);
       } catch (pdfErr) {
         console.error("Gagal membuat PDF:", pdfErr);
