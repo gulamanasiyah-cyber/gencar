@@ -176,6 +176,10 @@ export default function PanitiaDaftarPage() {
         doc.setTextColor(100);
         doc.text("Simpan file ini dan tunjukkan kepada panitia registrasi ulang.", 105, 170, { align: "center" });
 
+        doc.setFontSize(11);
+        doc.setTextColor(59, 130, 246);
+        doc.text("Akses Katalog: gencar.my.id/mandiri/katalog", 105, 180, { align: "center" });
+
         doc.save(`Bukti_Panitia_${data.nomorUrut}_${form.nama.replace(/\\s+/g, '_')}.pdf`);
       } catch (pdfErr) {
         console.error("Gagal membuat PDF:", pdfErr);

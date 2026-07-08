@@ -616,6 +616,12 @@ export default function MandiriDaftarPage() {
         const barcodeDataUrl = canvas.toDataURL("image/png");
         doc.addImage(barcodeDataUrl, "PNG", 15, 130, 60, 18);
 
+        // 9. Catalog Link
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(59, 130, 246);
+        doc.text("Akses Katalog: gencar.my.id/mandiri/katalog", 45, 154, { align: "center" });
+
         // Save PDF
         doc.save(`TICKET_MANDIRI_${displayNomorUrut || displayNomorUnik}.pdf`);
         Swal.close();
