@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import Link from "next/link";
 import PhotoUpload from "@/components/mandiri/PhotoUpload";
+import QRCode from "qrcode";
 
 
 interface Desa { id: number; nama: string; kota: string; }
@@ -44,11 +45,19 @@ export default function PanitiaDaftarPage() {
 
   const [success, setSuccess] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string>("" );
   const [isClosed, setIsClosed] = useState(false);
   const [regTitle, setRegTitle] = useState("Pendaftaran Panitia");
   const [regDesc, setRegDesc] = useState("Silakan isi data diri Anda untuk keperluan kepanitiaan.");
   const [agreed, setAgreed] = useState(false);
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!result?.nomorUnik) return;
+    QRCode.toDataURL(result.nomorUnik, { margin: 2, width: 400 })
+      .then(url => setQrDataUrl(url))
+      .catch(err => console.error("Error generating QR code:", err));
+  }, [result]);
 
 
   useEffect(() => {
@@ -254,11 +263,17 @@ export default function PanitiaDaftarPage() {
               alignItems: "center",
               boxShadow: "0 15px 30px rgba(0,0,0,0.05)"
             }}>
-              <img
-                src={`https://quickchart.io/qr?size=400&margin=2&text=${result?.nomorUnik}`}
-                alt="QR Code"
-                style={{ width: "220px", height: "220px", borderRadius: "12px", border: "4px solid white" }}
-              />              
+              {qrDataUrl ? (
+                <img
+                  src={qrDataUrl}
+                  alt="QR Code"
+                  style={{ width: "220px", height: "220px", borderRadius: "12px", border: "4px solid white" }}
+                />
+              ) : (
+                <div style={{ width: "220px", height: "220px", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>
+                  Memuat QR Code...
+                </div>
+              )}              
               <button 
                 onClick={handleDownloadBarcode}
                 style={{
