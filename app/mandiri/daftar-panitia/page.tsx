@@ -159,7 +159,7 @@ export default function PanitiaDaftarPage() {
         doc.text(`Kode Unik Login : ${data.nomorUnik}`, 20, 80);
 
         // Fetch barcode image
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${data.nomorUnik}&margin=10`;
+        const qrUrl = `https://quickchart.io/qr?size=400&margin=2&text=${data.nomorUnik}`;
         const qrRes = await fetch(qrUrl);
         const qrBlob = await qrRes.blob();
         const reader = new FileReader();
@@ -193,7 +193,7 @@ export default function PanitiaDaftarPage() {
 
   const handleDownloadBarcode = async () => {
     if (!result?.nomorUnik) return;
-    const url = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${result.nomorUnik}&margin=10`;
+    const url = `https://quickchart.io/qr?size=1000&margin=2&text=${result.nomorUnik}`;
     try {
       const response = await fetch(url);
       const blob = await response.blob();
@@ -237,7 +237,7 @@ export default function PanitiaDaftarPage() {
               boxShadow: "0 15px 30px rgba(0,0,0,0.05)"
             }}>
               <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${result?.nomorUnik}&margin=10`}
+                src={`https://quickchart.io/qr?size=400&margin=2&text=${result?.nomorUnik}`}
                 alt="QR Code"
                 style={{ width: "220px", height: "220px", borderRadius: "12px", border: "4px solid white" }}
               />              

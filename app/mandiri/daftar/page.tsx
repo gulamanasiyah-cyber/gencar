@@ -599,7 +599,7 @@ export default function MandiriDaftarPage() {
         doc.setLineDashPattern([], 0); // Reset dash pattern
 
         // 7. QR Code Image
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${displayNomorUnik}&margin=10`;
+        const qrUrl = `https://quickchart.io/qr?size=400&margin=2&text=${displayNomorUnik}`;
         const qrBase64 = await getBase64ImageFromUrl(qrUrl);
         doc.addImage(qrBase64, "PNG", 27.5, 87, 35, 35);
 
@@ -661,7 +661,7 @@ export default function MandiriDaftarPage() {
               boxShadow: "0 15px 30px rgba(0,0,0,0.05)"
             }}>
               <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${result?.nomorUnik}&margin=10`}
+                src={`https://quickchart.io/qr?size=400&margin=2&text=${result?.nomorUnik}`}
                 alt="QR Code Peserta"
                 style={{ width: "220px", height: "220px", borderRadius: "12px", border: "4px solid white" }}
               />
