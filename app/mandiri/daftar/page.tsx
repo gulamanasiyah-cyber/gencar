@@ -628,7 +628,8 @@ export default function MandiriDaftarPage() {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(8);
         doc.setTextColor(59, 130, 246);
-        doc.textWithLink("Akses Katalog: https://gencar.my.id/mandiri/katalog", 45, 154, { url: "https://gencar.my.id/mandiri/katalog", align: "center" });
+        doc.text("Akses Katalog: https://gencar.my.id/mandiri/katalog", 45, 154, { align: "center" });
+        doc.link(15, 150, 60, 6, { url: "https://gencar.my.id/mandiri/katalog" });
 
         // 10. Login Instructions
         doc.setFontSize(7);
