@@ -881,10 +881,10 @@ export default function PublicKatalogPage() {
   };
 
   useEffect(() => {
-    if (!verifying && !isLocked && !hasAttended && !isAdmin && katalogPublicStatus !== "closed") {
+    if (!verifying && !isLocked && !hasAttended && katalogPublicStatus !== "closed") {
       window.location.href = "/mandiri/katalog/login";
     }
-  }, [verifying, isLocked, hasAttended, katalogPublicStatus, isAdmin]);
+  }, [verifying, isLocked, hasAttended, katalogPublicStatus]);
 
   // ─── Early returns ────────────────────────────────────────────────────────
 
