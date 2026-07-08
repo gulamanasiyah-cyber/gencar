@@ -660,7 +660,7 @@ export default function PublicKatalogPage() {
     setHasAttended(false);
     unlockBodyScroll();
     Swal.close();
-    window.location.reload();
+    window.location.href = "/mandiri/katalog/login";
   };
 
   const handlePulang = async () => {
@@ -725,7 +725,7 @@ export default function PublicKatalogPage() {
     localStorage.removeItem("attended_session_token");
     setHasAttended(false);
     unlockBodyScroll();
-    window.location.reload();
+    window.location.href = "/mandiri/katalog/login";
   };
 
   // ─── Box Love handlers ────────────────────────────────────────────────────
