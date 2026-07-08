@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
     .where(eq(generus.id, generusId))
     .limit(1);
 
-    if (user.length === 0) {
+    if (user.length === 0 || !user[0].nomorUrut) {
       return NextResponse.json({ status: "not_found" });
     }
 
