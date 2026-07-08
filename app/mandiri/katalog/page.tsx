@@ -1136,13 +1136,6 @@ export default function PublicKatalogPage() {
           </div>
 
           <div className="user-title-context">
-            <h3>{currentUser?.nama || "User Profile"}</h3>
-            <div className="user-meta">
-              <span>No. Urut Peserta : {currentUser?.nomorUrut || "-"}</span>
-              {currentUser?.mandiriDesaKota && (
-                <span className="location">@{currentUser?.mandiriDesaKota} • {currentUser?.mandiriDesaNama}</span>
-              )}
-            </div>
             {statusQueue && (
               <div className="status-queue-banner">
                 <Timer size={14} />
