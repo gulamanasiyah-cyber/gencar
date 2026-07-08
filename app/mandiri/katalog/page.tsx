@@ -2930,16 +2930,24 @@ export default function PublicKatalogPage() {
         .profile-info-row {
           display: flex;
           justify-content: space-between;
-          padding: 6px 0;
+          align-items: flex-start;
+          gap: 16px;
+          padding: 8px 0;
           font-size: 13px;
         }
         .profile-info-row .label {
           color: #64748b;
           font-weight: 600;
+          flex-shrink: 0;
+          max-width: 120px;
         }
         .profile-info-row .value {
           color: #1e293b;
           font-weight: 750;
+          text-align: right;
+          flex: 1;
+          word-break: break-word;
+          line-height: 1.5;
         }
         .profile-insta-link {
           color: #3b82f6;
