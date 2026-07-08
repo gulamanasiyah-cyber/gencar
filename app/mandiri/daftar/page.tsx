@@ -10,17 +10,7 @@ import PhotoUpload from "@/components/mandiri/PhotoUpload";
 import SearchableSelect from "@/components/mandiri/SearchableSelect";
 import jsPDF from "jspdf";
 import JsBarcode from "jsbarcode";
-
-const getBase64ImageFromUrl = async (url: string): Promise<string> => {
-  const response = await fetch(url);
-  const blob = await response.blob();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-};
+import QRCode from "qrcode";
 
 interface Desa { id: number; nama: string; kota: string; }
 interface Kelompok { id: number; nama: string; }
@@ -449,7 +439,6 @@ export default function MandiriDaftarPage() {
       if (data.isAlreadyRegistered) {
         setSuccess(true);
         setResult({ ...data, alreadyExists: true });
-        Swal.fire({ icon: "info", title: "Sudah Terdaftar", text: "Anda sudah terdaftar sebagai peserta sebelumnya." });
         return;
       }
 
@@ -464,7 +453,6 @@ export default function MandiriDaftarPage() {
 
       setSuccess(true);
       setResult(data);
-      Swal.fire({ icon: "success", title: "Berhasil!", text: "Data Anda telah tercatat." });
     } catch (err: any) {
       Swal.fire({ icon: "error", title: "Gagal", text: err.message });
     } finally {
@@ -483,10 +471,31 @@ export default function MandiriDaftarPage() {
     const [kegiatanJudul, setKegiatanJudul] = useState<string>("");
 
     useEffect(() => {
-      if (result) {
-        // Automatically download the PDF ticket on successful registration
+      if (!result) return;
+
+      const initSuccess = async () => {
+        if (result.alreadyExists) {
+          await Swal.fire({
+            icon: "info",
+            title: "Sudah Terdaftar",
+            text: "Anda sudah terdaftar sebagai peserta sebelumnya.",
+            confirmButtonColor: "#3b82f6",
+            confirmButtonText: "Oke"
+          });
+        } else {
+          await Swal.fire({
+            icon: "success",
+            title: "Berhasil!",
+            text: "Data Anda telah tercatat.",
+            confirmButtonColor: "#3b82f6",
+            confirmButtonText: "Oke"
+          });
+        }
+        // Automatically download the PDF ticket on successful registration after OK is clicked
         handleDownload();
-      }
+      };
+
+      initSuccess();
     }, [result]);
 
     useEffect(() => {
@@ -599,8 +608,7 @@ export default function MandiriDaftarPage() {
         doc.setLineDashPattern([], 0); // Reset dash pattern
 
         // 7. QR Code Image
-        const qrUrl = `https://quickchart.io/qr?size=400&margin=2&text=${displayNomorUnik}`;
-        const qrBase64 = await getBase64ImageFromUrl(qrUrl);
+        const qrBase64 = await QRCode.toDataURL(displayNomorUnik, { margin: 2, width: 400 });
         doc.addImage(qrBase64, "PNG", 27.5, 87, 35, 35);
 
         // 8. Barcode Image

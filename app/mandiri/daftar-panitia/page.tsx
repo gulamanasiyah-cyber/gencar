@@ -140,10 +140,25 @@ export default function PanitiaDaftarPage() {
       if (!res.ok) throw new Error(data.error || "Gagal mendaftar");
       setSuccess(true);
       setResult(data);
-      Swal.fire({ icon: "success", title: "Berhasil!", text: "Data Anda sebagai Panitia telah tercatat." });
+      await Swal.fire({ 
+        icon: "success", 
+        title: "Berhasil!", 
+        text: "Data Anda sebagai Panitia telah tercatat.",
+        confirmButtonColor: "#3b82f6",
+        confirmButtonText: "Oke"
+      });
       
       // Generate PDF Automatically
       try {
+        Swal.fire({
+          title: "Membuat PDF...",
+          text: "Mohon tunggu sebentar.",
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+
         const { jsPDF } = await import("jspdf");
         const doc = new jsPDF();
         
@@ -158,19 +173,10 @@ export default function PanitiaDaftarPage() {
         doc.text(`Nomor Urut      : ${data.nomorUrut}`, 20, 70);
         doc.text(`Kode Unik Login : ${data.nomorUnik}`, 20, 80);
 
-        // Fetch barcode image
-        const qrUrl = `https://quickchart.io/qr?size=400&margin=2&text=${data.nomorUnik}`;
-        const qrRes = await fetch(qrUrl);
-        const qrBlob = await qrRes.blob();
-        const reader = new FileReader();
-        
-        const base64data = await new Promise<string>((resolve, reject) => {
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(qrBlob);
-        });
-
-        doc.addImage(base64data, "PNG", 75, 100, 60, 60);
+        // Generate QR Code locally
+        const QRCode = await import("qrcode");
+        const qrDataUrl = await QRCode.toDataURL(data.nomorUnik, { margin: 2, width: 400 });
+        doc.addImage(qrDataUrl, "PNG", 75, 100, 60, 60);
         
         doc.setFontSize(10);
         doc.setTextColor(100);
@@ -188,9 +194,15 @@ export default function PanitiaDaftarPage() {
         doc.text("2. Masukkan Kode Unik Login Anda pada halaman login", 105, 202, { align: "center" });
         doc.text("3. Anda kini dapat mengakses data peserta", 105, 208, { align: "center" });
 
-        doc.save(`Bukti_Panitia_${data.nomorUrut}_${form.nama.replace(/\\s+/g, '_')}.pdf`);
+        doc.save(`Bukti_Panitia_${data.nomorUrut}_${form.nama.replace(/\s+/g, '_')}.pdf`);
+        Swal.close();
       } catch (pdfErr) {
         console.error("Gagal membuat PDF:", pdfErr);
+        Swal.fire({
+          icon: "error",
+          title: "Gagal Mengunduh PDF",
+          text: "Terjadi kesalahan saat memproses data PDF."
+        });
       }
     } catch (err: any) {
       Swal.fire({ icon: "error", title: "Gagal", text: err.message });
@@ -201,18 +213,15 @@ export default function PanitiaDaftarPage() {
 
   const handleDownloadBarcode = async () => {
     if (!result?.nomorUnik) return;
-    const url = `https://quickchart.io/qr?size=1000&margin=2&text=${result.nomorUnik}`;
     try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
+      const QRCode = await import("qrcode");
+      const dataUrl = await QRCode.toDataURL(result.nomorUnik, { margin: 2, width: 1000 });
       const link = document.createElement("a");
-      link.href = blobUrl;
+      link.href = dataUrl;
       link.download = `QR_PANITIA_${result?.nomorUrut || 'BARCODE'}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(blobUrl);
     } catch (error) {
       console.error("Download error:", error);
       Swal.fire({ icon: "error", title: "Gagal", text: "Gagal mengunduh barcode." });
