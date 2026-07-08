@@ -70,6 +70,7 @@ export default function PublicKatalogPage() {
   const [selectedKota, setSelectedKota] = useState("all");
   const [page, setPage] = useState(1);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [userGender, setUserGender] = useState("");
   const [latestActivity, setLatestActivity] = useState<any>(null);
   const [isLocked, setIsLocked] = useState(false);
   const [hasAttended, setHasAttended] = useState(false);
@@ -395,6 +396,10 @@ export default function PublicKatalogPage() {
             if (profile && ["admin", "admin_romantic_room", "tim_pnkb", "tim_pnkb_gambuh"].includes(profile.role)) {
               userIsAdmin = true;
               setIsAdmin(true);
+              if (profile.jenisKelamin) {
+                setUserGender(profile.jenisKelamin);
+                setGender(profile.jenisKelamin === "L" ? "P" : "L");
+              }
             }
           } catch (e) {}
         }
@@ -428,6 +433,7 @@ export default function PublicKatalogPage() {
               }
 
               if (data.jenisKelamin) {
+                setUserGender(data.jenisKelamin);
                 setGender(data.jenisKelamin === "L" ? "P" : "L");
               }
               setKomentarNama(data.nama);
@@ -455,6 +461,13 @@ export default function PublicKatalogPage() {
               }
             } else if (data.status === "multi_login") {
               handleLogout();
+            } else if (data.status === "not_found" || data.status === "no_activity") {
+              localStorage.removeItem("attended_nomor_unik");
+              localStorage.removeItem("attended_session_token");
+              localStorage.removeItem("attended_role");
+              setHasAttended(false);
+              window.location.href = "/mandiri/katalog/login";
+              return;
             }
           }
         }
@@ -1098,7 +1111,7 @@ export default function PublicKatalogPage() {
                 <button className="btn-reset-filters" onClick={() => {
                   setSearch("");
                   setSearchTerm("");
-                  setGender(currentUser?.jenisKelamin === "L" ? "P" : (currentUser?.jenisKelamin === "P" ? "L" : "all"));
+                  setGender(userGender === "L" ? "P" : (userGender === "P" ? "L" : "all"));
                   setCategory("all");
                   setPendidikan("all");
                   setSelectedKota("all");
@@ -1142,8 +1155,8 @@ export default function PublicKatalogPage() {
               data.filter(item => item.id !== currentUser?.id && item.nomorUrut !== currentUser?.nomorUrut).map((item) => {
                 const isPulang = item.keterangan?.toLowerCase() === "pulang";
                 const isTidakHadir = item.keterangan?.toLowerCase() === "alpha" || item.keterangan?.toLowerCase() === "izin";
-                // Hiding button if Panitia hasn't attended
-                const isBelumHadir = Number(item.isHadir) === 0 && Boolean(item.panitiaStatus);
+                const isPanitia = Boolean(item.panitiaStatus) || (Boolean(item.role) && item.role !== "generus" && item.role !== "Peserta");
+                const isBelumHadir = Number(item.isHadir) === 0 && isPanitia;
                 const isUnavailable = isPulang || isTidakHadir;
                 return (
                   <div key={item.id} className={`participant-card ${isUnavailable ? "is-pulang" : ""}`} style={{ position: "relative", opacity: isUnavailable ? 1 : undefined, filter: isUnavailable ? "none" : undefined }}>
@@ -1162,8 +1175,8 @@ export default function PublicKatalogPage() {
                         {isPulang && (
                           <div className="floating-badge pulang-badge">PULANG</div>
                         )}
-                        <div className={`floating-badge label-badge ${item.panitiaStatus ? "status-panitia" : ""}`}>
-                          {item.panitiaStatus ? "PANITIA" : "PESERTA"}
+                        <div className={`floating-badge label-badge ${isPanitia ? "status-panitia" : ""}`}>
+                          {isPanitia ? "PANITIA" : "PESERTA"}
                         </div>
                       </div>
 
@@ -1263,7 +1276,7 @@ export default function PublicKatalogPage() {
 
                             // Ensure button is visible for BOTH peserta and panitia AS LONG AS they are not waiting.
                             // isBelumHadir already checks for Panitia attendance, and currentUser.status checks for the logged in user.
-                            if (currentUser?.status === "waiting" || isBelumHadir) {
+                            if (currentUser?.status === "waiting" || isBelumHadir || (!hasAttended && isAdmin)) {
                               return null;
                             }
 
