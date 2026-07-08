@@ -620,7 +620,7 @@ export default function MandiriDaftarPage() {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(8);
         doc.setTextColor(59, 130, 246);
-        doc.text("Akses Katalog: gencar.my.id/mandiri/katalog", 45, 154, { align: "center" });
+        doc.textWithLink("Akses Katalog: https://gencar.my.id/mandiri/katalog", 45, 154, { url: "https://gencar.my.id/mandiri/katalog", align: "center" });
 
         // Save PDF
         doc.save(`TICKET_MANDIRI_${displayNomorUrut || displayNomorUnik}.pdf`);

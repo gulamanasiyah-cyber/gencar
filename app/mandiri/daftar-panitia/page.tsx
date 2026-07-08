@@ -178,7 +178,7 @@ export default function PanitiaDaftarPage() {
 
         doc.setFontSize(11);
         doc.setTextColor(59, 130, 246);
-        doc.text("Akses Katalog: gencar.my.id/mandiri/katalog", 105, 180, { align: "center" });
+        doc.textWithLink("Akses Katalog: https://gencar.my.id/mandiri/katalog", 105, 180, { url: "https://gencar.my.id/mandiri/katalog", align: "center" });
 
         doc.save(`Bukti_Panitia_${data.nomorUrut}_${form.nama.replace(/\\s+/g, '_')}.pdf`);
       } catch (pdfErr) {
