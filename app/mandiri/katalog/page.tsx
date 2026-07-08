@@ -107,6 +107,9 @@ export default function PublicKatalogPage() {
   const absenScannerRef = useRef<any>(null);
   const [myFullProfile, setMyFullProfile] = useState<any>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editProfileForm, setEditProfileForm] = useState<any>({});
+  const [savingProfile, setSavingProfile] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -1712,6 +1715,22 @@ export default function PublicKatalogPage() {
               </div>
 
               <div className="profile-actions-bottom" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <button className="profile-edit-btn" onClick={() => {
+                  setEditProfileForm({
+                    suku: myFullProfile.suku || "",
+                    pendidikan: myFullProfile.pendidikan || "",
+                    pekerjaan: myFullProfile.pekerjaan || "",
+                    statusNikah: myFullProfile.statusNikah || "Belum Menikah",
+                    hobi: myFullProfile.hobi || "",
+                    makananMinumanFavorit: myFullProfile.makananMinumanFavorit || "",
+                    instagram: myFullProfile.instagram || "",
+                    kriteriaPasangan: myFullProfile.kriteriaPasangan || "",
+                  });
+                  setIsEditingProfile(true);
+                }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '14px', borderRadius: '14px', border: 'none', background: '#3b82f6', color: 'white', fontWeight: 800, fontSize: '15px', cursor: 'pointer', transition: '0.2s', width: '100%', marginBottom: '4px' }}>
+                  <Settings2 size={18} />
+                  <span>Edit Biodata</span>
+                </button>
                 <button className="profile-pulang-btn" onClick={handlePulang}>
                   <LogOut size={18} />
                   <span>Pulang</span>
@@ -1725,6 +1744,83 @@ export default function PublicKatalogPage() {
           ) : (
             <div className="profile-error">Gagal memuat profil Anda. Silakan coba lagi.</div>
           )}
+        </div>
+      )}
+
+      {/* EDIT PROFILE MODAL */}
+      {isEditingProfile && (
+        <div className="modal-overlay" onClick={() => setIsEditingProfile(false)} style={{ zIndex: 9999 }}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '90%', padding: '24px', borderRadius: '24px', background: 'white' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '20px', fontWeight: 800, color: '#1e293b' }}>Edit Biodata</h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '60vh', overflowY: 'auto', paddingRight: '4px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Suku</label>
+                <input type="text" value={editProfileForm.suku} onChange={e => setEditProfileForm({...editProfileForm, suku: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Pendidikan</label>
+                <select value={editProfileForm.pendidikan} onChange={e => setEditProfileForm({...editProfileForm, pendidikan: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }}>
+                  <option value="">Pilih Pendidikan</option>
+                  {pendidikanList.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Pekerjaan</label>
+                <input type="text" value={editProfileForm.pekerjaan} onChange={e => setEditProfileForm({...editProfileForm, pekerjaan: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Status Nikah</label>
+                <select value={editProfileForm.statusNikah} onChange={e => setEditProfileForm({...editProfileForm, statusNikah: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }}>
+                  <option value="Belum Menikah">Belum Menikah</option>
+                  <option value="Duda">Duda</option>
+                  <option value="Janda">Janda</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Instagram</label>
+                <input type="text" value={editProfileForm.instagram} onChange={e => setEditProfileForm({...editProfileForm, instagram: e.target.value})} placeholder="@username" style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Hobi</label>
+                <input type="text" value={editProfileForm.hobi} onChange={e => setEditProfileForm({...editProfileForm, hobi: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Makanan/Minuman Favorit</label>
+                <input type="text" value={editProfileForm.makananMinumanFavorit} onChange={e => setEditProfileForm({...editProfileForm, makananMinumanFavorit: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Kriteria Pasangan</label>
+                <textarea value={editProfileForm.kriteriaPasangan} onChange={e => setEditProfileForm({...editProfileForm, kriteriaPasangan: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', minHeight: '80px', fontFamily: 'inherit' }} />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+              <button onClick={() => setIsEditingProfile(false)} disabled={savingProfile} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', background: 'white', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>Batal</button>
+              <button onClick={async () => {
+                setSavingProfile(true);
+                try {
+                  const storedUnik = localStorage.getItem("attended_nomor_unik");
+                  const storedToken = localStorage.getItem("attended_session_token");
+                  const res = await fetch(`/api/public/mandiri/katalog/${currentUser.id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ nomorUnik: storedUnik, token: storedToken, ...editProfileForm }),
+                  });
+                  if (!res.ok) throw new Error("Gagal menyimpan");
+                  setMyFullProfile((prev: any) => ({ ...prev, ...editProfileForm }));
+                  setIsEditingProfile(false);
+                  Swal.fire({ title: "Berhasil!", text: "Biodata berhasil diperbarui.", icon: "success", timer: 2000, showConfirmButton: false });
+                } catch (e) {
+                  Swal.fire("Gagal", "Terjadi kesalahan saat menyimpan.", "error");
+                } finally {
+                  setSavingProfile(false);
+                }
+              }} disabled={savingProfile} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: '#3b82f6', color: 'white', fontWeight: 700, cursor: 'pointer', transition: '0.2s' }}>
+                {savingProfile ? "Menyimpan..." : "Simpan"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

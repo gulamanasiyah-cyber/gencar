@@ -74,3 +74,55 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: "Gagal mengambil data detail" }, { status: 500 });
   }
 }
+
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const { id } = params;
+    const body = await request.json();
+    const { nomorUnik, token, suku, pendidikan, pekerjaan, statusNikah, hobi, makananMinumanFavorit, instagram, kriteriaPasangan } = body;
+
+    if (!nomorUnik || !token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+    const kegiatanId = activeSetting[0]?.value;
+
+    if (!kegiatanId) {
+      return NextResponse.json({ error: "No active activity" }, { status: 400 });
+    }
+
+    // Verify user ownership
+    const user = await db.select({ id: generus.id })
+      .from(generus)
+      .innerJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, kegiatanId)))
+      .where(and(
+        eq(generus.id, id),
+        eq(generus.nomorUnik, nomorUnik),
+        eq(mandiri.lastSessionToken, token)
+      ))
+      .limit(1);
+
+    if (user.length === 0) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    await db.update(generus).set({
+      suku,
+      pendidikan,
+      pekerjaan,
+      statusNikah,
+      hobi,
+      makananMinumanFavorit,
+      instagram,
+      kriteriaPasangan,
+      updatedAt: new Date().toISOString()
+    }).where(eq(generus.id, id));
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error("Update profile error:", error);
+    return NextResponse.json({ error: "Gagal menyimpan data" }, { status: 500 });
+  }
+}
+
