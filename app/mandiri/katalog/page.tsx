@@ -334,8 +334,8 @@ export default function PublicKatalogPage() {
   }, [search, page, gender, category, pendidikan, selectedKota, desaFilter, kelompokFilter, pekerjaanFilter, umurFilter, kriteriaFilter, hobiFilter, makananFilter, hasAttended, isAdmin]);
 
   useEffect(() => {
-    if (hasAttended || isAdmin) fetchData();
-  }, [fetchData, hasAttended, isAdmin]);
+    if (hasAttended) fetchData();
+  }, [fetchData, hasAttended]);
 
   useEffect(() => {
     async function init() {
@@ -881,10 +881,10 @@ export default function PublicKatalogPage() {
   };
 
   useEffect(() => {
-    if (!verifying && !isLocked && !hasAttended && katalogPublicStatus !== "closed") {
+    if (!verifying && !isLocked && !hasAttended) {
       window.location.href = "/mandiri/katalog/login";
     }
-  }, [verifying, isLocked, hasAttended, katalogPublicStatus]);
+  }, [verifying, isLocked, hasAttended]);
 
   // ─── Early returns ────────────────────────────────────────────────────────
 
