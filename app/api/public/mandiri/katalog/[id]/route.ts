@@ -79,7 +79,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   try {
     const { id } = params;
     const body = await request.json();
-    const { nomorUnik, token, suku, pendidikan, pekerjaan, statusNikah, hobi, makananMinumanFavorit, instagram, kriteriaPasangan } = body;
+    const { nomorUnik, token, nama, tempatLahir, tanggalLahir, jenisKelamin, alamat, suku, pendidikan, pekerjaan, statusNikah, hobi, makananMinumanFavorit, instagram, kriteriaPasangan } = body;
 
     if (!nomorUnik || !token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -108,6 +108,11 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     await db.update(generus).set({
+      nama,
+      tempatLahir,
+      tanggalLahir,
+      jenisKelamin,
+      alamat,
       suku,
       pendidikan,
       pekerjaan,

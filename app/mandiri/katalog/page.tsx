@@ -1717,6 +1717,11 @@ export default function PublicKatalogPage() {
               <div className="profile-actions-bottom" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <button className="profile-edit-btn" onClick={() => {
                   setEditProfileForm({
+                    nama: myFullProfile.nama || "",
+                    jenisKelamin: myFullProfile.jenisKelamin || "L",
+                    tempatLahir: myFullProfile.tempatLahir || "",
+                    tanggalLahir: myFullProfile.tanggalLahir || "",
+                    alamat: myFullProfile.alamat || "",
                     suku: myFullProfile.suku || "",
                     pendidikan: myFullProfile.pendidikan || "",
                     pekerjaan: myFullProfile.pekerjaan || "",
@@ -1755,8 +1760,35 @@ export default function PublicKatalogPage() {
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '60vh', overflowY: 'auto', paddingRight: '4px' }}>
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Suku</label>
-                <input type="text" value={editProfileForm.suku} onChange={e => setEditProfileForm({...editProfileForm, suku: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Nama Lengkap</label>
+                <input type="text" value={editProfileForm.nama} onChange={e => setEditProfileForm({...editProfileForm, nama: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
+              </div>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Jenis Kelamin</label>
+                  <select value={editProfileForm.jenisKelamin} onChange={e => setEditProfileForm({...editProfileForm, jenisKelamin: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }}>
+                    <option value="L">Laki-laki</option>
+                    <option value="P">Perempuan</option>
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Suku</label>
+                  <input type="text" value={editProfileForm.suku} onChange={e => setEditProfileForm({...editProfileForm, suku: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Tempat Lahir</label>
+                  <input type="text" value={editProfileForm.tempatLahir} onChange={e => setEditProfileForm({...editProfileForm, tempatLahir: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Tanggal Lahir</label>
+                  <input type="date" value={editProfileForm.tanggalLahir} onChange={e => setEditProfileForm({...editProfileForm, tanggalLahir: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', fontFamily: 'inherit' }} />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Alamat</label>
+                <textarea value={editProfileForm.alamat} onChange={e => setEditProfileForm({...editProfileForm, alamat: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', minHeight: '60px', fontFamily: 'inherit' }} />
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Pendidikan</label>
