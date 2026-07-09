@@ -27,6 +27,7 @@ export default function DaftarTimGambuhPage() {
   const [kelompokList, setKelompokList] = useState<Kelompok[]>([]);
   const [filteredKelompokList, setFilteredKelompokList] = useState<Kelompok[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploadingFoto, setUploadingFoto] = useState(false);
   const [success, setSuccess] = useState(false);
   const [registeredIdentity, setRegisteredIdentity] = useState<RegisteredIdentity | null>(null);
   const [isClosed, setIsClosed] = useState(false);
