@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse, NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { generus, desa, kelompok, users, mandiri, mandiriDesa, settings, mandiriKegiatan, mandiriDaerah } from "@/lib/schema";
+import { generus, desa, kelompok, users, mandiri, mandiriDesa, settings, mandiriKegiatan, mandiriDaerah, timGambuh, mandiriKelompok } from "@/lib/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { getSession, setSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
@@ -87,6 +87,105 @@ export async function GET(request: NextRequest) {
       }
 
       const u = userData[0];
+
+      // --- Tim PNKB & Gambuh: ambil biodata dari tabel timGambuh ---
+      if (["tim_pnkb", "tim_pnkb_gambuh"].includes(u.role)) {
+        // Cari kegiatan aktif
+        const activeKegSetting = await db.query.settings.findFirst({
+          where: eq(settings.key, "mandiri_active_kegiatan_id")
+        });
+        const activeKegiatanId = activeKegSetting?.value || null;
+
+        // Cari record timGambuh berdasarkan nama user + kegiatan aktif
+        let tgData: any = null;
+        if (activeKegiatanId) {
+          const tgResults = await db.select({
+            id: timGambuh.id,
+            nama: timGambuh.nama,
+            umur: timGambuh.umur,
+            noTelp: timGambuh.noTelp,
+            tipe: timGambuh.tipe,
+            daerahId: timGambuh.daerahId,
+            desaId: timGambuh.desaId,
+            kelompokId: timGambuh.kelompokId,
+            daerahNama: mandiriDaerah.nama,
+            desaNama: mandiriDesa.nama,
+            kelompokNama: mandiriKelompok.nama,
+            createdAt: timGambuh.createdAt,
+          })
+          .from(timGambuh)
+          .leftJoin(mandiriDaerah, eq(timGambuh.daerahId, mandiriDaerah.id))
+          .leftJoin(mandiriDesa, eq(timGambuh.desaId, mandiriDesa.id))
+          .leftJoin(mandiriKelompok, eq(timGambuh.kelompokId, mandiriKelompok.id))
+          .where(and(
+            eq(timGambuh.nama, u.nama),
+            eq(timGambuh.kegiatanId, activeKegiatanId)
+          ))
+          .limit(1);
+          tgData = tgResults[0] || null;
+        }
+
+        // Jika tidak ditemukan di kegiatan aktif, coba cari tanpa filter kegiatan
+        if (!tgData) {
+          const tgFallback = await db.select({
+            id: timGambuh.id,
+            nama: timGambuh.nama,
+            umur: timGambuh.umur,
+            noTelp: timGambuh.noTelp,
+            tipe: timGambuh.tipe,
+            daerahId: timGambuh.daerahId,
+            desaId: timGambuh.desaId,
+            kelompokId: timGambuh.kelompokId,
+            daerahNama: mandiriDaerah.nama,
+            desaNama: mandiriDesa.nama,
+            kelompokNama: mandiriKelompok.nama,
+            createdAt: timGambuh.createdAt,
+          })
+          .from(timGambuh)
+          .leftJoin(mandiriDaerah, eq(timGambuh.daerahId, mandiriDaerah.id))
+          .leftJoin(mandiriDesa, eq(timGambuh.desaId, mandiriDesa.id))
+          .leftJoin(mandiriKelompok, eq(timGambuh.kelompokId, mandiriKelompok.id))
+          .where(eq(timGambuh.nama, u.nama))
+          .limit(1);
+          tgData = tgFallback[0] || null;
+        }
+
+        const jenisKelamin = tgData?.tipe === "Ibu Gambuh" || tgData?.tipe === "Penunggu Ibu Gambuh" ? "P" : "L";
+
+        return NextResponse.json({
+          id: u.id,
+          nomorUnik: "OFFICIAL-" + u.id.split("-")[0].toUpperCase(),
+          nama: tgData?.nama || u.nama,
+          tempatLahir: "-",
+          tanggalLahir: "-",
+          jenisKelamin: jenisKelamin,
+          kategoriUsia: "Bekerja",
+          alamat: "-",
+          noTelp: tgData?.noTelp || "-",
+          pendidikan: "-",
+          pekerjaan: tgData?.tipe || u.role.split("_").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
+          statusNikah: "Menikah",
+          desaId: u.desaId,
+          kelompokId: u.kelompokId,
+          desaNama: tgData?.desaNama || u.desaNama || "Daerah",
+          kelompokNama: tgData?.kelompokNama || u.kelompokNama || "Daerah",
+          kota: tgData?.daerahNama || null,
+          mandiriDesaNama: tgData?.desaNama || null,
+          role: u.role,
+          isInPdkt: true,
+          createdAt: u.createdAt,
+          // Data biodata lengkap dari timGambuh
+          timGambuhId: tgData?.id || null,
+          umur: tgData?.umur || null,
+          tipeTimGambuh: tgData?.tipe || null,
+          tgDaerahId: tgData?.daerahId || null,
+          tgDesaId: tgData?.desaId || null,
+          tgKelompokId: tgData?.kelompokId || null,
+        }, {
+          headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+        });
+      }
+
       return NextResponse.json({
         id: u.id,
         nomorUnik: "OFFICIAL-" + u.id.split("-")[0].toUpperCase(),
@@ -199,6 +298,60 @@ export async function PUT(request: NextRequest) {
       const body = await request.json();
       const { nama, desaId, kelompokId } = body;
 
+      let updatedTg: any = null;
+
+      // --- Tim PNKB & Gambuh: update biodata di tabel timGambuh ---
+      if (["tim_pnkb", "tim_pnkb_gambuh"].includes(session.role)) {
+        const { timGambuhId, umur, noTelp, tipeTimGambuh, tgDaerahId, tgDesaId, tgKelompokId } = body;
+
+        if (timGambuhId) {
+          // Update existing timGambuh record
+          const tgUpdate: any = {};
+          if (nama !== undefined) tgUpdate.nama = nama;
+          if (umur !== undefined) tgUpdate.umur = umur ? Number(umur) : null;
+          if (noTelp !== undefined) tgUpdate.noTelp = noTelp;
+          if (tipeTimGambuh !== undefined) tgUpdate.tipe = tipeTimGambuh;
+          if (tgDaerahId !== undefined) tgUpdate.daerahId = tgDaerahId ? Number(tgDaerahId) : null;
+          if (tgDesaId !== undefined) tgUpdate.desaId = tgDesaId ? Number(tgDesaId) : null;
+          if (tgKelompokId !== undefined) tgUpdate.kelompokId = tgKelompokId ? Number(tgKelompokId) : null;
+          tgUpdate.updatedAt = new Date().toISOString();
+
+          if (Object.keys(tgUpdate).length > 0) {
+            await db.update(timGambuh).set(tgUpdate).where(eq(timGambuh.id, timGambuhId));
+          }
+        }
+
+        // Fetch updated timGambuh data untuk dikembalikan ke frontend
+        if (timGambuhId) {
+          const tgResults = await db.select({
+            id: timGambuh.id,
+            nama: timGambuh.nama,
+            umur: timGambuh.umur,
+            noTelp: timGambuh.noTelp,
+            tipe: timGambuh.tipe,
+            daerahId: timGambuh.daerahId,
+            desaId: timGambuh.desaId,
+            kelompokId: timGambuh.kelompokId,
+            daerahNama: mandiriDaerah.nama,
+            desaNama: mandiriDesa.nama,
+            kelompokNama: mandiriKelompok.nama,
+          })
+          .from(timGambuh)
+          .leftJoin(mandiriDaerah, eq(timGambuh.daerahId, mandiriDaerah.id))
+          .leftJoin(mandiriDesa, eq(timGambuh.desaId, mandiriDesa.id))
+          .leftJoin(mandiriKelompok, eq(timGambuh.kelompokId, mandiriKelompok.id))
+          .where(eq(timGambuh.id, timGambuhId))
+          .limit(1);
+          updatedTg = tgResults[0] || null;
+        }
+      }
+
+      // Sync nama ke tabel users untuk role apapun
+      if (nama) {
+        await db.update(users).set({ name: nama }).where(eq(users.id, session.userId));
+        await setSession({ ...session, name: nama });
+      }
+
       // Create a new generus record for this admin/pengurus if they don't have one
       // This allows them to have a full profile with photo, birthdate, etc.
       const newGenerusId = uuidv4();
@@ -271,10 +424,68 @@ export async function PUT(request: NextRequest) {
         .where(eq(generus.id, newGenerusId))
         .limit(1);
 
-      return NextResponse.json({ success: true, data: { ...updatedData[0], role: session.role } });
+      return NextResponse.json({ 
+        success: true, 
+        data: { 
+          ...updatedData[0], 
+          role: session.role,
+          timGambuhId: updatedTg?.id || null,
+          umur: updatedTg?.umur || null,
+          tipeTimGambuh: updatedTg?.tipe || null,
+          tgDaerahId: updatedTg?.daerahId || null,
+          tgDesaId: updatedTg?.desaId || null,
+          tgKelompokId: updatedTg?.kelompokId || null,
+        } 
+      });
     }
 
-    const { nama, tempatLahir, tanggalLahir, jenisKelamin, kategoriUsia, alamat, noTelp, pendidikan, pekerjaan, statusNikah, hobi, makananMinumanFavorit, suku, foto, instagram } = await request.json();
+    const body = await request.json();
+    const { nama, tempatLahir, tanggalLahir, jenisKelamin, kategoriUsia, alamat, noTelp, pendidikan, pekerjaan, statusNikah, hobi, makananMinumanFavorit, suku, foto, instagram } = body;
+
+    let updatedTg: any = null;
+
+    if (["tim_pnkb", "tim_pnkb_gambuh"].includes(session.role)) {
+      const { timGambuhId, umur, tipeTimGambuh, tgDaerahId, tgDesaId, tgKelompokId } = body;
+
+      if (timGambuhId) {
+        // Update existing timGambuh record
+        const tgUpdate: any = {};
+        if (nama !== undefined) tgUpdate.nama = nama;
+        if (umur !== undefined) tgUpdate.umur = umur ? Number(umur) : null;
+        if (noTelp !== undefined) tgUpdate.noTelp = noTelp;
+        if (tipeTimGambuh !== undefined) tgUpdate.tipe = tipeTimGambuh;
+        if (tgDaerahId !== undefined) tgUpdate.daerahId = tgDaerahId ? Number(tgDaerahId) : null;
+        if (tgDesaId !== undefined) tgUpdate.desaId = tgDesaId ? Number(tgDesaId) : null;
+        if (tgKelompokId !== undefined) tgUpdate.kelompokId = tgKelompokId ? Number(tgKelompokId) : null;
+        tgUpdate.updatedAt = new Date().toISOString();
+
+        if (Object.keys(tgUpdate).length > 0) {
+          await db.update(timGambuh).set(tgUpdate).where(eq(timGambuh.id, timGambuhId));
+        }
+
+        // Fetch updated timGambuh data
+        const tgResults = await db.select({
+          id: timGambuh.id,
+          nama: timGambuh.nama,
+          umur: timGambuh.umur,
+          noTelp: timGambuh.noTelp,
+          tipe: timGambuh.tipe,
+          daerahId: timGambuh.daerahId,
+          desaId: timGambuh.desaId,
+          kelompokId: timGambuh.kelompokId,
+          daerahNama: mandiriDaerah.nama,
+          desaNama: mandiriDesa.nama,
+          kelompokNama: mandiriKelompok.nama,
+        })
+        .from(timGambuh)
+        .leftJoin(mandiriDaerah, eq(timGambuh.daerahId, mandiriDaerah.id))
+        .leftJoin(mandiriDesa, eq(timGambuh.desaId, mandiriDesa.id))
+        .leftJoin(mandiriKelompok, eq(timGambuh.kelompokId, mandiriKelompok.id))
+        .where(eq(timGambuh.id, timGambuhId))
+        .limit(1);
+        updatedTg = tgResults[0] || null;
+      }
+    }
 
     await db
       .update(generus)
@@ -339,7 +550,21 @@ export async function PUT(request: NextRequest) {
       .where(eq(generus.id, session.generusId))
       .limit(1);
 
-    return NextResponse.json({ success: true, data: updated[0] ?? null });
+    const baseData = updated[0] ?? null;
+    let finalData: any = baseData;
+    if (baseData && updatedTg) {
+       finalData = {
+         ...baseData,
+         timGambuhId: updatedTg.id,
+         umur: updatedTg.umur,
+         tipeTimGambuh: updatedTg.tipe,
+         tgDaerahId: updatedTg.daerahId,
+         tgDesaId: updatedTg.desaId,
+         tgKelompokId: updatedTg.kelompokId,
+       };
+    }
+
+    return NextResponse.json({ success: true, data: finalData });
   } catch (error) {
     console.error("Profile update error:", error);
     return NextResponse.json({ error: "Gagal mengupdate profil" }, { status: 500 });

@@ -515,6 +515,7 @@ export type NewSaranMasukan = typeof saranMasukan.$inferInsert;
 export const timGambuh = sqliteTable("tim_gambuh", {
   id: text("id").primaryKey(),
   nama: text("nama").notNull(),
+  umur: integer("umur"),
   kegiatanId: text("kegiatan_id").references(() => mandiriKegiatan.id, { onDelete: "cascade" }),
   daerahId: integer("daerah_id").references(() => mandiriDaerah.id, { onDelete: "cascade" }),
   desaId: integer("desa_id").references(() => mandiriDesa.id, { onDelete: "cascade" }),

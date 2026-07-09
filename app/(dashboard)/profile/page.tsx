@@ -35,7 +35,18 @@ interface ProfileData {
   instagram?: string | null;
   kota?: string | null;
   mandiriDesaNama?: string | null;
+  // Tim Gambuh specific fields
+  timGambuhId?: string | null;
+  umur?: number | null;
+  tipeTimGambuh?: string | null;
+  tgDaerahId?: number | null;
+  tgDesaId?: number | null;
+  tgKelompokId?: number | null;
 }
+
+interface DaerahItem { id: number; nama: string; }
+interface DesaItem { id: number; nama: string; mandiriDaerahId: number; }
+interface KelompokItem { id: number; nama: string; mandiriDesaId: number; }
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -62,10 +73,26 @@ export default function ProfilePage() {
     makananMinumanFavorit: "",
     suku: "",
     foto: "",
+    // Tim Gambuh specific fields
+    timGambuhId: "",
+    umur: "",
+    tipeTimGambuh: "PNKB",
+    tgDaerahId: "",
+    tgDesaId: "",
+    tgKelompokId: "",
   });
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const idCardCanvasRef = useRef<HTMLCanvasElement>(null);
   const printRef = useRef<HTMLDivElement>(null);
+
+  // Tim Gambuh - Daerah/Desa/Kelompok cascading dropdowns
+  const [daerahList, setDaerahList] = useState<DaerahItem[]>([]);
+  const [desaList, setDesaList] = useState<DesaItem[]>([]);
+  const [kelompokList, setKelompokList] = useState<KelompokItem[]>([]);
+  const [filteredDesaList, setFilteredDesaList] = useState<DesaItem[]>([]);
+  const [filteredKelompokList, setFilteredKelompokList] = useState<KelompokItem[]>([]);
+
+  const isTimGambuh = data?.role === "tim_pnkb" || data?.role === "tim_pnkb_gambuh";
 
 
   const fetchProfile = async () => {
@@ -92,6 +119,13 @@ export default function ProfilePage() {
           makananMinumanFavorit: json.makananMinumanFavorit || "",
           suku: json.suku || "",
           foto: json.foto || "",
+          // Tim Gambuh specific
+          timGambuhId: json.timGambuhId || "",
+          umur: json.umur ? String(json.umur) : "",
+          tipeTimGambuh: json.tipeTimGambuh || "PNKB",
+          tgDaerahId: json.tgDaerahId ? String(json.tgDaerahId) : "",
+          tgDesaId: json.tgDesaId ? String(json.tgDesaId) : "",
+          tgKelompokId: json.tgKelompokId ? String(json.tgKelompokId) : "",
         });
         
       }
@@ -105,8 +139,36 @@ export default function ProfilePage() {
   useEffect(() => {
     setMounted(true);
     fetchProfile();
+    // Load daerah/desa/kelompok lists for tim-gambuh edit
+    Promise.all([
+      fetch("/api/public/mandiri/daerah").then(r => r.json()),
+      fetch("/api/public/mandiri/desa").then(r => r.json()),
+      fetch("/api/public/mandiri/kelompok").then(r => r.json()),
+    ]).then(([daerahs, desas, kelompoks]) => {
+      if (Array.isArray(daerahs)) setDaerahList(daerahs);
+      if (Array.isArray(desas)) setDesaList(desas);
+      if (Array.isArray(kelompoks)) setKelompokList(kelompoks);
+    }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Filter desa based on selected daerah for edit form
+  useEffect(() => {
+    if (editForm.tgDaerahId) {
+      setFilteredDesaList(desaList.filter(d => d.mandiriDaerahId === Number(editForm.tgDaerahId)));
+    } else {
+      setFilteredDesaList([]);
+    }
+  }, [editForm.tgDaerahId, desaList]);
+
+  // Filter kelompok based on selected desa for edit form
+  useEffect(() => {
+    if (editForm.tgDesaId) {
+      setFilteredKelompokList(kelompokList.filter(k => k.mandiriDesaId === Number(editForm.tgDesaId)));
+    } else {
+      setFilteredKelompokList([]);
+    }
+  }, [editForm.tgDesaId, kelompokList]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,6 +201,12 @@ export default function ProfilePage() {
             makananMinumanFavorit: json.data.makananMinumanFavorit || "",
             suku: json.data.suku || "",
             foto: json.data.foto || "",
+            timGambuhId: json.data.timGambuhId || "",
+            umur: json.data.umur ? String(json.data.umur) : "",
+            tipeTimGambuh: json.data.tipeTimGambuh || "PNKB",
+            tgDaerahId: json.data.tgDaerahId ? String(json.data.tgDaerahId) : "",
+            tgDesaId: json.data.tgDesaId ? String(json.data.tgDesaId) : "",
+            tgKelompokId: json.data.tgKelompokId ? String(json.data.tgKelompokId) : "",
           });
         } else {
           await fetchProfile();
@@ -269,9 +337,27 @@ export default function ProfilePage() {
                     <label>Jenis Kelamin</label>
                     <div>{data.jenisKelamin === "L" ? "Laki-laki" : "Perempuan"}</div>
                   </div>
+
+                  {isTimGambuh && (
+                    <>
+                      <div className="data-item">
+                        <label>Tipe Tim (Tim Gambuh)</label>
+                        <div>{data.tipeTimGambuh || data.pekerjaan || "-"}</div>
+                      </div>
+                      <div className="data-item">
+                        <label>Umur (Tim Gambuh)</label>
+                        <div>{data.umur ? `${data.umur} tahun` : "-"}</div>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="data-item">
+                    <label>Kategori Usia</label>
+                    <div>{data.kategoriUsia || "-"}</div>
+                  </div>
                   <div className="data-item">
                     <label>Desa / Kelompok</label>
-                    <div>{data.desaNama} / {data.kelompokNama}</div>
+                    <div>{data.desaNama || "-"} / {data.kelompokNama || "-"}</div>
                   </div>
                   <div className="data-item">
                     <label>Alamat</label>
@@ -282,6 +368,18 @@ export default function ProfilePage() {
                     <div>{data.noTelp || "-"}</div>
                   </div>
 
+                  {isTimGambuh && (
+                    <>
+                      <div className="data-item">
+                        <label>Asal Daerah (Tim Gambuh)</label>
+                        <div>{data.kota || "-"}</div>
+                      </div>
+                      <div className="data-item">
+                        <label>Asal Desa (Tim Gambuh)</label>
+                        <div>{data.mandiriDesaNama || "-"}</div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -455,6 +553,38 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
+                {isTimGambuh && (
+                  <div className="form-row">
+                    <div className="form-group floating-group">
+                      <input
+                        type="number"
+                        className="form-control premium-input"
+                        value={editForm.umur}
+                        placeholder=" "
+                        min="1"
+                        onChange={(e) => setEditForm({ ...editForm, umur: e.target.value })}
+                      />
+                      <label className="floating-label">Umur (Khusus Tim)</label>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label text-sm text-muted mb-2">Tipe Tim</label>
+                      <div className="custom-select-wrapper">
+                        <select
+                          className="form-control premium-input custom-select"
+                          value={editForm.tipeTimGambuh}
+                          onChange={(e) => setEditForm({ ...editForm, tipeTimGambuh: e.target.value })}
+                        >
+                          <option value="PNKB">PNKB (Laki-laki)</option>
+                          <option value="Ibu Gambuh">Ibu Gambuh (Perempuan)</option>
+                        </select>
+                        <svg className="select-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label text-sm text-muted mb-2">Jenis Kelamin</label>
@@ -514,6 +644,63 @@ export default function ProfilePage() {
                   <label className="floating-label">Nomor Telepon (WhatsApp)</label>
                 </div>
 
+                {isTimGambuh && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label text-sm text-muted mb-2">Asal Daerah (Khusus Tim)</label>
+                      <div className="custom-select-wrapper">
+                        <select
+                          className="form-control premium-input custom-select"
+                          value={editForm.tgDaerahId}
+                          onChange={(e) => setEditForm({ ...editForm, tgDaerahId: e.target.value, tgDesaId: "", tgKelompokId: "" })}
+                        >
+                          <option value="">-- Pilih Daerah --</option>
+                          {daerahList.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
+                        </select>
+                        <svg className="select-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                      </div>
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label className="form-label text-sm text-muted mb-2">Asal Desa (Khusus Tim)</label>
+                        <div className="custom-select-wrapper">
+                          <select
+                            className="form-control premium-input custom-select"
+                            value={editForm.tgDesaId}
+                            onChange={(e) => setEditForm({ ...editForm, tgDesaId: e.target.value, tgKelompokId: "" })}
+                            disabled={!editForm.tgDaerahId}
+                          >
+                            <option value="">-- Pilih Desa --</option>
+                            {filteredDesaList.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
+                          </select>
+                          <svg className="select-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label text-sm text-muted mb-2">Asal Kelompok (Khusus Tim)</label>
+                        <div className="custom-select-wrapper">
+                          <select
+                            className="form-control premium-input custom-select"
+                            value={editForm.tgKelompokId}
+                            onChange={(e) => setEditForm({ ...editForm, tgKelompokId: e.target.value })}
+                            disabled={!editForm.tgDesaId}
+                          >
+                            <option value="">-- Pilih Kelompok --</option>
+                            {filteredKelompokList.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                          </select>
+                          <svg className="select-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
 
               </div>
               <div className="modal-footer premium-footer">

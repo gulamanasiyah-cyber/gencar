@@ -11,6 +11,7 @@ interface Kelompok { id: number; nama: string; mandiriDesaId: number; }
 export default function DaftarTimGambuhPage() {
   const [form, setForm] = useState({
     nama: "",
+    umur: "",
     noTelp: "",
     tipe: "PNKB",
     daerahId: "",
@@ -27,6 +28,21 @@ export default function DaftarTimGambuhPage() {
   const [success, setSuccess] = useState(false);
   const [isClosed, setIsClosed] = useState(false);
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/profile")
+      .then(res => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+      .then(data => {
+        if (data && data.role) {
+          setUserRole(data.role);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -94,7 +110,7 @@ export default function DaftarTimGambuhPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      if (!form.nama || !form.noTelp || !form.tipe || !form.daerahId || !form.desaId || !form.kelompokId) {
+      if (!form.nama || !form.umur || !form.noTelp || !form.tipe || !form.daerahId || !form.desaId || !form.kelompokId) {
         Swal.fire({ icon: "warning", title: "Data Belum Lengkap", text: "Mohon isi semua data yang diperlukan." });
         setLoading(false);
         return;
@@ -136,9 +152,21 @@ export default function DaftarTimGambuhPage() {
             <p style={{ margin: "0 0 5px 0", fontSize: "14px", color: "#64748b" }}>Nama Terdaftar:</p>
             <h3 style={{ margin: 0, color: "#0f172a" }}>{form.nama}</h3>
           </div>
-          <Link href="/mandiri/tim-gambuh" className="btn btn-primary btn-full" style={{ padding: "15px", fontSize: "16px", fontWeight: "700" }}>
-            Buka Panel Tim Gambuh
-          </Link>
+          {userRole === "admin_romantic_room" ? (
+            <button 
+              onClick={() => {
+                window.location.href = "/login";
+              }} 
+              className="btn btn-primary btn-full" 
+              style={{ padding: "15px", fontSize: "16px", fontWeight: "700", width: "100%", border: "none", cursor: "pointer", fontFamily: "inherit" }}
+            >
+              Buka Panel Tim Gambuh
+            </button>
+          ) : (
+            <Link href="/mandiri/tim-gambuh" className="btn btn-primary btn-full" style={{ padding: "15px", fontSize: "16px", fontWeight: "700" }}>
+              Buka Panel Tim Gambuh
+            </Link>
+          )}
         </div>
       </div>
     );
@@ -184,6 +212,11 @@ export default function DaftarTimGambuhPage() {
             <div className="form-group">
               <label className="form-label">Nama Lengkap <span className="required">*</span></label>
               <input name="nama" className="form-control" value={form.nama} onChange={handleChange} required placeholder="Masukkan nama lengkap" />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Umur <span className="required">*</span></label>
+              <input type="number" name="umur" className="form-control" value={form.umur} onChange={handleChange} required min="1" placeholder="Masukkan umur Anda" />
             </div>
 
             <div className="form-group">
