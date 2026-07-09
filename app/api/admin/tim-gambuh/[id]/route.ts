@@ -10,12 +10,12 @@ export async function PUT(
 ) {
   try {
     const session = await getSession();
-    if (!session || !["admin", "pengurus_daerah", "kmm_daerah", "admin_romantic_room"].includes(session.role)) {
+    if (!session || !["admin", "pengurus_daerah", "kmm_daerah", "admin_romantic_room", "tim_pnkb_gambuh"].includes(session.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = params;
-    const { nama, umur, daerahId, desaId, tipe } = await request.json();
+    const { nama, daerahId, desaId, tipe } = await request.json();
 
     if (!nama || !tipe || !daerahId || !desaId) {
       return NextResponse.json({ error: "Nama, Tipe, Daerah, dan Desa wajib diisi" }, { status: 400 });
@@ -28,7 +28,6 @@ export async function PUT(
     await db.update(timGambuh)
       .set({
         nama,
-        umur: umur ? Number(umur) : null,
         daerahId: daerahId ? Number(daerahId) : null,
         desaId: desaId ? Number(desaId) : null,
         tipe: tipe as "PNKB" | "Ibu Gambuh" | "Penunggu PNKB" | "Penunggu Ibu Gambuh",

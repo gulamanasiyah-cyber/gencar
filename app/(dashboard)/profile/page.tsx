@@ -35,18 +35,7 @@ interface ProfileData {
   instagram?: string | null;
   kota?: string | null;
   mandiriDesaNama?: string | null;
-  // Tim Gambuh specific fields
-  timGambuhId?: string | null;
-  umur?: number | null;
-  tipeTimGambuh?: string | null;
-  tgDaerahId?: number | null;
-  tgDesaId?: number | null;
-  tgKelompokId?: number | null;
 }
-
-interface DaerahItem { id: number; nama: string; }
-interface DesaItem { id: number; nama: string; mandiriDaerahId: number; }
-interface KelompokItem { id: number; nama: string; mandiriDesaId: number; }
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -73,26 +62,13 @@ export default function ProfilePage() {
     makananMinumanFavorit: "",
     suku: "",
     foto: "",
-    // Tim Gambuh specific fields
-    timGambuhId: "",
-    umur: "",
-    tipeTimGambuh: "PNKB",
-    tgDaerahId: "",
-    tgDesaId: "",
-    tgKelompokId: "",
   });
+  const [daerahList, setDaerahList] = useState<DaerahOption[]>([]);
+  const [desaList, setDesaList] = useState<DesaOption[]>([]);
+  const [kelompokList, setKelompokList] = useState<KelompokOption[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const idCardCanvasRef = useRef<HTMLCanvasElement>(null);
   const printRef = useRef<HTMLDivElement>(null);
-
-  // Tim Gambuh - Daerah/Desa/Kelompok cascading dropdowns
-  const [daerahList, setDaerahList] = useState<DaerahItem[]>([]);
-  const [desaList, setDesaList] = useState<DesaItem[]>([]);
-  const [kelompokList, setKelompokList] = useState<KelompokItem[]>([]);
-  const [filteredDesaList, setFilteredDesaList] = useState<DesaItem[]>([]);
-  const [filteredKelompokList, setFilteredKelompokList] = useState<KelompokItem[]>([]);
-
-  const isTimGambuh = data?.role === "tim_pnkb" || data?.role === "tim_pnkb_gambuh";
 
 
   const fetchProfile = async () => {
@@ -119,13 +95,6 @@ export default function ProfilePage() {
           makananMinumanFavorit: json.makananMinumanFavorit || "",
           suku: json.suku || "",
           foto: json.foto || "",
-          // Tim Gambuh specific
-          timGambuhId: json.timGambuhId || "",
-          umur: json.umur ? String(json.umur) : "",
-          tipeTimGambuh: json.tipeTimGambuh || "PNKB",
-          tgDaerahId: json.tgDaerahId ? String(json.tgDaerahId) : "",
-          tgDesaId: json.tgDesaId ? String(json.tgDesaId) : "",
-          tgKelompokId: json.tgKelompokId ? String(json.tgKelompokId) : "",
         });
         
       }
@@ -139,16 +108,6 @@ export default function ProfilePage() {
   useEffect(() => {
     setMounted(true);
     fetchProfile();
-    // Load daerah/desa/kelompok lists for tim-gambuh edit
-    Promise.all([
-      fetch("/api/public/mandiri/daerah").then(r => r.json()),
-      fetch("/api/public/mandiri/desa").then(r => r.json()),
-      fetch("/api/public/mandiri/kelompok").then(r => r.json()),
-    ]).then(([daerahs, desas, kelompoks]) => {
-      if (Array.isArray(daerahs)) setDaerahList(daerahs);
-      if (Array.isArray(desas)) setDesaList(desas);
-      if (Array.isArray(kelompoks)) setKelompokList(kelompoks);
-    }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -174,6 +133,65 @@ export default function ProfilePage() {
     e.preventDefault();
     setSaving(true);
     try {
+      if (data && isTimPnkbGambuhRole(data.role) && data.timGambuhId) {
+        if (!editForm.nama.trim() || !editForm.tipeTimGambuh || !editForm.timGambuhDaerahId || !editForm.timGambuhDesaId || !editForm.timGambuhKelompokId) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Data Belum Lengkap',
+            text: 'Nama, tipe tim, asal daerah, asal desa, dan asal kelompok wajib diisi.'
+          });
+          return;
+        }
+
+        const res = await fetch(`/api/admin/tim-gambuh/${data.timGambuhId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nama: editForm.nama,
+            tipe: editForm.tipeTimGambuh,
+            daerahId: editForm.timGambuhDaerahId ? Number(editForm.timGambuhDaerahId) : null,
+            desaId: editForm.timGambuhDesaId ? Number(editForm.timGambuhDesaId) : null,
+            kelompokId: editForm.timGambuhKelompokId ? Number(editForm.timGambuhKelompokId) : null,
+            noTelp: editForm.noTelp,
+            foto: editForm.foto,
+          }),
+        });
+        const json = await res.json();
+
+        if (!res.ok) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Gagal',
+            text: json.error || "Gagal memperbarui data Tim PNKB & Gambuh"
+          });
+          return;
+        }
+
+        try {
+          localStorage.setItem("my_tim_pnkb_gambuh_id", data.timGambuhId);
+          localStorage.setItem("my_tim_pnkb_gambuh_nama", editForm.nama.trim());
+          localStorage.setItem("my_tim_pnkb_gambuh_tipe", editForm.tipeTimGambuh);
+          if (editForm.foto) {
+            localStorage.setItem("my_tim_pnkb_gambuh_foto", editForm.foto);
+          } else {
+            localStorage.removeItem("my_tim_pnkb_gambuh_foto");
+          }
+        } catch {
+          // Keep the visible state updated even when browser storage is unavailable.
+        }
+
+        setShowEditModal(false);
+        await fetchProfile();
+        Swal.fire({
+          icon: 'success',
+          title: 'Berhasil',
+          text: 'Profil Tim PNKB & Gambuh berhasil diperbarui!',
+          timer: 2000,
+          showConfirmButton: false
+        });
+        return;
+      }
+
       const res = await fetch("/api/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -183,7 +201,7 @@ export default function ProfilePage() {
       if (res.ok) {
         setShowEditModal(false);
         if (json.data) {
-          setData(json.data);
+          setProfileState(json.data);
           // Refresh router to update sidebar/layout with new session data
           router.refresh();
           setEditForm({
@@ -201,12 +219,6 @@ export default function ProfilePage() {
             makananMinumanFavorit: json.data.makananMinumanFavorit || "",
             suku: json.data.suku || "",
             foto: json.data.foto || "",
-            timGambuhId: json.data.timGambuhId || "",
-            umur: json.data.umur ? String(json.data.umur) : "",
-            tipeTimGambuh: json.data.tipeTimGambuh || "PNKB",
-            tgDaerahId: json.data.tgDaerahId ? String(json.data.tgDaerahId) : "",
-            tgDesaId: json.data.tgDesaId ? String(json.data.tgDesaId) : "",
-            tgKelompokId: json.data.tgKelompokId ? String(json.data.tgKelompokId) : "",
           });
         } else {
           await fetchProfile();
@@ -262,6 +274,19 @@ export default function ProfilePage() {
   if (error) return <div className="alert alert-error">{error}</div>;
   if (!data) return null;
 
+  const isTimGambuhProfile = isTimPnkbGambuhRole(data.role);
+  const filteredTimDesaList = editForm.timGambuhDaerahId
+    ? desaList.filter((d) => d.mandiriDaerahId === Number(editForm.timGambuhDaerahId))
+    : [];
+  const filteredTimKelompokList = editForm.timGambuhDesaId
+    ? kelompokList.filter((k) => k.mandiriDesaId === Number(editForm.timGambuhDesaId))
+    : [];
+  const isPanitiaProfile = data.role === "kmm_daerah" ||
+    data.role === "admin" ||
+    data.role === "tim_pnkb" ||
+    data.role === "admin_romantic_room" ||
+    isTimGambuhProfile;
+
 
   const idCardBg = data?.jenisKelamin?.toLowerCase() === 'p' 
     ? 'linear-gradient(135deg, #be185d, #ec4899)' 
@@ -315,7 +340,7 @@ export default function ProfilePage() {
                    data.role === "admin" ? "Administrator" :
                    data.role === "desa" ? "Pengurus Desa" :
                    data.role === "kelompok" ? "Pengurus Kelompok" :
-                   data.role === "tim_gambuh" ? "Tim PNKB & Gambuh" :
+                   isTimGambuhProfile ? "Tim PNKB & Gambuh" :
                    data.kategoriUsia}
                 </div>
               </div>
@@ -337,27 +362,9 @@ export default function ProfilePage() {
                     <label>Jenis Kelamin</label>
                     <div>{data.jenisKelamin === "L" ? "Laki-laki" : "Perempuan"}</div>
                   </div>
-
-                  {isTimGambuh && (
-                    <>
-                      <div className="data-item">
-                        <label>Tipe Tim (Tim Gambuh)</label>
-                        <div>{data.tipeTimGambuh || data.pekerjaan || "-"}</div>
-                      </div>
-                      <div className="data-item">
-                        <label>Umur (Tim Gambuh)</label>
-                        <div>{data.umur ? `${data.umur} tahun` : "-"}</div>
-                      </div>
-                    </>
-                  )}
-
-                  <div className="data-item">
-                    <label>Kategori Usia</label>
-                    <div>{data.kategoriUsia || "-"}</div>
-                  </div>
                   <div className="data-item">
                     <label>Desa / Kelompok</label>
-                    <div>{data.desaNama || "-"} / {data.kelompokNama || "-"}</div>
+                    <div>{data.desaNama} / {data.kelompokNama}</div>
                   </div>
                   <div className="data-item">
                     <label>Alamat</label>
@@ -530,6 +537,29 @@ export default function ProfilePage() {
                   <label className="floating-label">Nama Lengkap</label>
                 </div>
 
+                {isTimGambuhProfile && (
+                  <div className="form-group">
+                    <label className="form-label text-sm text-muted mb-2">Tipe Tim</label>
+                    <div className="custom-select-wrapper">
+                      <select
+                        className="form-control premium-input custom-select"
+                        value={editForm.tipeTimGambuh}
+                        onChange={(e) => setEditForm({
+                          ...editForm,
+                          tipeTimGambuh: e.target.value,
+                          jenisKelamin: e.target.value.includes("Ibu") ? "P" : "L",
+                        })}
+                      >
+                        <option value="PNKB">PNKB (Laki-laki)</option>
+                        <option value="Ibu Gambuh">Ibu Gambuh (Perempuan)</option>
+                      </select>
+                      <svg className="select-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                      </svg>
+                    </div>
+                  </div>
+                )}
+
                 <div className="form-row">
                   <div className="form-group floating-group">
                     <input
@@ -644,63 +674,6 @@ export default function ProfilePage() {
                   <label className="floating-label">Nomor Telepon (WhatsApp)</label>
                 </div>
 
-                {isTimGambuh && (
-                  <>
-                    <div className="form-group">
-                      <label className="form-label text-sm text-muted mb-2">Asal Daerah (Khusus Tim)</label>
-                      <div className="custom-select-wrapper">
-                        <select
-                          className="form-control premium-input custom-select"
-                          value={editForm.tgDaerahId}
-                          onChange={(e) => setEditForm({ ...editForm, tgDaerahId: e.target.value, tgDesaId: "", tgKelompokId: "" })}
-                        >
-                          <option value="">-- Pilih Daerah --</option>
-                          {daerahList.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
-                        </select>
-                        <svg className="select-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                      </div>
-                    </div>
-
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label className="form-label text-sm text-muted mb-2">Asal Desa (Khusus Tim)</label>
-                        <div className="custom-select-wrapper">
-                          <select
-                            className="form-control premium-input custom-select"
-                            value={editForm.tgDesaId}
-                            onChange={(e) => setEditForm({ ...editForm, tgDesaId: e.target.value, tgKelompokId: "" })}
-                            disabled={!editForm.tgDaerahId}
-                          >
-                            <option value="">-- Pilih Desa --</option>
-                            {filteredDesaList.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
-                          </select>
-                          <svg className="select-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                          </svg>
-                        </div>
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label text-sm text-muted mb-2">Asal Kelompok (Khusus Tim)</label>
-                        <div className="custom-select-wrapper">
-                          <select
-                            className="form-control premium-input custom-select"
-                            value={editForm.tgKelompokId}
-                            onChange={(e) => setEditForm({ ...editForm, tgKelompokId: e.target.value })}
-                            disabled={!editForm.tgDesaId}
-                          >
-                            <option value="">-- Pilih Kelompok --</option>
-                            {filteredKelompokList.map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
-                          </select>
-                          <svg className="select-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                          </svg>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
 
               </div>
               <div className="modal-footer premium-footer">
@@ -728,23 +701,23 @@ export default function ProfilePage() {
       <div className="pdkt-id-card-print">
         <div className={`id-card-comprehensive role-${
           data.role === "pengurus_daerah" || data.role === "desa" || data.role === "kelompok" ? "pengurus" : 
-          data.role === "kmm_daerah" || data.role === "admin" || data.role === "tim_pnkb" || data.role === "tim_gambuh" ? "panitia" : 
+          isPanitiaProfile ? "panitia" : 
           "peserta"
         } gender-${data?.jenisKelamin?.toLowerCase()}`}>
           <div className="id-watermark-container">
             <div className="id-watermark wm-1">
               {data.role === "pengurus_daerah" || data.role === "desa" || data.role === "kelompok" ? "PENGURUS" : 
-               data.role === "kmm_daerah" || data.role === "admin" || data.role === "tim_pnkb" || data.role === "tim_gambuh" ? "PANITIA" : 
+               isPanitiaProfile ? "PANITIA" : 
                "PESERTA"}
             </div>
             <div className="id-watermark wm-2">
               {data.role === "pengurus_daerah" || data.role === "desa" || data.role === "kelompok" ? "PENGURUS" : 
-               data.role === "kmm_daerah" || data.role === "admin" || data.role === "tim_pnkb" || data.role === "tim_gambuh" ? "PANITIA" : 
+               isPanitiaProfile ? "PANITIA" : 
                "PESERTA"}
             </div>
             <div className="id-watermark wm-3">
               {data.role === "pengurus_daerah" || data.role === "desa" || data.role === "kelompok" ? "PENGURUS" : 
-               data.role === "kmm_daerah" || data.role === "admin" || data.role === "tim_pnkb" || data.role === "tim_gambuh" ? "PANITIA" : 
+               isPanitiaProfile ? "PANITIA" : 
                "PESERTA"}
             </div>
           </div>
@@ -752,7 +725,7 @@ export default function ProfilePage() {
             <div className="id-logo-box">
               <Sparkles size={24} />
               <span>{data.role === "pengurus_daerah" || data.role === "desa" || data.role === "kelompok" ? "PENGURUS" : 
-                    data.role === "kmm_daerah" || data.role === "admin" || data.role === "tim_pnkb" || data.role === "tim_gambuh" ? "PANITIA" : 
+                    isPanitiaProfile ? "PANITIA" : 
                     "PESERTA"}</span>
             </div>
             <div className="id-org-name" style={{ textTransform: "uppercase" }}>
@@ -766,7 +739,7 @@ export default function ProfilePage() {
                 {data.foto ? <img src={data.foto} alt={data.nama} /> : <div className="id-initials">{(data.nama || "??").charAt(0).toUpperCase()}</div>}
                 <div className="id-kategori-sticker">
                   {data.role === "pengurus_daerah" || data.role === "desa" || data.role === "kelompok" ? "Pengurus" : 
-                   data.role === "kmm_daerah" || data.role === "admin" || data.role === "tim_pnkb" || data.role === "tim_gambuh" ? "Panitia" : 
+                   isPanitiaProfile ? "Panitia" : 
                    "Peserta"}
                 </div>
               </div>
@@ -776,12 +749,37 @@ export default function ProfilePage() {
               <h1 className="id-full-name">{data.nama}</h1>
               <div style={{ display: "flex", flexDirection: "column", gap: "5px", alignItems: "center", justifyContent: "center", marginTop: "5px" }}>
                 <div className="id-member-code" style={{ fontSize: "16px", fontWeight: "900" }}>ID: {data.nomorUnik}</div>
+                {isTimGambuhProfile && (
+                  <div className="id-member-code" style={{ opacity: 1, color: "#064e3b", background: "rgba(255,255,255,0.75)", padding: "4px 14px", borderRadius: "999px", fontSize: "13px", fontWeight: "900" }}>
+                    {data.timGambuhTipe || "Tim PNKB & Gambuh"}
+                  </div>
+                )}
                 {data.nomorUrut && (
                   <div className="id-member-code" style={{ opacity: 1, color: "var(--primary)", background: "rgba(0,0,0,0.03)", padding: "4px 15px", borderRadius: "8px", border: "1.5px solid rgba(0,0,0,0.1)", fontSize: "18px", fontWeight: "950" }}>
                     NO. URUT: {data.nomorUrut}
                   </div>
                 )}
               </div>
+              {isTimGambuhProfile && (
+                <div className="id-detail-grid">
+                  <div>
+                    <label>WhatsApp</label>
+                    <span>{data.noTelp || "-"}</span>
+                  </div>
+                  <div>
+                    <label>Daerah</label>
+                    <span>{data.timGambuhDaerahNama || "-"}</span>
+                  </div>
+                  <div>
+                    <label>Desa</label>
+                    <span>{data.timGambuhDesaNama || "-"}</span>
+                  </div>
+                  <div>
+                    <label>Kelompok</label>
+                    <span>{data.timGambuhKelompokNama || "-"}</span>
+                  </div>
+                </div>
+              )}
               <div className="id-qr-box" style={{ padding: "15px", borderRadius: "20px", marginTop: "10px" }}>
                 <canvas ref={idCardCanvasRef} style={{ width: '150px', height: '150px' }} />
                 <div className="id-qr-label" style={{ fontSize: "11px", marginTop: "5px" }}>Verified QR Identifier</div>
@@ -790,8 +788,12 @@ export default function ProfilePage() {
 
             <div className="id-footer-section">
               <div className="id-address-section">
-                <label>Identifier Verification</label>
-                <p>Digital Membership Identity - {data.role === "pengurus_daerah" || data.role === "kmm_daerah" ? "Daerah Version" : "Mandiri Version"}</p>
+                <label>{isTimGambuhProfile ? "Identitas Tim PNKB & Gambuh" : "Identifier Verification"}</label>
+                <p>
+                  {isTimGambuhProfile
+                    ? `${data.timGambuhDaerahNama || data.kota || "-"} / ${data.timGambuhDesaNama || data.desaNama || "-"} / ${data.timGambuhKelompokNama || data.kelompokNama || "-"}`
+                    : `Digital Membership Identity - ${data.role === "pengurus_daerah" || data.role === "kmm_daerah" ? "Daerah Version" : "Mandiri Version"}`}
+                </p>
               </div>
             </div>
           </div>
@@ -978,6 +980,35 @@ export default function ProfilePage() {
 
         .id-member-code { font-size: 14px; font-weight: 800; opacity: 0.7; font-family: monospace; }
         .role-panitia .id-member-code { color: #81c784; }
+
+        .id-detail-grid {
+          width: 100%;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+          margin-top: 6px;
+        }
+        .id-detail-grid div {
+          background: rgba(255,255,255,0.72);
+          border: 1px solid rgba(255,255,255,0.8);
+          border-radius: 10px;
+          padding: 7px 9px;
+          text-align: left;
+        }
+        .id-detail-grid label {
+          display: block;
+          font-size: 8px;
+          font-weight: 900;
+          text-transform: uppercase;
+          opacity: 0.58;
+          margin-bottom: 2px;
+        }
+        .id-detail-grid span {
+          display: block;
+          font-size: 11px;
+          font-weight: 850;
+          line-height: 1.25;
+        }
 
         .id-qr-box { display: flex; flex-direction: column; align-items: center; gap: 8px; background: white; padding: 10px; border-radius: 15px; margin: 10px 0; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
         .id-qr-label { font-size: 9px; font-weight: 800; color: #1e40af; text-transform: uppercase; }

@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from "uuid";
 
 export async function POST(request: NextRequest) {
   try {
-    const { nama, umur, noTelp, daerahId, desaId, kelompokId, tipe } = await request.json();
+    const { nama, noTelp, daerahId, desaId, kelompokId, tipe } = await request.json();
 
     if (!nama || !umur || !noTelp || !tipe || !daerahId || !desaId || !kelompokId) {
       return NextResponse.json({ error: "Nama, Umur, No WhatsApp, Tipe, Daerah, Desa, dan Kelompok wajib diisi" }, { status: 400 });
@@ -34,10 +34,11 @@ export async function POST(request: NextRequest) {
       desaId: desaId ? Number(desaId) : null,
       kelompokId: kelompokId ? Number(kelompokId) : null,
       tipe: tipe as "PNKB" | "Ibu Gambuh" | "Penunggu PNKB" | "Penunggu Ibu Gambuh",
-      noTelp: noTelp
+      noTelp: noTelp,
+      foto: foto || null
     });
 
-    return NextResponse.json({ success: true, id });
+    return NextResponse.json({ success: true, id, nama, tipe, foto: foto || null });
   } catch (error) {
     console.error("Daftar Tim Gambuh error:", error);
     return NextResponse.json({ error: "Gagal mendaftar" }, { status: 500 });

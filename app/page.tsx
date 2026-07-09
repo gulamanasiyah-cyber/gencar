@@ -1012,6 +1012,22 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
       {/* News Ticker */}
       <NewsTicker articles={combinedForHero} />
 
+      {!query && (
+        <section id="profile" className="lp-wrap" style={{ marginTop: '28px', marginBottom: '8px' }}>
+          <div className="lp-sect-hd" style={{ marginBottom: '16px' }}>
+            <span className="lp-sect-hd-title">Profil Kami</span>
+          </div>
+          <div className="lp-video-wrap">
+            <iframe
+              src="https://www.youtube.com/embed/kkDN69-4zco?autoplay=1&mute=1&loop=1&playlist=kkDN69-4zco&controls=0&modestbranding=1&rel=0&vq=hd720"
+              title="GENCAR Hero Video"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        </section>
+      )}
+
       {/* ═══ HERO + POPULAR SIDEBAR ROW ═══ */}
       <div className="lp-wrap" style={{ marginTop: '28px', marginBottom: '8px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 316px', gap: '24px', alignItems: 'start' }} className="responsive-hero-grid">
@@ -1134,19 +1150,6 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                     </div>
                   </Link>
                 ))}
-              </div>
-
-              {/* PROFIL KAMI VIDEO */}
-              <div className="lp-sect-hd" style={{ marginTop: '40px', marginBottom: '16px' }}>
-                <span className="lp-sect-hd-title">Profil Kami</span>
-              </div>
-              <div className="lp-video-wrap">
-                <iframe
-                  src="https://www.youtube.com/embed/kkDN69-4zco?autoplay=1&mute=1&loop=1&playlist=kkDN69-4zco&controls=0&modestbranding=1&rel=0&vq=hd720"
-                  title="GENCAR Hero Video"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
               </div>
 
               {/* LOKASI KAMI */}
@@ -1401,4 +1404,4 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
       </footer>
     </>
   );
-}
+}

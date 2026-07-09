@@ -522,6 +522,7 @@ export const timGambuh = sqliteTable("tim_gambuh", {
   kelompokId: integer("kelompok_id").references(() => mandiriKelompok.id, { onDelete: "cascade" }),
   tipe: text("tipe", { enum: ["PNKB", "Ibu Gambuh", "Tim Penunggu", "Penunggu PNKB", "Penunggu Ibu Gambuh"] }).notNull(),
   noTelp: text("no_telp"),
+  foto: text("foto"),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 }, (table) => ({

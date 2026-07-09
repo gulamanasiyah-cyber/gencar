@@ -3,7 +3,7 @@
 import Topbar from "@/components/Topbar";
 import { useState, useEffect, useCallback } from "react";
 import Swal from "sweetalert2";
-import { Search, UserPlus, Edit2, Trash2, Shield, Link as LinkIcon, CheckCircle2, Lock, Unlock, ToggleLeft, ToggleRight } from "lucide-react";
+import { Search, UserPlus, Edit2, Trash2, Shield, Link as LinkIcon, CheckCircle2, Lock, Unlock, ToggleLeft, ToggleRight, Upload, X } from "lucide-react";
 
 interface TimGambuhItem {
   id: string;
@@ -14,6 +14,7 @@ interface TimGambuhItem {
   desaId: number | null;
   desaNama: string | null;
   tipe: "PNKB" | "Ibu Gambuh" | "Penunggu PNKB" | "Penunggu Ibu Gambuh";
+  foto?: string | null;
   createdAt: string | null;
 }
 
@@ -121,12 +122,14 @@ export default function AdminTimGambuhPage() {
   const [editId, setEditId] = useState("");
   const [copiedLink, setCopiedLink] = useState(false);
   const [autoDetected, setAutoDetected] = useState(false);
+  const [uploadingFoto, setUploadingFoto] = useState(false);
   const [form, setForm] = useState({
     nama: "",
     umur: "",
     daerahId: "",
     desaId: "",
     tipe: "PNKB" as "PNKB" | "Ibu Gambuh" | "Penunggu PNKB" | "Penunggu Ibu Gambuh",
+    foto: "",
   });
 
   const fetchData = useCallback(async () => {
@@ -173,7 +176,7 @@ export default function AdminTimGambuhPage() {
     setIsEditing(false);
     setEditId("");
     setAutoDetected(false);
-    setForm({ nama: "", umur: "", daerahId: "", desaId: "", tipe: "PNKB" });
+    setForm({ nama: "", daerahId: "", desaId: "", tipe: "PNKB" });
     setFilteredDesaList([]);
     setShowModal(true);
   };
@@ -188,6 +191,7 @@ export default function AdminTimGambuhPage() {
       daerahId: member.daerahId ? String(member.daerahId) : "",
       desaId: member.desaId ? String(member.desaId) : "",
       tipe: member.tipe,
+      foto: member.foto || "",
     });
     if (member.daerahId) {
       setFilteredDesaList(desaList.filter((d) => d.mandiriDaerahId === Number(member.daerahId)));
@@ -195,6 +199,29 @@ export default function AdminTimGambuhPage() {
       setFilteredDesaList([]);
     }
     setShowModal(true);
+  };
+
+  const handleFotoUpload = async (file?: File) => {
+    if (!file) return;
+
+    setUploadingFoto(true);
+    const uploadForm = new FormData();
+    uploadForm.append("file", file);
+
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: uploadForm });
+      const data = await res.json();
+
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || "Gagal mengupload foto");
+      }
+
+      setForm((prev) => ({ ...prev, foto: data.url }));
+    } catch (err: any) {
+      Swal.fire({ icon: "error", title: "Upload Gagal", text: err.message });
+    } finally {
+      setUploadingFoto(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -218,6 +245,7 @@ export default function AdminTimGambuhPage() {
           daerahId: form.daerahId ? Number(form.daerahId) : null,
           desaId: form.desaId ? Number(form.desaId) : null,
           tipe: form.tipe,
+          foto: form.foto || null,
         }),
       });
 
@@ -512,13 +540,6 @@ export default function AdminTimGambuhPage() {
                 {filteredMembers.map((member) => (
                   <tr key={member.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
                     <td data-label="NAMA" style={{ padding: "16px", fontWeight: "600", color: "#0f172a" }}>{member.nama}</td>
-                    <td data-label="UMUR" style={{ padding: "16px", color: "#334155" }}>
-                      {member.umur != null ? (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "2px 8px", borderRadius: "20px", fontSize: "12px", fontWeight: "600", backgroundColor: "#f1f5f9", color: "#475569" }}>
-                          {member.umur} thn
-                        </span>
-                      ) : "-"}
-                    </td>
                     <td data-label="TIPE" style={{ padding: "16px" }}>
                       <span
                         style={{
@@ -593,6 +614,8 @@ export default function AdminTimGambuhPage() {
             style={{
               width: "100%",
               maxWidth: "500px",
+              maxHeight: "90vh",
+              overflowY: "auto",
               margin: "20px",
               padding: "24px",
               boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
@@ -602,6 +625,53 @@ export default function AdminTimGambuhPage() {
               {isEditing ? "Edit Anggota Tim" : "Tambah Anggota Tim"}
             </h3>
             <form onSubmit={handleSubmit}>
+              <div className="form-group" style={{ marginBottom: "18px", textAlign: "center" }}>
+                <div style={{
+                  width: "88px",
+                  height: "88px",
+                  borderRadius: "50%",
+                  background: form.tipe === "Ibu Gambuh" ? "#fdf2f8" : "#eff6ff",
+                  color: form.tipe === "Ibu Gambuh" ? "#be185d" : "#2563eb",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                  fontSize: "34px",
+                  fontWeight: 800,
+                  border: "2px solid #e2e8f0",
+                  margin: "0 auto 12px",
+                }}>
+                  {form.foto ? (
+                    <img src={form.foto} alt="Foto anggota" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    (form.nama || "T").charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div style={{ display: "flex", justifyContent: "center", gap: "8px", flexWrap: "wrap" }}>
+                  <label className="btn btn-outline" style={{ margin: 0, display: "inline-flex", alignItems: "center", gap: "6px", cursor: uploadingFoto ? "not-allowed" : "pointer" }}>
+                    <Upload size={14} /> {uploadingFoto ? "Mengunggah..." : "Upload Foto"}
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*"
+                      disabled={uploadingFoto}
+                      onChange={(e) => handleFotoUpload(e.target.files?.[0])}
+                    />
+                  </label>
+                  {form.foto && (
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      style={{ margin: 0, color: "#ef4444", borderColor: "#fecaca", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                      onClick={() => setForm((prev) => ({ ...prev, foto: "" }))}
+                    >
+                      <X size={14} /> Hapus
+                    </button>
+                  )}
+                </div>
+                <small style={{ color: "#64748b", display: "block", marginTop: "8px" }}>Format JPG, PNG, WEBP. Maksimal 2MB.</small>
+              </div>
+
               <div className="form-group" style={{ marginBottom: "16px" }}>
                 <label className="form-label">Nama Lengkap *</label>
                 <input
@@ -702,8 +772,8 @@ export default function AdminTimGambuhPage() {
                 >
                   Batal
                 </button>
-                <button type="submit" className="btn btn-primary" style={{ margin: 0 }}>
-                  Simpan
+                <button type="submit" className="btn btn-primary" style={{ margin: 0 }} disabled={uploadingFoto}>
+                  {uploadingFoto ? "Menunggu Upload..." : "Simpan"}
                 </button>
               </div>
             </form>

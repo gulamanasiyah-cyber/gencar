@@ -7,6 +7,7 @@ import Link from "next/link";
 interface Daerah { id: number; nama: string; kota: string; }
 interface Desa { id: number; nama: string; mandiriDaerahId: number; }
 interface Kelompok { id: number; nama: string; mandiriDesaId: number; }
+interface RegisteredIdentity { id: string; nama: string; tipe: string; foto?: string | null; }
 
 export default function DaftarTimGambuhPage() {
   const [form, setForm] = useState({
@@ -17,6 +18,7 @@ export default function DaftarTimGambuhPage() {
     daerahId: "",
     desaId: "",
     kelompokId: "",
+    foto: "",
   });
 
   const [daerahList, setDaerahList] = useState<Daerah[]>([]);
@@ -26,23 +28,9 @@ export default function DaftarTimGambuhPage() {
   const [filteredKelompokList, setFilteredKelompokList] = useState<Kelompok[]>([]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [registeredIdentity, setRegisteredIdentity] = useState<RegisteredIdentity | null>(null);
   const [isClosed, setIsClosed] = useState(false);
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch("/api/profile")
-      .then(res => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
-      .then(data => {
-        if (data && data.role) {
-          setUserRole(data.role);
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -106,6 +94,29 @@ export default function DaftarTimGambuhPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleFotoUpload = async (file?: File) => {
+    if (!file) return;
+
+    setUploadingFoto(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await res.json();
+
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || "Gagal mengupload foto");
+      }
+
+      setForm((prev) => ({ ...prev, foto: data.url }));
+    } catch (err: any) {
+      Swal.fire({ icon: "error", title: "Upload Gagal", text: err.message });
+    } finally {
+      setUploadingFoto(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -130,6 +141,27 @@ export default function DaftarTimGambuhPage() {
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.error || "Gagal mendaftar");
+      const identity = {
+        id: String(data.id || "").trim(),
+        nama: String(data.nama || form.nama).trim(),
+        tipe: String(data.tipe || form.tipe).trim(),
+        foto: data.foto || form.foto || null,
+      };
+
+      if (identity.id) {
+        try {
+          localStorage.setItem("my_tim_pnkb_gambuh_id", identity.id);
+          localStorage.setItem("my_tim_pnkb_gambuh_nama", identity.nama);
+          localStorage.setItem("my_tim_pnkb_gambuh_tipe", identity.tipe);
+          if (identity.foto) {
+            localStorage.setItem("my_tim_pnkb_gambuh_foto", identity.foto);
+          }
+        } catch (storageErr) {
+          console.warn("Gagal menyimpan identitas Tim Gambuh di browser:", storageErr);
+        }
+        setRegisteredIdentity(identity);
+      }
+
       setSuccess(true);
       Swal.fire({ icon: "success", title: "Berhasil!", text: `Anda telah terdaftar sebagai ${form.tipe}.` });
     } catch (err: any) {
@@ -149,27 +181,19 @@ export default function DaftarTimGambuhPage() {
             Anda telah berhasil mendaftar sebagai <b>{form.tipe}</b>.
           </p>
           <div style={{ background: "#f8fafc", padding: "16px", borderRadius: "12px", border: "1px solid #e2e8f0", marginBottom: "24px" }}>
+            {registeredIdentity?.foto && (
+              <img
+                src={registeredIdentity.foto}
+                alt={registeredIdentity.nama}
+                style={{ width: "72px", height: "72px", borderRadius: "50%", objectFit: "cover", marginBottom: "12px", border: "2px solid #dbeafe" }}
+              />
+            )}
             <p style={{ margin: "0 0 5px 0", fontSize: "14px", color: "#64748b" }}>Nama Terdaftar:</p>
-            <h3 style={{ margin: 0, color: "#0f172a" }}>{form.nama}</h3>
+            <h3 style={{ margin: 0, color: "#0f172a" }}>{registeredIdentity?.nama || form.nama}</h3>
           </div>
-          {userRole === "admin_romantic_room" ? (
-            <button 
-              onClick={async () => {
-                try {
-                  await fetch('/api/auth/logout', { method: 'POST' });
-                } catch (e) {}
-                window.location.href = "/login";
-              }} 
-              className="btn btn-primary btn-full" 
-              style={{ padding: "15px", fontSize: "16px", fontWeight: "700", width: "100%", border: "none", cursor: "pointer", fontFamily: "inherit" }}
-            >
-              Buka Panel Tim Gambuh
-            </button>
-          ) : (
-            <Link href="/mandiri/tim-gambuh" className="btn btn-primary btn-full" style={{ padding: "15px", fontSize: "16px", fontWeight: "700" }}>
-              Buka Panel Tim Gambuh
-            </Link>
-          )}
+          <Link href="/mandiri/tim-gambuh" className="btn btn-primary btn-full" style={{ padding: "15px", fontSize: "16px", fontWeight: "700" }}>
+            Buka Panel Tim Gambuh
+          </Link>
         </div>
       </div>
     );
@@ -212,6 +236,56 @@ export default function DaftarTimGambuhPage() {
 
         <form onSubmit={handleSubmit}>
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            <div className="form-group" style={{ textAlign: "center" }}>
+              <label className="form-label" style={{ textAlign: "left", display: "block" }}>Foto Profil</label>
+              <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                <div style={{
+                  width: "76px",
+                  height: "76px",
+                  borderRadius: "50%",
+                  background: "#eff6ff",
+                  color: "#2563eb",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                  fontSize: "28px",
+                  fontWeight: 800,
+                  border: "2px solid #dbeafe",
+                  flexShrink: 0,
+                }}>
+                  {form.foto ? (
+                    <img src={form.foto} alt="Foto profil" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    (form.nama || "T").charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div style={{ flex: 1, textAlign: "left" }}>
+                  <label className="btn btn-secondary" style={{ cursor: uploadingFoto ? "not-allowed" : "pointer", marginBottom: "8px", display: "inline-flex" }}>
+                    {uploadingFoto ? "Mengunggah..." : "Upload Foto"}
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*"
+                      disabled={uploadingFoto}
+                      onChange={(e) => handleFotoUpload(e.target.files?.[0])}
+                    />
+                  </label>
+                  {form.foto && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ marginLeft: "8px" }}
+                      onClick={() => setForm((prev) => ({ ...prev, foto: "" }))}
+                    >
+                      Hapus
+                    </button>
+                  )}
+                  <small style={{ color: "var(--text-muted)", fontSize: "11px", display: "block" }}>Format JPG, PNG, WEBP. Maksimal 2MB.</small>
+                </div>
+              </div>
+            </div>
+
             <div className="form-group">
               <label className="form-label">Nama Lengkap <span className="required">*</span></label>
               <input name="nama" className="form-control" value={form.nama} onChange={handleChange} required placeholder="Masukkan nama lengkap" />
@@ -260,8 +334,8 @@ export default function DaftarTimGambuhPage() {
               </select>
             </div>
 
-            <button type="submit" className="btn btn-primary btn-full btn-lg" disabled={loading}>
-              {loading ? "Memproses..." : "Daftar Sekarang"}
+            <button type="submit" className="btn btn-primary btn-full btn-lg" disabled={loading || uploadingFoto}>
+              {uploadingFoto ? "Menunggu Upload Foto..." : loading ? "Memproses..." : "Daftar Sekarang"}
             </button>
           </div>
         </form>

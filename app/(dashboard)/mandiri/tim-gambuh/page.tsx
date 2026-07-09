@@ -87,6 +87,27 @@ export default function TimGambuhOperatorPage() {
     const [reportSearch, setReportSearch] = useState("");
     const [resultFilter, setResultFilter] = useState("Semua");
 
+    const saveCurrentIdentity = useCallback((identity: any) => {
+        const normalizedId = String(identity?.id || "").trim();
+        const normalizedNama = String(identity?.nama || "").trim();
+        const normalizedTipe = String(identity?.tipe || "").trim();
+
+        if (!normalizedId) return;
+
+        try {
+            localStorage.setItem("my_tim_pnkb_gambuh_id", normalizedId);
+            localStorage.setItem("my_tim_pnkb_gambuh_nama", normalizedNama);
+            if (normalizedTipe) {
+                localStorage.setItem("my_tim_pnkb_gambuh_tipe", normalizedTipe);
+            }
+        } catch (storageErr) {
+            console.warn("Gagal menyimpan identitas Tim Gambuh di browser:", storageErr);
+        }
+
+        setMyId(normalizedId);
+        setMyName(normalizedNama);
+    }, []);
+
     const showSelectIdentityModal = useCallback(async (forced = false) => {
         Swal.fire({
             title: 'Memuat Data...',
@@ -222,12 +243,8 @@ export default function TimGambuhOperatorPage() {
             if (isConfirmed && selectedId) {
                 const selectedItem = data.find((d: any) => String(d.id).trim() === String(selectedId).trim());
                 if (selectedItem) {
-                    const normalizedId = String(selectedItem.id).trim();
                     const normalizedNama = String(selectedItem.nama || "").trim();
-                    localStorage.setItem("my_tim_pnkb_gambuh_id", normalizedId);
-                    localStorage.setItem("my_tim_pnkb_gambuh_nama", normalizedNama);
-                    setMyId(normalizedId);
-                    setMyName(normalizedNama);
+                    saveCurrentIdentity(selectedItem);
                     Swal.fire({
                         icon: 'success',
                         title: 'Identitas Disimpan',
@@ -240,7 +257,7 @@ export default function TimGambuhOperatorPage() {
         } catch (err) {
             Swal.fire("Error", "Gagal mengambil daftar anggota Tim PNKB & Gambuh.", "error");
         }
-    }, []);
+    }, [saveCurrentIdentity]);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -287,19 +304,54 @@ export default function TimGambuhOperatorPage() {
                 setUserRole(d.role || "");
             });
 
-        // Initialize identity from localStorage
-        const savedId = (localStorage.getItem("my_tim_pnkb_gambuh_id") || "").trim();
-        const savedNama = (localStorage.getItem("my_tim_pnkb_gambuh_nama") || "").trim();
-        if (savedId) {
-            setMyId(savedId);
-            setMyName(savedNama);
-        } else {
-            showSelectIdentityModal(true);
-        }
+        let cancelled = false;
+
+        const initializeIdentity = async () => {
+            const url = new URL(window.location.href);
+            const requestedIdentityId = (url.searchParams.get("identityId") || "").trim();
+
+            if (requestedIdentityId) {
+                try {
+                    const res = await fetch("/api/admin/tim-gambuh");
+                    if (res.ok) {
+                        const data = await res.json();
+                        const selectedItem = Array.isArray(data)
+                            ? data.find((item: any) => String(item.id).trim() === requestedIdentityId)
+                            : null;
+
+                        if (!cancelled && selectedItem) {
+                            saveCurrentIdentity(selectedItem);
+                            url.searchParams.delete("identityId");
+                            window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+                            return;
+                        }
+                    }
+                } catch (err) {
+                    console.error("Gagal menyinkronkan identitas Tim Gambuh dari URL:", err);
+                }
+            }
+
+            if (cancelled) return;
+
+            const savedId = (localStorage.getItem("my_tim_pnkb_gambuh_id") || "").trim();
+            const savedNama = (localStorage.getItem("my_tim_pnkb_gambuh_nama") || "").trim();
+            if (savedId) {
+                setMyId(savedId);
+                setMyName(savedNama);
+            } else {
+                showSelectIdentityModal(true);
+            }
+        };
+
+        initializeIdentity();
 
         // Realtime updates using Pusher
         const pusher = getPusherClient();
-        if (!pusher) return;
+        if (!pusher) {
+            return () => {
+                cancelled = true;
+            };
+        }
 
         const channel = pusher.subscribe("taaruf-channel");
         
@@ -343,11 +395,12 @@ export default function TimGambuhOperatorPage() {
         });
 
         return () => {
+            cancelled = true;
             channel.unbind("taaruf-changed");
             channel.unbind("room-changed");
             pusher.unsubscribe("taaruf-channel");
         };
-    }, [fetchData, showSelectIdentityModal]);
+    }, [fetchData, saveCurrentIdentity, showSelectIdentityModal]);
 
     const handleStartRoom = async (id: string) => {
         try {

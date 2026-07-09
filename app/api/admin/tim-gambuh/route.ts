@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { timGambuh, settings, mandiriDesa, mandiriDaerah } from "@/lib/schema";
+import { timGambuh, settings, mandiriDesa, mandiriDaerah, mandiriKelompok } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
@@ -37,12 +37,17 @@ export async function GET(request: NextRequest) {
       daerahNama: mandiriDaerah.nama,
       desaId: timGambuh.desaId,
       desaNama: mandiriDesa.nama,
+      kelompokId: timGambuh.kelompokId,
+      kelompokNama: mandiriKelompok.nama,
       tipe: timGambuh.tipe,
+      noTelp: timGambuh.noTelp,
+      foto: timGambuh.foto,
       createdAt: timGambuh.createdAt,
     })
     .from(timGambuh)
     .leftJoin(mandiriDaerah, eq(timGambuh.daerahId, mandiriDaerah.id))
-    .leftJoin(mandiriDesa, eq(timGambuh.desaId, mandiriDesa.id));
+    .leftJoin(mandiriDesa, eq(timGambuh.desaId, mandiriDesa.id))
+    .leftJoin(mandiriKelompok, eq(timGambuh.kelompokId, mandiriKelompok.id));
 
     if (targetKegiatanId !== "all") {
       query = query.where(eq(timGambuh.kegiatanId, targetKegiatanId));
@@ -72,7 +77,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Tidak ada kegiatan mandiri yang sedang aktif" }, { status: 400 });
     }
 
-    const { nama, umur, daerahId, desaId, tipe } = await request.json();
+    const { nama, daerahId, desaId, tipe } = await request.json();
 
     if (!nama || !tipe) {
       return NextResponse.json({ error: "Nama dan Tipe wajib diisi" }, { status: 400 });
@@ -90,7 +95,10 @@ export async function POST(request: NextRequest) {
       kegiatanId,
       daerahId: daerahId ? Number(daerahId) : null,
       desaId: desaId ? Number(desaId) : null,
+      kelompokId: kelompokId ? Number(kelompokId) : null,
       tipe: tipe as "PNKB" | "Ibu Gambuh" | "Penunggu PNKB" | "Penunggu Ibu Gambuh",
+      noTelp: noTelp || null,
+      foto: foto || null,
     });
 
     return NextResponse.json({ success: true, id });
