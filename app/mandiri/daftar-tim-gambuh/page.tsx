@@ -154,7 +154,10 @@ export default function DaftarTimGambuhPage() {
           </div>
           {userRole === "admin_romantic_room" ? (
             <button 
-              onClick={() => {
+              onClick={async () => {
+                try {
+                  await fetch('/api/auth/logout', { method: 'POST' });
+                } catch (e) {}
                 window.location.href = "/login";
               }} 
               className="btn btn-primary btn-full" 

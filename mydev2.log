@@ -20,3 +20,4 @@ DB_CLIENT_CONNECTING_TO: libsql://jb2id-edgha...
  ✓ Compiled in 648ms (464 modules)
    Reload env: .env.local
  ✓ Compiled in 1432ms (464 modules)
+ ✓ Compiled in 720ms (464 modules)
