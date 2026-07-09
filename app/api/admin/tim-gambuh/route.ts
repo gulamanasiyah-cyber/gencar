@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
     let query: any = db.select({
       id: timGambuh.id,
       nama: timGambuh.nama,
+      umur: timGambuh.umur,
       kegiatanId: timGambuh.kegiatanId,
       daerahId: timGambuh.daerahId,
       daerahNama: mandiriDaerah.nama,
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Tidak ada kegiatan mandiri yang sedang aktif" }, { status: 400 });
     }
 
-    const { nama, daerahId, desaId, tipe } = await request.json();
+    const { nama, umur, daerahId, desaId, tipe } = await request.json();
 
     if (!nama || !tipe) {
       return NextResponse.json({ error: "Nama dan Tipe wajib diisi" }, { status: 400 });
@@ -85,6 +86,7 @@ export async function POST(request: NextRequest) {
     await db.insert(timGambuh).values({
       id,
       nama,
+      umur: umur ? Number(umur) : null,
       kegiatanId,
       daerahId: daerahId ? Number(daerahId) : null,
       desaId: desaId ? Number(desaId) : null,

@@ -8,6 +8,7 @@ import { Search, UserPlus, Edit2, Trash2, Shield, Link as LinkIcon, CheckCircle2
 interface TimGambuhItem {
   id: string;
   nama: string;
+  umur: number | null;
   daerahId: number | null;
   daerahNama: string | null;
   desaId: number | null;
@@ -122,6 +123,7 @@ export default function AdminTimGambuhPage() {
   const [autoDetected, setAutoDetected] = useState(false);
   const [form, setForm] = useState({
     nama: "",
+    umur: "",
     daerahId: "",
     desaId: "",
     tipe: "PNKB" as "PNKB" | "Ibu Gambuh" | "Penunggu PNKB" | "Penunggu Ibu Gambuh",
@@ -171,7 +173,7 @@ export default function AdminTimGambuhPage() {
     setIsEditing(false);
     setEditId("");
     setAutoDetected(false);
-    setForm({ nama: "", daerahId: "", desaId: "", tipe: "PNKB" });
+    setForm({ nama: "", umur: "", daerahId: "", desaId: "", tipe: "PNKB" });
     setFilteredDesaList([]);
     setShowModal(true);
   };
@@ -182,6 +184,7 @@ export default function AdminTimGambuhPage() {
     setAutoDetected(false);
     setForm({
       nama: member.nama,
+      umur: member.umur != null ? String(member.umur) : "",
       daerahId: member.daerahId ? String(member.daerahId) : "",
       desaId: member.desaId ? String(member.desaId) : "",
       tipe: member.tipe,
@@ -211,6 +214,7 @@ export default function AdminTimGambuhPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           nama: form.nama,
+          umur: form.umur ? Number(form.umur) : null,
           daerahId: form.daerahId ? Number(form.daerahId) : null,
           desaId: form.desaId ? Number(form.desaId) : null,
           tipe: form.tipe,
@@ -497,6 +501,7 @@ export default function AdminTimGambuhPage() {
               <thead>
                 <tr style={{ borderBottom: "1px solid #e2e8f0", backgroundColor: "#f8fafc" }}>
                   <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: "#64748b" }}>NAMA</th>
+                  <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: "#64748b" }}>UMUR</th>
                   <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: "#64748b" }}>TIPE</th>
                   <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: "#64748b" }}>DAERAH</th>
                   <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: "#64748b" }}>DESA</th>
@@ -507,6 +512,13 @@ export default function AdminTimGambuhPage() {
                 {filteredMembers.map((member) => (
                   <tr key={member.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
                     <td data-label="NAMA" style={{ padding: "16px", fontWeight: "600", color: "#0f172a" }}>{member.nama}</td>
+                    <td data-label="UMUR" style={{ padding: "16px", color: "#334155" }}>
+                      {member.umur != null ? (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "2px 8px", borderRadius: "20px", fontSize: "12px", fontWeight: "600", backgroundColor: "#f1f5f9", color: "#475569" }}>
+                          {member.umur} thn
+                        </span>
+                      ) : "-"}
+                    </td>
                     <td data-label="TIPE" style={{ padding: "16px" }}>
                       <span
                         style={{
@@ -609,6 +621,19 @@ export default function AdminTimGambuhPage() {
                     }
                   }}
                   required
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "16px" }}>
+                <label className="form-label">Umur (tahun)</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  placeholder="Masukkan umur"
+                  value={form.umur}
+                  min={1}
+                  max={99}
+                  onChange={(e) => setForm({ ...form, umur: e.target.value })}
                 />
               </div>
 
