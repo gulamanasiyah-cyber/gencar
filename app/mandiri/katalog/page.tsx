@@ -49,6 +49,79 @@ function LocalBarcode({ value }: { value: string }) {
   );
 }
 
+function IndonesianDateInput({ value, onChange, ...props }: any) {
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const displayValue = value ? value.split('-').reverse().join('/') : "";
+
+  const handleTriggerPicker = () => {
+    if (dateInputRef.current) {
+      try {
+        dateInputRef.current.showPicker();
+      } catch (err) {
+        console.error("Failed to showpicker:", err);
+      }
+    }
+  };
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '45px' }}>
+      <input
+        type="text"
+        value={displayValue}
+        placeholder="DD/MM/YYYY"
+        readOnly
+        onClick={handleTriggerPicker}
+        style={{
+          ...props.style,
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1,
+          cursor: 'pointer',
+          background: 'white'
+        }}
+      />
+      {/* Calendar icon absolute positioned */}
+      <span 
+        onClick={handleTriggerPicker} 
+        style={{
+          position: 'absolute',
+          right: '16px',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          zIndex: 2,
+          cursor: 'pointer',
+          pointerEvents: 'auto',
+          display: 'flex',
+          alignItems: 'center',
+          color: '#64748b'
+        }}
+      >
+        <Calendar size={18} />
+      </span>
+      {/* Native hidden date field that opens the picker */}
+      <input
+        ref={dateInputRef}
+        type="date"
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          opacity: 0,
+          zIndex: 0,
+          pointerEvents: 'none'
+        }}
+      />
+    </div>
+  );
+}
+
 export default function PublicKatalogPage() {
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -110,6 +183,7 @@ export default function PublicKatalogPage() {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editProfileForm, setEditProfileForm] = useState<any>({});
   const [savingProfile, setSavingProfile] = useState(false);
+  const [uploadingFoto, setUploadingFoto] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -1186,7 +1260,6 @@ export default function PublicKatalogPage() {
                         <div className="card-stats-grid">
                           <div className="stat-pill"><Calendar size={14} /><span>{item.tanggalLahir ? `${new Date().getFullYear() - new Date(item.tanggalLahir).getFullYear()} Tahun` : "-"}</span></div>
                           <div className="stat-pill"><GraduationCap size={14} /><span>{item.pendidikan || "-"}</span></div>
-                          <div className="stat-pill"><Heart size={14} /><span>{item.statusNikah || "Belum Menikah"}</span></div>
                           <div className="stat-pill"><Briefcase size={14} /><span>{item.pekerjaan || "Swasta"}</span></div>
                           <div className="stat-pill"><Globe size={14} /><span>{item.suku || "-"}</span></div>
                           <div className="stat-pill">
@@ -1662,10 +1735,6 @@ export default function PublicKatalogPage() {
                     <span className="label">Pekerjaan</span>
                     <span className="value">{myFullProfile.pekerjaan || "-"}</span>
                   </div>
-                  <div className="profile-info-row">
-                    <span className="label">Status Nikah</span>
-                    <span className="value">{myFullProfile.statusNikah || "Belum Menikah"}</span>
-                  </div>
                 </div>
 
                 <div className="profile-info-section">
@@ -1709,6 +1778,12 @@ export default function PublicKatalogPage() {
 
               <div className="profile-actions-bottom" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <button className="profile-edit-btn" onClick={() => {
+                  let initKota = "";
+                  if (myFullProfile.mandiriDesaId) {
+                      const matchW = wilayahList.find(w => String(w.id) === String(myFullProfile.mandiriDesaId));
+                      if (matchW) initKota = matchW.kota;
+                  }
+                  
                   setEditProfileForm({
                     nama: myFullProfile.nama || "",
                     jenisKelamin: myFullProfile.jenisKelamin || "L",
@@ -1718,11 +1793,14 @@ export default function PublicKatalogPage() {
                     suku: myFullProfile.suku || "",
                     pendidikan: myFullProfile.pendidikan || "",
                     pekerjaan: myFullProfile.pekerjaan || "",
-                    statusNikah: myFullProfile.statusNikah || "Belum Menikah",
                     hobi: myFullProfile.hobi || "",
                     makananMinumanFavorit: myFullProfile.makananMinumanFavorit || "",
                     instagram: myFullProfile.instagram || "",
                     kriteriaPasangan: myFullProfile.kriteriaPasangan || "",
+                    foto: myFullProfile.foto || "",
+                    kota: initKota,
+                    mandiriDesaId: myFullProfile.mandiriDesaId?.toString() || "",
+                    mandiriKelompokId: myFullProfile.mandiriKelompokId?.toString() || "",
                   });
                   setIsEditingProfile(true);
                 }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '14px', borderRadius: '14px', border: 'none', background: '#3b82f6', color: 'white', fontWeight: 800, fontSize: '15px', cursor: 'pointer', transition: '0.2s', width: '100%', marginBottom: '4px' }}>
@@ -1752,6 +1830,70 @@ export default function PublicKatalogPage() {
             <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '20px', fontWeight: 800, color: '#1e293b' }}>Edit Biodata</h3>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '60vh', overflowY: 'auto', paddingRight: '4px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '16px' }}>
+                <div 
+                   style={{ width: "100px", height: "100px", borderRadius: "50%", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", marginBottom: "12px", border: "2px solid #e2e8f0", cursor: editProfileForm.foto ? "zoom-in" : "default" }}
+                   onClick={() => {
+                        if (editProfileForm.foto) {
+                            Swal.fire({
+                                imageUrl: editProfileForm.foto,
+                                imageAlt: "Foto Profil",
+                                showConfirmButton: false,
+                                showCloseButton: true,
+                                width: "auto",
+                                padding: "1rem"
+                            });
+                        }
+                   }}
+                >
+                  {editProfileForm.foto ? (
+                    <img src={editProfileForm.foto} alt="Foto Baru" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                     <User size={40} color="#94a3b8" />
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <label style={{ background: "#3b82f6", color: "white", padding: "8px 16px", borderRadius: "8px", fontSize: "12px", fontWeight: "bold", cursor: uploadingFoto ? "not-allowed" : "pointer", opacity: uploadingFoto ? 0.7 : 1 }}>
+                    {uploadingFoto ? "Mengunggah..." : "Ganti Foto"}
+                    <input 
+                      type="file" 
+                      hidden 
+                      accept="image/jpeg,image/png,image/webp" 
+                      disabled={uploadingFoto}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 1 * 1024 * 1024) {
+                           Swal.fire("File Terlalu Besar", "Maksimal ukuran foto adalah 1MB.", "warning");
+                           return;
+                        }
+                        setUploadingFoto(true);
+                        const formData = new FormData();
+                        formData.append("file", file);
+                        try {
+                           const res = await fetch("/api/upload", { method: "POST", body: formData });
+                           const data = await res.json();
+                           if (res.ok && data.url) {
+                              setEditProfileForm({...editProfileForm, foto: data.url});
+                           } else {
+                              throw new Error(data.error || "Gagal upload");
+                           }
+                        } catch (err) {
+                           Swal.fire("Error", "Gagal mengunggah foto.", "error");
+                        } finally {
+                           setUploadingFoto(false);
+                        }
+                      }} 
+                    />
+                  </label>
+                  {editProfileForm.foto && (
+                     <button type="button" onClick={() => setEditProfileForm({...editProfileForm, foto: ""})} style={{ background: "#fee2e2", color: "#ef4444", border: "1px solid #fca5a5", padding: "8px 16px", borderRadius: "8px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}>
+                        Hapus Foto
+                     </button>
+                  )}
+                </div>
+                <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "8px" }}>Format JPG/PNG/WEBP maks 1MB.</div>
+              </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Nama Lengkap</label>
                 <input type="text" value={editProfileForm.nama} onChange={e => setEditProfileForm({...editProfileForm, nama: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
@@ -1776,31 +1918,43 @@ export default function PublicKatalogPage() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Tanggal Lahir</label>
-                  <input type="date" value={editProfileForm.tanggalLahir} onChange={e => setEditProfileForm({...editProfileForm, tanggalLahir: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', fontFamily: 'inherit' }} />
+                  <IndonesianDateInput value={editProfileForm.tanggalLahir} onChange={(val: string) => setEditProfileForm({...editProfileForm, tanggalLahir: val})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', fontFamily: 'inherit' }} />
                 </div>
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Alamat</label>
                 <textarea value={editProfileForm.alamat} onChange={e => setEditProfileForm({...editProfileForm, alamat: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', minHeight: '60px', fontFamily: 'inherit' }} />
               </div>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Daerah/Kota</label>
+                  <select value={editProfileForm.kota || ""} onChange={e => setEditProfileForm({...editProfileForm, kota: e.target.value, mandiriDesaId: "", mandiriKelompokId: ""})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }}>
+                    <option value="">Pilih Daerah/Kota</option>
+                    {kotaList.map(k => <option key={k} value={k}>{k}</option>)}
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Desa</label>
+                  <select value={editProfileForm.mandiriDesaId || ""} onChange={e => setEditProfileForm({...editProfileForm, mandiriDesaId: e.target.value, mandiriKelompokId: ""})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} disabled={!editProfileForm.kota}>
+                    <option value="">Pilih Desa</option>
+                    {wilayahList.filter(w => w.kota === editProfileForm.kota).map(w => <option key={w.id} value={w.id}>{w.nama}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Kelompok</label>
+                <select value={editProfileForm.mandiriKelompokId || ""} onChange={e => setEditProfileForm({...editProfileForm, mandiriKelompokId: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} disabled={!editProfileForm.mandiriDesaId}>
+                  <option value="">Pilih Kelompok</option>
+                  {kelompokList.filter(k => String(k.desaId) === String(editProfileForm.mandiriDesaId)).map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                </select>
+              </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Pendidikan</label>
-                <select value={editProfileForm.pendidikan} onChange={e => setEditProfileForm({...editProfileForm, pendidikan: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }}>
-                  <option value="">Pilih Pendidikan</option>
-                  {pendidikanList.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
+                <input type="text" value={editProfileForm.pendidikan} onChange={e => setEditProfileForm({...editProfileForm, pendidikan: e.target.value})} placeholder="S1/SMA/dll" style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Pekerjaan</label>
                 <input type="text" value={editProfileForm.pekerjaan} onChange={e => setEditProfileForm({...editProfileForm, pekerjaan: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Status Nikah</label>
-                <select value={editProfileForm.statusNikah} onChange={e => setEditProfileForm({...editProfileForm, statusNikah: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }}>
-                  <option value="Belum Menikah">Belum Menikah</option>
-                  <option value="Duda">Duda</option>
-                  <option value="Janda">Janda</option>
-                </select>
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Instagram</label>
@@ -1833,7 +1987,15 @@ export default function PublicKatalogPage() {
                     body: JSON.stringify({ nomorUnik: storedUnik, token: storedToken, ...editProfileForm }),
                   });
                   if (!res.ok) throw new Error("Gagal menyimpan");
-                  setMyFullProfile((prev: any) => ({ ...prev, ...editProfileForm }));
+                  
+                  const selectedWilayah = wilayahList.find(w => String(w.id) === String(editProfileForm.mandiriDesaId));
+                  
+                  setMyFullProfile((prev: any) => ({ 
+                    ...prev, 
+                    ...editProfileForm,
+                    mandiriDesaKota: editProfileForm.kota || prev.mandiriDesaKota,
+                    mandiriDesaNama: selectedWilayah ? selectedWilayah.nama : prev.mandiriDesaNama
+                  }));
                   setIsEditingProfile(false);
                   Swal.fire({ title: "Berhasil!", text: "Biodata berhasil diperbarui.", icon: "success", timer: 2000, showConfirmButton: false });
                 } catch (e) {
@@ -1916,7 +2078,6 @@ export default function PublicKatalogPage() {
                 <div className="dm-loc"><MapPin size={13} /><span>{sp.mandiriDesaKota || "-"} • {sp.mandiriDesaNama || sp.desaNama || "-"}</span></div>
                 <div className="dm-chips">
                   <span className="dm-chip">{isMale ? "👨 Laki-laki" : "👩 Perempuan"}</span>
-                  <span className="dm-chip">{sp.statusNikah || "Belum Menikah"}</span>
                   <span className="dm-chip"><UserCheck size={12} /> {sp.selectedCount || 0}/5</span>
                 </div>
               </div>

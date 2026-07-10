@@ -648,7 +648,21 @@ export default function MandiriPage() {
                                              </div>
                                           </td>
                                           <td data-label="Foto">
-                                             <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#f1f5f9", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>
+                                             <div 
+                                                style={{ width: 32, height: 32, borderRadius: "50%", background: "#f1f5f9", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, cursor: item.foto ? "zoom-in" : "default" }}
+                                                onClick={() => {
+                                                   if (item.foto) {
+                                                      Swal.fire({
+                                                         imageUrl: item.foto,
+                                                         imageAlt: `Foto ${item.nama}`,
+                                                         showConfirmButton: false,
+                                                         showCloseButton: true,
+                                                         width: "auto",
+                                                         padding: "1rem"
+                                                      });
+                                                   }
+                                                }}
+                                             >
                                                 {item.foto ? <img src={item.foto} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : item.nama.charAt(0)}
                                              </div>
                                           </td>
@@ -754,7 +768,22 @@ export default function MandiriPage() {
                                     </div>
 
                                     <div className="profile-row">
-                                       <div className="avatar-wrapper">
+                                       <div 
+                                          className="avatar-wrapper"
+                                          style={{ cursor: item.foto ? "zoom-in" : "default" }}
+                                          onClick={() => {
+                                             if (item.foto) {
+                                                Swal.fire({
+                                                   imageUrl: item.foto,
+                                                   imageAlt: `Foto ${item.nama}`,
+                                                   showConfirmButton: false,
+                                                   showCloseButton: true,
+                                                   width: "auto",
+                                                   padding: "1rem"
+                                                });
+                                             }
+                                          }}
+                                       >
                                           {item.foto ? (
                                              <img src={item.foto} alt={item.nama} className="avatar-img" />
                                           ) : (

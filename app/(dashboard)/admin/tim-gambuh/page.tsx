@@ -15,6 +15,8 @@ import {
   ToggleRight,
   Upload,
   X,
+  Mars,
+  Venus,
 } from "lucide-react";
 
 type TimGambuhType =
@@ -1072,8 +1074,6 @@ export default function AdminTimGambuhPage() {
                 <option value="All">Semua Tipe</option>
                 <option value="PNKB">PNKB</option>
                 <option value="Ibu Gambuh">Ibu Gambuh</option>
-                <option value="Penunggu PNKB">Penunggu PNKB</option>
-                <option value="Penunggu Ibu Gambuh">Penunggu Ibu Gambuh</option>
               </select>
             </div>
 
@@ -1331,7 +1331,14 @@ export default function AdminTimGambuhPage() {
                               : "#dc2626",
                         }}
                       >
-                        <Shield size={12} /> {member.tipe}
+                        {member.tipe === "PNKB" || member.tipe === "Penunggu PNKB" ? (
+                          <Mars size={12} />
+                        ) : member.tipe === "Ibu Gambuh" || member.tipe === "Penunggu Ibu Gambuh" ? (
+                          <Venus size={12} />
+                        ) : (
+                          <Shield size={12} />
+                        )}{" "}
+                        {member.tipe}
                       </span>
                     </td>
 

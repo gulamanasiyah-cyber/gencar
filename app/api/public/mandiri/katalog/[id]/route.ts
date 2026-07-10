@@ -37,7 +37,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         kelompokNama: kelompok.nama,
         mandiriDesaNama: mandiriDesa.nama,
         mandiriDesaKota: mandiriDaerah.nama,
+        mandiriDesaId: generus.mandiriDesaId,
         mandiriKelompokNama: mandiriKelompok.nama,
+        mandiriKelompokId: generus.mandiriKelompokId,
         createdAt: generus.createdAt,
         tempatLahir: generus.tempatLahir,
         tanggalLahir: generus.tanggalLahir,
@@ -79,7 +81,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   try {
     const { id } = params;
     const body = await request.json();
-    const { nomorUnik, token, nama, tempatLahir, tanggalLahir, jenisKelamin, alamat, suku, pendidikan, pekerjaan, statusNikah, hobi, makananMinumanFavorit, instagram, kriteriaPasangan } = body;
+    const { nomorUnik, token, nama, tempatLahir, tanggalLahir, jenisKelamin, alamat, suku, pendidikan, pekerjaan, statusNikah, hobi, makananMinumanFavorit, instagram, kriteriaPasangan, mandiriDesaId, mandiriKelompokId } = body;
 
     if (!nomorUnik || !token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -121,6 +123,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       makananMinumanFavorit,
       instagram,
       kriteriaPasangan,
+      mandiriDesaId: mandiriDesaId || null,
+      mandiriKelompokId: mandiriKelompokId || null,
       updatedAt: new Date().toISOString()
     }).where(eq(generus.id, id));
 
