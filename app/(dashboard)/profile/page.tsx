@@ -32,6 +32,14 @@ interface ProfileData {
   desaNama: string | null;
   kelompokNama: string | null;
   role?: string;
+  timGambuhId?: string;
+  timGambuhDaerahId?: number;
+  timGambuhDesaId?: number;
+  timGambuhKelompokId?: number;
+  timGambuhDaerahNama?: string;
+  timGambuhDesaNama?: string;
+  timGambuhKelompokNama?: string;
+  timGambuhTipe?: string;
   instagram?: string | null;
   kota?: string | null;
   mandiriDesaNama?: string | null;
@@ -62,10 +70,19 @@ export default function ProfilePage() {
     makananMinumanFavorit: "",
     suku: "",
     foto: "",
+    tgDaerahId: "",
+    tgDesaId: "",
+    timGambuhDaerahId: "",
+    timGambuhDesaId: "",
+    timGambuhKelompokId: "",
+    tipeTimGambuh: "",
+    umur: "",
   });
-  const [daerahList, setDaerahList] = useState<DaerahOption[]>([]);
-  const [desaList, setDesaList] = useState<DesaOption[]>([]);
-  const [kelompokList, setKelompokList] = useState<KelompokOption[]>([]);
+  const [daerahList, setDaerahList] = useState<any[]>([]);
+  const [desaList, setDesaList] = useState<any[]>([]);
+  const [filteredDesaList, setFilteredDesaList] = useState<any[]>([]);
+  const [kelompokList, setKelompokList] = useState<any[]>([]);
+  const [filteredKelompokList, setFilteredKelompokList] = useState<any[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const idCardCanvasRef = useRef<HTMLCanvasElement>(null);
   const printRef = useRef<HTMLDivElement>(null);
@@ -95,6 +112,13 @@ export default function ProfilePage() {
           makananMinumanFavorit: json.makananMinumanFavorit || "",
           suku: json.suku || "",
           foto: json.foto || "",
+          tgDaerahId: "",
+          tgDesaId: "",
+          timGambuhDaerahId: "",
+          timGambuhDesaId: "",
+          timGambuhKelompokId: "",
+          tipeTimGambuh: "",
+          umur: "",
         });
         
       }
@@ -133,7 +157,7 @@ export default function ProfilePage() {
     e.preventDefault();
     setSaving(true);
     try {
-      if (data && isTimPnkbGambuhRole(data.role) && data.timGambuhId) {
+      if (data && (data?.role === "tim_pnkb_gambuh" || data?.role === "tim_pnkb") && data.timGambuhId) {
         if (!editForm.nama.trim() || !editForm.tipeTimGambuh || !editForm.timGambuhDaerahId || !editForm.timGambuhDesaId || !editForm.timGambuhKelompokId) {
           Swal.fire({
             icon: 'warning',
@@ -201,7 +225,7 @@ export default function ProfilePage() {
       if (res.ok) {
         setShowEditModal(false);
         if (json.data) {
-          setProfileState(json.data);
+          setData(json.data);
           // Refresh router to update sidebar/layout with new session data
           router.refresh();
           setEditForm({
@@ -219,6 +243,13 @@ export default function ProfilePage() {
             makananMinumanFavorit: json.data.makananMinumanFavorit || "",
             suku: json.data.suku || "",
             foto: json.data.foto || "",
+            tgDaerahId: "",
+            tgDesaId: "",
+            timGambuhDaerahId: "",
+            timGambuhDesaId: "",
+            timGambuhKelompokId: "",
+            tipeTimGambuh: "",
+            umur: "",
           });
         } else {
           await fetchProfile();
@@ -274,7 +305,7 @@ export default function ProfilePage() {
   if (error) return <div className="alert alert-error">{error}</div>;
   if (!data) return null;
 
-  const isTimGambuhProfile = isTimPnkbGambuhRole(data.role);
+  const isTimGambuhProfile = (data?.role === "tim_pnkb_gambuh" || data?.role === "tim_pnkb");
   const filteredTimDesaList = editForm.timGambuhDaerahId
     ? desaList.filter((d) => d.mandiriDaerahId === Number(editForm.timGambuhDaerahId))
     : [];
@@ -354,10 +385,12 @@ export default function ProfilePage() {
               </div>
               <div className="card-body">
                 <div className="data-grid">
-                  <div className="data-item">
-                    <label>Tempat, Tanggal Lahir</label>
-                    <div>{data.tempatLahir || "-"}, {data.tanggalLahir || "-"}</div>
-                  </div>
+                  {!isTimGambuhProfile && (
+                    <div className="data-item">
+                      <label>Tempat, Tanggal Lahir</label>
+                      <div>{data.tempatLahir || "-"}, {data.tanggalLahir || "-"}</div>
+                    </div>
+                  )}
                   <div className="data-item">
                     <label>Jenis Kelamin</label>
                     <div>{data.jenisKelamin === "L" ? "Laki-laki" : "Perempuan"}</div>
@@ -375,7 +408,7 @@ export default function ProfilePage() {
                     <div>{data.noTelp || "-"}</div>
                   </div>
 
-                  {isTimGambuh && (
+                  {isTimGambuhProfile && (
                     <>
                       <div className="data-item">
                         <label>Asal Daerah (Tim Gambuh)</label>
@@ -560,58 +593,42 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                <div className="form-row">
-                  <div className="form-group floating-group">
-                    <input
-                      type="text"
-                      className="form-control premium-input"
-                      value={editForm.tempatLahir}
-                      placeholder=" "
-                      onChange={(e) => setEditForm({ ...editForm, tempatLahir: e.target.value })}
-                    />
-                    <label className="floating-label">Tempat Lahir</label>
-                  </div>
-                  <div className="form-group floating-group">
-                    <input
-                      type="date"
-                      className="form-control premium-input"
-                      value={editForm.tanggalLahir}
-                      placeholder=" "
-                      onChange={(e) => setEditForm({ ...editForm, tanggalLahir: e.target.value })}
-                    />
-                    <label className="floating-label" style={{ top: '-10px', fontSize: '12px', color: '#3b82f6', fontWeight: 500 }}>Tanggal Lahir</label>
-                  </div>
-                </div>
-
-                {isTimGambuh && (
+                {!isTimGambuhProfile && (
                   <div className="form-row">
                     <div className="form-group floating-group">
                       <input
-                        type="number"
+                        type="text"
                         className="form-control premium-input"
-                        value={editForm.umur}
+                        value={editForm.tempatLahir}
                         placeholder=" "
-                        min="1"
-                        onChange={(e) => setEditForm({ ...editForm, umur: e.target.value })}
+                        onChange={(e) => setEditForm({ ...editForm, tempatLahir: e.target.value })}
                       />
-                      <label className="floating-label">Umur (Khusus Tim)</label>
+                      <label className="floating-label">Tempat Lahir</label>
                     </div>
-                    <div className="form-group">
-                      <label className="form-label text-sm text-muted mb-2">Tipe Tim</label>
-                      <div className="custom-select-wrapper">
-                        <select
-                          className="form-control premium-input custom-select"
-                          value={editForm.tipeTimGambuh}
-                          onChange={(e) => setEditForm({ ...editForm, tipeTimGambuh: e.target.value })}
-                        >
-                          <option value="PNKB">PNKB (Laki-laki)</option>
-                          <option value="Ibu Gambuh">Ibu Gambuh (Perempuan)</option>
-                        </select>
-                        <svg className="select-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                      </div>
+                    <div className="form-group floating-group">
+                      <input
+                        type="date"
+                        className="form-control premium-input"
+                        value={editForm.tanggalLahir}
+                        placeholder=" "
+                        onChange={(e) => setEditForm({ ...editForm, tanggalLahir: e.target.value })}
+                      />
+                      <label className="floating-label" style={{ top: '-10px', fontSize: '12px', color: '#3b82f6', fontWeight: 500 }}>Tanggal Lahir</label>
                     </div>
+                  </div>
+                )}
+
+                {isTimGambuhProfile && (
+                  <div className="form-group floating-group">
+                    <input
+                      type="number"
+                      className="form-control premium-input"
+                      value={editForm.umur}
+                      placeholder=" "
+                      min="1"
+                      onChange={(e) => setEditForm({ ...editForm, umur: e.target.value })}
+                    />
+                    <label className="floating-label">Umur (Khusus Tim)</label>
                   </div>
                 )}
 

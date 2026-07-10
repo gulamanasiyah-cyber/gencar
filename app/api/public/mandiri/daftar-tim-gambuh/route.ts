@@ -7,13 +7,13 @@ import { v4 as uuidv4 } from "uuid";
 
 export async function POST(request: NextRequest) {
   try {
-    const { nama, noTelp, daerahId, desaId, kelompokId, tipe } = await request.json();
+    const { nama, umur, noTelp, daerahId, desaId, kelompokId, tipe, foto } = await request.json();
 
-    if (!nama || !umur || !noTelp || !tipe || !daerahId || !desaId || !kelompokId) {
-      return NextResponse.json({ error: "Nama, Umur, No WhatsApp, Tipe, Daerah, Desa, dan Kelompok wajib diisi" }, { status: 400 });
+    if (!nama || !umur || !noTelp || !tipe || !daerahId || !desaId || !kelompokId || !foto) {
+      return NextResponse.json({ error: "Nama, Umur, No WhatsApp, Tipe, Daerah, Desa, Kelompok, dan Foto wajib diisi" }, { status: 400 });
     }
 
-    if (!["PNKB", "Ibu Gambuh", "Penunggu PNKB", "Penunggu Ibu Gambuh"].includes(tipe)) {
+    if (!["PNKB", "Ibu Gambuh", "Penunggu PNKB", "Penunggu Ibu Gambuh", "Tim Penunggu"].includes(tipe)) {
       return NextResponse.json({ error: "Tipe tidak valid" }, { status: 400 });
     }
 
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       daerahId: daerahId ? Number(daerahId) : null,
       desaId: desaId ? Number(desaId) : null,
       kelompokId: kelompokId ? Number(kelompokId) : null,
-      tipe: tipe as "PNKB" | "Ibu Gambuh" | "Penunggu PNKB" | "Penunggu Ibu Gambuh",
+      tipe: tipe as "PNKB" | "Ibu Gambuh" | "Tim Penunggu" | "Penunggu PNKB" | "Penunggu Ibu Gambuh",
       noTelp: noTelp,
       foto: foto || null
     });

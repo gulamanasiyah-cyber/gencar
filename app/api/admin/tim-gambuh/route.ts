@@ -77,13 +77,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Tidak ada kegiatan mandiri yang sedang aktif" }, { status: 400 });
     }
 
-    const { nama, daerahId, desaId, tipe } = await request.json();
+    const { nama, daerahId, desaId, tipe, umur, kelompokId, noTelp, foto } = await request.json();
 
     if (!nama || !tipe) {
       return NextResponse.json({ error: "Nama dan Tipe wajib diisi" }, { status: 400 });
     }
 
-    if (!["PNKB", "Ibu Gambuh", "Penunggu PNKB", "Penunggu Ibu Gambuh"].includes(tipe)) {
+    if (!["PNKB", "Ibu Gambuh", "Penunggu PNKB", "Penunggu Ibu Gambuh", "Tim Penunggu"].includes(tipe)) {
       return NextResponse.json({ error: "Tipe tidak valid" }, { status: 400 });
     }
 
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       daerahId: daerahId ? Number(daerahId) : null,
       desaId: desaId ? Number(desaId) : null,
       kelompokId: kelompokId ? Number(kelompokId) : null,
-      tipe: tipe as "PNKB" | "Ibu Gambuh" | "Penunggu PNKB" | "Penunggu Ibu Gambuh",
+      tipe: tipe as "PNKB" | "Ibu Gambuh" | "Tim Penunggu" | "Penunggu PNKB" | "Penunggu Ibu Gambuh",
       noTelp: noTelp || null,
       foto: foto || null,
     });
