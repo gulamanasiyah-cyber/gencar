@@ -667,51 +667,6 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
         .lp-sw-thumb-item:hover .lp-sw-thumb-title { color: var(--primary); }
         .lp-sw-thumb-date { font-size: 10.5px; color: var(--gray-lt); }
 
-        /* CTA Widget */
-        .lp-widget-cta {
-          background: linear-gradient(135deg, #dc2626, #b91c1c 40%, #7c3aed);
-          padding: 24px 20px;
-          text-align: center;
-          position: relative;
-          overflow: hidden;
-        }
-        .lp-widget-cta::before {
-          content: '';
-          position: absolute; top: -30px; right: -30px;
-          width: 100px; height: 100px;
-          border-radius: 50%;
-          background: rgba(255,255,255,0.06);
-        }
-        .lp-widget-cta::after {
-          content: '';
-          position: absolute; bottom: -20px; left: -20px;
-          width: 80px; height: 80px;
-          border-radius: 50%;
-          background: rgba(255,255,255,0.04);
-        }
-        .lp-cta-icon { font-size: 36px; margin-bottom: 12px; }
-        .lp-cta-title {
-          font-size: 16px; font-weight: 800; color: white;
-          margin-bottom: 8px; line-height: 1.3;
-        }
-        .lp-cta-desc {
-          font-size: 12px; color: rgba(255,255,255,0.7);
-          line-height: 1.7; margin-bottom: 16px;
-        }
-        .lp-cta-btn {
-          display: inline-block;
-          background: white;
-          color: #b91c1c;
-          font-size: 13px; font-weight: 800;
-          padding: 10px 24px;
-          border-radius: 100px;
-          transition: all 0.22s;
-          position: relative; z-index: 1;
-        }
-        .lp-cta-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 20px rgba(0,0,0,0.25);
-        }
 
         /* Visitor Stats Widget */
         .lp-visitor-stats {
@@ -1028,65 +983,24 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
         </section>
       )}
 
-      {/* ═══ HERO + POPULAR SIDEBAR ROW ═══ */}
-      <div className="lp-wrap" style={{ marginTop: '28px', marginBottom: '8px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 316px', gap: '24px', alignItems: 'start' }} className="responsive-hero-grid">
-          {/* Hero Slider */}
-          <div style={{ minWidth: 0 }}>
-            {query ? (
-              <div style={{ background: 'white', borderRadius: '16px', padding: '20px', border: '1px solid var(--border)' }}>
-                <div className="lp-sect-hd">
-                  <span className="lp-sect-hd-title">Hasil Pencarian: "{query}"</span>
-                  <Link href="/" className="lp-sect-more">Hapus ×</Link>
-                </div>
-              </div>
-            ) : (
-              <FeaturedArticleSlider articles={heroSliderArticles} />
-            )}
-          </div>
-
-          {/* Popular Articles Sidebar */}
-          <div className="lp-widget" style={{ display: 'none' }} id="hero-popular-sidebar">
-            <div className="lp-widget-head">
-              <span className="lp-widget-head-bar" />
-              <span className="lp-widget-title">Terpopuler</span>
-            </div>
-            <div className="lp-widget-body">
-              {popularArticles.map((item) => (
-                <Link href={`/artikel/${item.id}`} key={item.id} className="lp-sw-thumb-item">
-                  <div className="lp-sw-thumb">
-                    {item.coverImage
-                      ? <img src={item.coverImage} alt={item.judul} />
-                      : <div className="lp-sw-thumb-placeholder">📰</div>
-                    }
-                  </div>
-                  <div className="lp-sw-thumb-body">
-                    <div className="lp-sw-thumb-title">{item.judul}</div>
-                    <div className="lp-sw-thumb-date" suppressHydrationWarning>{timeAgo(item.publishedAt)}</div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Hero Popular Sidebar CSS override for desktop show */}
-      <style>{`
-        @media (min-width: 769px) {
-          #hero-popular-sidebar { display: block !important; }
-          .responsive-hero-grid { grid-template-columns: minmax(0, 1fr) 316px !important; }
-        }
-        @media (max-width: 768px) {
-          .responsive-hero-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-
       {/* ═══ MAIN CONTENT LAYOUT ═══ */}
       <div id="beranda" className="lp-main-layout" suppressHydrationWarning>
 
         {/* ─── LEFT COLUMN ─── */}
         <div>
+          {query ? (
+            <div style={{ background: 'white', borderRadius: '16px', padding: '20px', border: '1px solid var(--border)', marginBottom: '28px' }}>
+              <div className="lp-sect-hd" style={{ marginBottom: 0 }}>
+                <span className="lp-sect-hd-title">Hasil Pencarian: "{query}"</span>
+                <Link href="/" className="lp-sect-more">Hapus ×</Link>
+              </div>
+            </div>
+          ) : (
+            <div style={{ minWidth: 0, marginBottom: '28px' }}>
+              <FeaturedArticleSlider articles={heroSliderArticles} />
+            </div>
+          )}
+
           {query ? (
             <div>
               {articles.length === 0 && news.length === 0 ? (
@@ -1205,6 +1119,30 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
         {/* ─── RIGHT COLUMN (SIDEBAR) ─── */}
         <div className="lp-sidebar">
 
+          {/* Terpopuler */}
+          <div className="lp-widget">
+            <div className="lp-widget-head">
+              <span className="lp-widget-head-bar" />
+              <span className="lp-widget-title">Terpopuler</span>
+            </div>
+            <div className="lp-widget-body">
+              {popularArticles.map((item) => (
+                <Link href={`/artikel/${item.id}`} key={item.id} className="lp-sw-thumb-item">
+                  <div className="lp-sw-thumb">
+                    {item.coverImage
+                      ? <img src={item.coverImage} alt={item.judul} />
+                      : <div className="lp-sw-thumb-placeholder">📰</div>
+                    }
+                  </div>
+                  <div className="lp-sw-thumb-body">
+                    <div className="lp-sw-thumb-title">{item.judul}</div>
+                    <div className="lp-sw-thumb-date" suppressHydrationWarning>{timeAgo(item.publishedAt)}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+
           {/* Visitor Stats */}
           <div className="lp-widget">
             <div className="lp-widget-head">
@@ -1296,15 +1234,6 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
             </div>
           </div>
 
-          {/* CTA Widget */}
-          <div className="lp-widget" style={{ overflow: 'hidden' }}>
-            <div className="lp-widget-cta">
-              <div className="lp-cta-icon">✍️</div>
-              <div className="lp-cta-title">Tulis Artikel & Berita</div>
-              <p className="lp-cta-desc">Punya cerita inspiratif? Jadilah kontributor dan bagikan karya tulismu ke sesama generus!</p>
-              <Link href="/register" className="lp-cta-btn">Mulai Menulis →</Link>
-            </div>
-          </div>
 
           {/* Jadwal Sholat */}
           <div className="lp-widget" style={{ overflow: 'hidden' }}>
