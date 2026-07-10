@@ -1133,6 +1133,19 @@ export default function AdminTimGambuhPage() {
                   <th
                     style={{
                       padding: "12px 16px",
+                      textAlign: "center",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                      color: "#64748b",
+                      width: "80px",
+                    }}
+                  >
+                    FOTO
+                  </th>
+
+                  <th
+                    style={{
+                      padding: "12px 16px",
                       textAlign: "left",
                       fontSize: "12px",
                       fontWeight: "700",
@@ -1210,6 +1223,74 @@ export default function AdminTimGambuhPage() {
                     key={member.id}
                     style={{ borderBottom: "1px solid #e2e8f0" }}
                   >
+                    <td
+                      data-label="FOTO"
+                      style={{
+                        padding: "16px",
+                        textAlign: "center",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "48px",
+                          height: "48px",
+                          borderRadius: "50%",
+                          background:
+                            member.tipe === "Ibu Gambuh" ||
+                              member.tipe === "Penunggu Ibu Gambuh"
+                              ? "#fdf2f8"
+                              : "#eff6ff",
+                          color:
+                            member.tipe === "Ibu Gambuh" ||
+                              member.tipe === "Penunggu Ibu Gambuh"
+                              ? "#be185d"
+                              : "#2563eb",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          overflow: "hidden",
+                          fontSize: "18px",
+                          fontWeight: 700,
+                          border: "2px solid #e2e8f0",
+                          cursor: member.foto ? "zoom-in" : "default",
+                        }}
+                        onClick={() => {
+                          if (member.foto) {
+                            Swal.fire({
+                              imageUrl: member.foto,
+                              imageAlt: `Foto ${member.nama}`,
+                              showConfirmButton: false,
+                              showCloseButton: true,
+                              width: "auto",
+                              padding: "1rem",
+                            });
+                          }
+                        }}
+                        title={member.foto ? "Klik untuk memperbesar" : undefined}
+                      >
+                        {member.foto ? (
+                          <img
+                            src={member.foto}
+                            alt={`Foto ${member.nama}`}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                              transition: "transform 0.3s ease",
+                            }}
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.transform = "scale(1.15)";
+                            }}
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.transform = "scale(1)";
+                            }}
+                          />
+                        ) : (
+                          (member.nama || "T").charAt(0).toUpperCase()
+                        )}
+                      </div>
+                    </td>
+
                     <td
                       data-label="NAMA"
                       style={{
@@ -1323,7 +1404,7 @@ export default function AdminTimGambuhPage() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            zIndex: 9999,
+            zIndex: 1000,
           }}
         >
           <div
@@ -1359,8 +1440,8 @@ export default function AdminTimGambuhPage() {
               >
                 <div
                   style={{
-                    width: "88px",
-                    height: "88px",
+                    width: "110px",
+                    height: "110px",
                     borderRadius: "50%",
                     background:
                       form.tipe === "Ibu Gambuh" ||
@@ -1376,11 +1457,25 @@ export default function AdminTimGambuhPage() {
                     alignItems: "center",
                     justifyContent: "center",
                     overflow: "hidden",
-                    fontSize: "34px",
+                    fontSize: "40px",
                     fontWeight: 800,
-                    border: "2px solid #e2e8f0",
+                    border: "3px solid #e2e8f0",
                     margin: "0 auto 12px",
+                    cursor: form.foto ? "zoom-in" : "default",
                   }}
+                  onClick={() => {
+                    if (form.foto) {
+                      Swal.fire({
+                        imageUrl: form.foto,
+                        imageAlt: "Foto anggota",
+                        showConfirmButton: false,
+                        showCloseButton: true,
+                        width: "auto",
+                        padding: "1rem",
+                      });
+                    }
+                  }}
+                  title={form.foto ? "Klik untuk memperbesar" : undefined}
                 >
                   {form.foto ? (
                     <img
@@ -1390,6 +1485,13 @@ export default function AdminTimGambuhPage() {
                         width: "100%",
                         height: "100%",
                         objectFit: "cover",
+                        transition: "transform 0.3s ease",
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.transform = "scale(1.15)";
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.transform = "scale(1)";
                       }}
                     />
                   ) : (
