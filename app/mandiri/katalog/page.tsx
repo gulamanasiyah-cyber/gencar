@@ -423,7 +423,7 @@ export default function PublicKatalogPage() {
         }
 
         // Concurrent fetching for all parallelizable initial endpoints
-        const [titleRes, descRes, filterRes, boxLoveRes, katalogStatusRes, profileRes, checkStatusRes] = await Promise.all([
+        const [titleRes, descRes, filterRes, boxLoveRes, katalogStatusRes, profileRes, checkStatusRes, desaRes, kelRes] = await Promise.all([
           fetch("/api/public/mandiri/settings?key=mandiri_registration_title", { cache: "no-store" }),
           fetch("/api/public/mandiri/settings?key=mandiri_registration_description", { cache: "no-store" }),
           fetch("/api/public/mandiri/filters", { cache: "no-store" }),
@@ -434,7 +434,9 @@ export default function PublicKatalogPage() {
             nomorUnik: storedUnik,
             ...(storedToken ? { sessionToken: storedToken } : {}),
             deviceId,
-          })}`, { cache: "no-store" }) : Promise.resolve(null)
+          })}`, { cache: "no-store" }) : Promise.resolve(null),
+          fetch("/api/public/mandiri/desa", { cache: "no-store" }).catch(() => null),
+          fetch("/api/public/mandiri/kelompok", { cache: "no-store" }).catch(() => null)
         ]);
 
         let title = "KATALOG PESERTA dan PANITIA";
@@ -446,14 +448,27 @@ export default function PublicKatalogPage() {
         if (filterRes.ok) {
           const filterJson = await filterRes.json();
           setPendidikanList(filterJson.pendidikan || []);
-          setKotaList(filterJson.kota || []);
-          setWilayahList(filterJson.wilayah || []);
-          setKelompokList(filterJson.kelompok || []);
           setPekerjaanList(filterJson.pekerjaan || []);
           setUmurList(filterJson.umur || []);
           setKriteriaList(filterJson.kriteriaPasangan || []);
           setHobiList(filterJson.hobi || []);
           setMakananList(filterJson.makanan || []);
+        }
+
+        if (desaRes && desaRes.ok) {
+          const desas = await desaRes.json();
+          if (Array.isArray(desas)) {
+            setWilayahList(desas);
+            const cities = Array.from(new Set(desas.map((d: any) => d.kota || d.daerahNama || ""))).filter(Boolean).sort() as string[];
+            setKotaList(cities);
+          }
+        }
+
+        if (kelRes && kelRes.ok) {
+          const kelompoks = await kelRes.json();
+          if (Array.isArray(kelompoks)) {
+            setKelompokList(kelompoks);
+          }
         }
 
         if (boxLoveRes.ok) {
@@ -1130,17 +1145,17 @@ export default function PublicKatalogPage() {
                 </div>
 
                 <div className="select-container">
-                  <select className="select-box" value={desaFilter} onChange={(e) => { setDesaFilter(e.target.value); setKelompokFilter("all"); setPage(1); }} disabled={selectedKota === "all"}>
+                  <select className="select-box" value={desaFilter} onChange={(e) => { setDesaFilter(e.target.value); setKelompokFilter("all"); setPage(1); }}>
                     <option value="all">Semua Desa</option>
-                    {wilayahList.filter(w => w.kota === selectedKota).map(w => <option key={w.id} value={w.id}>{w.nama}</option>)}
+                    {wilayahList.filter(w => selectedKota === "all" || w.kota === selectedKota).map(w => <option key={w.id} value={w.id}>{w.nama}</option>)}
                   </select>
                   <ChevronDown size={14} className="select-arrow" />
                 </div>
 
                 <div className="select-container">
-                  <select className="select-box" value={kelompokFilter} onChange={(e) => { setKelompokFilter(e.target.value); setPage(1); }} disabled={desaFilter === "all"}>
+                  <select className="select-box" value={kelompokFilter} onChange={(e) => { setKelompokFilter(e.target.value); setPage(1); }}>
                     <option value="all">Semua Kelompok</option>
-                    {kelompokList.filter(k => String(k.desaId) === desaFilter).map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                    {kelompokList.filter(k => desaFilter === "all" || String(k.desaId || k.mandiriDesaId) === desaFilter).map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
                   </select>
                   <ChevronDown size={14} className="select-arrow" />
                 </div>
@@ -1945,7 +1960,7 @@ export default function PublicKatalogPage() {
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Kelompok</label>
                 <select value={editProfileForm.mandiriKelompokId || ""} onChange={e => setEditProfileForm({...editProfileForm, mandiriKelompokId: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} disabled={!editProfileForm.mandiriDesaId}>
                   <option value="">Pilih Kelompok</option>
-                  {kelompokList.filter(k => String(k.desaId) === String(editProfileForm.mandiriDesaId)).map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                  {kelompokList.filter(k => String(k.desaId || k.mandiriDesaId) === String(editProfileForm.mandiriDesaId)).map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
                 </select>
               </div>
               <div>
