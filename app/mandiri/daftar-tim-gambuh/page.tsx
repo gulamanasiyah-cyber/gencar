@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Swal from "sweetalert2";
 import Link from "next/link";
 
@@ -32,6 +32,96 @@ export default function DaftarTimGambuhPage() {
   const [registeredIdentity, setRegisteredIdentity] = useState<RegisteredIdentity | null>(null);
   const [isClosed, setIsClosed] = useState(false);
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
+
+  // Live Camera states
+  const [showCamera, setShowCamera] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  // Initialize and manage camera stream
+  useEffect(() => {
+    let activeStream: MediaStream | null = null;
+
+    async function initCamera() {
+      if (!showCamera) return;
+      try {
+        setCameraError(null);
+        const constraints: MediaStreamConstraints = {
+          video: {
+            facingMode: facingMode,
+            width: { ideal: 640 },
+            height: { ideal: 640 },
+          },
+          audio: false,
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        activeStream = stream;
+        setCameraStream(stream);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (err: any) {
+        console.error("Gagal membuka kamera:", err);
+        setCameraError(
+          "Gagal mengakses kamera. Silakan pastikan izin kamera diizinkan untuk situs ini."
+        );
+      }
+    }
+
+    initCamera();
+
+    return () => {
+      if (activeStream) {
+        activeStream.getTracks().forEach((track) => track.stop());
+      }
+      setCameraStream(null);
+    };
+  }, [showCamera, facingMode]);
+
+  const handleCapture = () => {
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const canvas = document.createElement("canvas");
+      const size = Math.min(video.videoWidth, video.videoHeight);
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        // Draw the center square of the video frame
+        const sx = (video.videoWidth - size) / 2;
+        const sy = (video.videoHeight - size) / 2;
+        ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+        setCapturedImage(dataUrl);
+      }
+    }
+  };
+
+  const handleSwitchCamera = () => {
+    setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
+  };
+
+  const handleUsePhoto = async () => {
+    if (!capturedImage) return;
+    try {
+      setUploadingFoto(true);
+      setShowCamera(false);
+
+      // Convert dataURL to Blob/File and upload
+      const res = await fetch(capturedImage);
+      const blob = await res.blob();
+      const file = new File([blob], "camera_capture.jpg", { type: "image/jpeg" });
+
+      await handleFotoUpload(file);
+    } catch (err: any) {
+      Swal.fire({ icon: "error", title: "Gagal Menggunakan Foto", text: err.message });
+    } finally {
+      setCapturedImage(null);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -280,26 +370,43 @@ export default function DaftarTimGambuhPage() {
                   )}
                 </div>
                 <div style={{ flex: 1, textAlign: "left" }}>
-                  <label className="btn btn-secondary" style={{ cursor: uploadingFoto ? "not-allowed" : "pointer", marginBottom: "8px", display: "inline-flex" }}>
-                    {uploadingFoto ? "Mengunggah..." : "Upload Foto"}
-                    <input
-                      type="file"
-                      hidden
-                      accept="image/*"
-                      disabled={uploadingFoto}
-                      onChange={(e) => handleFotoUpload(e.target.files?.[0])}
-                    />
-                  </label>
-                  {form.foto && (
+                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "8px" }}>
+                    <label className="btn btn-secondary" style={{ cursor: uploadingFoto ? "not-allowed" : "pointer", display: "inline-flex", margin: 0 }}>
+                      {uploadingFoto ? "Mengunggah..." : "Upload Foto"}
+                      <input
+                        type="file"
+                        hidden
+                        accept="image/*"
+                        disabled={uploadingFoto}
+                        onChange={(e) => handleFotoUpload(e.target.files?.[0])}
+                      />
+                    </label>
                     <button
                       type="button"
                       className="btn btn-secondary"
-                      style={{ marginLeft: "8px" }}
-                      onClick={() => setForm((prev) => ({ ...prev, foto: "" }))}
+                      style={{ cursor: uploadingFoto ? "not-allowed" : "pointer", display: "inline-flex", gap: "6px" }}
+                      disabled={uploadingFoto}
+                      onClick={() => {
+                        setCapturedImage(null);
+                        setShowCamera(true);
+                      }}
                     >
-                      Hapus
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                        <circle cx="12" cy="13" r="4"></circle>
+                      </svg>
+                      Kamera Live
                     </button>
-                  )}
+                    {form.foto && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => setForm((prev) => ({ ...prev, foto: "" }))}
+                      >
+                        Hapus
+                      </button>
+                    )}
+                  </div>
                   <small style={{ color: "var(--text-muted)", fontSize: "11px", display: "block" }}>Format JPG, PNG, WEBP. Maksimal 1MB.</small>
                 </div>
               </div>
@@ -359,6 +466,205 @@ export default function DaftarTimGambuhPage() {
           </div>
         </form>
       </div>
+
+      {showCamera && (
+        <div className="modal-overlay" style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(15, 23, 42, 0.85)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 10000,
+          padding: "16px",
+          backdropFilter: "blur(4px)",
+        }}>
+          <div className="modal" style={{
+            background: "var(--bg-card)",
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "var(--shadow-xl)",
+            width: "100%",
+            maxWidth: "480px",
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            border: "1px solid var(--border)",
+          }}>
+            {/* Header */}
+            <div className="modal-header" style={{
+              padding: "16px 20px",
+              borderBottom: "1px solid var(--border)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}>
+              <h3 className="modal-title" style={{ fontSize: "16px", fontWeight: "700", display: "flex", alignItems: "center", gap: "8px", margin: 0 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                  <circle cx="12" cy="13" r="4"></circle>
+                </svg>
+                Ambil Foto Live
+              </h3>
+              <button
+                className="modal-close"
+                type="button"
+                onClick={() => {
+                  setShowCamera(false);
+                  setCapturedImage(null);
+                }}
+                style={{
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "50%",
+                  border: "none",
+                  background: "#f1f5f9",
+                  color: "#64748b",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="modal-body" style={{
+              padding: "20px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "20px",
+            }}>
+              {cameraError ? (
+                <div style={{
+                  color: "#ef4444",
+                  background: "#fef2f2",
+                  padding: "16px",
+                  borderRadius: "8px",
+                  textAlign: "center",
+                  fontSize: "14px",
+                  width: "100%",
+                }}>
+                  {cameraError}
+                </div>
+              ) : (
+                <div style={{
+                  position: "relative",
+                  width: "100%",
+                  aspectRatio: "1/1",
+                  background: "#000",
+                  borderRadius: "12px",
+                  overflow: "hidden",
+                  boxShadow: "inset 0 0 20px rgba(0,0,0,0.5)",
+                }}>
+                  {capturedImage ? (
+                    <img
+                      src={capturedImage}
+                      alt="Captured"
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  ) : (
+                    <>
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          transform: facingMode === "user" ? "scaleX(-1)" : "none",
+                        }}
+                      />
+                      {/* Grid guidelines overlay for face framing */}
+                      <div style={{
+                        position: "absolute",
+                        inset: "15%",
+                        border: "2px dashed rgba(255, 255, 255, 0.4)",
+                        borderRadius: "50%",
+                        pointerEvents: "none",
+                      }} />
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="modal-footer" style={{
+              padding: "16px 20px",
+              borderTop: "1px solid var(--border)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "10px",
+            }}>
+              <div>
+                {!capturedImage && !cameraError && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleSwitchCamera}
+                    style={{ padding: "8px 12px", fontSize: "13px" }}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                      <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                    </svg>
+                    Putar Kamera
+                  </button>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShowCamera(false);
+                    setCapturedImage(null);
+                  }}
+                >
+                  Batal
+                </button>
+
+                {capturedImage ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setCapturedImage(null)}
+                    >
+                      Ulangi
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={handleUsePhoto}
+                    >
+                      Gunakan Foto
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={!!cameraError || !cameraStream}
+                    onClick={handleCapture}
+                  >
+                    Ambil Foto
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
