@@ -98,6 +98,18 @@ export default function DaftarTimGambuhPage() {
   const handleFotoUpload = async (file?: File) => {
     if (!file) return;
 
+    // Check size limit: 1 MB = 1048576 bytes
+    const MAX_SIZE = 1 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      Swal.fire({
+        icon: "error",
+        title: "File Terlalu Besar",
+        text: "Ukuran foto profil maksimal adalah 1 MB. Silakan pilih foto dengan ukuran lebih kecil.",
+        confirmButtonColor: "#3b82f6"
+      });
+      return;
+    }
+
     setUploadingFoto(true);
     const formData = new FormData();
     formData.append("file", file);
@@ -122,6 +134,12 @@ export default function DaftarTimGambuhPage() {
     e.preventDefault();
     setLoading(true);
     try {
+      if (!form.foto) {
+        Swal.fire({ icon: "warning", title: "Foto Belum Diunggah", text: "Mohon unggah foto profil Anda terlebih dahulu." });
+        setLoading(false);
+        return;
+      }
+
       if (!form.nama || !form.umur || !form.noTelp || !form.tipe || !form.daerahId || !form.desaId || !form.kelompokId) {
         Swal.fire({ icon: "warning", title: "Data Belum Lengkap", text: "Mohon isi semua data yang diperlukan." });
         setLoading(false);
@@ -238,7 +256,7 @@ export default function DaftarTimGambuhPage() {
         <form onSubmit={handleSubmit}>
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             <div className="form-group" style={{ textAlign: "center" }}>
-              <label className="form-label" style={{ textAlign: "left", display: "block" }}>Foto Profil</label>
+              <label className="form-label" style={{ textAlign: "left", display: "block" }}>Foto Profil <span className="required">*</span></label>
               <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
                 <div style={{
                   width: "76px",
@@ -282,7 +300,7 @@ export default function DaftarTimGambuhPage() {
                       Hapus
                     </button>
                   )}
-                  <small style={{ color: "var(--text-muted)", fontSize: "11px", display: "block" }}>Format JPG, PNG, WEBP. Maksimal 2MB.</small>
+                  <small style={{ color: "var(--text-muted)", fontSize: "11px", display: "block" }}>Format JPG, PNG, WEBP. Maksimal 1MB.</small>
                 </div>
               </div>
             </div>
