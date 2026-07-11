@@ -1241,7 +1241,7 @@ export default function PublicKatalogPage() {
                 const isPulang = item.keterangan?.toLowerCase() === "pulang";
                 const isTidakHadir = item.keterangan?.toLowerCase() === "alpha" || item.keterangan?.toLowerCase() === "izin";
                 const isPanitia = Boolean(item.panitiaStatus) || (Boolean(item.role) && item.role !== "generus" && item.role !== "Peserta");
-                const isBelumHadir = Number(item.isHadir) === 0 && isPanitia;
+                const isBelumHadir = Number(item.isHadir) === 0;
                 const isUnavailable = isPulang || isTidakHadir;
                 return (
                   <div key={item.id} className={`participant-card ${isUnavailable ? "is-pulang" : ""}`} style={{ position: "relative", opacity: isUnavailable ? 1 : undefined, filter: isUnavailable ? "none" : undefined }}>
