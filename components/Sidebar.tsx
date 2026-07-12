@@ -128,12 +128,6 @@ const userNavs: Record<string, any[]> = {
         { href: "/dashboard", label: "Dashboard", icon: "grid" },
       ],
     },
-    {
-      section: "Menu Pribadi",
-      items: [
-        { href: "/profile", label: "Profil Saya (QR)", icon: "user" },
-      ],
-    },
   ],
   admin_romantic_room: [
     {
@@ -199,12 +193,6 @@ const userNavs: Record<string, any[]> = {
         { href: "/dashboard", label: "Dashboard", icon: "grid" },
         { href: "/mandiri/tim-gambuh", label: "Panel Tim PNKB & Gambuh", icon: "romantic" },
         { href: "/tim-gambuh/katalog", label: "Katalog Peserta", icon: "katalog" },
-      ],
-    },
-    {
-      section: "Menu Pribadi",
-      items: [
-        { href: "/profile", label: "Profil Saya (QR)", icon: "user" },
       ],
     },
   ],

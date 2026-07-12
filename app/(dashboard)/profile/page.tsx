@@ -305,6 +305,11 @@ export default function ProfilePage() {
   if (error) return <div className="alert alert-error">{error}</div>;
   if (!data) return null;
 
+  if (data.role === "tim_pnkb" || data.role === "tim_pnkb_gambuh") {
+    router.push("/dashboard");
+    return null;
+  }
+
   const isTimGambuhProfile = (data?.role === "tim_pnkb_gambuh" || data?.role === "tim_pnkb");
   const filteredTimDesaList = editForm.timGambuhDaerahId
     ? desaList.filter((d) => d.mandiriDaerahId === Number(editForm.timGambuhDaerahId))

@@ -67,7 +67,7 @@ async function getStats(session: any, searchParams?: any) {
 
     let mandiriUserConditions: any[] = [];
     let panitiaConditions: any[] = [];
-    
+
     if (mGender) {
       mandiriUserConditions.push(eq(generus.jenisKelamin, mGender as any));
       panitiaConditions.push(eq(formPanitiaDanPengurus.jenisKelamin, mGender as any));
@@ -94,7 +94,7 @@ async function getStats(session: any, searchParams?: any) {
         panitiaConditions.push(inArray(formPanitiaDanPengurus.mandiriDesaId, mandiriDesaIds));
       }
     }
-    
+
     if (mGroup) {
       const matchedGroups = await db.select({ id: mandiriKelompok.id }).from(mandiriKelompok).where(eq(mandiriKelompok.nama, mGroup));
       const mandiriKelompokIds = matchedGroups.map(g => g.id);
@@ -155,7 +155,7 @@ async function getStats(session: any, searchParams?: any) {
         .from(artikel)
         .leftJoin(users, eq(artikel.authorId, users.id))
         .where(
-          artikelAuthorFilter 
+          artikelAuthorFilter
             ? and(eq(artikel.status, "published"), eq(artikel.tipe, "artikel"), artikelAuthorFilter)
             : and(eq(artikel.status, "published"), eq(artikel.tipe, "artikel"))
         ),
@@ -163,7 +163,7 @@ async function getStats(session: any, searchParams?: any) {
         .from(artikel)
         .leftJoin(users, eq(artikel.authorId, users.id))
         .where(
-          artikelAuthorFilter 
+          artikelAuthorFilter
             ? and(eq(artikel.status, "published"), eq(artikel.tipe, "berita"), artikelAuthorFilter)
             : and(eq(artikel.status, "published"), eq(artikel.tipe, "berita"))
         ),
@@ -219,8 +219,8 @@ async function getStats(session: any, searchParams?: any) {
         .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
         .leftJoin(users, eq(generus.id, users.generusId))
         .where(and(
-          finalGenerusFilter, 
-          mandiriUserFilter, 
+          finalGenerusFilter,
+          mandiriUserFilter,
           eq(generus.isGenerus, 1),
           currentActivityId ? eq(mandiri.kegiatanId, currentActivityId) : undefined
         )),
@@ -282,7 +282,7 @@ async function getStats(session: any, searchParams?: any) {
       db.select({ count: sql<number>`count(*)` })
         .from(formPanitiaDanPengurus)
         .where(and(
-          panitiaFilter, 
+          panitiaFilter,
           panitiaFilterWithParams,
           currentActivityId ? eq(formPanitiaDanPengurus.kegiatanId, currentActivityId) : undefined
         )),
@@ -323,7 +323,7 @@ async function getStats(session: any, searchParams?: any) {
       .leftJoin(mk1, eq(sql`COALESCE(${g1.mandiriKelompokId}, ${pan1.mandiriKelompokId})`, mk1.id))
       .leftJoin(mk2, eq(sql`COALESCE(${g2.mandiriKelompokId}, ${pan2.mandiriKelompokId})`, mk2.id))
       .where(
-        currentActivityId 
+        currentActivityId
           ? and(isNotNull(mandiriKunjungan.pemilihanId), eq(mandiriKunjungan.kegiatanId, currentActivityId))
           : isNotNull(mandiriKunjungan.pemilihanId)
       )
@@ -394,7 +394,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: an
   // Fetch Cities, Villages & Groups for Filter based on active kegiatan
   const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id"));
   const currentActivityId = activeSetting[0]?.value || undefined;
-  
+
   let activeDaerahIds: number[] = [];
   if (currentActivityId) {
     const active = await db.select({ daerahId: mandiriKegiatanDaerah.daerahId })
@@ -413,13 +413,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: an
     })
     .from(mandiriDesa)
     .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id));
-    
+
   if (currentActivityId) {
-     if (activeDaerahIds.length > 0) {
-       villageQuery = villageQuery.where(inArray(mandiriDesa.mandiriDaerahId, activeDaerahIds)) as any;
-     } else {
-       villageQuery = villageQuery.where(sql`1=0`) as any;
-     }
+    if (activeDaerahIds.length > 0) {
+      villageQuery = villageQuery.where(inArray(mandiriDesa.mandiriDaerahId, activeDaerahIds)) as any;
+    } else {
+      villageQuery = villageQuery.where(sql`1=0`) as any;
+    }
   }
   const villages = await villageQuery.orderBy(mandiriDesa.nama);
   const cities = Array.from(new Set(villages.map((v: any) => v.kota).filter(Boolean))).sort();
@@ -435,13 +435,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: an
     .from(mandiriKelompok)
     .leftJoin(mandiriDesa, eq(mandiriKelompok.mandiriDesaId, mandiriDesa.id))
     .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id));
-    
+
   if (currentActivityId) {
-     if (activeDaerahIds.length > 0) {
-       groupQuery = groupQuery.where(inArray(mandiriDesa.mandiriDaerahId, activeDaerahIds)) as any;
-     } else {
-       groupQuery = groupQuery.where(sql`1=0`) as any;
-     }
+    if (activeDaerahIds.length > 0) {
+      groupQuery = groupQuery.where(inArray(mandiriDesa.mandiriDaerahId, activeDaerahIds)) as any;
+    } else {
+      groupQuery = groupQuery.where(sql`1=0`) as any;
+    }
   }
   const groups = await groupQuery.orderBy(mandiriKelompok.nama);
 
@@ -464,7 +464,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: an
         <div className="db-hero-banner">
           <div className="db-hero-content">
             <div className="db-hero-greeting">{greeting} 👋</div>
-            <h1 className="db-hero-name">{session?.name || "Pengguna"}</h1>
+            <h1 className="db-hero-name">Tim PNKB & Ibu Gambuh</h1>
             <p className="db-hero-subtitle">
               {isUser
                 ? "Berikut ringkasan profil dan aktivitas Anda hari ini"
@@ -472,11 +472,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: an
             </p>
             <div className="db-hero-pills">
               <span className="db-hero-pill">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
                 {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
               </span>
               <span className="db-hero-pill db-hero-pill-role">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
                 {session?.role?.replace(/_/g, " ") || "User"}
               </span>
             </div>
@@ -573,7 +573,7 @@ function AdminDashboard({ role, stats, cities, villages, groups }: { role: strin
           gap: "10px",
           color: "#1e40af"
         }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
           <div>
             <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.8 }}>Kegiatan Mandiri Aktif</div>
             <div style={{ fontSize: "16px", fontWeight: 800 }}>{stats?.activeKegiatanTitle || "Tidak Ada Kegiatan Aktif"}</div>
@@ -582,7 +582,7 @@ function AdminDashboard({ role, stats, cities, villages, groups }: { role: strin
 
         <div className="db-section-header">
           <div className="db-section-icon" style={{ background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
           </div>
           <div>
             <h2 className="db-section-title">Kehadiran Mandiri</h2>
@@ -601,7 +601,7 @@ function AdminDashboard({ role, stats, cities, villages, groups }: { role: strin
 
         <div className="db-section-header">
           <div className="db-section-icon" style={{ background: 'linear-gradient(135deg, #ec4899, #db2777)' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.78-8.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.78-8.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>
           </div>
           <div>
             <h2 className="db-section-title">Hasil Pertemuan</h2>
@@ -621,7 +621,7 @@ function AdminDashboard({ role, stats, cities, villages, groups }: { role: strin
 
         <div className="db-section-header">
           <div className="db-section-icon" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="16 12 12 8 8 12"/><line x1="12" y1="16" x2="12" y2="8"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="16 12 12 8 8 12" /><line x1="12" y1="16" x2="12" y2="8" /></svg>
           </div>
           <div>
             <h2 className="db-section-title">Grafik Kehadiran</h2>
@@ -643,7 +643,7 @@ function AdminDashboard({ role, stats, cities, villages, groups }: { role: strin
         <>
           <div className="db-section-header">
             <div className="db-section-icon" style={{ background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></svg>
             </div>
             <div>
               <h2 className="db-section-title">Data Generus</h2>
@@ -655,7 +655,7 @@ function AdminDashboard({ role, stats, cities, villages, groups }: { role: strin
           <div className="db-highlight-grid">
             <a href="/generus" className="db-highlight-card db-highlight-primary">
               <div className="db-highlight-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></svg>
               </div>
               <div className="db-highlight-value">{stats?.generus ?? 0}</div>
               <div className="db-highlight-label">Total Generus</div>
@@ -663,7 +663,7 @@ function AdminDashboard({ role, stats, cities, villages, groups }: { role: strin
             </a>
             <a href="/generus" className="db-highlight-card db-highlight-success">
               <div className="db-highlight-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
               </div>
               <div className="db-highlight-value">{stats?.usiaMandiri ?? 0}</div>
               <div className="db-highlight-label">Usia Mandiri</div>
@@ -671,7 +671,7 @@ function AdminDashboard({ role, stats, cities, villages, groups }: { role: strin
             </a>
             <a href="/generus" className="db-highlight-card db-highlight-warm">
               <div className="db-highlight-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.78-8.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.78-8.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>
               </div>
               <div className="db-highlight-value">{stats?.notMarried ?? 0}</div>
               <div className="db-highlight-label">Belum Menikah</div>
@@ -711,7 +711,7 @@ function AdminDashboard({ role, stats, cities, villages, groups }: { role: strin
       {/* Aktivitas Section */}
       <div className="db-section-header" style={{ marginTop: '1.5rem' }}>
         <div className="db-section-icon" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
         </div>
         <div>
           <h2 className="db-section-title">Aktivitas & Administrasi</h2>
@@ -759,7 +759,7 @@ function UserDashboard({ session, stats }: { session: any; stats: any }) {
           <span className="badge badge-blue db-member-role">{session?.role?.replace(/_/g, " ") || "-"}</span>
         </div>
         <a href="/profile" className="btn btn-primary btn-full" style={{ marginTop: '20px' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 6 }}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 6 }}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
           Buka Profil & Barcode QR
         </a>
       </div>
@@ -774,7 +774,7 @@ function UserDashboard({ session, stats }: { session: any; stats: any }) {
               {session?.role !== "creator" && (
                 <div className="db-activity-row">
                   <div className="db-activity-icon" style={{ background: '#eff6ff', color: '#2563eb' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
                   </div>
                   <span className="db-activity-label">Total Kegiatan</span>
                   <span className="badge badge-green" style={{ fontWeight: 800 }}>{stats?.kegiatan ?? 0}</span>
@@ -784,14 +784,14 @@ function UserDashboard({ session, stats }: { session: any; stats: any }) {
                 <>
                   <div className="db-activity-row">
                     <div className="db-activity-icon" style={{ background: '#fff7ed', color: '#d97706' }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
                     </div>
                     <span className="db-activity-label">Artikel Tayang</span>
                     <span className="badge badge-orange" style={{ fontWeight: 800 }}>{stats?.artikel ?? 0}</span>
                   </div>
                   <div className="db-activity-row">
                     <div className="db-activity-icon" style={{ background: '#fef2f2', color: '#dc2626' }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
                     </div>
                     <span className="db-activity-label">Berita Tayang</span>
                     <span className="badge badge-red" style={{ fontWeight: 800 }}>{stats?.berita ?? 0}</span>
@@ -865,7 +865,7 @@ function QuickActions({ role }: { role: string }) {
       href: "/generus",
       label: "Kelola Generus",
       desc: "Tambah & edit data anggota",
-      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></svg>,
       variant: "blue"
     });
     if (role !== "tim_pnkb") {
@@ -873,14 +873,14 @@ function QuickActions({ role }: { role: string }) {
         href: "/kegiatan",
         label: "Kelola Kegiatan",
         desc: "Atur jadwal & kegiatan",
-        icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+        icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>,
         variant: "green"
       });
       actions.push({
         href: "/absensi",
         label: "Scan Absensi QR",
         desc: "Catat kehadiran via QR",
-        icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="3" height="3" rx="0.5"/><rect x="18" y="18" width="3" height="3" rx="0.5"/><rect x="14" y="18" width="3" height="3" rx="0.5"/></svg>,
+        icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="3" height="3" rx="0.5" /><rect x="18" y="18" width="3" height="3" rx="0.5" /><rect x="14" y="18" width="3" height="3" rx="0.5" /></svg>,
         variant: "purple"
       });
     }
@@ -890,7 +890,7 @@ function QuickActions({ role }: { role: string }) {
       href: "/artikel/tulis",
       label: "Tulis Artikel",
       desc: "Buat konten baru",
-      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>,
+      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>,
       variant: "orange"
     });
   }
@@ -899,7 +899,7 @@ function QuickActions({ role }: { role: string }) {
       href: "/profile",
       label: "Lihat Profil Saya",
       desc: "Edit profil & QR code",
-      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>,
       variant: "pink"
     });
   }
@@ -930,7 +930,7 @@ function QuickActions({ role }: { role: string }) {
                 <div className="db-quick-label">{action.label}</div>
                 <div className="db-quick-desc">{action.desc}</div>
               </div>
-              <svg className="db-quick-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+              <svg className="db-quick-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
             </a>
           );
         })}
