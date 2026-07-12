@@ -419,6 +419,44 @@ export default function MandiriPage() {
       }
    };
 
+   const handleFixNomorUrut = async () => {
+      const res = await Swal.fire({
+         title: "Perbaiki Nomor Peserta?",
+         text: "Peserta laki-laki akan berada di nomor 1-199, dan peserta perempuan di nomor 200 ke atas untuk kegiatan yang sedang dipilih.",
+         icon: "question",
+         showCancelButton: true,
+         confirmButtonColor: "#2563eb",
+         cancelButtonColor: "#64748b",
+         confirmButtonText: "Ya, Perbaiki",
+         cancelButtonText: "Batal"
+      });
+
+      if (!res.isConfirmed) return;
+
+      try {
+         const response = await fetch("/api/mandiri/fix-nomor-urut", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ kegiatanId: selectedKegiatanId }),
+         });
+         const result = await response.json();
+         if (!response.ok) throw new Error(result.error || "Gagal memperbaiki nomor peserta");
+
+         Swal.fire({
+            icon: "success",
+            title: "Nomor Peserta Diperbaiki",
+            text: result.fixedCount > 0
+               ? `${result.fixedCount} data peserta berhasil disesuaikan.`
+               : "Semua nomor peserta sudah sesuai aturan.",
+            timer: 1800,
+            showConfirmButton: false
+         });
+         fetchData();
+      } catch (e: any) {
+         Swal.fire({ icon: "error", title: "Error", text: e.message });
+      }
+   };
+
    const handleExportExcel = async () => {
       try {
          const params = new URLSearchParams({ search, sort, page: "1", limit: "9999" });
@@ -515,6 +553,19 @@ export default function MandiriPage() {
                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                         </svg>
                         Bagikan Link
+                     </button>
+                     <button
+                        className="btn btn-secondary"
+                        onClick={handleFixNomorUrut}
+                        title="Perbaiki nomor peserta sesuai jenis kelamin"
+                     >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16 }}>
+                           <path d="M3 12a9 9 0 0 1 15.5-6.2L21 8" />
+                           <path d="M21 3v5h-5" />
+                           <path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" />
+                           <path d="M3 21v-5h5" />
+                        </svg>
+                        Perbaiki Nomor
                      </button>
                      <button
                         className="btn btn-danger"

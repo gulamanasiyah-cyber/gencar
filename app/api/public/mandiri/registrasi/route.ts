@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { generus, mandiri, settings, desa, kelompok, users, mandiriDesa, mandiriDaerah, mandiriKegiatan, formPanitiaDanPengurus } from "@/lib/schema";
 import { eq, desc, and, or, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
+import { getNextMandiriNomorUrut, isMandiriJenisKelamin } from "@/lib/mandiriNomorUrut";
 
 function generateNomorUnik() {
   const prefix = "MND"; // Using MND prefix for public mandiri registration
@@ -45,6 +46,10 @@ export async function POST(request: NextRequest) {
 
     if (!nama || !jenisKelamin || !mandiriDesaId || !tempatLahir || !tanggalLahir || !noTelp || !pendidikan || !pekerjaan || !hobi || !makananMinumanFavorit || !foto) {
       return NextResponse.json({ error: "Mohon lengkapi semua data wajib." }, { status: 400 });
+    }
+
+    if (!isMandiriJenisKelamin(jenisKelamin)) {
+      return NextResponse.json({ error: "Jenis kelamin tidak valid. Gunakan L atau P." }, { status: 400 });
     }
 
     if (statusPeserta === "Person" && (!dibayarkanSenilai || !buktiPembayaran)) {
@@ -148,26 +153,7 @@ export async function POST(request: NextRequest) {
         // Hapus akun generus lama (users) agar tidak duplikat role
         await db.delete(users).where(eq(users.generusId, duplicate.id));
 
-        // Calculate next nomorUrut based on gender and active activity
-        // Laki-laki: 1-199, Perempuan: 200+
-        let nextNr;
-        if (jenisKelamin === "L") {
-            const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
-                .from(mandiri)
-                .where(and(
-                    sql`${mandiri.nomorUrut} < 200`,
-                    eq(mandiri.kegiatanId, activeKegiatanId)
-                ));
-            nextNr = (lastRes[0]?.maxNr || 0) + 1;
-        } else {
-            const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
-                .from(mandiri)
-                .where(and(
-                    sql`${mandiri.nomorUrut} >= 200`,
-                    eq(mandiri.kegiatanId, activeKegiatanId)
-                ));
-            nextNr = Math.max(lastRes[0]?.maxNr || 199, 199) + 1;
-        }
+        const nextNr = await getNextMandiriNomorUrut(db, jenisKelamin, activeKegiatanId);
 
         // Add to mandiri activity list
         await db.insert(mandiri).values({
@@ -241,26 +227,7 @@ export async function POST(request: NextRequest) {
 
     await db.insert(generus).values(generusData);
 
-    // Calculate next nomorUrut based on gender and active activity
-    // Laki-laki: 1-199, Perempuan: 200+
-    let nextNr;
-    if (jenisKelamin === "L") {
-        const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
-            .from(mandiri)
-            .where(and(
-                sql`${mandiri.nomorUrut} < 200`,
-                eq(mandiri.kegiatanId, activeKegiatanId)
-            ));
-        nextNr = (lastRes[0]?.maxNr || 0) + 1;
-    } else {
-        const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
-            .from(mandiri)
-            .where(and(
-                sql`${mandiri.nomorUrut} >= 200`,
-                eq(mandiri.kegiatanId, activeKegiatanId)
-            ));
-        nextNr = Math.max(lastRes[0]?.maxNr || 199, 199) + 1;
-    }
+    const nextNr = await getNextMandiriNomorUrut(db, jenisKelamin, activeKegiatanId);
 
     // Add to mandiri activity list
     await db.insert(mandiri).values({
@@ -278,6 +245,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, generusId, nomorUnik, nomorUrut: nextNr });
   } catch (error) {
     console.error("Public Registration error:", error);
-    return NextResponse.json({ error: "Gagal memproses pendaftaran" }, { status: 500 });
+    const status = Number((error as any)?.status || 500);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal memproses pendaftaran" }, { status });
   }
 }

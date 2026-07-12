@@ -5,6 +5,7 @@ import { generus, mandiri, mandiriAbsensi, mandiriDesa, idCardBuilderData, mandi
 import { eq, and, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
+import { getNextMandiriNomorUrut, isMandiriJenisKelamin } from "@/lib/mandiriNomorUrut";
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,6 +35,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Nama, Nomor Unik, dan Jenis Kelamin wajib diisi" }, { status: 400 });
     }
 
+    if (!isMandiriJenisKelamin(jenisKelamin)) {
+      return NextResponse.json({ error: "Jenis kelamin tidak valid. Gunakan L atau P." }, { status: 400 });
+    }
+
     // 1. Find or Create Generus
     let targetGenerusId = "";
     const existingGenerus = await db.query.generus.findFirst({
@@ -45,6 +50,7 @@ export async function POST(request: NextRequest) {
       // Update existing if needed (optional, but good for sync)
       await db.update(generus).set({
         nama,
+        jenisKelamin,
         foto: foto || existingGenerus.foto,
         updatedAt: sql`(datetime('now'))`
       }).where(eq(generus.id, targetGenerusId));
@@ -84,25 +90,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!existingMandiri) {
-      // Calculate next nomorUrut for this specific kegiatan
-      let nextNr;
-      if (jenisKelamin === "L") {
-          const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
-              .from(mandiri)
-              .where(and(
-                  sql`${mandiri.nomorUrut} < 200`,
-                  kegiatanId ? eq(mandiri.kegiatanId, kegiatanId) : sql`1=1`
-              ));
-          nextNr = (lastRes[0]?.maxNr || 0) + 1;
-      } else {
-          const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
-              .from(mandiri)
-              .where(and(
-                  sql`${mandiri.nomorUrut} >= 200`,
-                  kegiatanId ? eq(mandiri.kegiatanId, kegiatanId) : sql`1=1`
-              ));
-          nextNr = Math.max(lastRes[0]?.maxNr || 199, 199) + 1;
-      }
+      const nextNr = await getNextMandiriNomorUrut(db, jenisKelamin, kegiatanId);
 
       await db.insert(mandiri).values({
         id: uuidv4(),
@@ -157,6 +145,7 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error("Sync Participant Error:", error);
-    return NextResponse.json({ error: error.message || "Gagal sinkronisasi data" }, { status: 500 });
+    const status = Number(error?.status || 500);
+    return NextResponse.json({ error: error.message || "Gagal sinkronisasi data" }, { status });
   }
 }

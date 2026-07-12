@@ -5,6 +5,11 @@ import { mandiri, generus, desa, kelompok, mandiriDesa, mandiriKelompok, users, 
 import { eq, and, or, like, sql, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
+import {
+  getNextMandiriNomorUrut,
+  isMandiriJenisKelamin,
+  isMandiriNomorUrutSesuaiJenisKelamin,
+} from "@/lib/mandiriNomorUrut";
 
 export async function GET(request: NextRequest) {
   try {
@@ -202,31 +207,15 @@ export async function POST(request: NextRequest) {
     }
 
     const { jenisKelamin } = genData;
+    if (!isMandiriJenisKelamin(jenisKelamin)) {
+      return NextResponse.json({ error: "Jenis kelamin peserta tidak valid. Gunakan L atau P." }, { status: 400 });
+    }
 
     // Ambil kegiatan aktif agar peserta yang ditambah manual juga terasosiasi
     const activeKegiatanSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
     const activeKegiatanId = activeKegiatanSetting[0]?.value || null;
 
-    // Calculate next nomorUrut based on gender and active activity
-    // Laki-laki: 1-199, Perempuan: 200+
-    let nextNr;
-    if (jenisKelamin === "L") {
-        const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
-            .from(mandiri)
-            .where(and(
-                sql`${mandiri.nomorUrut} < 200`,
-                activeKegiatanId ? eq(mandiri.kegiatanId, activeKegiatanId) : sql`1=1`
-            ));
-        nextNr = (lastRes[0]?.maxNr || 0) + 1;
-    } else {
-        const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
-            .from(mandiri)
-            .where(and(
-                sql`${mandiri.nomorUrut} >= 200`,
-                activeKegiatanId ? eq(mandiri.kegiatanId, activeKegiatanId) : sql`1=1`
-            ));
-        nextNr = Math.max(lastRes[0]?.maxNr || 199, 199) + 1;
-    }
+    const nextNr = await getNextMandiriNomorUrut(db, jenisKelamin, activeKegiatanId);
 
     const id = uuidv4();
     await db.insert(mandiri).values({
@@ -268,7 +257,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, id, nomorUrut: nextNr });
   } catch (error) {
     console.error("Mandiri POST error:", error);
-    return NextResponse.json({ error: "Gagal menyimpan data" }, { status: 500 });
+    const status = Number((error as any)?.status || 500);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal menyimpan data" }, { status });
   }
 }
 
@@ -284,6 +274,9 @@ export async function PUT(request: NextRequest) {
     } = body;
 
     if (!mandiriId) return NextResponse.json({ error: "ID wajib diisi" }, { status: 400 });
+    if (jenisKelamin !== undefined && !isMandiriJenisKelamin(jenisKelamin)) {
+      return NextResponse.json({ error: "Jenis kelamin tidak valid. Gunakan L atau P." }, { status: 400 });
+    }
 
     const entry = await db.query.mandiri.findFirst({ where: eq(mandiri.id, mandiriId) });
     if (!entry) return NextResponse.json({ error: "Data pendaftaran tidak ditemukan" }, { status: 404 });
@@ -301,41 +294,16 @@ export async function PUT(request: NextRequest) {
     
     if (resetDevice) updateData.deviceId = null;
 
-    let isGenderChanged = false;
-    let newNomorUrut = null;
-    
     if (jenisKelamin !== undefined) {
       const existingGenerus = await db.select({ jenisKelamin: generus.jenisKelamin })
         .from(generus)
         .where(eq(generus.id, entry.generusId || generusId))
         .limit(1);
         
-      const currentNomorUrut = entry.nomorUrut || 0;
-      const isMisaligned = (jenisKelamin === "L" && currentNomorUrut >= 200) || (jenisKelamin === "P" && currentNomorUrut > 0 && currentNomorUrut < 200);
-        
+      const isMisaligned = !isMandiriNomorUrutSesuaiJenisKelamin(jenisKelamin, entry.nomorUrut);
+
       if ((existingGenerus.length > 0 && existingGenerus[0]?.jenisKelamin !== jenisKelamin) || isMisaligned) {
-        isGenderChanged = true;
-        const activeKegiatanId = entry.kegiatanId;
-        
-        if (jenisKelamin === "L") {
-            const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
-                .from(mandiri)
-                .where(and(
-                    sql`${mandiri.nomorUrut} < 200`,
-                    activeKegiatanId ? eq(mandiri.kegiatanId, activeKegiatanId) : sql`1=1`
-                ));
-            newNomorUrut = (lastRes[0]?.maxNr || 0) + 1;
-        } else {
-            const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
-                .from(mandiri)
-                .where(and(
-                    sql`${mandiri.nomorUrut} >= 200`,
-                    activeKegiatanId ? eq(mandiri.kegiatanId, activeKegiatanId) : sql`1=1`
-                ));
-            newNomorUrut = Math.max(lastRes[0]?.maxNr || 199, 199) + 1;
-        }
-        
-        updateData.nomorUrut = newNomorUrut;
+        updateData.nomorUrut = await getNextMandiriNomorUrut(db, jenisKelamin, entry.kegiatanId, mandiriId);
       }
     }
 
@@ -385,7 +353,8 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Mandiri PUT error:", error);
-    return NextResponse.json({ error: "Gagal update data" }, { status: 500 });
+    const status = Number((error as any)?.status || 500);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal update data" }, { status });
   }
 }
 

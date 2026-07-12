@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { generus, idCardBuilderData, settings, formPanitiaDanPengurus, mandiriDesa, mandiri, kelompok, desa, mandiriKegiatan, mandiriDaerah } from "@/lib/schema";
 import { eq, and, or, sql, desc } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
+import { getNextMandiriNomorUrut, isMandiriJenisKelamin } from "@/lib/mandiriNomorUrut";
 
 function generateNomorUnik() {
   const prefix = "PNB"; 
@@ -40,6 +41,10 @@ export async function POST(request: NextRequest) {
 
     if (!nama || !jenisKelamin || !mandiriDesaId || !noTelp || !dapukan || !foto || !tempatLahir || !tanggalLahir || !pendidikan || !pekerjaan || !hobi || !makananMinumanFavorit) {
       return NextResponse.json({ error: "Mohon lengkapi semua data wajib." }, { status: 400 });
+    }
+
+    if (!isMandiriJenisKelamin(jenisKelamin)) {
+      return NextResponse.json({ error: "Jenis kelamin tidak valid. Gunakan L atau P." }, { status: 400 });
     }
 
     // Fetch Desa/Daerah info for tracking and ID Card display
@@ -123,25 +128,7 @@ export async function POST(request: NextRequest) {
     let nextNr = existingMandiri?.nomorUrut;
 
     if (!nextNr) {
-        // Calculate next nomorUrut based on gender and active activity
-        // Laki-laki: 1-199, Perempuan: 200+
-        if (jenisKelamin === "L") {
-            const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
-                .from(mandiri)
-                .where(and(
-                    sql`${mandiri.nomorUrut} < 200`,
-                    eq(mandiri.kegiatanId, activeKegiatanId)
-                ));
-            nextNr = (lastRes[0]?.maxNr || 0) + 1;
-        } else {
-            const lastRes = await db.select({ maxNr: sql<number>`max(${mandiri.nomorUrut})` })
-                .from(mandiri)
-                .where(and(
-                    sql`${mandiri.nomorUrut} >= 200`,
-                    eq(mandiri.kegiatanId, activeKegiatanId)
-                ));
-            nextNr = Math.max(lastRes[0]?.maxNr || 199, 199) + 1;
-        }
+        nextNr = await getNextMandiriNomorUrut(db, jenisKelamin, activeKegiatanId);
 
         await db.insert(mandiri).values({
             id: uuidv4(),
@@ -224,7 +211,8 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error("Panitia Registration error:", error);
-    return NextResponse.json({ error: "Gagal memproses pendaftaran: " + (error instanceof Error ? error.message : "Unknown error") }, { status: 500 });
+    const status = Number((error as any)?.status || 500);
+    return NextResponse.json({ error: "Gagal memproses pendaftaran: " + (error instanceof Error ? error.message : "Unknown error") }, { status });
   }
 }
 
