@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       ? "Sudah dibayar oleh peserta Person"
       : `Sudah dibayar oleh ${desaRecord[0]?.daerahNama || "Daerah Terkait"}`;
 
-    if (desaRecord.length > 0 && desaRecord[0].daerahId) {
+    if (statusPeserta !== "Person" && desaRecord.length > 0 && desaRecord[0].daerahId) {
       const targetDaerahId = desaRecord[0].daerahId;
       const targetDaerahNama = desaRecord[0].daerahNama || "Daerah Terkait";
 
@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
         eq(mandiri.kegiatanId, activeKegiatanId),
         eq(mandiriDesa.mandiriDaerahId, targetDaerahId),
         eq(generus.jenisKelamin, jenisKelamin),
+        eq(mandiri.statusPeserta, "Utusan Daerah"),
         sql`${formPanitiaDanPengurus.id} IS NULL`
       ));
 
