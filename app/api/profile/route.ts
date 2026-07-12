@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic';
+﻿export const dynamic = 'force-dynamic';
 import { NextResponse, NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { generus, desa, kelompok, users, mandiri, mandiriDesa, settings, mandiriKegiatan, mandiriDaerah, timGambuh, mandiriKelompok } from "@/lib/schema";
@@ -192,7 +192,7 @@ export async function GET(request: NextRequest) {
         nama: u.nama,
         tempatLahir: "-",
         tanggalLahir: "-",
-        jenisKelamin: "L",
+        jenisKelamin: null, // Tidak diketahui - admin tanpa data generus
         kategoriUsia: "Bekerja",
         alamat: "-",
         noTelp: "-",

@@ -482,19 +482,9 @@ export default function PublicKatalogPage() {
         }
 
         let userIsAdmin = false;
-        if (profileRes && profileRes.ok) {
-          try {
-            const profile = await profileRes.json();
-            if (profile && ["admin", "admin_romantic_room", "tim_pnkb", "tim_pnkb_gambuh"].includes(profile.role)) {
-              userIsAdmin = true;
-              setIsAdmin(true);
-              if (profile.jenisKelamin) {
-                setUserGender(profile.jenisKelamin);
-                setGender(profile.jenisKelamin === "L" ? "P" : "L");
-              }
-            }
-          } catch (e) {}
-        }
+        // Kumpulkan jenisKelamin dari checkStatusRes terlebih dahulu (prioritas lebih tinggi)
+        // agar tidak tertimpa oleh nilai hardcoded dari profileRes
+        let genderFromCheckStatus: string | null = null;
 
         if (checkStatusRes && checkStatusRes.ok) {
           const rawText = await checkStatusRes.text();
@@ -525,7 +515,9 @@ export default function PublicKatalogPage() {
               }
 
               if (data.jenisKelamin) {
+                genderFromCheckStatus = data.jenisKelamin;
                 setUserGender(data.jenisKelamin);
+                // Peserta/panitia melihat katalog lawan jenis
                 setGender(data.jenisKelamin === "L" ? "P" : "L");
               }
               setKomentarNama(data.nama);
@@ -562,6 +554,23 @@ export default function PublicKatalogPage() {
               return;
             }
           }
+        }
+
+        // Verifikasi admin/tim_pnkb session via profileRes
+        // Hanya set gender dari profile jika checkStatusRes belum menemukannya,
+        // untuk mencegah jenisKelamin hardcoded "L" di profile API menimpa data asli peserta/panitia
+        if (profileRes && profileRes.ok) {
+          try {
+            const profile = await profileRes.json();
+            if (profile && ["admin", "admin_romantic_room", "tim_pnkb", "tim_pnkb_gambuh"].includes(profile.role)) {
+              userIsAdmin = true;
+              setIsAdmin(true);
+              if (!genderFromCheckStatus && profile.jenisKelamin) {
+                setUserGender(profile.jenisKelamin);
+                setGender(profile.jenisKelamin === "L" ? "P" : "L");
+              }
+            }
+          } catch (e) {}
         }
       } catch (e) {
         console.error("init error:", e);
