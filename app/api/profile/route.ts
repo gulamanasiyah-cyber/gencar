@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
 
       const u = userData[0];
 
-      // --- Tim PNKB & Gambuh: ambil biodata dari tabel timGambuh ---
+      // --- Tim PNKB & Ibu Gambuh: ambil biodata dari tabel timGambuh ---
       if (["tim_pnkb", "tim_pnkb_gambuh"].includes(u.role)) {
         // Cari kegiatan aktif
         const activeKegSetting = await db.query.settings.findFirst({
@@ -300,7 +300,7 @@ export async function PUT(request: NextRequest) {
 
       let updatedTg: any = null;
 
-      // --- Tim PNKB & Gambuh: update biodata di tabel timGambuh ---
+      // --- Tim PNKB & Ibu Gambuh: update biodata di tabel timGambuh ---
       if (["tim_pnkb", "tim_pnkb_gambuh"].includes(session.role)) {
         const { timGambuhId, umur, noTelp, tipeTimGambuh, tgDaerahId, tgDesaId, tgKelompokId } = body;
 

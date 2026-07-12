@@ -939,13 +939,13 @@ export default function AdminTimGambuhPage() {
 
   return (
     <div>
-      <Topbar title="Admin - Kelola Tim PNKB & Gambuh" role={userRole} />
+      <Topbar title="Admin - Kelola Tim PNKB & Ibu Gambuh" role={userRole} />
 
       <div className="page-content">
         <div className="page-header">
           <div className="page-header-left">
-            <h2>Kelola Tim PNKB & Gambuh</h2>
-            <p>Tambah dan kelola anggota Tim PNKB & Gambuh untuk kegiatan aktif</p>
+            <h2>Kelola Tim PNKB & Ibu Gambuh</h2>
+            <p>Tambah dan kelola anggota Tim PNKB & Ibu Gambuh untuk kegiatan aktif</p>
           </div>
 
           <div

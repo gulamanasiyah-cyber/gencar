@@ -70,7 +70,7 @@ const navItems = [
       { href: "/admin/users", label: "Kelola User", icon: "users-cog", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
       { href: "/admin/pengurus", label: "Kelola Pengurus", icon: "users", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
       { href: "/admin/desa", label: "Kelola Desa", icon: "map", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
-      { href: "/admin/tim-gambuh", label: "Tim PNKB & Gambuh", icon: "users", roles: ["pengurus_daerah", "kmm_daerah", "admin_romantic_room"] },
+      { href: "/admin/tim-gambuh", label: "Tim PNKB & Ibu Gambuh", icon: "users", roles: ["pengurus_daerah", "kmm_daerah", "admin_romantic_room"] },
       { href: "/admin/berita", label: "Moderasi Berita", icon: "news", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
       { href: "/admin/artikel", label: "Moderasi Artikel", icon: "artikel", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
       { href: "/admin/saran", label: "Saran & Masukan", icon: "message-square", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
@@ -147,7 +147,7 @@ const userNavs: Record<string, any[]> = {
         { href: "/admin/katalog", label: "Katalog Peserta", icon: "katalog" },
         { href: "/mandiri/romantic-room", label: "Romantic Room", icon: "romantic" },
         { href: "/mandiri/desa", label: "Kelola Daerah / Desa", icon: "desa" },
-        { href: "/admin/tim-gambuh", label: "Tim PNKB & Gambuh", icon: "users" },
+        { href: "/admin/tim-gambuh", label: "Tim PNKB & Ibu Gambuh", icon: "users" },
       ],
     },
     {
@@ -191,7 +191,7 @@ const userNavs: Record<string, any[]> = {
       section: "Menu Utama",
       items: [
         { href: "/dashboard", label: "Dashboard", icon: "grid" },
-        { href: "/mandiri/tim-gambuh", label: "Panel Tim PNKB & Gambuh", icon: "romantic" },
+        { href: "/mandiri/tim-gambuh", label: "Panel Tim PNKB & Ibu Gambuh", icon: "romantic" },
         { href: "/tim-gambuh/katalog", label: "Katalog Peserta", icon: "katalog" },
       ],
     },
@@ -275,7 +275,8 @@ export default function Sidebar({ user }: SidebarProps) {
     }
   };
 
-  const initials = (user?.name || "??")
+  const displayName = user?.role === "tim_pnkb_gambuh" ? "Tim PNKB & Ibu Gambuh" : (user?.name || "??");
+  const initials = displayName
     .split(" ")
     .map((n) => n[0])
     .slice(0, 2)
@@ -375,7 +376,7 @@ export default function Sidebar({ user }: SidebarProps) {
               )}
             </div>
             <div className="sidebar-user-info">
-              <div className="sidebar-user-name">{user.name}</div>
+              <div className="sidebar-user-name">{displayName}</div>
               <div className="sidebar-user-role">
                 {user.role === "admin" ? "Administrator" :
                   user.role === "pengurus_daerah" ? "Pengurus Daerah" :
@@ -386,7 +387,7 @@ export default function Sidebar({ user }: SidebarProps) {
                             user.role === "admin_romantic_room" ? "Admin Romantic Room" :
                               user.role === "admin_keuangan" ? "Admin Keuangan" :
                                 user.role === "admin_kegiatan" ? "Admin Kegiatan" :
-                                  user.role === "tim_pnkb_gambuh" ? "Tim PNKB & Gambuh" :
+                                  user.role === "tim_pnkb_gambuh" ? "Tim PNKB & Ibu Gambuh" :
                                     user.role}
               </div>
             </div>

@@ -88,7 +88,7 @@ function AddUserForm({ desaList, kelompokList, onSuccess, onCancel }: { desaList
           <option value="admin_romantic_room">Admin Romantic Room</option>
           <option value="admin_keuangan">Admin Keuangan</option>
           <option value="admin_kegiatan">Admin Kegiatan</option>
-          <option value="tim_pnkb_gambuh">Tim PNKB & Gambuh</option>
+          <option value="tim_pnkb_gambuh">Tim PNKB & Ibu Gambuh</option>
         </select>
       </div>
 
@@ -333,7 +333,7 @@ export default function AdminUsersPage() {
           </label>
           <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
             <input type="checkbox" id="role-tim_pnkb_gambuh" value="tim_pnkb_gambuh" style="width: 16px; height: 16px;" />
-            <span>Tim PNKB & Gambuh</span>
+            <span>Tim PNKB & Ibu Gambuh</span>
           </label>
         </div>
       `,
@@ -420,7 +420,7 @@ export default function AdminUsersPage() {
         admin_romantic_room: "Admin Romantic Room",
         admin_keuangan: "Admin Keuangan",
         admin_kegiatan: "Admin Kegiatan",
-        tim_pnkb_gambuh: "Tim PNKB & Gambuh",
+        tim_pnkb_gambuh: "Tim PNKB & Ibu Gambuh",
       };
 
       const selectedRoleLabels = selectedRoles.map((r: string) => roleLabels[r] || r).join(", ");
@@ -584,7 +584,7 @@ export default function AdminUsersPage() {
                 <option value="admin_romantic_room">Admin Romantic Room</option>
                 <option value="admin_keuangan">Admin Keuangan</option>
                 <option value="admin_kegiatan">Admin Kegiatan</option>
-                <option value="tim_pnkb_gambuh">Tim PNKB & Gambuh</option>
+                <option value="tim_pnkb_gambuh">Tim PNKB & Ibu Gambuh</option>
               </select>
               {filterRole && (
                 <button className="btn btn-sm btn-danger" onClick={handleBulkDeleteRole}>
@@ -690,7 +690,7 @@ export default function AdminUsersPage() {
                               <option value="admin_romantic_room">Admin Romantic Room</option>
                               <option value="admin_keuangan">Admin Keuangan</option>
                               <option value="admin_kegiatan">Admin Kegiatan</option>
-                              <option value="tim_pnkb_gambuh">Tim PNKB & Gambuh</option>
+                              <option value="tim_pnkb_gambuh">Tim PNKB & Ibu Gambuh</option>
                             </select>
                             <div className="flex gap-2" style={{ marginTop: "8px" }}>
                               <button className="btn btn-sm btn-secondary" onClick={() => handleOpenEditUser(user)}>Edit</button>
@@ -804,7 +804,7 @@ export default function AdminUsersPage() {
                           <option value="admin_romantic_room">Admin Romantic Room</option>
                           <option value="admin_keuangan">Admin Keuangan</option>
                           <option value="admin_kegiatan">Admin Kegiatan</option>
-                          <option value="tim_pnkb_gambuh">Tim PNKB & Gambuh</option>
+                          <option value="tim_pnkb_gambuh">Tim PNKB & Ibu Gambuh</option>
                         </select>
                         <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
                           <button 

@@ -132,14 +132,14 @@ export default function TimGambuhOperatorPage() {
             const { value: selectedId, isConfirmed } = await Swal.fire({
                 title: 'Pilih Identitas Anda',
                 html: `
-                    <p style="font-size:13px;color:#64748b;margin:0 0 10px;">Pilih nama Anda dari daftar Tim PNKB &amp; Gambuh:</p>
+                    <p style="font-size:13px;color:#64748b;margin:0 0 10px;">Pilih nama Anda dari daftar Tim PNKB &amp; Ibu Gambuh:</p>
                     <select id="swal-identity" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;color:#1e293b;background:#fff;outline:none;cursor:pointer;">
                         <option value="">-- Pilih Nama Anda --</option>
                         ${buildOptionHtml(data)}
                     </select>
                     <div style="margin-top:14px;border-top:1px solid #e2e8f0;padding-top:12px;text-align:left;">
                         <button type="button" id="btn-toggle-add" style="background:none;border:none;color:#3b82f6;font-size:13px;font-weight:600;cursor:pointer;padding:0;display:flex;align-items:center;gap:5px;">
-                            <span style="font-size:16px;line-height:1;">＋</span> Tambah Data Tim PNKB &amp; Gambuh
+                            <span style="font-size:16px;line-height:1;">＋</span> Tambah Data Tim PNKB &amp; Ibu Gambuh
                         </button>
                         <div id="add-member-form" style="display:none;margin-top:10px;padding:12px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
                             <div style="margin-bottom:8px;text-align:left;">
@@ -255,7 +255,7 @@ export default function TimGambuhOperatorPage() {
                 }
             }
         } catch (err) {
-            Swal.fire("Error", "Gagal mengambil daftar anggota Tim PNKB & Gambuh.", "error");
+            Swal.fire("Error", "Gagal mengambil daftar anggota Tim PNKB & Ibu Gambuh.", "error");
         }
     }, [saveCurrentIdentity]);
 
@@ -802,12 +802,12 @@ export default function TimGambuhOperatorPage() {
 
     return (
         <div className="operator-layout">
-            <Topbar title="Panel Tim PNKB & Gambuh" role={userRole} />
+            <Topbar title="Panel Tim PNKB & Ibu Gambuh" role={userRole} />
             <div className="page-content">
                 
                 <div className="operator-header">
                     <div>
-                        <h2>Panel Tim PNKB & Gambuh</h2>
+                        <h2>Panel Tim PNKB & Ibu Gambuh</h2>
                         <p>Kelola sesi taaruf di dalam ruangan: Mulai timer, dampingi, dan simpan hasil pertemuan.</p>
                     </div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>

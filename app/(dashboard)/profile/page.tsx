@@ -186,7 +186,7 @@ export default function ProfilePage() {
           Swal.fire({
             icon: 'error',
             title: 'Gagal',
-            text: json.error || "Gagal memperbarui data Tim PNKB & Gambuh"
+            text: json.error || "Gagal memperbarui data Tim PNKB & Ibu Gambuh"
           });
           return;
         }
@@ -209,7 +209,7 @@ export default function ProfilePage() {
         Swal.fire({
           icon: 'success',
           title: 'Berhasil',
-          text: 'Profil Tim PNKB & Gambuh berhasil diperbarui!',
+          text: 'Profil Tim PNKB & Ibu Gambuh berhasil diperbarui!',
           timer: 2000,
           showConfirmButton: false
         });
@@ -376,7 +376,7 @@ export default function ProfilePage() {
                    data.role === "admin" ? "Administrator" :
                    data.role === "desa" ? "Pengurus Desa" :
                    data.role === "kelompok" ? "Pengurus Kelompok" :
-                   isTimGambuhProfile ? "Tim PNKB & Gambuh" :
+                   isTimGambuhProfile ? "Tim PNKB & Ibu Gambuh" :
                    data.kategoriUsia}
                 </div>
               </div>
@@ -773,7 +773,7 @@ export default function ProfilePage() {
                 <div className="id-member-code" style={{ fontSize: "16px", fontWeight: "900" }}>ID: {data.nomorUnik}</div>
                 {isTimGambuhProfile && (
                   <div className="id-member-code" style={{ opacity: 1, color: "#064e3b", background: "rgba(255,255,255,0.75)", padding: "4px 14px", borderRadius: "999px", fontSize: "13px", fontWeight: "900" }}>
-                    {data.timGambuhTipe || "Tim PNKB & Gambuh"}
+                    {data.timGambuhTipe || "Tim PNKB & Ibu Gambuh"}
                   </div>
                 )}
                 {data.nomorUrut && (
@@ -810,7 +810,7 @@ export default function ProfilePage() {
 
             <div className="id-footer-section">
               <div className="id-address-section">
-                <label>{isTimGambuhProfile ? "Identitas Tim PNKB & Gambuh" : "Identifier Verification"}</label>
+                <label>{isTimGambuhProfile ? "Identitas Tim PNKB & Ibu Gambuh" : "Identifier Verification"}</label>
                 <p>
                   {isTimGambuhProfile
                     ? `${data.timGambuhDaerahNama || data.kota || "-"} / ${data.timGambuhDesaNama || data.desaNama || "-"} / ${data.timGambuhKelompokNama || data.kelompokNama || "-"}`
