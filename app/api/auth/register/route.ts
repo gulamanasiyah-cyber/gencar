@@ -9,6 +9,7 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import { registerSchema } from "@/lib/validation";
+import { encryptPasswordSymmetric } from "@/lib/crypto";
 
 export async function POST(request: NextRequest) {
   try {
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
       name,
       email: email.toLowerCase(),
       passwordHash,
-      passwordPlain: password,
+      passwordPlain: encryptPasswordSymmetric(password),
       role: assignedRole as any,
       desaId: Number(desaId),
       kelompokId: Number(kelompokId),

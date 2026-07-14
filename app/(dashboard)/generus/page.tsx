@@ -104,7 +104,7 @@ export default function GenerusPage() {
         return (document.getElementById('swal-master-password') as HTMLInputElement).value;
       }
     });
-    if (value === "gencarlancarbokah@2026") {
+    if (value === "gencarlancarbarokah@2026") {
       setShowPasswords(true);
       Swal.fire({ icon: "success", title: "Akses Dibuka", toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
     } else if (value) {

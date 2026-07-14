@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, formPanitiaDanPengurus, settings, mandiriKegiatan, mandiriAbsensi, mandiriDaerah } from "@/lib/schema";
 import { eq, and, or, like, sql, not, isNull, isNotNull, ne, inArray, notInArray, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { encryptPasswordSymmetric, decryptPasswordSymmetric } from "@/lib/crypto";
 import { v4 as uuidv4 } from "uuid";
 
 function generateNomorUnik() {
@@ -266,7 +267,15 @@ export async function GET(request: NextRequest) {
         query = (query as any).leftJoin(mandiri, eq(generus.id, mandiri.generusId));
       }
 
-      const data = await query.where(finalWhere).orderBy(...orderByClause);
+      let data = await query.where(finalWhere).orderBy(...orderByClause);
+      
+      // DEKRIPSI OTOMATIS: Kembalikan wujud password asli khusus ke layar Admin
+      if (session.role === "admin") {
+         data = data.map(item => ({
+            ...item,
+            passwordPlain: decryptPasswordSymmetric(item.passwordPlain as string)
+         })) as any;
+      }
 
       return NextResponse.json(
         { data, total: data.length, page: 1, limit: data.length },
@@ -320,7 +329,7 @@ export async function GET(request: NextRequest) {
         .innerJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, kegiatanId)));
     }
 
-    const [data, countResult] = await Promise.all([
+    let [data, countResult] = await Promise.all([
       dataQuery
         .where(whereClause)
         .orderBy(...orderByClause)
@@ -328,6 +337,14 @@ export async function GET(request: NextRequest) {
         .offset(offset),
       countQuery.where(whereClause),
     ]);
+    
+    // DEKRIPSI OTOMATIS: Kembalikan wujud password asli khusus ke layar Admin (Dashboard)
+    if (session.role === "admin") {
+      data = data.map(item => ({
+         ...item,
+         passwordPlain: decryptPasswordSymmetric(item.passwordPlain as string)
+      })) as any;
+    }
 
     return NextResponse.json(
       { data, total: Number(countResult[0]?.count || 0), page, limit },
@@ -439,7 +456,7 @@ export async function POST(request: NextRequest) {
         name: nama,
         email: finalEmail,
         passwordHash, 
-        passwordPlain: finalPassword,
+        passwordPlain: encryptPasswordSymmetric(finalPassword),
         role: "generus",
         generusId: id,
         desaId: desaId ? Number(desaId) : null,

@@ -7,6 +7,7 @@ import { eq, or, like, sql, and } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { getSession } from "@/lib/auth";
 import bcrypt from "bcryptjs";
+import { encryptPasswordSymmetric } from "@/lib/crypto";
 
 export async function GET(request: NextRequest) {
   try {
@@ -191,7 +192,7 @@ export async function PUT(request: NextRequest) {
     if (email) updatePayload.email = email.toLowerCase();
     if (password) {
       updatePayload.passwordHash = await bcrypt.hash(password, 12);
-      updatePayload.passwordPlain = password;
+      updatePayload.passwordPlain = encryptPasswordSymmetric(password);
     }
 
     await db.update(users).set(updatePayload).where(eq(users.id, id));
@@ -295,7 +296,7 @@ export async function POST(request: NextRequest) {
       name,
       email: email.toLowerCase(),
       passwordHash,
-      passwordPlain: password,
+      passwordPlain: encryptPasswordSymmetric(password),
       role: role,
       desaId: Number(desaId) || null,
       kelompokId: Number(kelompokId) || null,
