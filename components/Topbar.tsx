@@ -29,9 +29,20 @@ export default function Topbar({ title, role, className = "", children, userName
   }, []);
 
   const handleLogout = async () => {
+    let logoutName = userName;
+    if (role === "tim_pnkb") {
+      logoutName = "Tim PNKB";
+    } else if (role === "tim_pnkb_gambuh") {
+      logoutName = "Tim PNKB & Ibu Gambuh";
+    }
+
+    const text = logoutName 
+      ? `Apakah Anda yakin ingin keluar dari ${logoutName} ?`
+      : 'Apakah Anda yakin ingin keluar ?';
+
     const result = await Swal.fire({
       title: 'Konfirmasi Keluar',
-      text: `Apakah Anda yakin ingin keluar ${userName ? 'sebagai ' + userName : ''}?`,
+      text,
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#3b82f6',

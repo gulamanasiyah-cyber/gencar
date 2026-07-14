@@ -257,9 +257,16 @@ export default function Sidebar({ user }: SidebarProps) {
   if (!mounted) return <aside className="sidebar loading"></aside>;
 
   const handleLogout = async () => {
+    let logoutName = user.name;
+    if (user.role === "tim_pnkb") {
+      logoutName = "Tim PNKB";
+    } else if (user.role === "tim_pnkb_gambuh") {
+      logoutName = "Tim PNKB & Ibu Gambuh";
+    }
+
     const result = await Swal.fire({
       title: 'Konfirmasi Keluar',
-      text: `Apakah Anda yakin ingin keluar dari ${user.name}?`,
+      text: `Apakah Anda yakin ingin keluar dari ${logoutName} ?`,
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#3b82f6',
