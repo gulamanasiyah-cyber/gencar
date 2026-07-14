@@ -426,18 +426,19 @@ async function getStats(session: any, searchParams?: any) {
           ),
         ),
       db
-        .select({ count: sql<number>`count(DISTINCT ${generus.id})` })
-        .from(generus)
-        .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-        .leftJoin(users, eq(generus.id, users.generusId))
+        .select({ count: sql<number>`count(DISTINCT ${mandiri.id})` })
+        .from(mandiri)
+        .innerJoin(generus, eq(mandiri.generusId, generus.id))
         .where(
           and(
-            finalGenerusFilter,
+            generusFilter,
             mandiriUserFilter,
-            eq(generus.isGenerus, 1),
             currentActivityId
               ? eq(mandiri.kegiatanId, currentActivityId)
               : undefined,
+            currentActivityId
+              ? sql`${mandiri.generusId} NOT IN (SELECT generus_id FROM form_panitia_dan_pengurus WHERE generus_id IS NOT NULL AND kegiatan_id = ${currentActivityId})`
+              : sql`${mandiri.generusId} NOT IN (SELECT generus_id FROM form_panitia_dan_pengurus WHERE generus_id IS NOT NULL)`
           ),
         ),
       // Hadir Peserta (ada di mandiri, TIDAK ada di formPanitiaDanPengurus)
