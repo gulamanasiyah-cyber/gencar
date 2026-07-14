@@ -28,15 +28,13 @@ export default function GenerusPage() {
   // New Filter states
   const [userRole, setUserRole] = useState("");
   const [userName, setUserName] = useState("");
-  const [statusNikahFilter, setStatusNikahFilter] = useState("all");
   const [kategoriFilter, setKategoriFilter] = useState("all");
   const [desaFilter, setDesaFilter] = useState("");
   const [kelompokFilter, setKelompokFilter] = useState("");
   const [desas, setDesas] = useState<{id: number, nama: string}[]>([]);
   const [kelompoks, setKelompoks] = useState<{id: number, nama: string}[]>([]);
   const [isActive, setIsActive] = useState("true");
-  const [regTitle, setRegTitle] = useState("");
-  const [regDesc, setRegDesc] = useState("");
+  const [showPasswords, setShowPasswords] = useState(false);
   
   const limit = 10;
 
@@ -56,8 +54,6 @@ export default function GenerusPage() {
             const res = await fetch("/api/settings");
             const s = await res.json();
             setIsActive(s.generus_registration_active ?? "true");
-            setRegTitle(s.generus_registration_title || "");
-            setRegDesc(s.generus_registration_description || "");
         } catch (e) {
             console.error("Failed to fetch unified settings:", e);
         }
@@ -65,66 +61,59 @@ export default function GenerusPage() {
     fetchSettings();
   }, []);
 
-  const handleSettings = async () => {
-    const { value: formValues } = await Swal.fire({
-      title: "Pengaturan Pendaftaran Muda-Mudi",
+
+
+  const handleShowPasswords = async () => {
+    const { value } = await Swal.fire({
+      title: "Masukkan Master Password",
       html: `
-        <div style="text-align: left">
-          <label class="form-label">Nama Kegiatan / Judul Form</label>
-          <input id="swal-title" class="form-control" value="${regTitle}" placeholder="Contoh: Pendataan Generus Daerah 2026" style="margin-bottom: 12px">
-          <label class="form-label">Deskripsi Kegiatan</label>
-          <textarea id="swal-desc" class="form-control" rows="3" placeholder="Contoh: Pendataan seluruh muda-mudi..." style="margin-bottom: 12px">${regDesc}</textarea>
-          <label class="form-label">Status Pendaftaran</label>
-          <select id="swal-active" class="form-control" style="margin-bottom: 12px">
-            <option value="true" ${isActive !== "false" ? "selected" : ""}>Aktif (Buka)</option>
-            <option value="false" ${isActive === "false" ? "selected" : ""}>Nonaktif (Tutup)</option>
-          </select>
+        <div style="position: relative;">
+          <input type="password" id="swal-master-password" name="password" autocomplete="current-password" class="swal2-input" placeholder="Password" style="width: 100%; box-sizing: border-box; padding-right: 46px; margin: 1em auto; font-family: inherit; font-size: 1.125em;" />
+          <button type="button" id="toggle-swal-password" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #6b7280; display: flex; align-items: center; justify-content: center; padding: 4px;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </button>
         </div>
       `,
-      focusConfirm: false,
       showCancelButton: true,
-      confirmButtonText: "Simpan",
-      preConfirm: () => {
-        return {
-          title: (document.getElementById("swal-title") as HTMLInputElement).value,
-          desc: (document.getElementById("swal-desc") as HTMLTextAreaElement).value,
-          active: (document.getElementById("swal-active") as HTMLSelectElement).value,
-        };
+      confirmButtonText: "Buka Akses",
+      cancelButtonText: "Batal",
+      didOpen: () => {
+        const passwordInput = document.getElementById('swal-master-password') as HTMLInputElement;
+        const toggleBtn = document.getElementById('toggle-swal-password');
+        
+        toggleBtn?.addEventListener('click', () => {
+          const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+          passwordInput.setAttribute('type', type);
+          if (type === 'text') {
+            toggleBtn.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 19c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>';
+          } else {
+            toggleBtn.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+          }
+        });
+        
+        passwordInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            Swal.clickConfirm();
+          }
+        });
+        
+        // Auto focus
+        passwordInput.focus();
       },
-      footer: "Nama & deskripsi akan muncul di form publik muda-mudi"
-    });
-
-    if (formValues) {
-      try {
-        await Promise.all([
-            fetch("/api/mandiri/settings", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ key: "generus_registration_title", value: formValues.title }),
-            }),
-            fetch("/api/mandiri/settings", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ key: "generus_registration_description", value: formValues.desc }),
-            }),
-            fetch("/api/mandiri/settings", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ key: "generus_registration_active", value: formValues.active }),
-            })
-        ]);
-        setRegTitle(formValues.title);
-        setRegDesc(formValues.desc);
-        setIsActive(formValues.active);
-        Swal.fire({ icon: "success", title: "Berhasil disimpan", timer: 1000, showConfirmButton: false });
-      } catch (e: any) {
-        Swal.fire({ icon: "error", title: "Error", text: e.message });
+      preConfirm: () => {
+        return (document.getElementById('swal-master-password') as HTMLInputElement).value;
       }
+    });
+    if (value === "gencarlancarbokah@2026") {
+      setShowPasswords(true);
+      Swal.fire({ icon: "success", title: "Akses Dibuka", toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+    } else if (value) {
+      Swal.fire({ icon: "error", title: "Password Salah" });
     }
   };
 
   const handleBagikanLink = () => {
-    const link = `${window.location.origin}/generus/daftar`;
+    const link = `${window.location.origin}/register`;
     navigator.clipboard.writeText(link);
     Swal.fire({
       title: "Link Pendaftaran Muda-Mudi",
@@ -146,7 +135,6 @@ export default function GenerusPage() {
         search, 
         page: String(page), 
         limit: String(limit),
-        statusNikah: statusNikahFilter,
         kategoriUsia: kategoriFilter,
         desaId: desaFilter,
         kelompokId: kelompokFilter
@@ -160,7 +148,7 @@ export default function GenerusPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, page, statusNikahFilter, kategoriFilter, desaFilter, kelompokFilter]);
+  }, [search, page, kategoriFilter, desaFilter, kelompokFilter]);
 
   useEffect(() => {
     const timer = setTimeout(fetchData, 300);
@@ -309,7 +297,7 @@ export default function GenerusPage() {
         item.desaNama || "-",
         item.kelompokNama || "-",
         item.email || "Belum ada akun",
-        "generusjb2",
+        item.passwordPlain || "***",
       ]);
 
       autoTable(doc, {
@@ -369,7 +357,6 @@ export default function GenerusPage() {
       
       if (exportMode === 'filtered') {
         if (search) params.set("search", search);
-        if (statusNikahFilter !== "all") params.set("statusNikah", statusNikahFilter);
         if (kategoriFilter !== "all") params.set("kategoriUsia", kategoriFilter);
         if (desaFilter) params.set("desaId", desaFilter);
         if (kelompokFilter) params.set("kelompokId", kelompokFilter);
@@ -404,7 +391,7 @@ export default function GenerusPage() {
         item.desaNama || "-",
         item.kelompokNama || "-",
         item.email || "-",
-        item.passwordPlain || (item.email ? "*** (Rahasia)" : "Belum Ada Akun"),
+        userRole === "admin" && item.email ? (item.passwordPlain || "***") : (item.email ? "*** (Rahasia)" : "Belum Ada Akun"),
       ]);
 
       autoTable(doc, {
@@ -462,12 +449,30 @@ export default function GenerusPage() {
                   <span className="btn-label">Bagikan Link Form</span>
                 </button>
                 <button
-                  className="btn btn-secondary icon-btn"
-                  onClick={handleSettings}
-                  title="Atur Pendaftaran"
+                  className={`btn icon-btn`}
+                  onClick={async () => {
+                    const newValue = isActive === "true" ? "false" : "true";
+                    setIsActive(newValue);
+                    try {
+                        await fetch("/api/mandiri/settings", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ key: "generus_registration_active", value: newValue }),
+                        });
+                        Swal.fire({ 
+                          icon: "success", 
+                          title: newValue === "true" ? "Pendaftaran Terbuka" : "Pendaftaran Tertutup", 
+                          toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 
+                        });
+                    } catch (e) {
+                      console.error(e);
+                    }
+                  }}
+                  title={isActive === "true" ? "Tutup Pendaftaran" : "Buka Pendaftaran"}
+                  style={{ backgroundColor: isActive === "true" ? "#10b981" : "#ef4444", color: "white" }}
                 >
-                  <span className="btn-icon">⚙️</span>
-                  <span className="btn-label">Atur Pendaftaran</span>
+                  <span className="btn-icon">{isActive === "true" ? "🔓" : "🔒"}</span>
+                  <span className="btn-label">{isActive === "true" ? "Pendaftaran Terbuka" : "Pendaftaran Tertutup"}</span>
                 </button>
               </>
             )}
@@ -546,6 +551,9 @@ export default function GenerusPage() {
                 </svg>
                 <input
                   type="text"
+                  name="search"
+                  autoComplete="on"
+                  spellCheck="false"
                   className="form-control"
                   placeholder="Cari nama atau nomor unik..."
                   value={search}
@@ -554,17 +562,6 @@ export default function GenerusPage() {
               </div>
 
               <div className="filter-selects" style={{ display: "flex", gap: "8px", flexWrap: "wrap", width: "100%" }}>
-                <select 
-                  className="form-control" 
-                  style={{ flex: "1 1 140px" }}
-                  value={statusNikahFilter}
-                  onChange={(e) => { setStatusNikahFilter(e.target.value); setPage(1); }}
-                >
-                  <option value="all">Semua Status Nikah</option>
-                  <option value="Belum Menikah">Belum Menikah</option>
-                  <option value="Sudah Menikah">Sudah Menikah</option>
-                </select>
-
                 {["admin", "pengurus_daerah", "kmm_daerah"].includes(userRole) && (
                   <>
                     <select 
@@ -595,11 +592,11 @@ export default function GenerusPage() {
             
             <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
                <span className="text-sm text-muted">{total} data ditemukan</span>
-               {(statusNikahFilter !== "all" || kategoriFilter !== "all" || desaFilter !== "" || kelompokFilter !== "") && (
+               {(kategoriFilter !== "all" || desaFilter !== "" || kelompokFilter !== "") && (
                  <button 
                     className="btn btn-sm btn-link" 
                     style={{ padding: 0, height: "auto" }}
-                    onClick={() => { setStatusNikahFilter("all"); setKategoriFilter("all"); setDesaFilter(""); setKelompokFilter(""); setSearch(""); }}
+                    onClick={() => { setKategoriFilter("all"); setDesaFilter(""); setKelompokFilter(""); setSearch(""); }}
                >
                     Reset Filter
                  </button>
@@ -637,8 +634,8 @@ export default function GenerusPage() {
                         <th>Kelompok</th>
                         <th>Alamat</th>
                         <th>No. Telp</th>
-                        <th>Status</th>
                         <th>Akun Login</th>
+                        {userRole === "admin" && <th>Password</th>}
                         <th>Aksi</th>
                       </tr>
                     </thead>
@@ -664,7 +661,10 @@ export default function GenerusPage() {
                             <td data-label="No. Unik">
                               <span style={{ fontFamily: "monospace", fontSize: 12 }}>{item.nomorUnik}</span>
                             </td>
-                            <td data-label="Nama" style={{ fontWeight: 500 }}>{item.nama}</td>
+                            <td data-label="Nama" style={{ fontWeight: 500 }}>
+                              {item.nama}
+                              {item.namaOrtu && <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px", fontWeight: "normal" }}>Ortu: {item.namaOrtu}</div>}
+                            </td>
                             <td data-label="JK">{item.jenisKelamin === "L" ? "Laki-laki" : "Perempuan"}</td>
                             <td data-label="TTL / Umur">
                               <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
@@ -696,23 +696,33 @@ export default function GenerusPage() {
                               <div style={{ color: "var(--text-main)", fontWeight: 500 }}>{item.noTelp || "-"}</div>
                               {item.noTelpOrtu && <div style={{ color: "var(--text-muted)", marginTop: "2px" }}>Ortu: {item.noTelpOrtu}</div>}
                             </td>
-                            <td data-label="Status">
-                              <span className={`badge ${item.statusNikah === "Menikah" ? "badge-green" : "badge-gray"}`}>
-                                {item.statusNikah || "Belum Menikah"}
-                              </span>
-                            </td>
+
                             <td data-label="Akun Login" style={{ maxWidth: "150px", overflow: "hidden", textOverflow: "ellipsis" }}>
                               <div style={{ fontSize: "11px", fontWeight: 500, color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: "2px" }}>
                                 {item.email ? (
-                                  <>
-                                    <span style={{ color: "var(--text-main)" }} title={item.email}>{item.email}</span>
-                                    <span style={{ color: "var(--color-primary)" }}>P: {item.passwordPlain || "***"}</span>
-                                  </>
+                                  <span style={{ color: "var(--text-main)" }} title={item.email}>{item.email}</span>
                                 ) : (
                                   <span>-</span>
                                 )}
                               </div>
                             </td>
+                            {userRole === "admin" && (
+                              <td data-label="Password" style={{ maxWidth: "150px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                <div style={{ fontSize: "11px", fontWeight: 500, color: "var(--color-primary)", display: "flex", flexDirection: "column", gap: "2px" }}>
+                                  {item.email ? (
+                                    showPasswords ? (
+                                      <span style={{ wordBreak: "break-all" }}>{item.passwordPlain || "***"}</span>
+                                    ) : (
+                                      <button onClick={handleShowPasswords} style={{ padding: "2px 6px", fontSize: "10px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "4px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px", width: "fit-content" }}>
+                                        <span style={{ fontSize: "11px" }}>🔒</span> Tampilkan
+                                      </button>
+                                    )
+                                  ) : (
+                                    <span>-</span>
+                                  )}
+                                </div>
+                              </td>
+                            )}
                             <td data-label="Aksi">
                               <div className="flex gap-2">
                                 <button
@@ -770,7 +780,8 @@ export default function GenerusPage() {
                             )}
                           </div>
                           <div style={{ minWidth: 0, flex: 1 }}>
-                            <h4 style={{ margin: "0 0 2px 0", fontSize: "14.5px", fontWeight: 600, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.nama}</h4>
+                            <h4 style={{ margin: "0 0 0 0", fontSize: "14.5px", fontWeight: 600, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.nama}</h4>
+                            {item.namaOrtu && <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "1px", marginBottom: "3px", fontWeight: "normal" }}>Ortu: {item.namaOrtu}</div>}
                             <div style={{ display: "flex", flexWrap: "wrap", gap: "4px", marginTop: "2px" }}>
                               <span className={`badge ${item.kategori === "Usia Mandiri" ? "badge-purple" : "badge-blue"}`} style={{ fontSize: "8.5px", padding: "1px 5px" }}>
                                 {item.kategori === "Generus" ? "Muda-Mudi" : (item.kategori || "Muda-Mudi")}
@@ -778,9 +789,7 @@ export default function GenerusPage() {
                               <span className={`badge ${kategoriColor[item.kategoriUsia] || "badge-gray"}`} style={{ fontSize: "8.5px", padding: "1px 5px" }}>
                                 {item.kategoriUsia}
                               </span>
-                              <span className={`badge ${item.statusNikah === "Menikah" ? "badge-green" : "badge-gray"}`} style={{ fontSize: "8.5px", padding: "1px 5px" }}>
-                                {item.statusNikah || "Belum Menikah"}
-                              </span>
+
                             </div>
                           </div>
                         </div>
@@ -818,7 +827,16 @@ export default function GenerusPage() {
                           {item.email && (
                             <div style={{ gridColumn: "span 2" }}>
                               <span style={{ color: "var(--text-muted)", display: "block", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", marginBottom: "2px" }}>Akun Login</span>
-                              <span style={{ wordBreak: "break-all" }}>{item.email} (P: {item.passwordPlain || "***"})</span>
+                              <span style={{ wordBreak: "break-all" }}>
+                                {item.email}
+                                {userRole === "admin" && (
+                                  showPasswords ? (
+                                    <span style={{ marginLeft: "4px", color: "var(--color-primary)" }}>(P: {item.passwordPlain || "***"})</span>
+                                  ) : (
+                                    <span onClick={handleShowPasswords} style={{ cursor: "pointer", color: "#3b82f6", marginLeft: "6px", fontSize: "11px", fontWeight: "bold" }}>[🔒 Buka]</span>
+                                  )
+                                )}
+                              </span>
                             </div>
                           )}
                           {item.alamat && (

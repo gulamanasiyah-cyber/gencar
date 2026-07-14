@@ -388,13 +388,15 @@ export default function GenerusModal({ item, onClose, onSaved, isMandiri }: Prop
                 </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Status Nikah</label>
-                <select name="statusNikah" className="form-control" value={form.statusNikah} onChange={handleChange}>
-                  <option value="Belum Menikah">Belum Menikah</option>
-                  <option value="Menikah">Menikah</option>
-                </select>
-              </div>
+              {session?.role && ["admin", "kelompok", "desa", "pengurus_daerah", "kmm_daerah"].includes(session.role) && (
+                <div className="form-group">
+                  <label className="form-label">Status Nikah</label>
+                  <select name="statusNikah" className="form-control" value={(form as any).statusNikah || "Belum Menikah"} onChange={handleChange}>
+                    <option value="Belum Menikah">Belum Menikah</option>
+                    <option value="Sudah Menikah">Sudah Menikah</option>
+                  </select>
+                </div>
+              )}
 
               <div className="form-row">
                 {isMandiri ? (

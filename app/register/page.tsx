@@ -48,6 +48,8 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -56,6 +58,18 @@ export default function RegisterPage() {
       };
       handleLogoUpdate();
       window.addEventListener('site-logo-updated', handleLogoUpdate);
+
+      Promise.all([
+        fetch("/api/settings").then(r => r.json()).catch(() => ({})),
+        fetch("/api/profile").then(r => r.json()).catch(() => ({}))
+      ]).then(([s, user]) => {
+        const active = s.generus_registration_active !== "false";
+        if (!active && user.role !== "admin") {
+          setAccessDenied(true);
+        }
+        setCheckingAccess(false);
+      });
+
       return () => window.removeEventListener('site-logo-updated', handleLogoUpdate);
     }
   }, []);
@@ -144,26 +158,13 @@ export default function RegisterPage() {
         return;
       }
 
-      const nomorUnik = data.nomorUnik || "G-XXXXXX";
-      const waNumber = process.env.NEXT_PUBLIC_FONNTE_DEVICE || "6285119776224";
-      const waText = encodeURIComponent(`Saya ${form.name || 'Peserta'}, siap hadir dalam acara taaruf kubro`);
-      const waUrl = `https://wa.me/${waNumber}?text=${waText}`;
 
       Swal.fire({
         icon: 'success',
         title: 'Registrasi Berhasil!',
-        html: `
-          <p style="margin-bottom: 16px;">Silakan verifikasi pendaftaran Anda via WhatsApp agar akun dapat aktif.</p>
-          <div style="background-color: #f3f4f6; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 18px; color: #1f2937; margin-bottom: 20px;">
-            Kode Unik Anda: ${nomorUnik}
-          </div>
-          <a href="${waUrl}" target="_blank" class="swal2-confirm swal2-styled" style="display: inline-block; background-color: #25D366; color: white; text-decoration: none; padding: 12px 24px; border-radius: 4px; font-weight: 500;">
-            💬 Konfirmasi ke WhatsApp
-          </a>
-          <p style="font-size: 12px; color: #6b7280; margin-top: 16px;">Kirim pesan otomatis yang terisi di WhatsApp Anda tanpa mengubah isinya.</p>
-        `,
+        text: 'Akun Anda berhasil didaftarkan. Silakan masuk menggunakan email dan password yang telah Anda buat.',
         showConfirmButton: true,
-        confirmButtonText: 'Sudah Kirim & Lanjutkan',
+        confirmButtonText: 'Masuk ke Akun',
         confirmButtonColor: '#3085d6',
         allowOutsideClick: false,
         allowEscapeKey: false
@@ -181,6 +182,36 @@ export default function RegisterPage() {
       setLoading(false);
     }
   };
+
+  if (checkingAccess) {
+    return <GlobalLoading />;
+  }
+
+  if (accessDenied) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card" style={{ maxWidth: "460px", textAlign: "center", padding: "40px 20px" }}>
+          <div style={{ marginBottom: "20px" }}>
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto" }}>
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
+          <h2 style={{ fontSize: "20px", marginBottom: "12px", color: "var(--text)" }}>Pendaftaran Ditutup</h2>
+          <p style={{ color: "var(--text-muted)", fontSize: "14px", lineHeight: 1.5, marginBottom: "24px" }}>
+            Maaf, Anda tidak mempunyai akses pada halaman ini. Pendaftaran secara mandiri saat ini sedang ditutup.
+          </p>
+          <Link href="/" className="btn btn-primary" style={{ display: "inline-flex", alignItems: "center", gap: "8px", justifyContent: "center" }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+            Kembali ke Beranda
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-page">
@@ -214,7 +245,7 @@ export default function RegisterPage() {
             <PhotoUpload
               value={form.foto}
               onChange={(url) => setForm((prev) => ({ ...prev, foto: url }))}
-              helperText="Unggah foto profil Anda (maksimal 8 MB)"
+              helperText="Unggah foto profil Anda (maksimal 1 MB)"
             />
           </div>
 

@@ -10,6 +10,7 @@ const DigitalClock = dynamic(() => import("@/components/DigitalClock"), { ssr: f
 export default function HomeHeader({ session }: { session: any }) {
   const [mounted, setMounted] = useState(false);
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
+  const [registrationActive, setRegistrationActive] = useState(true);
 
   useEffect(() => {
     setMounted(true);
@@ -18,6 +19,11 @@ export default function HomeHeader({ session }: { session: any }) {
     };
     handleLogoUpdate();
     window.addEventListener('site-logo-updated', handleLogoUpdate);
+
+    fetch("/api/settings").then(r => r.json()).then(s => {
+      setRegistrationActive(s.generus_registration_active !== "false");
+    }).catch(console.error);
+
     return () => window.removeEventListener('site-logo-updated', handleLogoUpdate);
   }, []);
 
@@ -66,8 +72,8 @@ export default function HomeHeader({ session }: { session: any }) {
                   )
                 ) : (
                   <>
-                    <Link href="/login" className="hh-cta-btn hh-cta-outline">Masuk</Link>
-                    <Link href="/register" className="hh-cta-btn hh-cta-fill">Daftar Sekarang</Link>
+                    <Link href="/login" className="hh-cta-btn hh-cta-dark">Masuk</Link>
+                    {registrationActive && <Link href="/register" className="hh-cta-btn hh-cta-fill">Daftar Sekarang</Link>}
                   </>
                 )}
               </div>
@@ -252,14 +258,16 @@ export default function HomeHeader({ session }: { session: any }) {
           display: inline-block;
         }
         :global(.hh-cta-outline) {
-          border: none;
-          color: #475569;
+          border: 1.5px solid #0f172a;
+          color: #0f172a;
           background: transparent;
-          padding: 8px 16px;
+          padding: 7px 16px;
         }
         :global(.hh-cta-outline:hover) {
-          color: #0f172a;
-          background: rgba(15, 23, 42, 0.05);
+          color: white;
+          background: #0f172a;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
         }
         :global(.hh-cta-fill) {
           background: linear-gradient(135deg, #dc2626, #b91c1c);

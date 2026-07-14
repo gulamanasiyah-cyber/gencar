@@ -232,6 +232,9 @@ export async function GET(request: NextRequest) {
         instagram: generus.instagram,
         desaId: generus.desaId,
         kelompokId: generus.kelompokId,
+        namaOrtu: generus.namaOrtu,
+        noTelpOrtu: generus.noTelpOrtu,
+        kategori: generus.kategori,
         desaNama: desa.nama,
         kelompokNama: kelompok.nama,
         mandiriDesaNama: mandiriDesa.nama,
@@ -440,7 +443,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { nama, tempatLahir, tanggalLahir, jenisKelamin, kategoriUsia, alamat, noTelp, pendidikan, pekerjaan, statusNikah, hobi, makananMinumanFavorit, suku, foto, instagram } = body;
+    const { nama, tempatLahir, tanggalLahir, jenisKelamin, kategoriUsia, alamat, noTelp, pendidikan, pekerjaan, statusNikah, hobi, makananMinumanFavorit, suku, foto, instagram, namaOrtu, noTelpOrtu, kategori, desaId, kelompokId } = body;
 
     let updatedTg: any = null;
 
@@ -505,6 +508,11 @@ export async function PUT(request: NextRequest) {
         suku,
         foto,
         instagram,
+        namaOrtu,
+        noTelpOrtu,
+        kategori,
+        desaId: desaId ? Number(desaId) : null,
+        kelompokId: kelompokId ? Number(kelompokId) : null,
         updatedAt: new Date().toISOString(),
       })
       .where(eq(generus.id, session.generusId));
@@ -536,6 +544,11 @@ export async function PUT(request: NextRequest) {
         suku: generus.suku,
         foto: generus.foto,
         instagram: generus.instagram,
+        desaId: generus.desaId,
+        kelompokId: generus.kelompokId,
+        namaOrtu: generus.namaOrtu,
+        noTelpOrtu: generus.noTelpOrtu,
+        kategori: generus.kategori,
         desaNama: desa.nama,
         kelompokNama: kelompok.nama,
         mandiriDesaNama: mandiriDesa.nama,

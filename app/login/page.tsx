@@ -19,6 +19,7 @@ function LoginContent() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
+  const [registrationActive, setRegistrationActive] = useState(true);
 
   useEffect(() => {
     // Initial logo fetch if not already in window
@@ -28,6 +29,11 @@ function LoginContent() {
       };
       handleLogoUpdate();
       window.addEventListener('site-logo-updated', handleLogoUpdate);
+
+      fetch("/api/settings").then(r => r.json()).then(s => {
+        setRegistrationActive(s.generus_registration_active !== "false");
+      }).catch(console.error);
+
       return () => window.removeEventListener('site-logo-updated', handleLogoUpdate);
     }
   }, []);
@@ -211,11 +217,15 @@ function LoginContent() {
         </form>
 
         <div className="auth-footer">
-          Belum punya akun?{" "}
-          <Link href="/register" style={{ fontWeight: 600 }}>
-            Daftar sekarang
-          </Link>
-          <div style={{ marginTop: "20px", paddingTop: "16px", borderTop: "1px solid var(--border)" }}>
+          {registrationActive && (
+            <div style={{ marginBottom: "20px" }}>
+              Belum punya akun?{" "}
+              <Link href="/register" style={{ fontWeight: 600 }}>
+                Daftar sekarang
+              </Link>
+            </div>
+          )}
+          <div style={{ paddingTop: "16px", borderTop: "1px solid var(--border)" }}>
             <Link 
               href="/" 
               className="btn btn-secondary btn-full"

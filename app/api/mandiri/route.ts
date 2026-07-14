@@ -270,7 +270,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { 
       id: mandiriId, statusMandiri, catatan, resetDevice, statusPeserta, dibayarkanSenilai,
-      generusId, nama, noTelp, jenisKelamin, tanggalLahir, pekerjaan, mandiriDesaId, mandiriKelompokId
+      generusId, nama, foto, noTelp, jenisKelamin, tanggalLahir, pekerjaan, mandiriDesaId, mandiriKelompokId
     } = body;
 
     if (!mandiriId) return NextResponse.json({ error: "ID wajib diisi" }, { status: 400 });
@@ -315,6 +315,7 @@ export async function PUT(request: NextRequest) {
     if (generusId) {
       const genUpdate: any = {};
       if (nama !== undefined) genUpdate.nama = nama;
+      if (foto !== undefined) genUpdate.foto = foto;
       if (noTelp !== undefined) genUpdate.noTelp = noTelp;
       if (jenisKelamin !== undefined) genUpdate.jenisKelamin = jenisKelamin;
       if (tanggalLahir !== undefined) genUpdate.tanggalLahir = tanggalLahir;

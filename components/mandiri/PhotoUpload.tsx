@@ -12,7 +12,7 @@ interface PhotoUploadProps {
   maxSizeMb?: number;
 }
 
-export default function PhotoUpload({ value, onChange, label, helperText, maxSizeMb = 10 }: PhotoUploadProps) {
+export default function PhotoUpload({ value, onChange, label, helperText, maxSizeMb = 1 }: PhotoUploadProps) {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [uploading, setUploading] = useState(false);
