@@ -885,7 +885,23 @@ export default function AdminKatalogPage() {
                 return null;
               })()}
 
-
+              <div className="card-footer" style={{ marginTop: '16px', display: 'flex', gap: '10px' }}>
+                <button 
+                  className="footer-btn btn-profile" 
+                  onClick={() => setProfileDetail(item)}
+                  style={{ 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', 
+                    width: '100%', padding: '10px', borderRadius: '12px', 
+                    background: '#3b82f6', border: 'none', 
+                    color: 'white', fontSize: '13px', fontWeight: '700', cursor: 'pointer', transition: '0.2s'
+                  }}
+                  onMouseOver={(e) => { e.currentTarget.style.background = '#2563eb'; }}
+                  onMouseOut={(e) => { e.currentTarget.style.background = '#3b82f6'; }}
+                >
+                  <User size={14} />
+                  <span>Lihat Profile</span>
+                </button>
+              </div>
             </div>
 
             {isUnavailable && (
@@ -1006,6 +1022,12 @@ export default function AdminKatalogPage() {
                   <div className="pd-item pd-item-full">
                     <span className="pd-label">Hobi</span>
                     <span className="pd-value">{profileDetail.hobi}</span>
+                  </div>
+                )}
+                {profileDetail.kriteriaPasangan && (
+                  <div className="pd-item pd-item-full">
+                    <span className="pd-label">Kriteria Pasangan</span>
+                    <span className="pd-value">{profileDetail.kriteriaPasangan}</span>
                   </div>
                 )}
                 {profileDetail.makananMinumanFavorit && (

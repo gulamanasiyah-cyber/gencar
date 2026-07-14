@@ -814,10 +814,25 @@ export default function AdminKatalogPage() {
                 </div>
               </div>
 
-              <div className="card-footer">
-                <button className="footer-btn btn-id-card" onClick={() => setSelectedParticipant(item)}>
+              <div className="card-footer" style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                <button 
+                  className="footer-btn btn-profile" 
+                  onClick={() => setProfileDetail(item)}
+                  style={{ 
+                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', 
+                    padding: '10px', borderRadius: '12px', 
+                    background: '#3b82f6', border: 'none', 
+                    color: 'white', fontSize: '13px', fontWeight: '700', cursor: 'pointer', transition: '0.2s'
+                  }}
+                  onMouseOver={(e) => { e.currentTarget.style.background = '#2563eb'; }}
+                  onMouseOut={(e) => { e.currentTarget.style.background = '#3b82f6'; }}
+                >
+                  <User size={14} />
+                  <span>Profile</span>
+                </button>
+                <button className="footer-btn btn-id-card" onClick={() => setSelectedParticipant(item)} style={{ flex: 1 }}>
                   <Sparkles size={14} />
-                  <span>Lihat Kartu</span>
+                  <span>Kartu</span>
                 </button>
               </div>
             </div>
@@ -908,6 +923,12 @@ export default function AdminKatalogPage() {
                   <div className="pd-item pd-item-full">
                     <span className="pd-label">Hobi</span>
                     <span className="pd-value">{profileDetail.hobi}</span>
+                  </div>
+                )}
+                {profileDetail.kriteriaPasangan && (
+                  <div className="pd-item pd-item-full">
+                    <span className="pd-label">Kriteria Pasangan</span>
+                    <span className="pd-value">{profileDetail.kriteriaPasangan}</span>
                   </div>
                 )}
                 {profileDetail.makananMinumanFavorit && (
