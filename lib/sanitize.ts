@@ -6,14 +6,26 @@
  *   import { sanitizeString, detectPromptInjection, sanitizeObject } from "@/lib/sanitize";
  */
 
-/** Strip HTML tags and trim whitespace */
+/** Strip HTML tags, escape characters, and trim whitespace */
 export function sanitizeString(input: string): string {
-  return input
-    .replace(/<[^>]*>/g, "")     // strip HTML tags
+  // Melakukan sanitize secara berulang (recursive replace) untuk menangani XSS evasion
+  // seperti <scr<script>ipt> yang sering mengecoh regex sederhana.
+  let previous = "";
+  let current = input;
+
+  while (current !== previous) {
+    previous = current;
+    current = current
+      .replace(/<[^>]*>/g, "")             // strip HTML tags
+      .replace(/javascript\s*:/gi, "")     // strip javascript: protocol beserta spasinya
+      .replace(/vbscript\s*:/gi, "")       // strip vbscript: protocol
+      .replace(/data\s*:[^,]+,/gi, "")     // pencegahan eksekusi payload base64 di href/src
+      .replace(/on\w+\s*=/gi, "");         // strip inline event handlers (onclick=, onerror=, etc.)
+  }
+
+  return current
     .replace(/&lt;/gi, "")       // strip encoded < 
     .replace(/&gt;/gi, "")       // strip encoded >
-    .replace(/javascript:/gi, "")// strip javascript: protocol
-    .replace(/on\w+\s*=/gi, "")  // strip inline event handlers (onclick=, onerror=, etc.)
     .trim();
 }
 
@@ -67,18 +79,33 @@ export function detectPromptInjection(input: string): boolean {
 }
 
 /**
- * Deep-sanitize all string fields in a plain object.
- * Non-string values are passed through unchanged.
- * Also checks for prompt injection — throws if detected.
+ * Deep-sanitize all string fields in a plain object or array.
+ * Mampu menembus objek tersarang (nested objects) dan Array.
  *
  * @throws Error if prompt injection is detected in any field
  */
-export function sanitizeObject<T extends Record<string, unknown>>(
-  obj: T,
+export function sanitizeObject(
+  obj: any,
   options: { throwOnInjection?: boolean } = { throwOnInjection: true }
-): T {
-  const result: Record<string, unknown> = {};
+): any {
+  // Handle tipe primitif teratas
+  if (obj === null || obj === undefined || typeof obj !== "object") {
+    if (typeof obj === "string") {
+      if (options.throwOnInjection && detectPromptInjection(obj)) {
+        throw new Error(`Input ditolak — terdeteksi konten mencurigakan`);
+      }
+      return sanitizeString(obj);
+    }
+    return obj;
+  }
 
+  // Handle Array (Penting untuk payload JSON yang merupakan list data)
+  if (Array.isArray(obj)) {
+    return obj.map((item) => sanitizeObject(item, options));
+  }
+
+  // Handle Object
+  const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj)) {
     if (typeof value === "string") {
       if (options.throwOnInjection && detectPromptInjection(value)) {
@@ -87,10 +114,13 @@ export function sanitizeObject<T extends Record<string, unknown>>(
         );
       }
       result[key] = sanitizeString(value);
+    } else if (typeof value === "object" && value !== null) {
+      // Rekursif untuk membersihkan nested JSON Object/Array
+      result[key] = sanitizeObject(value, options);
     } else {
       result[key] = value;
     }
   }
 
-  return result as T;
+  return result;
 }

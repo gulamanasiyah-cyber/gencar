@@ -12,6 +12,34 @@ import { setSession } from "@/lib/auth";
 import { loginSchema } from "@/lib/validation";
 import { sanitizeString, detectPromptInjection } from "@/lib/sanitize";
 
+// Rate limiter in-memory sederhana untuk mencegah serangan Brute Force.
+// (Disarankan menggunakan Redis/Upstash untuk Next.js serverless di production)
+const rateLimit = new Map<string, { count: number, resetTime: number }>();
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const windowMillis = 15 * 60 * 1000; // 15 menit
+  
+  if (!rateLimit.has(ip)) {
+    rateLimit.set(ip, { count: 1, resetTime: now + windowMillis });
+    return true;
+  }
+  
+  const record = rateLimit.get(ip)!;
+  if (now > record.resetTime) {
+    // Reset limit
+    rateLimit.set(ip, { count: 1, resetTime: now + windowMillis });
+    return true;
+  }
+  
+  if (record.count >= 5) { // Maksimal 5 percobaan gagal/berhasil per 15 menit
+    return false;
+  }
+  
+  record.count += 1;
+  return true;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.json();
@@ -25,8 +53,14 @@ export async function POST(request: NextRequest) {
 
     const { email, password } = parsed.data;
 
-    // 2. Prompt injection detection
-    if (detectPromptInjection(email) || detectPromptInjection(password)) {
+    // 1.5 Rate Limiting (Pencegahan Brute-Force)
+    const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
+    if (!checkRateLimit(ip)) {
+      return NextResponse.json({ error: "Terlalu banyak percobaan. Silakan coba lagi dalam 15 menit." }, { status: 429 });
+    }
+
+    // 2. Prompt injection detection (hanya cek email agar user dengan password unik tidak terblokir)
+    if (detectPromptInjection(email)) {
       return NextResponse.json({ error: "Input ditolak" }, { status: 400 });
     }
 

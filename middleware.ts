@@ -18,9 +18,9 @@ export async function middleware(request: NextRequest) {
   // ── Reject oversized API payloads (>5MB) ──
   if (pathname.startsWith("/api/") && request.method === "POST") {
     const contentLength = request.headers.get("content-length");
-    if (contentLength && parseInt(contentLength) > 5 * 1024 * 1024) {
+    if (contentLength && parseInt(contentLength) > 1 * 1024 * 1024) {
       return NextResponse.json(
-        { error: "Payload terlalu besar (maks 5MB)" },
+        { error: "Payload terlalu besar (maks 1MB)" },
         { status: 413 }
       );
     }
