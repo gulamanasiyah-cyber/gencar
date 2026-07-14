@@ -5,6 +5,25 @@ import { db } from "@/lib/db";
 import { generus, mandiri } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { checkMaintenance } from "@/lib/maintenance";
+import AccessDenied from "@/components/AccessDenied";
+
+const VALID_DASHBOARD_ROLES = [
+  "admin",
+  "pengurus_daerah",
+  "kmm_daerah",
+  "desa",
+  "kelompok",
+  "generus",
+  "peserta",
+  "creator",
+  "tim_pnkb",
+  "admin_romantic_room",
+  "admin_keuangan",
+  "admin_kegiatan",
+  "admin_pdkt",
+  "usia_mandiri",
+  "tim_pnkb_gambuh"
+];
 
 export default async function DashboardLayout({
   children,
@@ -18,6 +37,11 @@ export default async function DashboardLayout({
   const isMaintenanceActive = await checkMaintenance();
   if (isMaintenanceActive) {
     redirect("/");
+  }
+
+  // Broken Access Control check: Block users without a valid role
+  if (!session.role || !VALID_DASHBOARD_ROLES.includes(session.role)) {
+    return <AccessDenied />;
   }
 
   let userFoto = "";
@@ -40,3 +64,4 @@ export default async function DashboardLayout({
     </div>
   );
 }
+

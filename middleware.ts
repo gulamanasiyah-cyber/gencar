@@ -71,6 +71,39 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
+  // Broken Access Control check: Validate role existence and validity
+  const VALID_ROLES = [
+    "admin",
+    "pengurus_daerah",
+    "kmm_daerah",
+    "desa",
+    "kelompok",
+    "generus",
+    "peserta",
+    "creator",
+    "pending",
+    "tim_pnkb",
+    "admin_romantic_room",
+    "admin_keuangan",
+    "admin_kegiatan",
+    "admin_pdkt",
+    "usia_mandiri",
+    "tim_pnkb_gambuh"
+  ];
+
+  if (!payload.role || !VALID_ROLES.includes(payload.role)) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "Forbidden: Akun Anda tidak memiliki peran yang valid" },
+        { status: 403 }
+      );
+    }
+    const response = NextResponse.redirect(new URL("/login", request.url));
+    response.cookies.delete("auth-token");
+    return response;
+  }
+
+
   // Admin-only routes
   if (pathname.startsWith("/admin") && !["admin", "pengurus_daerah", "kmm_daerah", "admin_romantic_room", "tim_pnkb", "admin_keuangan", "admin_kegiatan", "admin_pdkt", "tim_pnkb_gambuh"].includes(payload.role)) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
