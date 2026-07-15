@@ -263,6 +263,10 @@ async function getStats(session: any, searchParams?: any) {
       mandiriTotalPanitia,
       mandiriPulangPeserta,
       mandiriPulangPanitia,
+      mandiriTerdaftarPesertaLaki,
+      mandiriTerdaftarPesertaPerempuan,
+      mandiriTerdaftarPanitiaLaki,
+      mandiriTerdaftarPanitiaPerempuan,
     ] = await Promise.all([
       db
         .select({ count: sql<number>`count(DISTINCT ${generus.id})` })
@@ -584,6 +588,70 @@ async function getStats(session: any, searchParams?: any) {
           eq(mandiriAbsensi.generusId, formPanitiaDanPengurus.generusId),
         )
         .where(and(pulangFilter(), panitiaFilter, panitiaFilterWithParams)),
+      // Terdaftar Peserta Laki
+      db
+        .select({ count: sql<number>`count(DISTINCT ${mandiri.id})` })
+        .from(mandiri)
+        .innerJoin(generus, eq(mandiri.generusId, generus.id))
+        .where(
+          and(
+            generusFilter,
+            mandiriUserFilter,
+            eq(generus.jenisKelamin, "L"),
+            currentActivityId
+              ? eq(mandiri.kegiatanId, currentActivityId)
+              : undefined,
+            currentActivityId
+              ? sql`${mandiri.generusId} NOT IN (SELECT generus_id FROM form_panitia_dan_pengurus WHERE generus_id IS NOT NULL AND kegiatan_id = ${currentActivityId})`
+              : sql`${mandiri.generusId} NOT IN (SELECT generus_id FROM form_panitia_dan_pengurus WHERE generus_id IS NOT NULL)`
+          ),
+        ),
+      // Terdaftar Peserta Perempuan
+      db
+        .select({ count: sql<number>`count(DISTINCT ${mandiri.id})` })
+        .from(mandiri)
+        .innerJoin(generus, eq(mandiri.generusId, generus.id))
+        .where(
+          and(
+            generusFilter,
+            mandiriUserFilter,
+            eq(generus.jenisKelamin, "P"),
+            currentActivityId
+              ? eq(mandiri.kegiatanId, currentActivityId)
+              : undefined,
+            currentActivityId
+              ? sql`${mandiri.generusId} NOT IN (SELECT generus_id FROM form_panitia_dan_pengurus WHERE generus_id IS NOT NULL AND kegiatan_id = ${currentActivityId})`
+              : sql`${mandiri.generusId} NOT IN (SELECT generus_id FROM form_panitia_dan_pengurus WHERE generus_id IS NOT NULL)`
+          ),
+        ),
+      // Terdaftar Panitia Laki
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(formPanitiaDanPengurus)
+        .where(
+          and(
+            panitiaFilter,
+            panitiaFilterWithParams,
+            eq(formPanitiaDanPengurus.jenisKelamin, "L"),
+            currentActivityId
+              ? eq(formPanitiaDanPengurus.kegiatanId, currentActivityId)
+              : undefined,
+          ),
+        ),
+      // Terdaftar Panitia Perempuan
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(formPanitiaDanPengurus)
+        .where(
+          and(
+            panitiaFilter,
+            panitiaFilterWithParams,
+            eq(formPanitiaDanPengurus.jenisKelamin, "P"),
+            currentActivityId
+              ? eq(formPanitiaDanPengurus.kegiatanId, currentActivityId)
+              : undefined,
+          ),
+        ),
     ]);
 
     // Session Results Stats
@@ -738,6 +806,10 @@ async function getStats(session: any, searchParams?: any) {
           Number(mandiriHadirPanitia[0]?.count || 0) -
           Number(mandiriPulangPanitia[0]?.count || 0),
       ),
+      mandiriTerdaftarPesertaLaki: Number(mandiriTerdaftarPesertaLaki[0]?.count || 0),
+      mandiriTerdaftarPesertaPerempuan: Number(mandiriTerdaftarPesertaPerempuan[0]?.count || 0),
+      mandiriTerdaftarPanitiaLaki: Number(mandiriTerdaftarPanitiaLaki[0]?.count || 0),
+      mandiriTerdaftarPanitiaPerempuan: Number(mandiriTerdaftarPanitiaPerempuan[0]?.count || 0),
       sessionStats,
     };
   } catch (error) {
@@ -959,6 +1031,10 @@ function AttendanceChart({
   present,
   absent,
   pulang = 0,
+  hadirLaki = 0,
+  hadirPerempuan = 0,
+  terdaftarLaki = 0,
+  terdaftarPerempuan = 0,
   color = "#10b981",
   large = false,
 }: {
@@ -966,6 +1042,10 @@ function AttendanceChart({
   present: number;
   absent: number;
   pulang?: number;
+  hadirLaki?: number;
+  hadirPerempuan?: number;
+  terdaftarLaki?: number;
+  terdaftarPerempuan?: number;
   color?: string;
   large?: boolean;
 }) {
@@ -1047,6 +1127,56 @@ function AttendanceChart({
             <div className="db-attendance-stat-info">
               <span style={large ? { fontSize: "14px" } : {}}>Tidak Hadir</span>
               <strong style={{ color: "#ef4444", ...(large ? { fontSize: "18px" } : {}) }}>{absent}</strong>
+            </div>
+          </div>
+          <div className="db-attendance-stat">
+            <div
+              className="db-attendance-stat-dot"
+              style={{ background: "#f59e0b", ...(large ? { width: "10px", height: "10px" } : {}) }}
+            ></div>
+            <div className="db-attendance-stat-info">
+              <span style={large ? { fontSize: "14px" } : {}}>Total Pulang</span>
+              <strong style={{ color: "#f59e0b", ...(large ? { fontSize: "18px" } : {}) }}>{pulang}</strong>
+            </div>
+          </div>
+          <div className="db-attendance-stat">
+            <div
+              className="db-attendance-stat-dot"
+              style={{ background: "#3b82f6", ...(large ? { width: "10px", height: "10px" } : {}) }}
+            ></div>
+            <div className="db-attendance-stat-info">
+              <span style={large ? { fontSize: "14px" } : {}}>Hadir Laki-laki</span>
+              <strong style={{ color: "#3b82f6", ...(large ? { fontSize: "18px" } : {}) }}>{hadirLaki}</strong>
+            </div>
+          </div>
+          <div className="db-attendance-stat">
+            <div
+              className="db-attendance-stat-dot"
+              style={{ background: "#ec4899", ...(large ? { width: "10px", height: "10px" } : {}) }}
+            ></div>
+            <div className="db-attendance-stat-info">
+              <span style={large ? { fontSize: "14px" } : {}}>Hadir Perempuan</span>
+              <strong style={{ color: "#ec4899", ...(large ? { fontSize: "18px" } : {}) }}>{hadirPerempuan}</strong>
+            </div>
+          </div>
+          <div className="db-attendance-stat">
+            <div
+              className="db-attendance-stat-dot"
+              style={{ background: "#3b82f6", opacity: 0.5, ...(large ? { width: "10px", height: "10px" } : {}) }}
+            ></div>
+            <div className="db-attendance-stat-info">
+              <span style={large ? { fontSize: "14px" } : {}}>Terdaftar Laki-laki</span>
+              <strong style={{ color: "#3b82f6", opacity: 0.7, ...(large ? { fontSize: "18px" } : {}) }}>{terdaftarLaki}</strong>
+            </div>
+          </div>
+          <div className="db-attendance-stat">
+            <div
+              className="db-attendance-stat-dot"
+              style={{ background: "#ec4899", opacity: 0.5, ...(large ? { width: "10px", height: "10px" } : {}) }}
+            ></div>
+            <div className="db-attendance-stat-info">
+              <span style={large ? { fontSize: "14px" } : {}}>Terdaftar Perempuan</span>
+              <strong style={{ color: "#ec4899", opacity: 0.7, ...(large ? { fontSize: "18px" } : {}) }}>{terdaftarPerempuan}</strong>
             </div>
           </div>
           <div className="db-attendance-total">
@@ -1160,6 +1290,11 @@ function AdminDashboard({
             label="Peserta"
             present={stats?.mandiriHadirPeserta ?? 0}
             absent={stats?.mandiriTidakHadirPeserta ?? 0}
+            pulang={stats?.mandiriPulangPeserta ?? 0}
+            hadirLaki={stats?.mandiriHadirLaki ?? 0}
+            hadirPerempuan={stats?.mandiriHadirPerempuan ?? 0}
+            terdaftarLaki={stats?.mandiriTerdaftarPesertaLaki ?? 0}
+            terdaftarPerempuan={stats?.mandiriTerdaftarPesertaPerempuan ?? 0}
             color="#3b82f6"
             large={true}
           />
@@ -1167,6 +1302,11 @@ function AdminDashboard({
             label="Panitia"
             present={stats?.mandiriHadirPanitia ?? 0}
             absent={stats?.mandiriTidakHadirPanitia ?? 0}
+            pulang={stats?.mandiriPulangPanitia ?? 0}
+            hadirLaki={stats?.mandiriHadirPanitiaLaki ?? 0}
+            hadirPerempuan={stats?.mandiriHadirPanitiaPerempuan ?? 0}
+            terdaftarLaki={stats?.mandiriTerdaftarPanitiaLaki ?? 0}
+            terdaftarPerempuan={stats?.mandiriTerdaftarPanitiaPerempuan ?? 0}
             color="#10b981"
             large={true}
           />
@@ -1349,12 +1489,22 @@ function AdminDashboard({
             label="Peserta"
             present={stats?.mandiriHadirPeserta ?? 0}
             absent={stats?.mandiriTidakHadirPeserta ?? 0}
+            pulang={stats?.mandiriPulangPeserta ?? 0}
+            hadirLaki={stats?.mandiriHadirLaki ?? 0}
+            hadirPerempuan={stats?.mandiriHadirPerempuan ?? 0}
+            terdaftarLaki={stats?.mandiriTerdaftarPesertaLaki ?? 0}
+            terdaftarPerempuan={stats?.mandiriTerdaftarPesertaPerempuan ?? 0}
             color="#3b82f6"
           />
           <AttendanceChart
             label="Panitia"
             present={stats?.mandiriHadirPanitia ?? 0}
             absent={stats?.mandiriTidakHadirPanitia ?? 0}
+            pulang={stats?.mandiriPulangPanitia ?? 0}
+            hadirLaki={stats?.mandiriHadirPanitiaLaki ?? 0}
+            hadirPerempuan={stats?.mandiriHadirPanitiaPerempuan ?? 0}
+            terdaftarLaki={stats?.mandiriTerdaftarPanitiaLaki ?? 0}
+            terdaftarPerempuan={stats?.mandiriTerdaftarPanitiaPerempuan ?? 0}
             color="#10b981"
           />
         </div>
