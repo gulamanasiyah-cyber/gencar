@@ -122,6 +122,14 @@ async function getStats(session: any, searchParams?: any) {
       return extra ? and(...base, extra) : and(...base);
     };
 
+    const pulangFilter = (extra?: any) => {
+      const base = [eq(mandiriAbsensi.keterangan, "pulang")];
+      if (currentActivityId)
+        base.push(eq(mandiriAbsensi.kegiatanId, currentActivityId));
+      else base.push(sql`1=0`);
+      return extra ? and(...base, extra) : and(...base);
+    };
+
     const desaFilterPanitia =
       (session.role === "desa" ||
         (session.role === "tim_pnkb" && !session.kelompokId)) &&
@@ -253,6 +261,8 @@ async function getStats(session: any, searchParams?: any) {
       mandiriHadirPanitiaLaki,
       mandiriHadirPanitiaPerempuan,
       mandiriTotalPanitia,
+      mandiriPulangPeserta,
+      mandiriPulangPanitia,
     ] = await Promise.all([
       db
         .select({ count: sql<number>`count(DISTINCT ${generus.id})` })
@@ -547,6 +557,33 @@ async function getStats(session: any, searchParams?: any) {
               : undefined,
           ),
         ),
+      // Pulang Peserta
+      db
+        .select({ count: sql<number>`count(DISTINCT ${mandiri.id})` })
+        .from(mandiriAbsensi)
+        .innerJoin(mandiri, eq(mandiriAbsensi.generusId, mandiri.generusId))
+        .innerJoin(generus, eq(mandiriAbsensi.generusId, generus.id))
+        .where(
+          and(
+            pulangFilter(),
+            generusFilter,
+            mandiriUserFilter,
+            currentActivityId
+              ? sql`${mandiriAbsensi.generusId} NOT IN (SELECT generus_id FROM form_panitia_dan_pengurus WHERE generus_id IS NOT NULL AND kegiatan_id = ${currentActivityId})`
+              : sql`${mandiriAbsensi.generusId} NOT IN (SELECT generus_id FROM form_panitia_dan_pengurus WHERE generus_id IS NOT NULL)`,
+          ),
+        ),
+      // Pulang Panitia
+      db
+        .select({
+          count: sql<number>`count(DISTINCT ${formPanitiaDanPengurus.id})`,
+        })
+        .from(mandiriAbsensi)
+        .innerJoin(
+          formPanitiaDanPengurus,
+          eq(mandiriAbsensi.generusId, formPanitiaDanPengurus.generusId),
+        )
+        .where(and(pulangFilter(), panitiaFilter, panitiaFilterWithParams)),
     ]);
 
     // Session Results Stats
@@ -687,15 +724,19 @@ async function getStats(session: any, searchParams?: any) {
         mandiriHadirPanitiaPerempuan[0]?.count || 0,
       ),
       mandiriTotalPanitia: Number(mandiriTotalPanitia[0]?.count || 0),
+      mandiriPulangPeserta: Number(mandiriPulangPeserta[0]?.count || 0),
+      mandiriPulangPanitia: Number(mandiriPulangPanitia[0]?.count || 0),
       mandiriTidakHadirPeserta: Math.max(
         0,
         Number(mandiriCount[0].count) -
-          Number(mandiriHadirPeserta[0]?.count || 0),
+          Number(mandiriHadirPeserta[0]?.count || 0) -
+          Number(mandiriPulangPeserta[0]?.count || 0),
       ),
       mandiriTidakHadirPanitia: Math.max(
         0,
         Number(mandiriTotalPanitia[0]?.count || 0) -
-          Number(mandiriHadirPanitia[0]?.count || 0),
+          Number(mandiriHadirPanitia[0]?.count || 0) -
+          Number(mandiriPulangPanitia[0]?.count || 0),
       ),
       sessionStats,
     };
@@ -917,14 +958,16 @@ function AttendanceChart({
   label,
   present,
   absent,
+  pulang = 0,
   color = "#10b981",
 }: {
   label: string;
   present: number;
   absent: number;
+  pulang?: number;
   color?: string;
 }) {
-  const total = present + absent;
+  const total = present + absent + pulang;
   const presentPercent = total > 0 ? (present / total) * 100 : 0;
 
   return (
@@ -1002,6 +1045,16 @@ function AttendanceChart({
             <div className="db-attendance-stat-info">
               <span>Tidak Hadir</span>
               <strong style={{ color: "#ef4444" }}>{absent}</strong>
+            </div>
+          </div>
+          <div className="db-attendance-stat">
+            <div
+              className="db-attendance-stat-dot"
+              style={{ background: "#f59e0b" }}
+            ></div>
+            <div className="db-attendance-stat-info">
+              <span>Total Pulang</span>
+              <strong style={{ color: "#f59e0b" }}>{pulang}</strong>
             </div>
           </div>
           <div className="db-attendance-total">
@@ -1260,12 +1313,14 @@ function AdminDashboard({
             label="Peserta"
             present={stats?.mandiriHadirPeserta ?? 0}
             absent={stats?.mandiriTidakHadirPeserta ?? 0}
+            pulang={stats?.mandiriPulangPeserta ?? 0}
             color="#3b82f6"
           />
           <AttendanceChart
             label="Panitia"
             present={stats?.mandiriHadirPanitia ?? 0}
             absent={stats?.mandiriTidakHadirPanitia ?? 0}
+            pulang={stats?.mandiriPulangPanitia ?? 0}
             color="#10b981"
           />
         </div>
