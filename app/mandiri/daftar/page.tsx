@@ -975,7 +975,22 @@ export default function MandiriDaftarPage() {
 
                 <div style={{ marginBottom: "16px", padding: "12px", background: "#fef3c7", borderRadius: "8px", fontSize: "13px", color: "#92400e", lineHeight: "1.5", border: "1px dashed #fbbf24" }}>
                   <p style={{ margin: 0, fontWeight: 600 }}>Silakan transfer ke rekening berikut:</p>
-                  <p style={{ margin: "6px 0", fontSize: "16px", fontWeight: 800, letterSpacing: "1px", color: "#b45309" }}>379601007016501</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "6px 0" }}>
+                     <p style={{ margin: 0, fontSize: "16px", fontWeight: 800, letterSpacing: "1px", color: "#b45309" }}>379601007016501</p>
+                     <button
+                        type="button"
+                        onClick={() => {
+                           navigator.clipboard.writeText("379601007016501");
+                           Swal.fire({ icon: "success", title: "Tersalin", text: "Nomor rekening berhasil disalin!", timer: 1500, showConfirmButton: false, width: "300px" });
+                        }}
+                        style={{ padding: "4px 10px", background: "#f59e0b", color: "#fff", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: "4px", transition: "all 0.2s ease" }}
+                        onMouseOver={(e) => e.currentTarget.style.background = "#d97706"}
+                        onMouseOut={(e) => e.currentTarget.style.background = "#f59e0b"}
+                     >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        Salin
+                     </button>
+                  </div>
                   <p style={{ margin: 0 }}>Bank BRI<br/>a.n. Aos Burhanudin</p>
                 </div>
 

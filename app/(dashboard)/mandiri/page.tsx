@@ -99,7 +99,13 @@ export default function MandiriPage() {
    const limit = 10;
 
    useEffect(() => {
-      fetch("/api/profile").then(r => r.json()).then(d => setUserRole(d.role || ""));
+      fetch("/api/profile")
+         .then(r => {
+            if (!r.ok) throw new Error("Profile API failed");
+            return r.json();
+         })
+         .then(d => setUserRole(d?.role || ""))
+         .catch(e => console.error("Profile fetch error:", e));
 
       const fetchSettings = async () => {
          try {
