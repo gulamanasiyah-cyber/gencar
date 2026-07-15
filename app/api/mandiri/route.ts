@@ -375,13 +375,14 @@ export async function DELETE(request: NextRequest) {
     const kegiatanId = searchParams.get("kegiatanId");
 
     if (action === "deleteAll") {
-      let conditions = [];
-      if (kegiatanId) {
-        conditions.push(eq(mandiri.kegiatanId, kegiatanId));
+      if (!kegiatanId) {
+        return NextResponse.json({ error: "Kegiatan wajib dipilih untuk menghapus semua data" }, { status: 400 });
       }
 
+      let conditions = [eq(mandiri.kegiatanId, kegiatanId)];
+
       const query = db.select({ generusId: mandiri.generusId }).from(mandiri);
-      const entries = await (conditions.length > 0 ? query.where(and(...conditions)) : query);
+      const entries = await query.where(and(...conditions));
       
       const generusIds = entries.map(e => e.generusId).filter(Boolean);
 

@@ -98,7 +98,13 @@ export default function MandiriDaftarPage() {
     fetch("/api/public/mandiri/settings?key=mandiri_registration_status_peserta")
       .then(r => r.json())
       .then(d => {
-        if (d.value) setRegStatusPeserta(d.value);
+        const urlParams = new URLSearchParams(window.location.search);
+        const statusParam = urlParams.get('status');
+        if (statusParam && statusParam.toLowerCase() === 'person') {
+          setRegStatusPeserta("Person");
+        } else if (d.value) {
+          setRegStatusPeserta(d.value);
+        }
       });
 
     Promise.all([
@@ -966,6 +972,12 @@ export default function MandiriDaftarPage() {
             {regStatusPeserta === "Person" && (
               <div className="form-group" style={{ padding: "15px", background: "#fffbeb", borderRadius: "10px", border: "1px solid #fde68a" }}>
                 <h4 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 700, color: "#92400e" }}>Informasi Pembayaran</h4>
+
+                <div style={{ marginBottom: "16px", padding: "12px", background: "#fef3c7", borderRadius: "8px", fontSize: "13px", color: "#92400e", lineHeight: "1.5", border: "1px dashed #fbbf24" }}>
+                  <p style={{ margin: 0, fontWeight: 600 }}>Silakan transfer ke rekening berikut:</p>
+                  <p style={{ margin: "6px 0", fontSize: "16px", fontWeight: 800, letterSpacing: "1px", color: "#b45309" }}>379601007016501</p>
+                  <p style={{ margin: 0 }}>Bank BRI<br/>a.n. Aos Burhanudin</p>
+                </div>
 
                 <div className="form-group">
                   <label className="form-label">Dibayarkan Senilai <span className="required">*</span></label>

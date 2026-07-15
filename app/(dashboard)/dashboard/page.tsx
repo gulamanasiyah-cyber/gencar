@@ -960,35 +960,37 @@ function AttendanceChart({
   absent,
   pulang = 0,
   color = "#10b981",
+  large = false,
 }: {
   label: string;
   present: number;
   absent: number;
   pulang?: number;
   color?: string;
+  large?: boolean;
 }) {
   const total = present + absent + pulang;
   const presentPercent = total > 0 ? (present / total) * 100 : 0;
 
   return (
     <div className="db-attendance-card">
-      <div className="db-attendance-header">
-        <div className="db-attendance-title">
+      <div className="db-attendance-header" style={large ? { marginBottom: "24px" } : {}}>
+        <div className="db-attendance-title" style={large ? { fontSize: "16px" } : {}}>
           <div
             className="db-attendance-dot"
-            style={{ background: color }}
+            style={{ background: color, ...(large ? { width: "12px", height: "12px" } : {}) }}
           ></div>
           Kehadiran {label}
         </div>
         <div
           className="db-attendance-badge"
-          style={{ color, background: `${color}18` }}
+          style={{ color, background: `${color}18`, ...(large ? { fontSize: "13px", padding: "6px 16px" } : {}) }}
         >
           {Math.round(presentPercent)}% hadir
         </div>
       </div>
-      <div className="db-attendance-body">
-        <div className="db-attendance-chart">
+      <div className="db-attendance-body" style={large ? { gap: "32px", padding: "10px 0" } : {}}>
+        <div className="db-attendance-chart" style={large ? { width: "130px", height: "130px" } : {}}>
           <svg
             viewBox="0 0 36 36"
             style={{
@@ -1021,40 +1023,30 @@ function AttendanceChart({
             ></circle>
           </svg>
           <div className="db-attendance-center">
-            <div className="db-attendance-pct" style={{ color }}>
+            <div className="db-attendance-pct" style={{ color, ...(large ? { fontSize: "22px" } : {}) }}>
               {Math.round(presentPercent)}%
             </div>
           </div>
         </div>
-        <div className="db-attendance-stats">
+        <div className="db-attendance-stats" style={large ? { gap: "16px" } : {}}>
           <div className="db-attendance-stat">
             <div
               className="db-attendance-stat-dot"
-              style={{ background: color }}
+              style={{ background: color, ...(large ? { width: "10px", height: "10px" } : {}) }}
             ></div>
             <div className="db-attendance-stat-info">
-              <span>Hadir</span>
-              <strong style={{ color }}>{present}</strong>
+              <span style={large ? { fontSize: "14px" } : {}}>Hadir</span>
+              <strong style={{ color, ...(large ? { fontSize: "18px" } : {}) }}>{present}</strong>
             </div>
           </div>
           <div className="db-attendance-stat">
             <div
               className="db-attendance-stat-dot"
-              style={{ background: "#ef4444" }}
+              style={{ background: "#ef4444", ...(large ? { width: "10px", height: "10px" } : {}) }}
             ></div>
             <div className="db-attendance-stat-info">
-              <span>Tidak Hadir</span>
-              <strong style={{ color: "#ef4444" }}>{absent}</strong>
-            </div>
-          </div>
-          <div className="db-attendance-stat">
-            <div
-              className="db-attendance-stat-dot"
-              style={{ background: "#f59e0b" }}
-            ></div>
-            <div className="db-attendance-stat-info">
-              <span>Total Pulang</span>
-              <strong style={{ color: "#f59e0b" }}>{pulang}</strong>
+              <span style={large ? { fontSize: "14px" } : {}}>Tidak Hadir</span>
+              <strong style={{ color: "#ef4444", ...(large ? { fontSize: "18px" } : {}) }}>{absent}</strong>
             </div>
           </div>
           <div className="db-attendance-total">
@@ -1136,6 +1128,50 @@ function AdminDashboard({
             </div>
           </div>
         </div>
+
+        {/* GRAFIK KEHADIRAN MOVED TO TOP */}
+        <div className="db-section-header">
+          <div
+            className="db-section-icon"
+            style={{ background: "linear-gradient(135deg, #10b981, #059669)" }}
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="white"
+              strokeWidth="2"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="16 12 12 8 8 12" />
+              <line x1="12" y1="16" x2="12" y2="8" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="db-section-title">Grafik Kehadiran</h2>
+            <p className="db-section-sub">
+              Visualisasi kehadiran peserta dan panitia
+            </p>
+          </div>
+        </div>
+        <div className="db-charts-grid" style={{ marginBottom: "2rem" }}>
+          <AttendanceChart
+            label="Peserta"
+            present={stats?.mandiriHadirPeserta ?? 0}
+            absent={stats?.mandiriTidakHadirPeserta ?? 0}
+            color="#3b82f6"
+            large={true}
+          />
+          <AttendanceChart
+            label="Panitia"
+            present={stats?.mandiriHadirPanitia ?? 0}
+            absent={stats?.mandiriTidakHadirPanitia ?? 0}
+            color="#10b981"
+            large={true}
+          />
+        </div>
+        {/* END GRAFIK KEHADIRAN */}
 
         <div className="db-section-header">
           <div
@@ -1313,14 +1349,12 @@ function AdminDashboard({
             label="Peserta"
             present={stats?.mandiriHadirPeserta ?? 0}
             absent={stats?.mandiriTidakHadirPeserta ?? 0}
-            pulang={stats?.mandiriPulangPeserta ?? 0}
             color="#3b82f6"
           />
           <AttendanceChart
             label="Panitia"
             present={stats?.mandiriHadirPanitia ?? 0}
             absent={stats?.mandiriTidakHadirPanitia ?? 0}
-            pulang={stats?.mandiriPulangPanitia ?? 0}
             color="#10b981"
           />
         </div>

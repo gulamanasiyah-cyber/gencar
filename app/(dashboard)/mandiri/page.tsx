@@ -93,6 +93,7 @@ export default function MandiriPage() {
       mandiriDaerahId: "",
       mandiriDesaId: "",
       mandiriKelompokId: "",
+      buktiPembayaran: "",
    });
 
    const limit = 10;
@@ -327,6 +328,7 @@ export default function MandiriPage() {
          mandiriDaerahId: mDaerahId,
          mandiriDesaId: mDesaId,
          mandiriKelompokId: mKelId,
+         buktiPembayaran: item.buktiPembayaran || "",
       });
       setEditModalOpen(true);
    };
@@ -352,6 +354,7 @@ export default function MandiriPage() {
             mandiriDaerahId: editForm.mandiriDaerahId || null,
             mandiriDesaId: editForm.mandiriDesaId || null,
             mandiriKelompokId: editForm.mandiriKelompokId || null,
+            buktiPembayaran: editForm.buktiPembayaran || null,
          };
          const res = await fetch("/api/mandiri", {
             method: "PUT",
@@ -556,7 +559,21 @@ export default function MandiriPage() {
                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                         </svg>
-                        Bagikan Link
+                        Bagikan Link Peserta Wajib
+                     </button>
+                     <button
+                        className="btn btn-secondary"
+                        onClick={() => {
+                           const url = `${window.location.origin}/mandiri/daftar?status=person`;
+                           navigator.clipboard.writeText(url);
+                           Swal.fire({ icon: "success", title: "Link Disalin!", text: "Link pendaftaran mandiri (Person) berhasil disalin ke clipboard.", timer: 1500, showConfirmButton: false });
+                        }}
+                     >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16 }}>
+                           <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                           <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                        </svg>
+                        Bagikan Link Peserta Person
                      </button>
                      <button
                         className="btn btn-secondary"
@@ -1199,16 +1216,54 @@ export default function MandiriPage() {
                         </div>
 
                         {editForm.statusPeserta === "Person" && (
-                           <div className="form-group" style={{ marginBottom: "16px" }}>
-                              <label className="form-label">Dibayarkan Senilai (Rp)</label>
-                              <input
-                                 type="number"
-                                 className="form-control"
-                                 placeholder="Contoh: 150000"
-                                 value={editForm.dibayarkanSenilai}
-                                 onChange={(e) => setEditForm({ ...editForm, dibayarkanSenilai: e.target.value })}
-                              />
-                           </div>
+                           <>
+                              <div className="form-group" style={{ marginBottom: "16px" }}>
+                                 <label className="form-label">Dibayarkan Senilai (Rp)</label>
+                                 <input
+                                    type="number"
+                                    className="form-control"
+                                    placeholder="Contoh: 150000"
+                                    value={editForm.dibayarkanSenilai}
+                                    onChange={(e) => setEditForm({ ...editForm, dibayarkanSenilai: e.target.value })}
+                                 />
+                              </div>
+                              <div className="form-group" style={{ marginBottom: "24px", textAlign: "center" }}>
+                                 <label className="form-label" style={{ textAlign: "left", display: "block" }}>Foto Bukti Bayar</label>
+                                 <PhotoUpload
+                                    value={editForm.buktiPembayaran}
+                                    onChange={(url) => setEditForm((prev) => ({ ...prev, buktiPembayaran: url }))}
+                                    helperText="Maksimal 1 MB"
+                                 />
+                                 {editForm.buktiPembayaran && (
+                                    <div style={{ marginTop: "12px" }}>
+                                       <a 
+                                          href={`/api/download?url=${encodeURIComponent(editForm.buktiPembayaran)}`}
+                                          className="btn btn-sm btn-secondary" 
+                                          style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                                       >
+                                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
+                                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                             <polyline points="7 10 12 15 17 10" />
+                                             <line x1="12" y1="15" x2="12" y2="3" />
+                                          </svg>
+                                          Unduh Bukti Bayar
+                                       </a>
+                                       <a 
+                                          href={editForm.buktiPembayaran}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="btn btn-sm btn-outline" 
+                                          style={{ display: "inline-flex", alignItems: "center", gap: "6px", marginLeft: "8px" }}
+                                       >
+                                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
+                                             <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                                          </svg>
+                                          Lihat
+                                       </a>
+                                    </div>
+                                 )}
+                              </div>
+                           </>
                         )}
 
                         <div className="form-group" style={{ marginBottom: "16px" }}>

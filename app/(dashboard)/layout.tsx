@@ -6,6 +6,7 @@ import { generus, mandiri } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { checkMaintenance } from "@/lib/maintenance";
 import AccessDenied from "@/components/AccessDenied";
+import AutoLogout from "@/components/AutoLogout";
 
 const VALID_DASHBOARD_ROLES = [
   "admin",
@@ -59,6 +60,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="layout">
+      <AutoLogout timeoutMinutes={5} />
       <Sidebar user={{ name: session.name, email: session.email, role: session.role, foto: userFoto, isInMandiri }} />
       <main className="main-content">{children}</main>
     </div>
