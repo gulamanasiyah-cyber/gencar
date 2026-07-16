@@ -2554,6 +2554,13 @@ export default function PublicKatalogPage() {
           <span>Pilihanku</span>
         </button>
         <button
+          className={`nav-bar-item ${activeTab === "absen" ? "active" : ""}`}
+          onClick={() => setActiveTab("absen")}
+        >
+          <QrCode size={20} />
+          <span>Absen</span>
+        </button>
+        <button
           className={`nav-bar-item ${activeTab === "hasil" ? "active" : ""}`}
           onClick={() => setActiveTab("hasil")}
         >
@@ -2573,13 +2580,6 @@ export default function PublicKatalogPage() {
         >
           <User size={20} />
           <span>Profil</span>
-        </button>
-        <button
-          className={`nav-bar-item ${activeTab === "absen" ? "active" : ""}`}
-          onClick={() => setActiveTab("absen")}
-        >
-          <QrCode size={20} />
-          <span>Absen</span>
         </button>
       </nav>
 
