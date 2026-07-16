@@ -122,7 +122,7 @@ export default function SaranRomanticRoom() {
                                             </div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                 <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, background: '#f8fafc', padding: '4px 10px', borderRadius: '20px' }}>
-                                                    {new Date(saran.createdAt).toLocaleString("id-ID", { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                    {new Date(saran.createdAt + (!saran.createdAt.endsWith('Z') ? 'Z' : '')).toLocaleString("id-ID", { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })} WIB
                                                 </span>
                                                 <button 
                                                     onClick={() => handleDelete(saran.id)}
