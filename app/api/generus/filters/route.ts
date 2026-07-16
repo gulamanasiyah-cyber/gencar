@@ -53,18 +53,31 @@ export async function GET(request: NextRequest) {
         return a.localeCompare(b);
       });
 
-    const regionsResult = await db
+    const daerahResult = await db
+      .select({ 
+        id: mandiriDaerah.id,
+        nama: mandiriDaerah.nama,
+      })
+      .from(mandiriDaerah)
+      .orderBy(mandiriDaerah.nama);
+
+    const desaResult = await db
       .select({ 
         id: mandiriDesa.id,
         nama: mandiriDesa.nama,
-        kota: mandiriDaerah.nama
+        daerahId: mandiriDesa.mandiriDaerahId,
       })
       .from(mandiriDesa)
-      .innerJoin(generus, eq(generus.mandiriDesaId, mandiriDesa.id))
-      .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
-      .groupBy(mandiriDesa.id, mandiriDesa.nama, mandiriDaerah.nama)
-      .orderBy(mandiriDaerah.nama, mandiriDesa.nama);
+      .orderBy(mandiriDesa.nama);
+
+    const kelompokResult = await db
+      .select({ 
+        id: mandiriKelompok.id,
+        nama: mandiriKelompok.nama,
+        desaId: mandiriKelompok.mandiriDesaId,
+      })
+      .from(mandiriKelompok)
+      .orderBy(mandiriKelompok.nama);
 
     // 3. Official Desa from database
     const { desa: officialDesaTable } = await import("@/lib/schema");
@@ -78,8 +91,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       pendidikan,
-      regions: regionsResult,
-      desas: desaResultActual
+      daerahs: daerahResult,
+      desas: desaResult,
+      kelompoks: kelompokResult
     });
   } catch (error) {
     console.error("Filters GET error:", error);

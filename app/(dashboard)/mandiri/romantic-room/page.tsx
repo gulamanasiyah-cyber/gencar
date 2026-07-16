@@ -97,6 +97,7 @@ export default function RomanticRoomPage() {
     const [myRoom, setMyRoom] = useState<any>(null);
     const [myQueueStatus, setMyQueueStatus] = useState<any>(null);
     const [visitHistory, setVisitHistory] = useState<any[]>([]);
+
     const [attendanceCount, setAttendanceCount] = useState<number>(0);
     const [queueSearch, setQueueSearch] = useState("");
     const [roomSearch, setRoomSearch] = useState("");
@@ -252,6 +253,8 @@ export default function RomanticRoomPage() {
                     const staffJson = await staffRes.json();
                     setStaffList(Array.isArray(staffJson) ? staffJson : []);
                 }
+
+
             } else {
                 // Check if user is in a room or queue
                 const myRooms = (Array.isArray(roomsJson) ? roomsJson : []).find((r: any) =>
@@ -2294,6 +2297,7 @@ export default function RomanticRoomPage() {
                             )}
                         </div>
                     </div>
+
                 </div>
 
                 <style jsx>{`

@@ -9,7 +9,7 @@ import {
   Sparkles, Search, User, MapPin, Heart, Calendar,
   GraduationCap, Briefcase, Lock, LogOut, ChevronDown,
   Settings2, CheckCircle2, UserCheck, Users, Globe, Music, Utensils,
-  X, ShieldCheck, Star, UtilityPole as UtensilsIcon, ArrowLeft, Instagram, Timer, MessageSquare, Clock, QrCode
+  X, ShieldCheck, Star, UtilityPole as UtensilsIcon, ArrowLeft, Instagram, Timer, MessageSquare, Clock, QrCode, Send
 } from "lucide-react";
 import Link from "next/link";
 import { getPusherClient } from "@/lib/pusher-client";
@@ -174,7 +174,15 @@ export default function PublicKatalogPage() {
   const [sentComments, setSentComments] = useState<any[]>([]);
   const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false);
   const [hasNewComments, setHasNewComments] = useState(false);
-  const [activeTab, setActiveTab] = useState<"katalog" | "cart" | "profile" | "absen">("katalog");
+  const [activeTab, setActiveTab] = useState<"katalog" | "cart" | "profile" | "absen" | "hasil" | "saran">("katalog");
+  const [hasilRRList, setHasilRRList] = useState<any[]>([]);
+  const [loadingHasil, setLoadingHasil] = useState(false);
+  const [saranText, setSaranText] = useState("");
+  const [isAnonimSaran, setIsAnonimSaran] = useState(false);
+  const [submittingSaran, setSubmittingSaran] = useState(false);
+  const [mySaranList, setMySaranList] = useState<any[]>([]);
+  const [editingSaranId, setEditingSaranId] = useState<string | null>(null);
+  const [showSaranForm, setShowSaranForm] = useState(false);
   const [absenTabMode, setAbsenTabMode] = useState<"show_barcode" | "scan_camera">("show_barcode");
   const [scanningAbsen, setScanningAbsen] = useState(false);
   const absenScannerRef = useRef<any>(null);
@@ -186,6 +194,7 @@ export default function PublicKatalogPage() {
   const [uploadingFoto, setUploadingFoto] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [activeRooms, setActiveRooms] = useState<any[]>([]);
 
 
 
@@ -482,8 +491,6 @@ export default function PublicKatalogPage() {
         }
 
         let userIsAdmin = false;
-        // Kumpulkan jenisKelamin dari checkStatusRes terlebih dahulu (prioritas lebih tinggi)
-        // agar tidak tertimpa oleh nilai hardcoded dari profileRes
         let genderFromCheckStatus: string | null = null;
 
         if (checkStatusRes && checkStatusRes.ok) {
@@ -572,6 +579,15 @@ export default function PublicKatalogPage() {
             }
           } catch (e) {}
         }
+        // Fetch active rooms for Admin to allow 'Selesaikan Sesi' from Katalog
+        if (userIsAdmin) {
+           try {
+             const roomsRes = await fetch("/api/mandiri/rooms");
+             if (roomsRes.ok) {
+               setActiveRooms(await roomsRes.json());
+             }
+           } catch(e) {}
+        }
       } catch (e) {
         console.error("init error:", e);
       } finally {
@@ -639,6 +655,44 @@ export default function PublicKatalogPage() {
       console.error("fetchSelections error:", e);
     }
   }, []);
+
+  const fetchHasilRR = useCallback(async () => {
+    if (!currentUser?.id) return;
+    setLoadingHasil(true);
+    try {
+      const res = await fetch(`/api/mandiri/hasil-rr?generusId=${currentUser.id}`);
+      if (res.ok) {
+        const json = await res.json();
+        setHasilRRList(json);
+      }
+    } catch (e) {
+      console.error("fetchHasilRR error:", e);
+    } finally {
+      setLoadingHasil(false);
+    }
+  }, [currentUser]);
+
+  const fetchMySaran = useCallback(async () => {
+    if (!currentUser?.id) return;
+    try {
+      const res = await fetch(`/api/public/saran?userId=${currentUser.id}`);
+      if (res.ok) {
+        const json = await res.json();
+        setMySaranList(Array.isArray(json) ? json : []);
+      }
+    } catch (e) {
+      console.error("fetchMySaran error:", e);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (activeTab === "hasil") {
+      fetchHasilRR();
+    }
+    if (activeTab === "saran") {
+      fetchMySaran();
+    }
+  }, [activeTab, fetchHasilRR, fetchMySaran]);
 
   // Realtime updates using Pusher
   useEffect(() => {
@@ -716,6 +770,125 @@ export default function PublicKatalogPage() {
       Swal.fire("Error", "Gagal terhubung ke server. Periksa koneksi internet Anda.", "error");
     } finally {
       setSubmittingKomentar(null);
+    }
+  };
+
+  const submitHasilRR = async (id: string, hasil: string) => {
+    try {
+      const res = await fetch("/api/mandiri/hasil-rr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, generusId: currentUser?.id, hasil })
+      });
+      const data = await res.json();
+      if (data.success) {
+        Swal.fire({ icon: "success", title: "Berhasil", text: "Hasil berhasil disimpan", timer: 1500, showConfirmButton: false });
+        fetchHasilRR();
+      } else {
+        Swal.fire("Gagal", data.error || "Gagal menyimpan hasil", "error");
+      }
+    } catch (e) {
+      Swal.fire("Error", "Gagal terhubung ke server", "error");
+    }
+  };
+
+  const handleSubmitSaran = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!saranText.trim()) return;
+    
+    setSubmittingSaran(true);
+    try {
+      const storedToken = localStorage.getItem("attended_session_token");
+      
+      const payload: any = {
+        untuk: "Romantic Room",
+        saran: saranText,
+        nama: currentUser?.nama || "",
+        isAnonim: isAnonimSaran,
+        userId: currentUser?.id
+      };
+      
+      let res;
+      if (editingSaranId) {
+        payload.id = editingSaranId;
+        payload.token = storedToken;
+        res = await fetch("/api/public/saran", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+      } else {
+        res = await fetch("/api/public/saran", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+      }
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        Swal.fire({
+          icon: "success",
+          title: "Berhasil",
+          text: "Saran/masukan Anda telah disimpan!",
+          timer: 2000,
+          showConfirmButton: false
+        });
+        setSaranText("");
+        setIsAnonimSaran(false);
+        setEditingSaranId(null);
+        
+        // Refresh the list
+        if (currentUser?.id) {
+          const freshRes = await fetch(`/api/public/saran?userId=${currentUser.id}`);
+          if (freshRes.ok) {
+            const freshJson = await freshRes.json();
+            setMySaranList(Array.isArray(freshJson) ? freshJson : []);
+          }
+        }
+      } else {
+        Swal.fire("Gagal", data.error || "Gagal menyimpan saran", "error");
+      }
+    } catch (err) {
+      Swal.fire("Error", "Gagal terhubung ke server", "error");
+    } finally {
+      setSubmittingSaran(false);
+    }
+  };
+
+  const handleEditSaran = (saran: any) => {
+    setSaranText(saran.saran);
+    setIsAnonimSaran(saran.isAnonim === 1);
+    setEditingSaranId(saran.id);
+  };
+
+  const handleDeleteSaran = async (id: string) => {
+    const result = await Swal.fire({
+      title: 'Hapus Saran?',
+      text: "Apakah Anda yakin ingin menghapus saran ini?",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#94a3b8',
+      confirmButtonText: 'Ya, Hapus!'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const token = localStorage.getItem("attended_session_token");
+        const res = await fetch(`/api/public/saran?id=${id}&userId=${currentUser?.id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          Swal.fire('Terhapus!', 'Saran telah dihapus.', 'success');
+          fetchMySaran();
+        } else {
+          Swal.fire('Gagal', 'Gagal menghapus saran', 'error');
+        }
+      } catch (e) {
+        Swal.fire('Error', 'Terjadi kesalahan jaringan', 'error');
+      }
     }
   };
 
@@ -853,6 +1026,138 @@ export default function PublicKatalogPage() {
       if (prev.length >= 3) return prev;
       return [...prev, id];
     });
+  };
+
+  const handleAdminSelesaikanSesi = async (sp: any) => {
+    const room = activeRooms.find((r: any) => String(r.pengirimNo) === String(sp.nomorUnik) || String(r.penerimaNo) === String(sp.nomorUnik));
+    
+    if (!room) {
+        Swal.fire("Error", "Ruangan tidak ditemukan", "error");
+        return;
+    }
+
+    const isPengirim = String(currentUser?.nomorUnik) === String(room.pengirimNo);
+    const isPenerima = String(currentUser?.nomorUnik) === String(room.penerimaNo);
+    const isThirdPartyAdmin = !isPengirim && !isPenerima;
+
+    let htmlContent = `<div style="text-align: left; margin-bottom: 20px;">`;
+    
+    if (isThirdPartyAdmin) {
+        htmlContent += `<p style="font-size: 14px; margin-bottom: 15px; color: #64748b;">Tentukan hasil pertemuan untuk kedua belah pihak:</p>`;
+    } else {
+        htmlContent += `<p style="font-size: 14px; margin-bottom: 15px; color: #64748b;">Bagaimana hasil pertemuan Anda?</p>`;
+    }
+
+    if (isPengirim || isThirdPartyAdmin) {
+        htmlContent += `
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 800; font-size: 11px; text-transform: uppercase; color: #1e293b; margin-bottom: 8px; letter-spacing: 0.5px;">
+                    ${isThirdPartyAdmin ? 'Pemilih: ' : 'Anda: '}<span style="color: #f43f5e; margin-left: 4px;">${room.pengirimNama}</span>
+                </label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="radio" id="p_lanjut" name="hasil_p" value="Lanjut" checked style="display:none">
+                    <label for="p_lanjut" class="swal-custom-radio">Lanjut</label>
+                    <input type="radio" id="p_ragu" name="hasil_p" value="Ragu-ragu" style="display:none">
+                    <label for="p_ragu" class="swal-custom-radio">Ragu-ragu</label>
+                    <input type="radio" id="p_tidak" name="hasil_p" value="Tidak Lanjut" style="display:none">
+                    <label for="p_tidak" class="swal-custom-radio">Tidak Lanjut</label>
+                </div>
+            </div>
+        `;
+    }
+
+    if (isPenerima || isThirdPartyAdmin) {
+        htmlContent += `
+            <div>
+                <label style="display: block; font-weight: 800; font-size: 11px; text-transform: uppercase; color: #1e293b; margin-bottom: 8px; letter-spacing: 0.5px;">
+                    ${isThirdPartyAdmin ? 'Terpilih: ' : 'Anda: '}<span style="color: #f43f5e; margin-left: 4px;">${room.penerimaNama}</span>
+                </label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="radio" id="t_lanjut" name="hasil_t" value="Lanjut" checked style="display:none">
+                    <label for="t_lanjut" class="swal-custom-radio">Lanjut</label>
+                    <input type="radio" id="t_ragu" name="hasil_t" value="Ragu-ragu" style="display:none">
+                    <label for="t_ragu" class="swal-custom-radio">Ragu-ragu</label>
+                    <input type="radio" id="t_tidak" name="hasil_t" value="Tidak Lanjut" style="display:none">
+                    <label for="t_tidak" class="swal-custom-radio">Tidak Lanjut</label>
+                </div>
+            </div>
+        `;
+    }
+
+    htmlContent += `
+        <style>
+            .swal-custom-radio { 
+                flex: 1; 
+                padding: 10px; 
+                border: 2px solid #f1f5f9; 
+                border-radius: 10px; 
+                text-align: center; 
+                cursor: pointer; 
+                font-weight: 800; 
+                font-size: 12px;
+                transition: all 0.2s;
+                color: #64748b;
+            }
+            .swal-custom-radio:hover {
+                background: #f8fafc;
+            }
+            input[type="radio"]:checked + .swal-custom-radio {
+                border-color: #f43f5e;
+                background: #fff1f2;
+                color: #f43f5e;
+            }
+        </style>
+    </div>`;
+
+    const { value: formValues } = await Swal.fire({
+            title: isAdmin ? 'Selesaikan Sesi?' : 'Input Hasil RR',
+            html: htmlContent,
+            showCancelButton: true,
+            confirmButtonColor: '#10b981',
+            confirmButtonText: 'Simpan',
+            cancelButtonText: 'Batal',
+            preConfirm: () => {
+                const hasil_p = document.querySelector('input[name="hasil_p"]:checked') ? (document.querySelector('input[name="hasil_p"]:checked') as HTMLInputElement).value : undefined;
+                const hasil_t = document.querySelector('input[name="hasil_t"]:checked') ? (document.querySelector('input[name="hasil_t"]:checked') as HTMLInputElement).value : undefined;
+                return { hasil_p, hasil_t };
+            }
+        });
+
+        if (formValues) {
+            try {
+                // If the user only submitted their own result, we can save it via /api/mandiri/hasil-rr first
+                if (isPengirim || isPenerima) {
+                     const roleSide = isPengirim ? 'Pemilih' : 'Terpilih';
+                     const resultVal = isPengirim ? formValues.hasil_p : formValues.hasil_t;
+                     // Optional: we could directly submit to hasil-rr if we don't want to clear the room,
+                     // BUT clicking "Selesaikan Sesi" implies they are clearing the room. 
+                     // We will proceed to clear the room via PATCH.
+                }
+
+                const res = await fetch(`/api/mandiri/rooms/${room.id}`, {
+                    method: "PATCH",
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${localStorage.getItem("attended_session_token") || ""}`
+                    },
+                    body: JSON.stringify({ action: "clear", hasilPengirim: formValues.hasil_p, hasilPenerima: formValues.hasil_t, operatorCompanionId: currentUser?.id })
+                });
+
+                if (!res.ok) throw new Error((await res.json()).error);
+
+                Swal.fire({
+                    title: "Berhasil!",
+                    text: isAdmin ? "Sesi telah selesai dan hasil disimpan." : "Hasil pertemuan Anda berhasil disimpan.",
+                    icon: "success",
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+                
+                fetchData();
+            } catch (err: any) {
+                Swal.fire("Error", err.message, "error");
+            }
+        }
   };
 
   const handleConfirmSelection = async (targetId: string, targetName: string) => {
@@ -1059,12 +1364,16 @@ export default function PublicKatalogPage() {
           <Sparkles size={12} />
           {activeTab === "katalog" && "KATALOG PESERTA"}
           {activeTab === "cart" && "PILIHAN SAYA"}
+          {activeTab === "hasil" && "HASIL ROMANTIC ROOM"}
+          {activeTab === "saran" && "SARAN & MASUKAN"}
           {activeTab === "profile" && "PROFIL SAYA"}
           {activeTab === "absen" && "ABSENSI SAYA"}
         </div>
         <h1>
           {activeTab === "katalog" && <>DATA <span>PESERTA</span></>}
           {activeTab === "cart" && <>LOVE <span>LETTER</span></>}
+          {activeTab === "hasil" && <>HASIL <span>RR</span></>}
+          {activeTab === "saran" && <>SARAN <span>MASUKAN</span></>}
           {activeTab === "profile" && <>PROFIL <span>SAYA</span></>}
           {activeTab === "absen" && <>SCAN <span>ABSENSI</span></>}
         </h1>
@@ -1313,18 +1622,36 @@ export default function PublicKatalogPage() {
                             if (item.handshakeStatus) {
                               if (item.handshakeStatus === "Selesai") {
                                 return (
-                                  <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
-                                    <Users size={16} />
-                                    <span>Sudah Bertemu</span>
-                                  </button>
+                                  <>
+                                    <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
+                                      <Users size={16} />
+                                      <span>Sudah Bertemu</span>
+                                    </button>
+                                    <button className="btn-primary" style={{ background: '#10b981', borderColor: '#10b981', marginTop: '8px' }} onClick={() => { setIsModalOpen(false); setActiveTab('hasil'); }}>
+                                      <Heart size={16} />
+                                      <span>Input Hasil RR</span>
+                                    </button>
+                                  </>
                                 );
                               }
                               if (item.handshakeStatus === "Diterima") {
                                 return (
-                                  <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
-                                    <Users size={16} />
-                                    <span>Dalam Ruangan</span>
-                                  </button>
+                                  <>
+                                    <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
+                                      <Users size={16} />
+                                      <span>Dalam Ruangan</span>
+                                    </button>
+                                    {(() => {
+                                      const room = activeRooms.find((r: any) => String(r.pengirimNo) === String(item.nomorUnik) || String(r.penerimaNo) === String(item.nomorUnik));
+                                      const isPart = room && currentUser && (String(currentUser.nomorUnik) === String(room.pengirimNo) || String(currentUser.nomorUnik) === String(room.penerimaNo) || room.assignedGuardId === currentUser.id || room.assignedCallerId === currentUser.id || room.assignedCaller2Id === currentUser.id);
+                                      return (isAdmin || isPart) && (
+                                        <button className="btn-primary" style={{ background: '#10b981', borderColor: '#10b981', marginTop: '8px' }} onClick={() => handleAdminSelesaikanSesi(item)}>
+                                          {isAdmin ? <CheckCircle2 size={16} /> : <Heart size={16} />}
+                                          <span>{isAdmin ? 'Selesaikan Sesi' : 'Input Hasil RR'}</span>
+                                        </button>
+                                      );
+                                    })()}
+                                  </>
                                 );
                               }
                               if (item.handshakeStatus === "Menunggu") {
@@ -1711,6 +2038,176 @@ export default function PublicKatalogPage() {
         );
       })()}
 
+      {/* TAB CONTENT: HASIL RR */}
+      {activeTab === "hasil" && (
+        <div className="cart-container" style={{ padding: '0 16px', maxWidth: '600px', margin: '0 auto', animation: 'slideUp 0.3s ease-out' }}>
+          {loadingHasil ? (
+            <div style={{ textAlign: 'center', padding: '40px' }}>Memuat Hasil...</div>
+          ) : hasilRRList.length === 0 ? (
+            <div className="empty-cart" style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+              <MessageSquare size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
+              <h3>Belum Ada Hasil</h3>
+              <p>Anda belum memiliki sesi Romantic Room yang selesai.</p>
+            </div>
+          ) : (
+            <div className="cart-list" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {hasilRRList.map(h => {
+                const isPengirim = h.pengirimId === currentUser?.id;
+                const partnerName = isPengirim ? h.penerimaNama : h.pengirimNama;
+                const partnerNoUrut = isPengirim ? h.penerimaNoUrut : h.pengirimNoUrut;
+                const myHasil = isPengirim ? h.hasilPengirim : h.hasilPenerima;
+                const setMyHasil = (val: string) => submitHasilRR(h.id, val);
+
+                return (
+                  <div key={h.id} style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                      <div style={{ fontWeight: 800, fontSize: '16px', color: '#1e293b' }}>
+                        {partnerName} <span style={{ color: '#64748b', fontSize: '12px' }}>#{partnerNoUrut}</span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+                        {new Date(h.createdAt).toLocaleDateString('id-ID')}
+                      </div>
+                    </div>
+                    
+                    <div style={{ marginBottom: '12px', fontSize: '13px', color: '#475569', fontWeight: 600 }}>Pilihan Anda:</div>
+                    
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button 
+                        onClick={() => setMyHasil("Lanjut")}
+                        style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, border: myHasil === "Lanjut" ? '2px solid #22c55e' : '1px solid #e2e8f0', background: myHasil === "Lanjut" ? '#f0fdf4' : 'white', color: myHasil === "Lanjut" ? '#166534' : '#64748b', cursor: 'pointer', transition: '0.2s' }}
+                      >Lanjut</button>
+                      <button 
+                        onClick={() => setMyHasil("Ragu-Ragu")}
+                        style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, border: myHasil === "Ragu-Ragu" ? '2px solid #eab308' : '1px solid #e2e8f0', background: myHasil === "Ragu-Ragu" ? '#fefce8' : 'white', color: myHasil === "Ragu-Ragu" ? '#854d0e' : '#64748b', cursor: 'pointer', transition: '0.2s' }}
+                      >Ragu-Ragu</button>
+                      <button 
+                        onClick={() => setMyHasil("Tidak Lanjut")}
+                        style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, border: myHasil === "Tidak Lanjut" ? '2px solid #ef4444' : '1px solid #e2e8f0', background: myHasil === "Tidak Lanjut" ? '#fef2f2' : 'white', color: myHasil === "Tidak Lanjut" ? '#991b1b' : '#64748b', cursor: 'pointer', transition: '0.2s' }}
+                      >Tidak Lanjut</button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB CONTENT: SARAN */}
+      {activeTab === "saran" && (
+        <div className="cart-container" style={{ padding: '0 16px', maxWidth: '600px', margin: '0 auto', animation: 'slideUp 0.3s ease-out' }}>
+          <div style={{ background: 'white', borderRadius: '24px', padding: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9' }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <MessageSquare size={20} color="#3b82f6" />
+              Saran & Masukan
+            </h3>
+            <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: '#64748b', lineHeight: 1.5 }}>
+              Berikan saran, kritik, atau masukan Anda terkait pelaksanaan Romantic Room untuk membantu kami menjadi lebih baik.
+            </p>
+            
+            {mySaranList.length > 0 && !showSaranForm && !editingSaranId ? (
+                <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
+                            Riwayat saran dan masukan yang pernah Anda kirimkan.
+                        </p>
+                        <button onClick={() => setShowSaranForm(true)} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '12px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            Tambah
+                        </button>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {mySaranList.map((s, idx) => (
+                            <div key={idx} style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <div style={{ flex: 1, marginRight: '16px' }}>
+                                    <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>
+                                        {new Date(s.createdAt + (!s.createdAt.endsWith('Z') ? 'Z' : '')).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })} WIB
+                                        {s.isAnonim ? ' • Anonim' : ''}
+                                    </div>
+                                    <div style={{ fontSize: '14px', color: '#334155', whiteSpace: 'pre-wrap' }}>{s.saran}</div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button onClick={() => handleEditSaran(s)} style={{ background: 'white', border: '1px solid #cbd5e1', color: '#3b82f6', padding: '6px', borderRadius: '6px', cursor: 'pointer' }}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                    </button>
+                                    <button onClick={() => handleDeleteSaran(s.id)} style={{ background: 'white', border: '1px solid #cbd5e1', color: '#ef4444', padding: '6px', borderRadius: '6px', cursor: 'pointer' }}>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+            <form onSubmit={async (e) => {
+                await handleSubmitSaran(e);
+                setShowSaranForm(false);
+            }}>
+              <div style={{ marginBottom: '16px' }}>
+                <textarea
+                  value={saranText}
+                  onChange={(e) => setSaranText(e.target.value)}
+                  placeholder="Ketik saran atau masukan Anda di sini..."
+                  rows={6}
+                  style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '2px solid #e2e8f0', outline: 'none', resize: 'none', fontSize: '14px', lineHeight: 1.5, background: '#f8fafc', transition: '0.2s', fontFamily: 'inherit' }}
+                  onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                  onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
+                <input
+                  type="checkbox"
+                  id="anonim-saran"
+                  checked={isAnonimSaran}
+                  onChange={(e) => setIsAnonimSaran(e.target.checked)}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <label htmlFor="anonim-saran" style={{ fontSize: '13px', color: '#475569', cursor: 'pointer', fontWeight: 600 }}>
+                  Kirim sebagai Anonim
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="submit"
+                  disabled={submittingSaran || !saranText.trim()}
+                  style={{ flex: 1, padding: '14px', borderRadius: '16px', border: 'none', background: !saranText.trim() ? '#cbd5e1' : '#3b82f6', color: 'white', fontWeight: 800, fontSize: '14px', cursor: !saranText.trim() ? 'not-allowed' : 'pointer', transition: '0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
+                >
+                {submittingSaran ? (
+                  "Mengirim..."
+                ) : (
+                  <>
+                    <Send size={18} />
+                    Kirim Saran
+                  </>
+                )}
+                </button>
+                {editingSaranId ? (
+                  <button 
+                    type="button" 
+                    onClick={() => { setEditingSaranId(null); setSaranText(''); setIsAnonimSaran(false); }}
+                    style={{ padding: '14px 20px', borderRadius: '16px', border: '2px solid #e2e8f0', background: 'white', color: '#64748b', fontWeight: 700, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  >
+                    Batal
+                  </button>
+                ) : mySaranList.length > 0 && showSaranForm ? (
+                  <button 
+                    type="button" 
+                    onClick={() => { setShowSaranForm(false); setSaranText(''); setIsAnonimSaran(false); }}
+                    style={{ padding: '14px 20px', borderRadius: '16px', border: '2px solid #e2e8f0', background: 'white', color: '#64748b', fontWeight: 700, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  >
+                    Batal
+                  </button>
+                ) : null}
+              </div>
+            </form>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* TAB CONTENT: PROFILE */}
       {activeTab === "profile" && (
         <div className="profile-tab-container">
@@ -2057,6 +2554,20 @@ export default function PublicKatalogPage() {
           <span>Pilihanku</span>
         </button>
         <button
+          className={`nav-bar-item ${activeTab === "hasil" ? "active" : ""}`}
+          onClick={() => setActiveTab("hasil")}
+        >
+          <MessageSquare size={20} />
+          <span>Hasil RR</span>
+        </button>
+        <button
+          className={`nav-bar-item ${activeTab === "saran" ? "active" : ""}`}
+          onClick={() => setActiveTab("saran")}
+        >
+          <Sparkles size={20} />
+          <span>Saran</span>
+        </button>
+        <button
           className={`nav-bar-item ${activeTab === "profile" ? "active" : ""}`}
           onClick={() => setActiveTab("profile")}
         >
@@ -2151,10 +2662,30 @@ export default function PublicKatalogPage() {
 
                   if (sp.handshakeStatus) {
                     if (sp.handshakeStatus === "Selesai") {
-                      return <button className="dm-btn dm-btn-disabled" disabled><Users size={18} />Sudah Bertemu</button>;
+                      return (
+                        <>
+                          <button className="dm-btn dm-btn-disabled" disabled><Users size={18} />Sudah Bertemu</button>
+                          <button className="dm-btn" style={{ background: '#10b981', color: 'white', border: 'none', marginTop: '8px' }} onClick={() => { setIsModalOpen(false); setActiveTab('hasil'); }}>
+                            <Heart size={18} />Input Hasil RR
+                          </button>
+                        </>
+                      );
                     }
                     if (sp.handshakeStatus === "Diterima") {
-                      return <button className="dm-btn dm-btn-disabled" disabled><Users size={18} />Dalam Ruangan</button>;
+                      return (
+                        <>
+                          <button className="dm-btn dm-btn-disabled" disabled><Users size={18} />Dalam Ruangan</button>
+                          {(() => {
+                            const room = activeRooms.find((r: any) => String(r.pengirimNo) === String(sp.nomorUnik) || String(r.penerimaNo) === String(sp.nomorUnik));
+                            const isPart = room && currentUser && (String(currentUser.nomorUnik) === String(room.pengirimNo) || String(currentUser.nomorUnik) === String(room.penerimaNo) || room.assignedGuardId === currentUser.id || room.assignedCallerId === currentUser.id || room.assignedCaller2Id === currentUser.id);
+                            return (isAdmin || isPart) && (
+                              <button className="dm-btn" style={{ background: '#10b981', color: 'white', border: 'none', marginTop: '8px' }} onClick={() => handleAdminSelesaikanSesi(sp)}>
+                                {isAdmin ? <CheckCircle2 size={18} /> : <Heart size={18} />}{isAdmin ? 'Selesaikan Sesi' : 'Input Hasil RR'}
+                              </button>
+                            );
+                          })()}
+                        </>
+                      );
                     }
                     if (sp.handshakeStatus === "Menunggu") {
                       if (isSelected) {

@@ -475,7 +475,7 @@ export const saranMasukan = sqliteTable("saran_masukan", {
   id: text("id").primaryKey(),
   untuk: text("untuk").notNull(),
   saran: text("saran").notNull(),
-  nama: text("nama"),
+  nama: text("nama"), userId: text("user_id"),
   isAnonim: integer("is_anonim").default(0),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
 });

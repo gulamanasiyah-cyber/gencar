@@ -11,7 +11,7 @@ import { GenerusItem } from "@/lib/types";
 import {
   Sparkles, Search, User, MapPin, Phone, GraduationCap,
   Briefcase, Heart, Globe, Calendar, Lock, ClipboardList,
-  Download, Eye, EyeOff, ChevronDown, ChevronUp, Settings2, Users, Share2, Music, Utensils, Printer, Home, Instagram, QrCode, FileSpreadsheet, FileText, X, ArrowUpDown
+  Download, Eye, EyeOff, ChevronDown, ChevronUp, Settings2, Users, Share2, Music, Utensils, Printer, Home, Instagram, QrCode, FileSpreadsheet, FileText, X, ArrowUpDown, Copy, Fingerprint
 } from "lucide-react";
 import { getPusherClient } from "@/lib/pusher-client";
 import jsPDF from "jspdf";
@@ -31,10 +31,12 @@ export default function AdminKatalogPage() {
   const [pendidikan, setPendidikan] = useState("all");
   const [page, setPage] = useState(1);
   const [pendidikanList, setPendidikanList] = useState<string[]>([]);
-  const [regionList, setRegionList] = useState<any[]>([]);
-  const [selectedRegion, setSelectedRegion] = useState("all");
+  const [daerahList, setDaerahList] = useState<any[]>([]);
+  const [selectedDaerah, setSelectedDaerah] = useState("all");
   const [desaList, setDesaList] = useState<any[]>([]);
   const [selectedDesa, setSelectedDesa] = useState("all");
+  const [kelompokList, setKelompokList] = useState<any[]>([]);
+  const [selectedKelompok, setSelectedKelompok] = useState("all");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [authorizedChecked, setAuthorizedChecked] = useState(false);
@@ -71,8 +73,9 @@ export default function AdminKatalogPage() {
         jenisKelamin: gender,
         status: status,
         pendidikan: pendidikan,
-        mandiriDesaId: selectedRegion,
-        desaId: selectedDesa,
+        mandiriDaerahId: selectedDaerah,
+        mandiriDesaId: selectedDesa,
+        mandiriKelompokId: selectedKelompok,
         sortBy: "nomorUrut",
         order: sortOrder,
         ...(selectedKegiatanId ? { kegiatanId: selectedKegiatanId } : {}),
@@ -86,7 +89,7 @@ export default function AdminKatalogPage() {
     } finally {
       setLoading(false);
     }
-  }, [isAuthorized, search, page, gender, status, pendidikan, selectedRegion, selectedDesa, sortOrder, selectedKegiatanId]);
+  }, [isAuthorized, search, page, gender, status, pendidikan, selectedDaerah, selectedDesa, selectedKelompok, sortOrder, selectedKegiatanId]);
 
   useEffect(() => {
     async function init() {
@@ -157,8 +160,9 @@ export default function AdminKatalogPage() {
         if (filterRes.ok) {
           const filterJson = await filterRes.json();
           setPendidikanList(filterJson.pendidikan || []);
-          setRegionList(filterJson.regions || []);
+          setDaerahList(filterJson.daerahs || []);
           setDesaList(filterJson.desas || []);
+          setKelompokList(filterJson.kelompoks || []);
         }
       } catch (e) {
         console.error(e);
@@ -303,8 +307,9 @@ export default function AdminKatalogPage() {
         jenisKelamin: gender,
         status: status,
         pendidikan: pendidikan,
-        mandiriDesaId: selectedRegion,
-        desaId: selectedDesa,
+        mandiriDaerahId: selectedDaerah,
+        mandiriDesaId: selectedDesa,
+        mandiriKelompokId: selectedKelompok,
         sortBy: "nomorUrut",
         order: sortOrder
       });
@@ -425,8 +430,9 @@ export default function AdminKatalogPage() {
         jenisKelamin: gender,
         status: status,
         pendidikan: pendidikan,
-        mandiriDesaId: selectedRegion,
-        desaId: selectedDesa,
+        mandiriDaerahId: selectedDaerah,
+        mandiriDesaId: selectedDesa,
+        mandiriKelompokId: selectedKelompok,
         sortBy: "nomorUrut",
         order: sortOrder
       });
@@ -465,7 +471,7 @@ export default function AdminKatalogPage() {
       doc.text(`Dicetak pada: ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, pageWidth - 15, 34, { align: "right" });
 
       // Table Data
-      const tableColumn = ["No", "Nama Lengkap", "L/P", "Usia", "Status", "Wilayah / Desa", "Kontak / Sosial Media", "Pendidikan & Pekerjaan"];
+      const tableColumn = ["No", "Nama Lengkap", "L/P", "Usia", "Status", "Daerah / Desa / Kelp.", "Kontak / Sosial Media", "Pendidikan & Pekerjaan"];
       const tableRows = allParticipants.map((item, index) => [
         index + 1,
         item.nama.toUpperCase(),
@@ -545,8 +551,9 @@ export default function AdminKatalogPage() {
         jenisKelamin: gender,
         status: status,
         pendidikan: pendidikan,
-        mandiriDesaId: selectedRegion,
-        desaId: selectedDesa,
+        mandiriDaerahId: selectedDaerah,
+        mandiriDesaId: selectedDesa,
+        mandiriKelompokId: selectedKelompok,
         sortBy: "nomorUrut",
         order: sortOrder
       });
@@ -563,8 +570,9 @@ export default function AdminKatalogPage() {
         "Nama Lengkap": item.nama,
         "Nomor Peserta": item.nomorUrut || "-",
         "Status": (item.panitiaStatus || item.role === 'admin') ? "Panitia" : "Peserta",
-        "Kota/Kabupaten": item.mandiriDesaKota || "-",
-        "Desa": item.mandiriDesaNama || item.desaNama || "-"
+        "Daerah": item.mandiriDesaKota || "-",
+        "Desa": item.mandiriDesaNama || item.desaNama || "-",
+        "Kelompok": item.mandiriKelompokNama || item.kelompokNama || "-"
       }));
 
       const wb = utils.book_new();
@@ -575,8 +583,9 @@ export default function AdminKatalogPage() {
         { wch: 30 }, // Nama Lengkap
         { wch: 15 }, // Nomor Peserta
         { wch: 15 }, // Status
-        { wch: 20 }, // Kota/Kabupaten
+        { wch: 20 }, // Daerah
         { wch: 20 }, // Desa
+        { wch: 20 }, // Kelompok
       ];
       ws['!cols'] = wscols;
 
@@ -712,16 +721,65 @@ export default function AdminKatalogPage() {
             </div>
 
             <div className="filter-group">
-              <label>Wilayah</label>
+              <label>Daerah</label>
               <div className="select-box-wrapper">
                 <select
                   className="dropdown-box"
-                  value={selectedRegion}
-                  onChange={(e) => { setSelectedRegion(e.target.value); setPage(1); }}
+                  value={selectedDaerah}
+                  onChange={(e) => { 
+                    setSelectedDaerah(e.target.value); 
+                    setSelectedDesa("all");
+                    setSelectedKelompok("all");
+                    setPage(1); 
+                  }}
                 >
-                  <option value="all">Semua Wilayah</option>
-                  {regionList.map(r => (
-                    <option key={r.id} value={r.id}>{r.kota} - {r.nama}</option>
+                  <option value="all">Semua Daerah</option>
+                  {daerahList.map(r => (
+                    <option key={r.id} value={r.id}>{r.nama}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="dropdown-arrow" />
+              </div>
+            </div>
+
+            <div className="filter-group">
+              <label>Desa</label>
+              <div className="select-box-wrapper">
+                <select
+                  className="dropdown-box"
+                  value={selectedDesa}
+                  onChange={(e) => { 
+                    setSelectedDesa(e.target.value); 
+                    setSelectedKelompok("all");
+                    setPage(1); 
+                  }}
+                  disabled={selectedDaerah === "all"}
+                >
+                  <option value="all">Semua Desa</option>
+                  {desaList
+                    .filter(d => d.daerahId === Number(selectedDaerah))
+                    .map(d => (
+                    <option key={d.id} value={d.id}>{d.nama}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="dropdown-arrow" />
+              </div>
+            </div>
+
+            <div className="filter-group">
+              <label>Kelompok</label>
+              <div className="select-box-wrapper">
+                <select
+                  className="dropdown-box"
+                  value={selectedKelompok}
+                  onChange={(e) => { setSelectedKelompok(e.target.value); setPage(1); }}
+                  disabled={selectedDesa === "all"}
+                >
+                  <option value="all">Semua Kelompok</option>
+                  {kelompokList
+                    .filter(k => k.desaId === Number(selectedDesa))
+                    .map(k => (
+                    <option key={k.id} value={k.id}>{k.nama}</option>
                   ))}
                 </select>
                 <ChevronDown size={14} className="dropdown-arrow" />
@@ -804,6 +862,22 @@ export default function AdminKatalogPage() {
                       <MapPin size={10} />
                       <span>{item.mandiriDesaKota || "Tanpa Kota"} &bull; {item.mandiriDesaNama || item.desaNama || "Desa"}</span>
                     </div>
+                    {item.nomorUnik && (
+                      <div 
+                        className="region-tag" 
+                        style={{ marginTop: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', color: '#6366f1', background: '#e0e7ff', width: 'fit-content' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard.writeText(item.nomorUnik || '');
+                          Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, icon: 'success', title: 'Nomor unik disalin' });
+                        }}
+                        title="Klik untuk menyalin"
+                      >
+                        <Fingerprint size={10} />
+                        <span style={{ fontWeight: '700' }}>{item.nomorUnik}</span>
+                        <Copy size={10} style={{ marginLeft: '2px' }} />
+                      </div>
+                    )}
                   </div>
 
                   <div className="tags-row">
@@ -876,9 +950,13 @@ export default function AdminKatalogPage() {
               })()}
 
               <div className="card-footer">
-                <button className="footer-btn btn-id-card" onClick={() => setSelectedParticipant(item)}>
-                  <Sparkles size={14} />
-                  <span>Lihat Kartu</span>
+                <button 
+                  className="footer-btn btn-id-card" 
+                  style={{ background: '#3b82f6', color: 'white', border: 'none' }}
+                  onClick={() => setProfileDetail(item)}
+                >
+                  <User size={14} />
+                  <span>Lihat Profile</span>
                 </button>
               </div>
             </div>
@@ -1022,11 +1100,6 @@ export default function AdminKatalogPage() {
                   </div>
                 )}
               </div>
-            </div>
-            <div className="pd-footer">
-              <button className="btn-print-card" style={{ background: '#3b82f6' }} onClick={() => { setProfileDetail(null); setSelectedParticipant(profileDetail); }}>
-                <Sparkles size={16} /> <span>Lihat ID Card</span>
-              </button>
             </div>
           </div>
         </div>

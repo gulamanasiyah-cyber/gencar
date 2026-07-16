@@ -76,7 +76,8 @@ const navItems = [
       { href: "/admin/saran", label: "Saran & Masukan", icon: "message-square", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
       { href: "/admin/maintenance", label: "Mode Maintenance", icon: "settings", roles: ["admin"] },
       { href: "/katalog", label: "Katalog Mandiri", icon: "katalog", roles: ["admin_romantic_room"] },
-      { href: "/mandiri/romantic-room", label: "Romantic Room", icon: "romantic", roles: ["admin_romantic_room"] },
+      { href: "/mandiri/romantic-room", label: "Romantic Room", icon: "romantic", roles: ["admin_romantic_room", "admin"] },
+      { href: "/mandiri/saran", label: "Saran / Masukkan", icon: "message-square", roles: ["admin_romantic_room", "admin"] },
     ],
   },
   {
@@ -146,6 +147,7 @@ const userNavs: Record<string, any[]> = {
         { href: "/mandiri/pulang", label: "Daftar Pulang", icon: "logout" },
         { href: "/admin/katalog", label: "Katalog Peserta", icon: "katalog" },
         { href: "/mandiri/romantic-room", label: "Romantic Room", icon: "romantic" },
+        { href: "/mandiri/saran", label: "Saran / Masukkan", icon: "message-square" },
         { href: "/mandiri/desa", label: "Kelola Daerah / Desa", icon: "desa" },
         { href: "/admin/tim-gambuh", label: "Tim PNKB & Ibu Gambuh", icon: "users" },
       ],
@@ -344,6 +346,7 @@ export default function Sidebar({ user }: SidebarProps) {
                 item.label.includes("Mandiri") ||
                 item.label === "Antrean" ||
                 item.label === "Romantic Room" ||
+                item.label === "Saran / Masukkan" ||
                 item.href === "/katalog";
 
               if (isMandiriItem && !user.isInMandiri && !isPanitia) return false;

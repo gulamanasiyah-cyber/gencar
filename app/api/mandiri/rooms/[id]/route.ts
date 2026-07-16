@@ -13,23 +13,45 @@ export async function PATCH(
 ) {
     try {
         const session = await getSession();
+        let userRole: string | undefined = session?.role;
+        let userId: string | undefined = (session as any)?.id || (session as any)?.user?.id;
+
         if (!session || !["admin", "admin_romantic_room", "tim_pnkb", "tim_pnkb_gambuh"].includes(session.role)) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            const token = request.headers.get("Authorization")?.replace("Bearer ", "");
+            if (token) {
+                const participant = await db.query.mandiri.findFirst({
+                    where: eq(mandiri.lastSessionToken, token)
+                });
+                if (participant) {
+                    userRole = "peserta_atau_panitia";
+                    userId = participant.generusId;
+                } else {
+                    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+                }
+            } else {
+                return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            }
         }
 
         const roomId = params.id;
         const body = await request.json();
-        const { pemilihanId, action, timGambuhId, operatorCompanionId } = body;
+        const { pemilihanId, action, timGambuhId, operatorCompanionId, hasilPengirim, hasilPenerima } = body;
 
-        // If user is tim_pnkb_gambuh, they can only perform start/clear on rooms assigned to them
-        if (session.role === "tim_pnkb_gambuh" && (action === "start" || action === "clear")) {
+        // If user is tim_pnkb_gambuh or peserta_atau_panitia, they can only perform start/clear on rooms assigned to them
+        if ((userRole === "tim_pnkb_gambuh" || userRole === "peserta_atau_panitia") && (action === "start" || action === "clear")) {
             const room = await db.query.mandiriRooms.findFirst({
                 where: eq(mandiriRooms.id, roomId)
             });
+            const sel = room?.pemilihanId ? await db.query.mandiriPemilihan.findFirst({
+                where: eq(mandiriPemilihan.id, room.pemilihanId)
+            }) : null;
+            
             const isAssigned = room && (
-                room.assignedGuardId === operatorCompanionId ||
-                room.assignedCallerId === operatorCompanionId ||
-                room.assignedCaller2Id === operatorCompanionId
+                room.assignedGuardId === (operatorCompanionId || userId) ||
+                room.assignedCallerId === (operatorCompanionId || userId) ||
+                room.assignedCaller2Id === (operatorCompanionId || userId) ||
+                sel?.pengirimId === userId ||
+                sel?.penerimaId === userId
             );
             if (!isAssigned) {
                 return NextResponse.json({ error: "Anda tidak ditugaskan di ruangan ini." }, { status: 403 });
@@ -332,23 +354,64 @@ export async function PATCH(
                 assignedCaller2Id,
                 assignedCaller2Nama: caller2Nama,
                 assignedGuardId,
-                assignedGuardNama: guardNama,
+                        assignedGuardNama: guardNama,
             });
         } else if (action === "clear") {
             const { hasilPengirim, hasilPenerima } = body;
 
-            // Find current pemilihanId
             const room = await db.query.mandiriRooms.findFirst({
                 where: eq(mandiriRooms.id, roomId)
             });
 
+            if (!room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
+
+            if (userRole === "peserta_atau_panitia") {
+                // Peserta and Panitia can only update results, not clear the room
+                const sel = await db.query.mandiriPemilihan.findFirst({
+                    where: eq(mandiriPemilihan.id, room.pemilihanId || "")
+                });
+
+                if (sel) {
+                    const isPengirim = sel.pengirimId === userId;
+                    const isPenerima = sel.penerimaId === userId;
+                    const isAssignedPanitia = room.assignedGuardId === userId || room.assignedCallerId === userId || room.assignedCaller2Id === userId;
+                    
+                    if (!isPengirim && !isPenerima && !isAssignedPanitia) {
+                        return NextResponse.json({ error: "Anda tidak ditugaskan di ruangan ini." }, { status: 403 });
+                    }
+                    
+                    if (isPengirim || isPenerima) {
+                        if (isPengirim && hasilPengirim) {
+                            await db.update(mandiriPemilihan).set({ hasilPengirim }).where(eq(mandiriPemilihan.id, sel.id));
+                        }
+                        if (isPenerima && hasilPenerima) {
+                            await db.update(mandiriPemilihan).set({ hasilPenerima }).where(eq(mandiriPemilihan.id, sel.id));
+                        }
+                    } else if (isAssignedPanitia) {
+                        const updates: any = {};
+                        if (hasilPengirim) updates.hasilPengirim = hasilPengirim;
+                        if (hasilPenerima) updates.hasilPenerima = hasilPenerima;
+                        
+                        if (Object.keys(updates).length > 0) {
+                            await db.update(mandiriPemilihan).set(updates).where(eq(mandiriPemilihan.id, sel.id));
+                        }
+                    }
+                }
+                return NextResponse.json({ success: true, message: "Hasil disimpan" });
+            }
+
             if (room?.pemilihanId) {
+                // Fetch existing pemilihan to preserve results if not provided
+                const existingPemilihan = await db.query.mandiriPemilihan.findFirst({
+                    where: eq(mandiriPemilihan.id, room.pemilihanId)
+                });
+                
                 // Mark as Selesai and update results
                 await db.update(mandiriPemilihan)
                     .set({ 
                         status: "Selesai",
-                        hasilPengirim: hasilPengirim || null,
-                        hasilPenerima: hasilPenerima || null
+                        hasilPengirim: hasilPengirim !== undefined ? (hasilPengirim || null) : (existingPemilihan?.hasilPengirim || null),
+                        hasilPenerima: hasilPenerima !== undefined ? (hasilPenerima || null) : (existingPemilihan?.hasilPenerima || null)
                     })
                     .where(eq(mandiriPemilihan.id, room.pemilihanId));
 
@@ -384,7 +447,7 @@ export async function PATCH(
             return NextResponse.json({ success: true });
         } else if (action === "undo") {
             // Only admin, admin_romantic_room, and tim_pnkb are allowed to undo
-            if (!["admin", "admin_romantic_room", "tim_pnkb"].includes(session.role)) {
+            if (!session || !["admin", "admin_romantic_room", "tim_pnkb"].includes(session.role)) {
                 return NextResponse.json({ error: "Anda tidak memiliki wewenang untuk mengembalikan pasangan ke antrean." }, { status: 403 });
             }
 

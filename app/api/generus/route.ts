@@ -26,7 +26,9 @@ function buildWhereClause(
   notInMandiri?: boolean,
   isGenerus?: boolean,
   pendidikan?: string,
-  mandiriDesaId?: string
+  mandiriDesaId?: string,
+  mandiriDaerahId?: string,
+  mandiriKelompokId?: string
 ) {
   const conditions: any[] = [];
   
@@ -62,6 +64,12 @@ function buildWhereClause(
   }
   if (mandiriDesaId && mandiriDesaId !== "all" && !isNaN(Number(mandiriDesaId))) {
     conditions.push(eq(generus.mandiriDesaId, Number(mandiriDesaId)));
+  }
+  if (mandiriDaerahId && mandiriDaerahId !== "all" && !isNaN(Number(mandiriDaerahId))) {
+    conditions.push(eq(mandiriDesa.mandiriDaerahId, Number(mandiriDaerahId)));
+  }
+  if (mandiriKelompokId && mandiriKelompokId !== "all" && !isNaN(Number(mandiriKelompokId))) {
+    conditions.push(eq(generus.mandiriKelompokId, Number(mandiriKelompokId)));
   }
 
   // 3. Other filters
@@ -150,7 +158,9 @@ export async function GET(request: NextRequest) {
     const search = (searchParams.get("search") || "").trim();
     const statusNikah = searchParams.get("statusNikah") || "all";
     const desaId = searchParams.get("desaId") || "";
+    const mandiriDaerahId = searchParams.get("mandiriDaerahId") || "";
     const mandiriDesaId = searchParams.get("mandiriDesaId") || "";
+    const mandiriKelompokId = searchParams.get("mandiriKelompokId") || "";
     const kelompokId = searchParams.get("kelompokId") || "";
     const page = Number(searchParams.get("page") || "1");
     const limit = Number(searchParams.get("limit") || "10");
@@ -184,7 +194,7 @@ export async function GET(request: NextRequest) {
     const finalWhere = buildWhereClause(
       session, search, all, statusNikah, desaId, kelompokId, 
       jenisKelamin, status, kategoriUsia, notInMandiri, filterIsGenerus,
-      pendidikan, mandiriDesaId
+      pendidikan, mandiriDesaId, mandiriDaerahId, mandiriKelompokId
     );
 
     let whereClause = finalWhere;

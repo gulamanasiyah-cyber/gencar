@@ -921,12 +921,9 @@ export default function TimGambuhOperatorPage() {
                                                 {room.assignedGuardId === myId && (
                                                     <div className="action-row">
                                                         {room.startedAt ? (
-                                                            <button
-                                                                className="btn-clear"
-                                                                onClick={(e) => { e.stopPropagation(); handleClearRoom(room.id); }}
-                                                            >
-                                                                <LogOut size={12} /> Selesaikan Sesi
-                                                            </button>
+                                                            <div style={{ fontSize: '10px', color: '#64748b', textAlign: 'center', width: '100%', padding: '6px', fontStyle: 'italic', background: '#f1f5f9', borderRadius: '6px' }}>
+                                                                Menunggu hasil RR dari kedua pasangan tersebut
+                                                            </div>
                                                         ) : (
                                                             <button
                                                                 className="btn-start-timer"
@@ -1204,14 +1201,9 @@ export default function TimGambuhOperatorPage() {
                                                 <Timer size={14} fill="white" /> Mulai Sesi
                                             </button>
                                         ) : (
-                                            <button onClick={() => { setSelectedRoom(null); handleClearRoom(selectedRoom.id); }} style={{
-                                                background: "linear-gradient(135deg,#166534,#14532d)", color: "white", border: "none",
-                                                borderRadius: "10px", padding: "12px", fontSize: "13px", fontWeight: 800,
-                                                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
-                                                boxShadow: "0 4px 12px rgba(22,101,52,0.3)"
-                                            }}>
-                                                <LogOut size={14} /> Selesaikan Sesi
-                                            </button>
+                                            <div style={{ textAlign: "center", padding: "12px", background: "#f8fafc", borderRadius: "10px", border: "1px dashed #cbd5e1", color: "#64748b", fontSize: "13px", fontWeight: 600 }}>
+                                                Menunggu hasil RR dari kedua pasangan tersebut
+                                            </div>
                                         )}
                                     </div>
                                 )}
