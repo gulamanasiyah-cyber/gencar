@@ -2121,7 +2121,7 @@ export default function PublicKatalogPage() {
                             <div key={idx} style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                 <div style={{ flex: 1, marginRight: '16px' }}>
                                     <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>
-                                        {new Date(s.createdAt + (!s.createdAt.endsWith('Z') ? 'Z' : '')).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })} WIB
+                                        {new Date(s.createdAt.replace(' ', 'T') + (!s.createdAt.endsWith('Z') ? 'Z' : '')).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })} WIB
                                         {s.isAnonim ? ' • Anonim' : ''}
                                     </div>
                                     <div style={{ fontSize: '14px', color: '#334155', whiteSpace: 'pre-wrap' }}>{s.saran}</div>
