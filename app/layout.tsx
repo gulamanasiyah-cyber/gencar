@@ -31,6 +31,7 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://gencar.my.id"),
   title: {
     template: "%s | GENCAR",
     default: "GENCAR - Sistem Manajemen Generus Cengkareng",
@@ -42,7 +43,7 @@ export const metadata: Metadata = {
     siteName: "GENCAR",
     images: [
       {
-        url: "https://gencar.my.id/public/img/logo-jb2.png",
+        url: "/img/logo-jb2.png",
         width: 800,
         height: 600,
         alt: "Logo GENCAR",
