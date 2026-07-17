@@ -59,6 +59,13 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(mandiri.kegiatanId, kegiatanId));
     }
 
+    const baseWhereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    
+    const statusPeserta = searchParams.get("statusPeserta");
+    if (statusPeserta && statusPeserta !== "all") {
+        conditions.push(eq(mandiri.statusPeserta, statusPeserta as "Utusan Daerah" | "Person"));
+    }
+
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
     // Determine order
@@ -129,7 +136,11 @@ export async function GET(request: NextRequest) {
 
     // Optimized Count Query
     const countQuery = db
-      .select({ count: sql<number>`count(*)` })
+      .select({ 
+          count: sql<number>`count(*)`,
+          utusanDaerah: sql<number>`SUM(CASE WHEN ${mandiri.statusPeserta} = 'Utusan Daerah' OR ${mandiri.statusPeserta} IS NULL THEN 1 ELSE 0 END)`,
+          person: sql<number>`SUM(CASE WHEN ${mandiri.statusPeserta} = 'Person' THEN 1 ELSE 0 END)`
+      })
       .from(mandiri)
       .innerJoin(generus, eq(mandiri.generusId, generus.id));
 
@@ -145,11 +156,22 @@ export async function GET(request: NextRequest) {
       countQuery.leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id));
     }
 
-    const countResult = await countQuery.where(whereClause);
+    const countResult = await countQuery.where(baseWhereClause);
+    
+    let totalFiltered = Number(countResult[0]?.count || 0);
+    if (statusPeserta === "Utusan Daerah") {
+        totalFiltered = Number(countResult[0]?.utusanDaerah || 0);
+    } else if (statusPeserta === "Person") {
+        totalFiltered = Number(countResult[0]?.person || 0);
+    }
 
     return NextResponse.json({
       data,
-      total: Number(countResult[0]?.count || 0),
+      total: totalFiltered,
+      counts: {
+          utusanDaerah: Number(countResult[0]?.utusanDaerah || 0),
+          person: Number(countResult[0]?.person || 0)
+      },
       page,
       limit,
     }, {

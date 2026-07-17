@@ -66,6 +66,9 @@ export default function MandiriPage() {
    const [isClosed, setIsClosed] = useState(false);
    const [kegiatanList, setKegiatanList] = useState<KegiatanOption[]>([]);
    const [selectedKegiatanId, setSelectedKegiatanId] = useState("");
+   const [filterStatusPeserta, setFilterStatusPeserta] = useState("all");
+   const [utusanDaerahCount, setUtusanDaerahCount] = useState(0);
+   const [personCount, setPersonCount] = useState(0);
    
    // Wilayah state
    const [daerahList, setDaerahList] = useState<{id: number, nama: string}[]>([]);
@@ -270,22 +273,29 @@ export default function MandiriPage() {
             sort: sort
          });
          if (selectedKegiatanId) params.set("kegiatanId", selectedKegiatanId);
+         if (filterStatusPeserta && filterStatusPeserta !== "all") {
+            params.set("statusPeserta", filterStatusPeserta);
+         }
          params.set("_t", Date.now().toString());
          const res = await fetch(`/api/mandiri?${params}`);
          const json = await res.json();
          setData(json.data || []);
          setTotal(json.total || 0);
+         if (json.counts) {
+            setUtusanDaerahCount(json.counts.utusanDaerah || 0);
+            setPersonCount(json.counts.person || 0);
+         }
       } catch (e) {
          console.error(e);
       } finally {
          setLoading(false);
       }
-   }, [search, page, sort, selectedKegiatanId]);
+   }, [search, page, sort, selectedKegiatanId, filterStatusPeserta]);
 
 
    useEffect(() => {
       setPage(1);
-   }, [search, sort, selectedKegiatanId]);
+   }, [search, sort, selectedKegiatanId, filterStatusPeserta]);
 
 
    useEffect(() => {
@@ -637,7 +647,100 @@ export default function MandiriPage() {
 
                <div className="card">
                   <div className="card-header" style={{ justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
-                     <span className="card-title">Daftar Peserta Mandiri ({total})</span>
+                     <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+                        <span className="card-title" style={{ marginBottom: 0 }}>Daftar Peserta Mandiri ({total})</span>
+                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                           <button
+                              onClick={() => setFilterStatusPeserta("all")}
+                              style={{
+                                 padding: "6px 12px",
+                                 borderRadius: "20px",
+                                 border: "1px solid",
+                                 borderColor: filterStatusPeserta === "all" ? "var(--primary)" : "#e2e8f0",
+                                 background: filterStatusPeserta === "all" ? "var(--primary)" : "#fff",
+                                 color: filterStatusPeserta === "all" ? "#fff" : "#475569",
+                                 fontSize: "13px",
+                                 fontWeight: "600",
+                                 cursor: "pointer",
+                                 transition: "all 0.2s ease",
+                                 display: "inline-flex",
+                                 alignItems: "center",
+                                 gap: "6px"
+                              }}
+                           >
+                              Semua
+                              <span style={{
+                                 background: filterStatusPeserta === "all" ? "rgba(255,255,255,0.2)" : "#f1f5f9",
+                                 padding: "1px 6px",
+                                 borderRadius: "10px",
+                                 fontSize: "11px",
+                                 color: filterStatusPeserta === "all" ? "#fff" : "#64748b"
+                              }}>
+                                 {utusanDaerahCount + personCount}
+                              </span>
+                           </button>
+                           
+                           <button
+                              onClick={() => setFilterStatusPeserta("Utusan Daerah")}
+                              style={{
+                                 padding: "6px 12px",
+                                 borderRadius: "20px",
+                                 border: "1px solid",
+                                 borderColor: filterStatusPeserta === "Utusan Daerah" ? "#2563eb" : "#e2e8f0",
+                                 background: filterStatusPeserta === "Utusan Daerah" ? "#2563eb" : "#fff",
+                                 color: filterStatusPeserta === "Utusan Daerah" ? "#fff" : "#475569",
+                                 fontSize: "13px",
+                                 fontWeight: "600",
+                                 cursor: "pointer",
+                                 transition: "all 0.2s ease",
+                                 display: "inline-flex",
+                                 alignItems: "center",
+                                 gap: "6px"
+                              }}
+                           >
+                              Utusan Daerah
+                              <span style={{
+                                 background: filterStatusPeserta === "Utusan Daerah" ? "rgba(255,255,255,0.2)" : "#f1f5f9",
+                                 padding: "1px 6px",
+                                 borderRadius: "10px",
+                                 fontSize: "11px",
+                                 color: filterStatusPeserta === "Utusan Daerah" ? "#fff" : "#64748b"
+                              }}>
+                                 {utusanDaerahCount}
+                              </span>
+                           </button>
+                           
+                           <button
+                              onClick={() => setFilterStatusPeserta("Person")}
+                              style={{
+                                 padding: "6px 12px",
+                                 borderRadius: "20px",
+                                 border: "1px solid",
+                                 borderColor: filterStatusPeserta === "Person" ? "#8b5cf6" : "#e2e8f0",
+                                 background: filterStatusPeserta === "Person" ? "#8b5cf6" : "#fff",
+                                 color: filterStatusPeserta === "Person" ? "#fff" : "#475569",
+                                 fontSize: "13px",
+                                 fontWeight: "600",
+                                 cursor: "pointer",
+                                 transition: "all 0.2s ease",
+                                 display: "inline-flex",
+                                 alignItems: "center",
+                                 gap: "6px"
+                              }}
+                           >
+                              Person
+                              <span style={{
+                                 background: filterStatusPeserta === "Person" ? "rgba(255,255,255,0.2)" : "#f1f5f9",
+                                 padding: "1px 6px",
+                                 borderRadius: "10px",
+                                 fontSize: "11px",
+                                 color: filterStatusPeserta === "Person" ? "#fff" : "#64748b"
+                              }}>
+                                 {personCount}
+                              </span>
+                           </button>
+                        </div>
+                     </div>
                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                         <div className="flex gap-1">
                            <button 
