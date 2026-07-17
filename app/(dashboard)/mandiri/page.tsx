@@ -525,6 +525,122 @@ export default function MandiriPage() {
 
    return (
       <div style={{ display: "flex", minHeight: "calc(100vh - 64px)" }}>
+         <style dangerouslySetInnerHTML={{ __html: `
+            .toolbar-container {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                margin-bottom: 20px;
+                background: #ffffff;
+                padding: 16px;
+                border-radius: 14px;
+                border: 1px solid #e2e8f0;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+             }
+             .toolbar-row {
+                display: flex;
+                gap: 12px;
+                flex-wrap: wrap;
+                width: 100%;
+             }
+            .toolbar-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+                height: 38px;
+                padding: 0 16px;
+                border-radius: 10px;
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.15s ease;
+                border: 1px solid transparent;
+                text-decoration: none;
+                white-space: nowrap;
+                flex: 1;
+                min-width: 140px;
+             }
+            .toolbar-btn:active {
+               transform: scale(0.97);
+            }
+            .toolbar-btn svg {
+               width: 14px;
+               height: 14px;
+            }
+            .toolbar-btn-success {
+               background: #f0fdf4;
+               color: #16a34a;
+               border: 1px solid #bbf7d0;
+            }
+            .toolbar-btn-success:hover {
+               background: #dcfce7;
+               border-color: #86efac;
+               transform: translateY(-1px);
+            }
+            .toolbar-btn-danger-status {
+               background: #fef2f2;
+               color: #dc2626;
+               border: 1px solid #fecaca;
+            }
+            .toolbar-btn-danger-status:hover {
+               background: #fee2e2;
+               border-color: #fca5a5;
+               transform: translateY(-1px);
+            }
+            .toolbar-btn-blue {
+               background: #eff6ff;
+               color: #2563eb;
+               border: 1px solid #bfdbfe;
+            }
+            .toolbar-btn-blue:hover {
+               background: #dbeafe;
+               border-color: #93c5fd;
+               transform: translateY(-1px);
+            }
+            .toolbar-btn-purple {
+               background: #faf5ff;
+               color: #7c3aed;
+               border: 1px solid #e9d5ff;
+            }
+            .toolbar-btn-purple:hover {
+               background: #ede9fe;
+               border-color: #c084fc;
+               transform: translateY(-1px);
+            }
+            .toolbar-btn-teal {
+               background: #f0fdfa;
+               color: #0d9488;
+               border: 1px solid #99f6e4;
+            }
+            .toolbar-btn-teal:hover {
+               background: #ccfbf1;
+               border-color: #5eead4;
+               transform: translateY(-1px);
+            }
+            .toolbar-btn-emerald {
+               background: #ecfdf5;
+               color: #059669;
+               border: 1px solid #a7f3d0;
+            }
+            .toolbar-btn-emerald:hover {
+               background: #d1fae5;
+               border-color: #6ee7b7;
+               transform: translateY(-1px);
+            }
+            .toolbar-btn-danger {
+               background: #fef2f2;
+               color: #dc2626;
+               border: 1px solid #fecaca;
+            }
+            .toolbar-btn-danger:hover {
+               background: #fee2e2;
+               border-color: #fca5a5;
+               transform: translateY(-1px);
+            }
+            
+            
+         ` }} />
          <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
             <Topbar title={regTitle || "Usia Mandiri / Persiapan Nikah"} role={userRole} />
 
@@ -547,103 +663,108 @@ export default function MandiriPage() {
                      </div>
                   </div>
                )}
-               <div className="page-header">
+
+               <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px", marginBottom: "20px" }}>
                   <div className="page-header-left">
                      <h2>{regTitle || "Pengelolaan Peserta Mandiri"}</h2>
                      <p>Kelola data muda-mudi yang memasuki usia mandiri / persiapan nikah</p>
                   </div>
-                  <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                     <button
-                        className={`btn ${regStatus === "1" ? 'btn-success' : 'btn-danger'}`}
-                        onClick={handleSettings}
-                        title="Pengaturan Pendaftaran"
-                     >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16 }}>
-                           <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-                        </svg>
-                        {regStatus === "1" ? "Pendaftaran Buka" : "Pendaftaran Tutup"}
-                     </button>
-                     <button
-                        className="btn btn-secondary"
-                        onClick={() => {
-                           const url = `${window.location.origin}/mandiri/daftar`;
-                           navigator.clipboard.writeText(url);
-                           Swal.fire({ icon: "success", title: "Link Disalin!", text: "Link pendaftaran mandiri berhasil disalin ke clipboard.", timer: 1500, showConfirmButton: false });
-                        }}
-                     >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16 }}>
-                           <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                           <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                        </svg>
-                        Bagikan Link Peserta Wajib
-                     </button>
-                     <button
-                        className="btn btn-secondary"
-                        onClick={() => {
-                           const url = `${window.location.origin}/mandiri/daftar?status=person`;
-                           navigator.clipboard.writeText(url);
-                           Swal.fire({ icon: "success", title: "Link Disalin!", text: "Link pendaftaran mandiri (Person) berhasil disalin ke clipboard.", timer: 1500, showConfirmButton: false });
-                        }}
-                     >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16 }}>
-                           <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                           <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                        </svg>
-                        Bagikan Link Peserta Person
-                     </button>
-                     <button
-                        className="btn btn-secondary"
-                        onClick={handleFixNomorUrut}
-                        title="Perbaiki nomor peserta sesuai jenis kelamin"
-                     >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16 }}>
-                           <path d="M3 12a9 9 0 0 1 15.5-6.2L21 8" />
-                           <path d="M21 3v5h-5" />
-                           <path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" />
-                           <path d="M3 21v-5h5" />
-                        </svg>
-                        Perbaiki Nomor
-                     </button>
-                     <button
-                        className="btn btn-danger"
-                        onClick={handleDeleteAll}
-                        title="Hapus Semua Data Peserta"
-                     >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16 }}>
-                           <polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                        Hapus Semua
-                     </button>
-                     {userRole === "admin_romantic_room" && (
-                        <button
-                           className="btn btn-secondary"
-                           onClick={handleExportExcel}
-                           title="Export Data Peserta ke Excel"
+                  {kegiatanList.length > 0 && (
+                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <label style={{ fontWeight: 600, fontSize: 13, color: "#475569", whiteSpace: "nowrap" }}>Kegiatan:</label>
+                        <select
+                           className="form-control"
+                           style={{ minWidth: 200, maxWidth: 320, height: 38 }}
+                           value={selectedKegiatanId}
+                           onChange={e => setSelectedKegiatanId(e.target.value)}
                         >
-                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16 }}>
-                              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
-                           </svg>
-                           Export Excel
-                        </button>
-                     )}
-                  </div>
+                           {kegiatanList.map(k => (
+                              <option key={k.id} value={k.id}>{k.judul} ({k.kota})</option>
+                           ))}
+                        </select>
+                     </div>
+                  )}
                </div>
 
-               {kegiatanList.length > 0 && (
-                  <div style={{ marginBottom: "16px", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-                     <label style={{ fontWeight: 600, fontSize: 14, color: "#475569", whiteSpace: "nowrap" }}>Pilih Kegiatan:</label>
-                     <select
-                        className="form-control"
-                        style={{ maxWidth: 320 }}
-                        value={selectedKegiatanId}
-                        onChange={e => setSelectedKegiatanId(e.target.value)}
-                     >
-                        {kegiatanList.map(k => (
-                           <option key={k.id} value={k.id}>{k.judul} ({k.kota})</option>
-                        ))}
-                     </select>
-                  </div>
-               )}
+               <div className="toolbar-container">
+                   <div className="toolbar-row">
+                      <button
+                         className={`toolbar-btn ${regStatus === "1" ? 'toolbar-btn-success' : 'toolbar-btn-danger-status'}`}
+                         onClick={handleSettings}
+                         title="Pengaturan Pendaftaran"
+                      >
+                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                         </svg>
+                         {regStatus === "1" ? "Pendaftaran Buka" : "Pendaftaran Tutup"}
+                      </button>
+                      <button
+                         className="toolbar-btn toolbar-btn-blue"
+                         onClick={() => {
+                            const url = `${window.location.origin}/mandiri/daftar`;
+                            navigator.clipboard.writeText(url);
+                            Swal.fire({ icon: "success", title: "Link Disalin!", text: "Link pendaftaran mandiri berhasil disalin ke clipboard.", timer: 1500, showConfirmButton: false });
+                         }}
+                      >
+                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                         </svg>
+                         Link Peserta Wajib
+                      </button>
+                      <button
+                         className="toolbar-btn toolbar-btn-purple"
+                         onClick={() => {
+                            const url = `${window.location.origin}/mandiri/daftar?status=person`;
+                            navigator.clipboard.writeText(url);
+                            Swal.fire({ icon: "success", title: "Link Disalin!", text: "Link pendaftaran mandiri (Person) berhasil disalin ke clipboard.", timer: 1500, showConfirmButton: false });
+                         }}
+                      >
+                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                         </svg>
+                         Link Person
+                      </button>
+                   </div>
+                   <div className="toolbar-row">
+                      <button
+                         className="toolbar-btn toolbar-btn-teal"
+                         onClick={handleFixNomorUrut}
+                         title="Perbaiki nomor peserta sesuai jenis kelamin"
+                      >
+                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 12a9 9 0 0 1 15.5-6.2L21 8" />
+                            <path d="M21 3v5h-5" />
+                            <path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" />
+                            <path d="M3 21v-5h5" />
+                         </svg>
+                         Perbaiki Nomor
+                      </button>
+                      {userRole === "admin_romantic_room" && (
+                         <button
+                            className="toolbar-btn toolbar-btn-emerald"
+                            onClick={handleExportExcel}
+                            title="Export Data Peserta ke Excel"
+                         >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                            </svg>
+                            Export Excel
+                         </button>
+                      )}
+                      <button
+                         className="toolbar-btn toolbar-btn-danger"
+                         onClick={handleDeleteAll}
+                         title="Hapus Semua Data Peserta"
+                      >
+                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                         </svg>
+                         Hapus Semua
+                      </button>
+                   </div>
+                </div>
 
                <div className="card">
                   <div className="card-header" style={{ justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>

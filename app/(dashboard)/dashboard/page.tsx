@@ -1459,55 +1459,7 @@ function AdminDashboard({
           />
         </div>
 
-        <div className="db-section-header">
-          <div
-            className="db-section-icon"
-            style={{ background: "linear-gradient(135deg, #10b981, #059669)" }}
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="white"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="16 12 12 8 8 12" />
-              <line x1="12" y1="16" x2="12" y2="8" />
-            </svg>
-          </div>
-          <div>
-            <h2 className="db-section-title">Grafik Kehadiran</h2>
-            <p className="db-section-sub">
-              Visualisasi kehadiran peserta dan panitia
-            </p>
-          </div>
-        </div>
-        <div className="db-charts-grid">
-          <AttendanceChart
-            label="Peserta"
-            present={stats?.mandiriHadirPeserta ?? 0}
-            absent={stats?.mandiriTidakHadirPeserta ?? 0}
-            pulang={stats?.mandiriPulangPeserta ?? 0}
-            hadirLaki={stats?.mandiriHadirLaki ?? 0}
-            hadirPerempuan={stats?.mandiriHadirPerempuan ?? 0}
-            terdaftarLaki={stats?.mandiriTerdaftarPesertaLaki ?? 0}
-            terdaftarPerempuan={stats?.mandiriTerdaftarPesertaPerempuan ?? 0}
-            color="#3b82f6"
-          />
-          <AttendanceChart
-            label="Panitia"
-            present={stats?.mandiriHadirPanitia ?? 0}
-            absent={stats?.mandiriTidakHadirPanitia ?? 0}
-            pulang={stats?.mandiriPulangPanitia ?? 0}
-            hadirLaki={stats?.mandiriHadirPanitiaLaki ?? 0}
-            hadirPerempuan={stats?.mandiriHadirPanitiaPerempuan ?? 0}
-            terdaftarLaki={stats?.mandiriTerdaftarPanitiaLaki ?? 0}
-            terdaftarPerempuan={stats?.mandiriTerdaftarPanitiaPerempuan ?? 0}
-            color="#10b981"
-          />
-        </div>
+
       </div>
     );
   }
