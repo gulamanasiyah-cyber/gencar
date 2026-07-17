@@ -31,10 +31,12 @@ export default function AdminKatalogPage() {
   const [pendidikan, setPendidikan] = useState("all");
   const [page, setPage] = useState(1);
   const [pendidikanList, setPendidikanList] = useState<string[]>([]);
-  const [regionList, setRegionList] = useState<any[]>([]);
-  const [selectedRegion, setSelectedRegion] = useState("all");
+  const [daerahList, setDaerahList] = useState<any[]>([]);
+  const [selectedDaerah, setSelectedDaerah] = useState("all");
   const [desaList, setDesaList] = useState<any[]>([]);
   const [selectedDesa, setSelectedDesa] = useState("all");
+  const [kelompokList, setKelompokList] = useState<any[]>([]);
+  const [selectedKelompok, setSelectedKelompok] = useState("all");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [authorizedChecked, setAuthorizedChecked] = useState(false);
@@ -71,8 +73,9 @@ export default function AdminKatalogPage() {
         jenisKelamin: gender,
         status: status,
         pendidikan: pendidikan,
-        mandiriDesaId: selectedRegion,
-        desaId: selectedDesa,
+        mandiriDaerahId: selectedDaerah,
+        mandiriDesaId: selectedDesa,
+        mandiriKelompokId: selectedKelompok,
         sortBy: "nomorUrut",
         order: sortOrder,
         ...(selectedKegiatanId ? { kegiatanId: selectedKegiatanId } : {}),
@@ -86,7 +89,7 @@ export default function AdminKatalogPage() {
     } finally {
       setLoading(false);
     }
-  }, [isAuthorized, search, page, gender, status, pendidikan, selectedRegion, selectedDesa, sortOrder, selectedKegiatanId]);
+  }, [isAuthorized, search, page, gender, status, pendidikan, selectedDaerah, selectedDesa, selectedKelompok, sortOrder, selectedKegiatanId]);
 
   useEffect(() => {
     async function init() {
@@ -157,8 +160,9 @@ export default function AdminKatalogPage() {
         if (filterRes.ok) {
           const filterJson = await filterRes.json();
           setPendidikanList(filterJson.pendidikan || []);
-          setRegionList(filterJson.regions || []);
+          setDaerahList(filterJson.daerahs || []);
           setDesaList(filterJson.desas || []);
+          setKelompokList(filterJson.kelompoks || []);
         }
       } catch (e) {
         console.error(e);
@@ -315,10 +319,12 @@ export default function AdminKatalogPage() {
         jenisKelamin: gender,
         status: status,
         pendidikan: pendidikan,
-        mandiriDesaId: selectedRegion,
-        desaId: selectedDesa,
+        mandiriDaerahId: selectedDaerah,
+        mandiriDesaId: selectedDesa,
+        mandiriKelompokId: selectedKelompok,
         sortBy: "nomorUrut",
-        order: sortOrder
+        order: sortOrder,
+        ...(selectedKegiatanId ? { kegiatanId: selectedKegiatanId } : {}),
       });
       const res = await fetch(`/api/generus?${params}`, { cache: "no-store" });
       const json = await res.json();
@@ -437,10 +443,12 @@ export default function AdminKatalogPage() {
         jenisKelamin: gender,
         status: status,
         pendidikan: pendidikan,
-        mandiriDesaId: selectedRegion,
-        desaId: selectedDesa,
+        mandiriDaerahId: selectedDaerah,
+        mandiriDesaId: selectedDesa,
+        mandiriKelompokId: selectedKelompok,
         sortBy: "nomorUrut",
-        order: sortOrder
+        order: sortOrder,
+        ...(selectedKegiatanId ? { kegiatanId: selectedKegiatanId } : {}),
       });
       const res = await fetch(`/api/generus?${params}`, { cache: "no-store" });
       const json = await res.json();
@@ -468,23 +476,40 @@ export default function AdminKatalogPage() {
       doc.setFont("helvetica", "bold");
       doc.text("KATALOG LENGKAP PESERTA", 15, 20);
 
+      const daerahPart = selectedDaerah !== "all" ? daerahList.find(d => String(d.id) === selectedDaerah)?.nama : "SEMUA_DAERAH";
+      const desaPart = selectedDesa !== "all" ? desaList.find(d => String(d.id) === selectedDesa)?.nama : "";
+      const kelompokPart = selectedKelompok !== "all" ? kelompokList.find(k => String(k.id) === selectedKelompok)?.nama : "";
+
+      let filterSuffix = daerahPart;
+      if (desaPart) filterSuffix += `_${desaPart}`;
+      if (kelompokPart) filterSuffix += `_${kelompokPart}`;
+      const cleanSuffix = filterSuffix.replace(/[^a-zA-Z0-9_]/g, "_").toUpperCase();
+
       doc.setFontSize(11);
       doc.setFont("helvetica", "normal");
       doc.text(latestActivity?.judul || "Daftar Peserta Aktif", 15, 28);
-      doc.text(`Total: ${allParticipants.length} Orang`, 15, 34);
+      
+      let filterText = "Semua Daerah";
+      if (selectedDaerah !== "all") {
+        const dNama = daerahList.find(d => String(d.id) === selectedDaerah)?.nama || "";
+        const dDesa = selectedDesa !== "all" ? desaList.find(d => String(d.id) === selectedDesa)?.nama || "" : "";
+        const dKel = selectedKelompok !== "all" ? kelompokList.find(k => String(k.id) === selectedKelompok)?.nama || "" : "";
+        filterText = dNama + (dDesa ? ` → ${dDesa}` : "") + (dKel ? ` → ${dKel}` : "");
+      }
+      doc.text(`Total: ${allParticipants.length} Orang  |  Filter: ${filterText}`, 15, 34);
 
       doc.setFontSize(9);
       doc.text(`Dicetak pada: ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, pageWidth - 15, 34, { align: "right" });
 
       // Table Data
-      const tableColumn = ["No", "Nama Lengkap", "L/P", "Usia", "Status", "Wilayah / Desa", "Kontak / Sosial Media", "Pendidikan & Pekerjaan"];
+      const tableColumn = ["No", "Nama Lengkap", "L/P", "Usia", "Status", "Daerah / Desa / Kelompok", "Kontak / Sosial Media", "Pendidikan & Pekerjaan"];
       const tableRows = allParticipants.map((item, index) => [
         index + 1,
         item.nama.toUpperCase(),
         item.jenisKelamin || "-",
         calculateAge(item.tanggalLahir ?? undefined),
         (item.panitiaStatus || item.role === 'admin') ? "PANITIA" : "PESERTA",
-        `${item.mandiriDesaKota || "-"}\n${item.mandiriDesaNama || item.desaNama || "-"}`,
+        `${item.mandiriDesaKota || "-"}\n${item.mandiriDesaNama || "-"}\n${item.mandiriKelompokNama || "-"}`,
         `${item.noTelp || "-"}\n${item.instagram ? '@' + item.instagram.replace('@', '') : "-"}`,
         `${item.pendidikan || "-"}\n${item.pekerjaan || "-"}`
       ]);
@@ -531,7 +556,7 @@ export default function AdminKatalogPage() {
         }
       });
 
-      doc.save(`KATALOG_PESERTA_${new Date().getTime()}.pdf`);
+      doc.save(`KATALOG_PESERTA_${cleanSuffix}_${new Date().getTime()}.pdf`);
       Swal.fire("Berhasil", "Laporan PDF telah berhasil diunduh.", "success");
     } catch (e) {
       console.error(e);
@@ -557,10 +582,12 @@ export default function AdminKatalogPage() {
         jenisKelamin: gender,
         status: status,
         pendidikan: pendidikan,
-        mandiriDesaId: selectedRegion,
-        desaId: selectedDesa,
+        mandiriDaerahId: selectedDaerah,
+        mandiriDesaId: selectedDesa,
+        mandiriKelompokId: selectedKelompok,
         sortBy: "nomorUrut",
-        order: sortOrder
+        order: sortOrder,
+        ...(selectedKegiatanId ? { kegiatanId: selectedKegiatanId } : {}),
       });
       const res = await fetch(`/api/generus?${params}`, { cache: "no-store" });
       const json = await res.json();
@@ -575,8 +602,9 @@ export default function AdminKatalogPage() {
         "Nama Lengkap": item.nama,
         "Nomor Peserta": item.nomorUrut || "-",
         "Status": (item.panitiaStatus || item.role === 'admin') ? "Panitia" : "Peserta",
-        "Kota/Kabupaten": item.mandiriDesaKota || "-",
-        "Desa": item.mandiriDesaNama || item.desaNama || "-"
+        "Daerah": item.mandiriDesaKota || "-",
+        "Desa": item.mandiriDesaNama || "-",
+        "Kelompok": item.mandiriKelompokNama || "-"
       }));
 
       const wb = utils.book_new();
@@ -587,8 +615,9 @@ export default function AdminKatalogPage() {
         { wch: 30 }, // Nama Lengkap
         { wch: 15 }, // Nomor Peserta
         { wch: 15 }, // Status
-        { wch: 20 }, // Kota/Kabupaten
+        { wch: 20 }, // Daerah
         { wch: 20 }, // Desa
+        { wch: 20 }, // Kelompok
       ];
       ws['!cols'] = wscols;
 
@@ -720,17 +749,67 @@ export default function AdminKatalogPage() {
             </div>
 
             <div className="filter-group">
-              <label>Wilayah</label>
+              <label>Daerah</label>
               <div className="select-box-wrapper">
                 <select
                   className="dropdown-box"
-                  value={selectedRegion}
-                  onChange={(e) => { setSelectedRegion(e.target.value); setPage(1); }}
+                  value={selectedDaerah}
+                  onChange={(e) => {
+                    setSelectedDaerah(e.target.value);
+                    setSelectedDesa("all");
+                    setSelectedKelompok("all");
+                    setPage(1);
+                  }}
                 >
-                  <option value="all">Semua Wilayah</option>
-                  {regionList.map(r => (
-                    <option key={r.id} value={r.id}>{r.kota} - {r.nama}</option>
+                  <option value="all">Semua Daerah</option>
+                  {daerahList.map(d => (
+                    <option key={d.id} value={d.id}>{d.nama}</option>
                   ))}
+                </select>
+                <ChevronDown size={14} className="dropdown-arrow" />
+              </div>
+            </div>
+
+            <div className="filter-group">
+              <label>Desa</label>
+              <div className="select-box-wrapper">
+                <select
+                  className="dropdown-box"
+                  value={selectedDesa}
+                  onChange={(e) => {
+                    setSelectedDesa(e.target.value);
+                    setSelectedKelompok("all");
+                    setPage(1);
+                  }}
+                >
+                  <option value="all">Semua Desa</option>
+                  {desaList
+                    .filter(d => selectedDaerah === "all" || d.daerahId === Number(selectedDaerah))
+                    .map(d => (
+                      <option key={d.id} value={d.id}>{d.nama}</option>
+                    ))}
+                </select>
+                <ChevronDown size={14} className="dropdown-arrow" />
+              </div>
+            </div>
+
+            <div className="filter-group">
+              <label>Kelompok</label>
+              <div className="select-box-wrapper">
+                <select
+                  className="dropdown-box"
+                  value={selectedKelompok}
+                  onChange={(e) => {
+                    setSelectedKelompok(e.target.value);
+                    setPage(1);
+                  }}
+                >
+                  <option value="all">Semua Kelompok</option>
+                  {kelompokList
+                    .filter(k => selectedDesa === "all" || k.desaId === Number(selectedDesa))
+                    .map(k => (
+                      <option key={k.id} value={k.id}>{k.nama}</option>
+                    ))}
                 </select>
                 <ChevronDown size={14} className="dropdown-arrow" />
               </div>

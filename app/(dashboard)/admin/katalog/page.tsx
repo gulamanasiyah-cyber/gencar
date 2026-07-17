@@ -311,7 +311,8 @@ export default function AdminKatalogPage() {
         mandiriDesaId: selectedDesa,
         mandiriKelompokId: selectedKelompok,
         sortBy: "nomorUrut",
-        order: sortOrder
+        order: sortOrder,
+        ...(selectedKegiatanId ? { kegiatanId: selectedKegiatanId } : {}),
       });
       const res = await fetch(`/api/generus?${params}`, { cache: "no-store" });
       const json = await res.json();
@@ -434,7 +435,8 @@ export default function AdminKatalogPage() {
         mandiriDesaId: selectedDesa,
         mandiriKelompokId: selectedKelompok,
         sortBy: "nomorUrut",
-        order: sortOrder
+        order: sortOrder,
+        ...(selectedKegiatanId ? { kegiatanId: selectedKegiatanId } : {}),
       });
       const res = await fetch(`/api/generus?${params}`, { cache: "no-store" });
       const json = await res.json();
@@ -462,23 +464,40 @@ export default function AdminKatalogPage() {
       doc.setFont("helvetica", "bold");
       doc.text("KATALOG LENGKAP PESERTA", 15, 20);
 
+      const daerahPart = selectedDaerah !== "all" ? daerahList.find(d => String(d.id) === selectedDaerah)?.nama : "SEMUA_DAERAH";
+      const desaPart = selectedDesa !== "all" ? desaList.find(d => String(d.id) === selectedDesa)?.nama : "";
+      const kelompokPart = selectedKelompok !== "all" ? kelompokList.find(k => String(k.id) === selectedKelompok)?.nama : "";
+
+      let filterSuffix = daerahPart;
+      if (desaPart) filterSuffix += `_${desaPart}`;
+      if (kelompokPart) filterSuffix += `_${kelompokPart}`;
+      const cleanSuffix = filterSuffix.replace(/[^a-zA-Z0-9_]/g, "_").toUpperCase();
+
       doc.setFontSize(11);
       doc.setFont("helvetica", "normal");
       doc.text(latestActivity?.judul || "Daftar Peserta Aktif", 15, 28);
-      doc.text(`Total: ${allParticipants.length} Orang`, 15, 34);
+      
+      let filterText = "Semua Daerah";
+      if (selectedDaerah !== "all") {
+        const dNama = daerahList.find(d => String(d.id) === selectedDaerah)?.nama || "";
+        const dDesa = selectedDesa !== "all" ? desaList.find(d => String(d.id) === selectedDesa)?.nama || "" : "";
+        const dKel = selectedKelompok !== "all" ? kelompokList.find(k => String(k.id) === selectedKelompok)?.nama || "" : "";
+        filterText = dNama + (dDesa ? ` → ${dDesa}` : "") + (dKel ? ` → ${dKel}` : "");
+      }
+      doc.text(`Total: ${allParticipants.length} Orang  |  Filter: ${filterText}`, 15, 34);
 
       doc.setFontSize(9);
       doc.text(`Dicetak pada: ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, pageWidth - 15, 34, { align: "right" });
 
       // Table Data
-      const tableColumn = ["No", "Nama Lengkap", "L/P", "Usia", "Status", "Daerah / Desa / Kelp.", "Kontak / Sosial Media", "Pendidikan & Pekerjaan"];
+      const tableColumn = ["No", "Nama Lengkap", "L/P", "Usia", "Status", "Daerah / Desa / Kelompok", "Kontak / Sosial Media", "Pendidikan & Pekerjaan"];
       const tableRows = allParticipants.map((item, index) => [
         index + 1,
         item.nama.toUpperCase(),
         item.jenisKelamin || "-",
         calculateAge(item.tanggalLahir ?? undefined),
         (item.panitiaStatus || item.role === 'admin') ? "PANITIA" : "PESERTA",
-        `${item.mandiriDesaKota || "-"}\n${item.mandiriDesaNama || item.desaNama || "-"}`,
+        `${item.mandiriDesaKota || "-"}\n${item.mandiriDesaNama || "-"}\n${item.mandiriKelompokNama || "-"}`,
         `${item.noTelp || "-"}\n${item.instagram ? '@' + item.instagram.replace('@', '') : "-"}`,
         `${item.pendidikan || "-"}\n${item.pekerjaan || "-"}`
       ]);
@@ -525,7 +544,7 @@ export default function AdminKatalogPage() {
         }
       });
 
-      doc.save(`KATALOG_PESERTA_${new Date().getTime()}.pdf`);
+      doc.save(`KATALOG_${cleanSuffix}_${new Date().getTime()}.pdf`);
       Swal.fire("Berhasil", "Laporan PDF telah berhasil diunduh.", "success");
     } catch (e) {
       console.error(e);
@@ -555,7 +574,8 @@ export default function AdminKatalogPage() {
         mandiriDesaId: selectedDesa,
         mandiriKelompokId: selectedKelompok,
         sortBy: "nomorUrut",
-        order: sortOrder
+        order: sortOrder,
+        ...(selectedKegiatanId ? { kegiatanId: selectedKegiatanId } : {}),
       });
       const res = await fetch(`/api/generus?${params}`, { cache: "no-store" });
       const json = await res.json();
