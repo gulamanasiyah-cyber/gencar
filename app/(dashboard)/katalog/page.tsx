@@ -90,6 +90,10 @@ export default function GenerusKatalogPage() {
         setMyProfile(profileJson);
         setIsAuthorized(!!profileJson.isInPdkt || ["generus", "tim_pnkb", "admin", "kmm_daerah", "pengurus_daerah", "admin_romantic_room", "desa", "kelompok", "admin_keuangan", "admin_kegiatan"].includes(profileJson.role));
 
+        if (profileJson.role !== "admin" && profileJson.jenisKelamin) {
+          setGender(profileJson.jenisKelamin === "L" ? "P" : "L");
+        }
+
         // Fetch activity info + kegiatan list
         const [activityRes, kegiatanRes, settingsRes] = await Promise.all([
           fetch("/api/mandiri/kegiatan?limit=1", { cache: "no-store" }),
@@ -246,11 +250,13 @@ export default function GenerusKatalogPage() {
 
         {showFilters && (
           <div className="filters-group">
-            <div className="pill-group">
-              <button className={gender === "all" ? "active" : ""} onClick={() => { setGender("all"); setPage(1); }}>Semua JK</button>
-              <button className={gender === "L" ? "active" : ""} onClick={() => { setGender("L"); setPage(1); }}>Laki-Laki</button>
-              <button className={gender === "P" ? "active" : ""} onClick={() => { setGender("P"); setPage(1); }}>Perempuan</button>
-            </div>
+            {(!myProfile || myProfile.role === "admin" || !myProfile.jenisKelamin) && (
+              <div className="pill-group">
+                <button className={gender === "all" ? "active" : ""} onClick={() => { setGender("all"); setPage(1); }}>Semua JK</button>
+                <button className={gender === "L" ? "active" : ""} onClick={() => { setGender("L"); setPage(1); }}>Laki-Laki</button>
+                <button className={gender === "P" ? "active" : ""} onClick={() => { setGender("P"); setPage(1); }}>Perempuan</button>
+              </div>
+            )}
 
             <div className="pill-group">
               <button className={status === "all" ? "active" : ""} onClick={() => { setStatus("all"); setPage(1); }}>Semua Status</button>

@@ -5,10 +5,15 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Swal from "sweetalert2";
 import GlobalLoading from "@/app/loading";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
 
@@ -27,11 +32,21 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     setLoading(true);
 
+    if (newPassword !== confirmPassword) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Gagal',
+        text: 'Password baru dan konfirmasi tidak cocok!'
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, newPassword }),
       });
 
       const data = await res.json();
@@ -39,7 +54,7 @@ export default function ResetPasswordPage() {
       if (!res.ok) {
         Swal.fire({
           icon: 'error',
-          title: 'Gagal Keperluan Ulang',
+          title: 'Gagal',
           text: data.error || 'Terjadi kesalahan'
         });
         return;
@@ -48,7 +63,7 @@ export default function ResetPasswordPage() {
       Swal.fire({
         icon: 'success',
         title: 'Berhasil!',
-        text: 'Password default telah dikirim ke email Anda. Silakan cek kotak masuk/spam Anda.',
+        text: 'Password Anda telah berhasil diubah. Silakan login dengan password baru.',
       }).then(() => {
         window.location.href = "/login";
       });
@@ -79,7 +94,7 @@ export default function ResetPasswordPage() {
         </div>
 
         <h2 className="auth-title">Lupa Password</h2>
-        <p className="auth-subtitle">Masukkan email terdaftar Anda, dan kami akan mengirimkan password default ke email Anda.</p>
+        <p className="auth-subtitle">Masukkan email terdaftar Anda beserta password baru yang ingin digunakan.</p>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -98,13 +113,71 @@ export default function ResetPasswordPage() {
             />
           </div>
 
+          <div className="form-group" style={{ marginTop: "16px" }}>
+            <label className="form-label" htmlFor="newPassword">
+              Password Baru <span className="required">*</span>
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                id="newPassword"
+                type={showNewPassword ? "text" : "password"}
+                className="form-control"
+                placeholder="Masukkan password baru"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                style={{ paddingRight: '40px' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                style={{
+                  position: 'absolute', right: '12px', top: '50%',
+                  transform: 'translateY(-50%)', background: 'none', border: 'none',
+                  color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}
+              >
+                {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          <div className="form-group" style={{ marginTop: "16px" }}>
+            <label className="form-label" htmlFor="confirmPassword">
+              Konfirmasi Ulang Password Baru <span className="required">*</span>
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                id="confirmPassword"
+                type={showConfirmPassword ? "text" : "password"}
+                className="form-control"
+                placeholder="Ulangi password baru"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                style={{ paddingRight: '40px' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={{
+                  position: 'absolute', right: '12px', top: '50%',
+                  transform: 'translateY(-50%)', background: 'none', border: 'none',
+                  color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}
+              >
+                {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
           <button
             type="submit"
             className="btn btn-primary btn-full btn-lg"
             disabled={loading}
-            style={{ marginTop: "16px" }}
+            style={{ marginTop: "24px" }}
           >
-            {loading ? "Memproses..." : "Kirim Password ke Email"}
+            {loading ? "Memproses..." : "Simpan Password Baru"}
           </button>
           
           <div className="auth-footer" style={{ marginTop: "24px", paddingTop: "16px", borderTop: "1px solid var(--border)" }}>

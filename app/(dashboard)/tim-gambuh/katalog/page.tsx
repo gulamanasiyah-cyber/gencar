@@ -100,6 +100,10 @@ export default function AdminKatalogPage() {
         setMyProfile(profileJson);
         setIsAuthorized(!!profileJson.isInPdkt || ["admin", "tim_pnkb", "admin_romantic_room", "kmm_daerah", "pengurus_daerah", "admin_pdkt", "tim_pnkb_gambuh"].includes(profileJson.role));
 
+        if (profileJson.role !== "admin" && profileJson.jenisKelamin) {
+          setGender(profileJson.jenisKelamin === "L" ? "P" : "L");
+        }
+
         // Fetch activity info + kegiatan list + active setting
         const [activityRes, kegiatanRes, settingsRes] = await Promise.all([
           fetch("/api/mandiri/kegiatan?limit=1", { cache: "no-store" }),
@@ -713,14 +717,16 @@ export default function AdminKatalogPage() {
             <span>Filter Data</span>
           </div>
           <div className="filters-grid">
-            <div className="filter-group">
-              <label>Gender</label>
-              <div className="pill-group">
-                <button className={gender === "all" ? "active" : ""} onClick={() => setGender("all")}>Semua</button>
-                <button className={gender === "L" ? "active" : ""} onClick={() => setGender("L")}>L</button>
-                <button className={gender === "P" ? "active" : ""} onClick={() => setGender("P")}>P</button>
+            {(!myProfile || myProfile.role === "admin" || !myProfile.jenisKelamin) && (
+              <div className="filter-group">
+                <label>Gender</label>
+                <div className="pill-group">
+                  <button className={gender === "all" ? "active" : ""} onClick={() => setGender("all")}>Semua</button>
+                  <button className={gender === "L" ? "active" : ""} onClick={() => setGender("L")}>L</button>
+                  <button className={gender === "P" ? "active" : ""} onClick={() => setGender("P")}>P</button>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="filter-group">
               <label>Status</label>
