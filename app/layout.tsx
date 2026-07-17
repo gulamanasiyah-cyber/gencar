@@ -36,6 +36,27 @@ export const metadata: Metadata = {
     default: "GENCAR - Sistem Manajemen Generus Cengkareng",
   },
   description: "Sistem Manajemen Generus Cengkareng, Kegiatan, dan Absensi",
+  openGraph: {
+    title: "GENCAR - Sistem Manajemen Generus Cengkareng",
+    description: "Sistem Manajemen Generus Cengkareng, Kegiatan, dan Absensi",
+    siteName: "GENCAR",
+    images: [
+      {
+        url: "https://gencar.my.id/public/img/logo-jb2.png",
+        width: 800,
+        height: 600,
+        alt: "Logo GENCAR",
+      },
+    ],
+    locale: "id_ID",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "GENCAR - Sistem Manajemen Generus Cengkareng",
+    description: "Sistem Manajemen Generus Cengkareng, Kegiatan, dan Absensi",
+    images: ["/img/logo-jb2.png"],
+  },
 };
 
 export default function RootLayout({
