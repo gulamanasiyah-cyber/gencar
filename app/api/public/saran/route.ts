@@ -7,7 +7,7 @@ import { eq, and } from "drizzle-orm";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { untuk, saran, nama, isAnonim, userId } = body;
+    const { untuk, kepada, saran, nama, isAnonim, userId } = body;
 
     if (!untuk || !untuk.trim()) {
       return NextResponse.json({ error: "Kolom 'untuk siapa' wajib diisi." }, { status: 400 });
@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
     await db.insert(saranMasukan).values({
       id: uuidv4(),
       untuk: untuk.trim(),
+      kepada: kepada?.trim() || null,
       saran: saran.trim(),
       nama: senderName,
       userId: userId || null,
@@ -91,7 +92,7 @@ export async function DELETE(request: NextRequest) {
 export async function PUT(request: NextRequest) {
     try {
         const body = await request.json();
-        const { id, saran, isAnonim, nama, userId, token } = body;
+        const { id, kepada, saran, isAnonim, nama, userId, token } = body;
 
         if (!id || !userId || !token) {
             return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
@@ -110,6 +111,7 @@ export async function PUT(request: NextRequest) {
 
         await db.update(saranMasukan)
             .set({ 
+                kepada: kepada?.trim() || null,
                 saran, 
                 isAnonim: isAnonim ? 1 : 0,
                 nama: senderName

@@ -178,6 +178,7 @@ export default function PublicKatalogPage() {
   const [hasilRRList, setHasilRRList] = useState<any[]>([]);
   const [loadingHasil, setLoadingHasil] = useState(false);
   const [saranText, setSaranText] = useState("");
+  const [kepadaSaran, setKepadaSaran] = useState("");
   const [isAnonimSaran, setIsAnonimSaran] = useState(false);
   const [submittingSaran, setSubmittingSaran] = useState(false);
   const [mySaranList, setMySaranList] = useState<any[]>([]);
@@ -802,6 +803,7 @@ export default function PublicKatalogPage() {
       
       const payload: any = {
         untuk: "Romantic Room",
+        kepada: kepadaSaran,
         saran: saranText,
         nama: currentUser?.nama || "",
         isAnonim: isAnonimSaran,
@@ -835,6 +837,7 @@ export default function PublicKatalogPage() {
           showConfirmButton: false
         });
         setSaranText("");
+        setKepadaSaran("");
         setIsAnonimSaran(false);
         setEditingSaranId(null);
         
@@ -858,6 +861,7 @@ export default function PublicKatalogPage() {
 
   const handleEditSaran = (saran: any) => {
     setSaranText(saran.saran);
+    setKepadaSaran(saran.kepada || "");
     setIsAnonimSaran(saran.isAnonim === 1);
     setEditingSaranId(saran.id);
   };
@@ -2056,7 +2060,9 @@ export default function PublicKatalogPage() {
                 const partnerName = isPengirim ? h.penerimaNama : h.pengirimNama;
                 const partnerNoUrut = isPengirim ? h.penerimaNoUrut : h.pengirimNoUrut;
                 const myHasil = isPengirim ? h.hasilPengirim : h.hasilPenerima;
-                const setMyHasil = (val: string) => submitHasilRR(h.id, val);
+                const partnerHasil = isPengirim ? h.hasilPenerima : h.hasilPengirim;
+
+                const isRagu = (val: string) => val === "Ragu-Ragu" || val === "Ragu-ragu";
 
                 return (
                   <div key={h.id} style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
@@ -2069,20 +2075,74 @@ export default function PublicKatalogPage() {
                       </div>
                     </div>
                     
-                    <div style={{ marginBottom: '12px', fontSize: '13px', color: '#475569', fontWeight: 600 }}>Pilihan Anda:</div>
-                    
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ marginBottom: '10px', fontSize: '13px', color: '#475569', fontWeight: 600 }}>Jawaban Anda:</div>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '18px' }}>
                       <button 
-                        onClick={() => setMyHasil("Lanjut")}
-                        style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, border: myHasil === "Lanjut" ? '2px solid #22c55e' : '1px solid #e2e8f0', background: myHasil === "Lanjut" ? '#f0fdf4' : 'white', color: myHasil === "Lanjut" ? '#166534' : '#64748b', cursor: 'pointer', transition: '0.2s' }}
+                        disabled={!!myHasil}
+                        onClick={() => submitHasilRR(h.id, "Lanjut")}
+                        style={{ 
+                          flex: 1, 
+                          padding: '10px', 
+                          borderRadius: '10px', 
+                          fontSize: '13px', 
+                          fontWeight: 700, 
+                          border: myHasil === "Lanjut" ? '2px solid #22c55e' : '1px solid #e2e8f0', 
+                          background: myHasil === "Lanjut" ? '#f0fdf4' : (!!myHasil ? '#f8fafc' : 'white'), 
+                          color: myHasil === "Lanjut" ? '#166534' : (!!myHasil ? '#94a3b8' : '#64748b'), 
+                          cursor: !!myHasil ? 'not-allowed' : 'pointer', 
+                          transition: '0.2s',
+                          opacity: !!myHasil && myHasil !== "Lanjut" ? 0.6 : 1
+                        }}
                       >Lanjut</button>
                       <button 
-                        onClick={() => setMyHasil("Ragu-Ragu")}
-                        style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, border: myHasil === "Ragu-Ragu" ? '2px solid #eab308' : '1px solid #e2e8f0', background: myHasil === "Ragu-Ragu" ? '#fefce8' : 'white', color: myHasil === "Ragu-Ragu" ? '#854d0e' : '#64748b', cursor: 'pointer', transition: '0.2s' }}
+                        disabled={!!myHasil}
+                        onClick={() => submitHasilRR(h.id, "Ragu-Ragu")}
+                        style={{ 
+                          flex: 1, 
+                          padding: '10px', 
+                          borderRadius: '10px', 
+                          fontSize: '13px', 
+                          fontWeight: 700, 
+                          border: isRagu(myHasil) ? '2px solid #eab308' : '1px solid #e2e8f0', 
+                          background: isRagu(myHasil) ? '#fefce8' : (!!myHasil ? '#f8fafc' : 'white'), 
+                          color: isRagu(myHasil) ? '#854d0e' : (!!myHasil ? '#94a3b8' : '#64748b'), 
+                          cursor: !!myHasil ? 'not-allowed' : 'pointer', 
+                          transition: '0.2s',
+                          opacity: !!myHasil && !isRagu(myHasil) ? 0.6 : 1
+                        }}
                       >Ragu-Ragu</button>
                       <button 
-                        onClick={() => setMyHasil("Tidak Lanjut")}
-                        style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, border: myHasil === "Tidak Lanjut" ? '2px solid #ef4444' : '1px solid #e2e8f0', background: myHasil === "Tidak Lanjut" ? '#fef2f2' : 'white', color: myHasil === "Tidak Lanjut" ? '#991b1b' : '#64748b', cursor: 'pointer', transition: '0.2s' }}
+                        disabled={!!myHasil}
+                        onClick={() => submitHasilRR(h.id, "Tidak Lanjut")}
+                        style={{ 
+                          flex: 1, 
+                          padding: '10px', 
+                          borderRadius: '10px', 
+                          fontSize: '13px', 
+                          fontWeight: 700, 
+                          border: myHasil === "Tidak Lanjut" ? '2px solid #ef4444' : '1px solid #e2e8f0', 
+                          background: myHasil === "Tidak Lanjut" ? '#fef2f2' : (!!myHasil ? '#f8fafc' : 'white'), 
+                          color: myHasil === "Tidak Lanjut" ? '#991b1b' : (!!myHasil ? '#94a3b8' : '#64748b'), 
+                          cursor: !!myHasil ? 'not-allowed' : 'pointer', 
+                          transition: '0.2s',
+                          opacity: !!myHasil && myHasil !== "Tidak Lanjut" ? 0.6 : 1
+                        }}
+                      >Tidak Lanjut</button>
+                    </div>
+
+                    <div style={{ marginBottom: '10px', fontSize: '13px', color: '#475569', fontWeight: 600 }}>Jawaban {partnerName}:</div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button 
+                        disabled={true}
+                        style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, border: partnerHasil === "Lanjut" ? '2px solid #22c55e' : '1px solid #e2e8f0', background: partnerHasil === "Lanjut" ? '#f0fdf4' : '#f8fafc', color: partnerHasil === "Lanjut" ? '#166534' : '#94a3b8', cursor: 'not-allowed', transition: '0.2s', opacity: partnerHasil === "Lanjut" ? 1 : 0.6 }}
+                      >Lanjut</button>
+                      <button 
+                        disabled={true}
+                        style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, border: isRagu(partnerHasil) ? '2px solid #eab308' : '1px solid #e2e8f0', background: isRagu(partnerHasil) ? '#fefce8' : '#f8fafc', color: isRagu(partnerHasil) ? '#854d0e' : '#94a3b8', cursor: 'not-allowed', transition: '0.2s', opacity: isRagu(partnerHasil) ? 1 : 0.6 }}
+                      >Ragu-Ragu</button>
+                      <button 
+                        disabled={true}
+                        style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, border: partnerHasil === "Tidak Lanjut" ? '2px solid #ef4444' : '1px solid #e2e8f0', background: partnerHasil === "Tidak Lanjut" ? '#fef2f2' : '#f8fafc', color: partnerHasil === "Tidak Lanjut" ? '#991b1b' : '#94a3b8', cursor: 'not-allowed', transition: '0.2s', opacity: partnerHasil === "Tidak Lanjut" ? 1 : 0.6 }}
                       >Tidak Lanjut</button>
                     </div>
                   </div>
@@ -2123,6 +2183,7 @@ export default function PublicKatalogPage() {
                                     <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>
                                         {new Date(s.createdAt.replace(' ', 'T') + (!s.createdAt.endsWith('Z') ? 'Z' : '')).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })} WIB
                                         {s.isAnonim ? ' • Anonim' : ''}
+                                        {s.kepada ? ` • Kepada: ${s.kepada}` : ''}
                                     </div>
                                     <div style={{ fontSize: '14px', color: '#334155', whiteSpace: 'pre-wrap' }}>{s.saran}</div>
                                 </div>
@@ -2143,13 +2204,25 @@ export default function PublicKatalogPage() {
                 await handleSubmitSaran(e);
                 setShowSaranForm(false);
             }}>
+               <div style={{ marginBottom: '16px' }}>
+                <input
+                  type="text"
+                  value={kepadaSaran}
+                  onChange={(e) => setKepadaSaran(e.target.value)}
+                  placeholder="Kepada (contoh: Panitia atau Admin)..."
+                  style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '2px solid #e2e8f0', outline: 'none', fontSize: '14px', lineHeight: 1.5, background: '#f8fafc', transition: '0.2s', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                  onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                  onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                />
+              </div>
+
               <div style={{ marginBottom: '16px' }}>
                 <textarea
                   value={saranText}
                   onChange={(e) => setSaranText(e.target.value)}
                   placeholder="Ketik saran atau masukan Anda di sini..."
                   rows={6}
-                  style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '2px solid #e2e8f0', outline: 'none', resize: 'none', fontSize: '14px', lineHeight: 1.5, background: '#f8fafc', transition: '0.2s', fontFamily: 'inherit' }}
+                  style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '2px solid #e2e8f0', outline: 'none', resize: 'none', fontSize: '14px', lineHeight: 1.5, background: '#f8fafc', transition: '0.2s', fontFamily: 'inherit', boxSizing: 'border-box' }}
                   onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
                   onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
                   required
@@ -2184,10 +2257,10 @@ export default function PublicKatalogPage() {
                   </>
                 )}
                 </button>
-                {editingSaranId ? (
+                 {editingSaranId ? (
                   <button 
                     type="button" 
-                    onClick={() => { setEditingSaranId(null); setSaranText(''); setIsAnonimSaran(false); }}
+                    onClick={() => { setEditingSaranId(null); setSaranText(''); setKepadaSaran(''); setIsAnonimSaran(false); }}
                     style={{ padding: '14px 20px', borderRadius: '16px', border: '2px solid #e2e8f0', background: 'white', color: '#64748b', fontWeight: 700, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                   >
                     Batal
@@ -2195,7 +2268,7 @@ export default function PublicKatalogPage() {
                 ) : mySaranList.length > 0 && showSaranForm ? (
                   <button 
                     type="button" 
-                    onClick={() => { setShowSaranForm(false); setSaranText(''); setIsAnonimSaran(false); }}
+                    onClick={() => { setShowSaranForm(false); setSaranText(''); setKepadaSaran(''); setIsAnonimSaran(false); }}
                     style={{ padding: '14px 20px', borderRadius: '16px', border: '2px solid #e2e8f0', background: 'white', color: '#64748b', fontWeight: 700, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                   >
                     Batal

@@ -474,6 +474,7 @@ export const organisasiPengurus = sqliteTable("organisasi_pengurus", {
 export const saranMasukan = sqliteTable("saran_masukan", {
   id: text("id").primaryKey(),
   untuk: text("untuk").notNull(),
+  kepada: text("kepada"),
   saran: text("saran").notNull(),
   nama: text("nama"), userId: text("user_id"),
   isAnonim: integer("is_anonim").default(0),

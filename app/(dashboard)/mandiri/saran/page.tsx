@@ -106,19 +106,27 @@ export default function SaranRomanticRoom() {
                                         transition: 'all 0.2s'
                                     }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                <div style={{ 
-                                                    width: '32px', height: '32px', borderRadius: '50%', 
-                                                    background: saran.isAnonim ? '#f1f5f9' : '#e0f2fe',
-                                                    color: saran.isAnonim ? '#94a3b8' : '#0369a1',
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    fontWeight: 'bold', fontSize: '14px'
-                                                }}>
-                                                    {saran.isAnonim ? '?' : (saran.nama ? saran.nama.charAt(0).toUpperCase() : '?')}
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                    <div style={{ 
+                                                        width: '32px', height: '32px', borderRadius: '50%', 
+                                                        background: saran.isAnonim ? '#f1f5f9' : '#e0f2fe',
+                                                        color: saran.isAnonim ? '#94a3b8' : '#0369a1',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        fontWeight: 'bold', fontSize: '14px'
+                                                    }}>
+                                                        {saran.isAnonim ? '?' : (saran.nama ? saran.nama.charAt(0).toUpperCase() : '?')}
+                                                    </div>
+                                                    <span style={{ fontWeight: 800, color: '#1e293b', fontSize: '15px' }}>
+                                                        {saran.isAnonim ? "Anonim" : (saran.nama || "Anonim")}
+                                                    </span>
                                                 </div>
-                                                <span style={{ fontWeight: 800, color: '#1e293b', fontSize: '15px' }}>
-                                                    {saran.isAnonim ? "Anonim" : (saran.nama || "Anonim")}
-                                                </span>
+                                                {saran.kepada && (
+                                                    <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, display: 'flex', gap: '4px', alignItems: 'center', marginLeft: '42px' }}>
+                                                        <span style={{ color: '#94a3b8' }}>Kepada:</span>
+                                                        <span style={{ background: '#f1f5f9', padding: '2px 8px', borderRadius: '6px' }}>{saran.kepada}</span>
+                                                    </div>
+                                                )}
                                             </div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                 <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, background: '#f8fafc', padding: '4px 10px', borderRadius: '20px' }}>
