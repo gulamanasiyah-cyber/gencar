@@ -2729,6 +2729,7 @@ export default function PublicKatalogPage() {
                   <div className="dm-field"><span className="dm-label">Pekerjaan</span><span className="dm-val">{sp.pekerjaan || "-"}</span></div>
                   <div className="dm-field"><span className="dm-label">Suku</span><span className="dm-val">{sp.suku || "-"}</span></div>
                   <div className="dm-field"><span className="dm-label">Hobi</span><span className="dm-val">{sp.hobi || "-"}</span></div>
+                  <div className="dm-field"><span className="dm-label">Instagram</span><span className="dm-val">{sp.instagram ? <a href={`https://instagram.com/${sp.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>@{sp.instagram.replace('@', '')}</a> : "-"}</span></div>
                   <div className="dm-field dm-field-full"><span className="dm-label">Makanan/Minuman Favorit</span><span className="dm-val">{sp.makananMinumanFavorit || "-"}</span></div>
                   <div className="dm-field dm-field-full"><span className="dm-label">Kriteria Pasangan</span><span className="dm-val">{sp.kriteriaPasangan || "-"}</span></div>
                   <div className="dm-field dm-field-full"><span className="dm-label">Alamat</span><span className="dm-val">{sp.alamat || "-"}</span></div>
