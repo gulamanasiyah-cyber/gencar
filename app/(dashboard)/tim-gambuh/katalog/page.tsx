@@ -100,8 +100,8 @@ export default function AdminKatalogPage() {
         setMyProfile(profileJson);
         setIsAuthorized(!!profileJson.isInPdkt || ["admin", "tim_pnkb", "admin_romantic_room", "kmm_daerah", "pengurus_daerah", "admin_pdkt", "tim_pnkb_gambuh"].includes(profileJson.role));
 
-        if (profileJson.role !== "admin" && profileJson.jenisKelamin) {
-          setGender(profileJson.jenisKelamin === "L" ? "P" : "L");
+        if (profileJson.role !== "admin" && profileJson.role !== "tim_pnkb_gambuh" && profileJson.jenisKelamin) {
+          setGender("all");
         }
 
         // Fetch activity info + kegiatan list + active setting
@@ -717,7 +717,6 @@ export default function AdminKatalogPage() {
             <span>Filter Data</span>
           </div>
           <div className="filters-grid">
-            {(!myProfile || myProfile.role === "admin" || !myProfile.jenisKelamin) && (
               <div className="filter-group">
                 <label>Gender</label>
                 <div className="pill-group">
@@ -726,7 +725,6 @@ export default function AdminKatalogPage() {
                   <button className={gender === "P" ? "active" : ""} onClick={() => setGender("P")}>P</button>
                 </div>
               </div>
-            )}
 
             <div className="filter-group">
               <label>Status</label>

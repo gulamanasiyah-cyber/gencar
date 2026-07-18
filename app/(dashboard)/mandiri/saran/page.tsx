@@ -8,6 +8,7 @@ import Swal from "sweetalert2";
 export default function SaranRomanticRoom() {
     const [saranList, setSaranList] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [filterKepada, setFilterKepada] = useState<string>("Semua");
 
     useEffect(() => {
         fetchData();
@@ -55,6 +56,8 @@ export default function SaranRomanticRoom() {
         }
     };
 
+    const filteredSaran = saranList.filter(s => filterKepada === "Semua" || s.kepada === filterKepada);
+
     return (
         <div className="saran-layout">
             <header className="page-header">
@@ -77,23 +80,37 @@ export default function SaranRomanticRoom() {
                             <h3>Saran & Masukan Romantic Room</h3>
                         </div>
                         <span className="queue-badge" style={{ margin: 0 }}>
-                            {saranList.length} Masukan
+                            {filteredSaran.length} Masukan
                         </span>
                     </div>
                     
+                    <div style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#475569' }}>Filter Kepada:</span>
+                        <select
+                            value={filterKepada}
+                            onChange={(e) => setFilterKepada(e.target.value)}
+                            style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '14px', background: 'white', color: '#1e293b', minWidth: '200px' }}
+                        >
+                            <option value="Semua">Semua</option>
+                            <option value="Panitia">Panitia</option>
+                            <option value="Peserta">Peserta</option>
+                            <option value="Tim PNKB & Ibu Gambuh">Tim PNKB & Ibu Gambuh</option>
+                        </select>
+                    </div>
+
                     <div className="card-body">
                         {loading ? (
                             <div className="empty-state">
                                 <p>Memuat data...</p>
                             </div>
-                        ) : saranList.length === 0 ? (
+                        ) : filteredSaran.length === 0 ? (
                             <div className="empty-state">
                                 <MessageSquare size={32} />
-                                <p>Belum ada saran/masukan yang masuk.</p>
+                                <p>Tidak ada saran/masukan yang sesuai dengan filter.</p>
                             </div>
                         ) : (
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px', padding: '20px' }}>
-                                {saranList.map((saran, idx) => (
+                                {filteredSaran.map((saran, idx) => (
                                     <div key={idx} style={{ 
                                         background: '#fff', 
                                         padding: '20px', 

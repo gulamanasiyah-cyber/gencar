@@ -2204,16 +2204,20 @@ export default function PublicKatalogPage() {
                 await handleSubmitSaran(e);
                 setShowSaranForm(false);
             }}>
-               <div style={{ marginBottom: '16px' }}>
-                <input
-                  type="text"
+              <div style={{ marginBottom: '16px' }}>
+                <select
                   value={kepadaSaran}
                   onChange={(e) => setKepadaSaran(e.target.value)}
-                  placeholder="Kepada (contoh: Panitia atau Admin)..."
                   style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '2px solid #e2e8f0', outline: 'none', fontSize: '14px', lineHeight: 1.5, background: '#f8fafc', transition: '0.2s', fontFamily: 'inherit', boxSizing: 'border-box' }}
                   onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
                   onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-                />
+                  required
+                >
+                  <option value="" disabled>Pilih Tujuan Saran...</option>
+                  <option value="Panitia">Panitia</option>
+                  <option value="Peserta">Peserta</option>
+                  <option value="Tim PNKB & Ibu Gambuh">Tim PNKB & Ibu Gambuh</option>
+                </select>
               </div>
 
               <div style={{ marginBottom: '16px' }}>
