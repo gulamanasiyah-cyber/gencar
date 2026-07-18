@@ -179,6 +179,7 @@ export default function PublicKatalogPage() {
   const [loadingHasil, setLoadingHasil] = useState(false);
   const [saranText, setSaranText] = useState("");
   const [kepadaSaran, setKepadaSaran] = useState("");
+  const [kepadaSaranLainnya, setKepadaSaranLainnya] = useState("");
   const [isAnonimSaran, setIsAnonimSaran] = useState(false);
   const [submittingSaran, setSubmittingSaran] = useState(false);
   const [mySaranList, setMySaranList] = useState<any[]>([]);
@@ -803,7 +804,7 @@ export default function PublicKatalogPage() {
       
       const payload: any = {
         untuk: "Romantic Room",
-        kepada: kepadaSaran,
+        kepada: kepadaSaran === 'Lainnya' ? kepadaSaranLainnya : kepadaSaran,
         saran: saranText,
         nama: currentUser?.nama || "",
         isAnonim: isAnonimSaran,
@@ -838,6 +839,7 @@ export default function PublicKatalogPage() {
         });
         setSaranText("");
         setKepadaSaran("");
+        setKepadaSaranLainnya("");
         setIsAnonimSaran(false);
         setEditingSaranId(null);
         
@@ -861,7 +863,14 @@ export default function PublicKatalogPage() {
 
   const handleEditSaran = (saran: any) => {
     setSaranText(saran.saran);
-    setKepadaSaran(saran.kepada || "");
+    const standardOptions = ["Tim Acara", "Tim Romantic Room", "Tim PNKB dan Ibu Gambuh"];
+    if (saran.kepada && !standardOptions.includes(saran.kepada)) {
+      setKepadaSaran("Lainnya");
+      setKepadaSaranLainnya(saran.kepada);
+    } else {
+      setKepadaSaran(saran.kepada || "");
+      setKepadaSaranLainnya("");
+    }
     setIsAnonimSaran(saran.isAnonim === 1);
     setEditingSaranId(saran.id);
   };
@@ -2214,11 +2223,27 @@ export default function PublicKatalogPage() {
                   required
                 >
                   <option value="" disabled>Pilih Tujuan Saran...</option>
-                  <option value="Panitia">Panitia</option>
-                  <option value="Peserta">Peserta</option>
-                  <option value="Tim PNKB & Ibu Gambuh">Tim PNKB & Ibu Gambuh</option>
+                  <option value="Tim Acara">Tim Acara</option>
+                  <option value="Tim Romantic Room">Tim Romantic Room</option>
+                  <option value="Tim PNKB dan Ibu Gambuh">Tim PNKB dan Ibu Gambuh</option>
+                  <option value="Lainnya">Lainnya</option>
                 </select>
               </div>
+
+              {kepadaSaran === 'Lainnya' && (
+                <div style={{ marginBottom: '16px' }}>
+                  <input
+                    type="text"
+                    value={kepadaSaranLainnya}
+                    onChange={(e) => setKepadaSaranLainnya(e.target.value)}
+                    placeholder="Masukkan tujuan saran lainnya..."
+                    style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '2px solid #e2e8f0', outline: 'none', fontSize: '14px', lineHeight: 1.5, background: '#f8fafc', transition: '0.2s', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                    onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                    onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                    required
+                  />
+                </div>
+              )}
 
               <div style={{ marginBottom: '16px' }}>
                 <textarea

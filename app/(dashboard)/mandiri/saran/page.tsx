@@ -56,7 +56,12 @@ export default function SaranRomanticRoom() {
         }
     };
 
-    const filteredSaran = saranList.filter(s => filterKepada === "Semua" || s.kepada === filterKepada);
+    const filteredSaran = saranList.filter(s => {
+        if (filterKepada === "Semua") return true;
+        const standardOptions = ["Tim Acara", "Tim Romantic Room", "Tim PNKB dan Ibu Gambuh"];
+        if (filterKepada === "Lainnya") return s.kepada && !standardOptions.includes(s.kepada);
+        return s.kepada === filterKepada;
+    });
 
     return (
         <div className="saran-layout">
@@ -92,9 +97,10 @@ export default function SaranRomanticRoom() {
                             style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '14px', background: 'white', color: '#1e293b', minWidth: '200px' }}
                         >
                             <option value="Semua">Semua</option>
-                            <option value="Panitia">Panitia</option>
-                            <option value="Peserta">Peserta</option>
-                            <option value="Tim PNKB & Ibu Gambuh">Tim PNKB & Ibu Gambuh</option>
+                            <option value="Tim Acara">Tim Acara</option>
+                            <option value="Tim Romantic Room">Tim Romantic Room</option>
+                            <option value="Tim PNKB dan Ibu Gambuh">Tim PNKB dan Ibu Gambuh</option>
+                            <option value="Lainnya">Lainnya</option>
                         </select>
                     </div>
 
