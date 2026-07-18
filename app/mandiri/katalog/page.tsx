@@ -1577,7 +1577,23 @@ export default function PublicKatalogPage() {
                 return (
                   <div key={item.id} className={`participant-card ${isUnavailable ? "is-pulang" : ""}`} style={{ position: "relative", opacity: isUnavailable ? 1 : undefined, filter: isUnavailable ? "none" : undefined }}>
                     <div style={isUnavailable ? { filter: "blur(5px) grayscale(0.6)", opacity: 0.7, pointerEvents: "none", userSelect: "none" } : {}}>
-                      <div className="card-image-wrapper">
+                      <div 
+                        className="card-image-wrapper"
+                        style={{ cursor: item.foto ? "zoom-in" : "default" }}
+                        onClick={(e) => {
+                          if (item.foto) {
+                            e.stopPropagation();
+                            Swal.fire({
+                              imageUrl: item.foto,
+                              imageAlt: item.nama,
+                              showConfirmButton: false,
+                              showCloseButton: true,
+                              width: "auto",
+                              padding: "1rem"
+                            });
+                          }
+                        }}
+                      >
                         <img
                           src={item.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.nama)}&background=random`}
                           alt={item.nama}
@@ -2318,7 +2334,22 @@ export default function PublicKatalogPage() {
           ) : myFullProfile ? (
             <div className="profile-details-card">
               <div className="profile-header-main">
-                <div className="profile-avatar-large">
+                <div 
+                  className="profile-avatar-large"
+                  style={{ cursor: myFullProfile.foto ? "zoom-in" : "default" }}
+                  onClick={() => {
+                    if (myFullProfile.foto) {
+                      Swal.fire({
+                        imageUrl: myFullProfile.foto,
+                        imageAlt: myFullProfile.nama,
+                        showConfirmButton: false,
+                        showCloseButton: true,
+                        width: "auto",
+                        padding: "1rem"
+                      });
+                    }
+                  }}
+                >
                   {myFullProfile.foto ? (
                     <img src={myFullProfile.foto} alt={myFullProfile.nama} />
                   ) : (
@@ -2704,7 +2735,22 @@ export default function PublicKatalogPage() {
               {/* HERO */}
               <div className="dm-hero" style={{ background: accentGrad }}>
                 <button className="dm-close" onClick={closeDetail}><X size={18} /></button>
-                <div className="dm-avatar-wrap">
+                <div 
+                  className="dm-avatar-wrap"
+                  style={{ cursor: sp.foto ? "zoom-in" : "default" }}
+                  onClick={() => {
+                    if (sp.foto) {
+                      Swal.fire({
+                        imageUrl: sp.foto,
+                        imageAlt: sp.nama,
+                        showConfirmButton: false,
+                        showCloseButton: true,
+                        width: "auto",
+                        padding: "1rem"
+                      });
+                    }
+                  }}
+                >
                   {sp.foto
                     ? <img src={sp.foto} alt={sp.nama} className="dm-avatar-img" />
                     : <div className="dm-avatar-init" style={{ background: accentColor }}>{sp.nama.charAt(0)}</div>
