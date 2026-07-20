@@ -8,6 +8,7 @@ import PhotoUpload from "@/components/mandiri/PhotoUpload";
 import { useState, useEffect, useCallback } from "react";
 import Swal from "sweetalert2";
 import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 interface MandiriItem {
    id: string;
@@ -484,6 +485,11 @@ export default function MandiriPage() {
       try {
          const params = new URLSearchParams({ search, sort, page: "1", limit: "9999" });
          if (selectedKegiatanId) params.set("kegiatanId", selectedKegiatanId);
+
+
+         if (filterStatusPeserta && filterStatusPeserta !== "all") {
+            params.set("statusPeserta", filterStatusPeserta);
+         }
          const res = await fetch(`/api/mandiri?${params}`);
          const json = await res.json();
          const rows: MandiriItem[] = Array.isArray(json.data) ? json.data : [];
@@ -493,31 +499,137 @@ export default function MandiriPage() {
             return;
          }
 
-         const exportData = rows.map((item) => ({
-            "No. Peserta": item.nomorUrut ?? "-",
-            "No. Unik": item.nomorUnik,
-            "Nama": item.nama,
-            "JK": item.jenisKelamin === "L" ? "Laki-laki" : "Perempuan",
-            "Umur": hitungUmur(item.tanggalLahir),
-            "Pekerjaan": item.pekerjaan || "-",
-            "Daerah": item.desaKota && item.desaKota !== "N/A" ? item.desaKota : "-",
-            "Desa": item.desaNama && item.desaNama !== "N/A" ? item.desaNama : "-",
-            "Kelompok": item.kelompokNama && item.kelompokNama !== "N/A" ? item.kelompokNama : "-",
-            "Kehadiran": item.keterangan === "pulang" ? "Pulang" : item.isHadir === 1 ? "Hadir" : "Belum Hadir",
-            "Status Akun": item.statusMandiri,
-            "Status Peserta": item.statusPeserta || "Utusan Daerah",
-            "Dibayarkan Senilai": item.statusPeserta === "Person"
-               ? (item.dibayarkanSenilai ? `Rp ${Number(item.dibayarkanSenilai).toLocaleString("id-ID")}` : "-")
-               : "Gratis",
-            "Catatan": item.catatan || "-",
-         }));
+         Swal.fire({
+            title: 'Menyiapkan Export...',
+            text: 'Mengunduh data dan foto, mohon tunggu.',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+         });
 
-         const ws = XLSX.utils.json_to_sheet(exportData);
-         const wb = XLSX.utils.book_new();
-         XLSX.utils.book_append_sheet(wb, ws, "Peserta Mandiri");
+
+         const workbook = new ExcelJS.Workbook();
+         const worksheet = workbook.addWorksheet("Peserta Mandiri");
+
+         worksheet.columns = [
+            { header: "No. Peserta", key: "noPeserta", width: 12 },
+            { header: "No. Unik", key: "noUnik", width: 15 },
+            { header: "Nama", key: "nama", width: 25 },
+            { header: "JK", key: "jk", width: 12 },
+            { header: "Umur", key: "umur", width: 10 },
+            { header: "Pekerjaan", key: "pekerjaan", width: 20 },
+            { header: "Daerah", key: "daerah", width: 20 },
+            { header: "Desa", key: "desa", width: 15 },
+            { header: "Kelompok", key: "kelompok", width: 15 },
+            { header: "Kehadiran", key: "kehadiran", width: 15 },
+            { header: "Status Akun", key: "statusAkun", width: 15 },
+            { header: "Status Peserta", key: "statusPeserta", width: 20 },
+            { header: "Dibayarkan", key: "dibayarkan", width: 15 },
+            { header: "Bukti Transfer", key: "foto", width: 60 },
+            { header: "Catatan", key: "catatan", width: 25 },
+         ];
+
+         for (let i = 0; i < rows.length; i++) {
+            const item = rows[i];
+            const rowNumber = i + 2;
+            const rowData = {
+               noPeserta: item.nomorUrut ?? "-",
+               noUnik: item.nomorUnik,
+               foto: "",
+               nama: item.nama,
+               jk: item.jenisKelamin === "L" ? "Laki-laki" : "Perempuan",
+               umur: hitungUmur(item.tanggalLahir),
+               pekerjaan: item.pekerjaan || "-",
+               daerah: item.desaKota && item.desaKota !== "N/A" ? item.desaKota : "-",
+               desa: item.desaNama && item.desaNama !== "N/A" ? item.desaNama : "-",
+               kelompok: item.kelompokNama && item.kelompokNama !== "N/A" ? item.kelompokNama : "-",
+               kehadiran: item.keterangan === "pulang" ? "Pulang" : item.isHadir === 1 ? "Hadir" : "Belum Hadir",
+               statusAkun: item.statusMandiri,
+               statusPeserta: item.statusPeserta || "Utusan Daerah",
+               dibayarkan: item.statusPeserta === "Person" ? (item.dibayarkanSenilai ? `Rp ${Number(item.dibayarkanSenilai).toLocaleString("id-ID")}` : "-") : "Gratis",
+               catatan: item.catatan || "-",
+            };
+            worksheet.addRow(rowData);
+            worksheet.getRow(rowNumber).height = 250;
+
+            if (item.buktiPembayaran) {
+               try {
+                  const photoUrl = item.buktiPembayaran.startsWith("http") ? item.buktiPembayaran : `${window.location.origin}${item.buktiPembayaran}`;
+                  const imageData = await new Promise<{base64: string, width: number, height: number, colOffset: number, rowOffset: number} | null>((resolve) => {
+                     const img = new Image();
+                     img.crossOrigin = "Anonymous";
+                     img.onload = () => {
+                        const canvas = document.createElement("canvas");
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext("2d");
+                        if (ctx) {
+                           ctx.fillStyle = "#ffffff";
+                           ctx.fillRect(0, 0, canvas.width, canvas.height);
+                           ctx.drawImage(img, 0, 0);
+                           const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+                           
+                           // Kalkulasi ukuran sel di Excel (perkiraan pixel)
+                           const CELL_WIDTH_PX = 450;  // Untuk lebar kolom 60
+                           const CELL_HEIGHT_PX = 333; // Untuk tinggi baris 250
+                           const MAX_WIDTH = 410;
+                           const MAX_HEIGHT = 310;
+                           
+                           // Sesuaikan skala gambar agar tidak melebihi MAX_WIDTH / MAX_HEIGHT
+                           const ratio = Math.min(MAX_WIDTH / img.width, MAX_HEIGHT / img.height);
+                           const targetWidth = Math.max(10, Math.round(img.width * ratio));
+                           const targetHeight = Math.max(10, Math.round(img.height * ratio));
+                           
+                           // Hitung offset agar gambar berada tepat di tengah-tengah sel
+                           const colOffset = (CELL_WIDTH_PX - targetWidth) / 2 / CELL_WIDTH_PX;
+                           const rowOffset = (CELL_HEIGHT_PX - targetHeight) / 2 / CELL_HEIGHT_PX;
+                           
+                           resolve({ 
+                               base64: dataUrl.split(",")[1], 
+                               width: targetWidth, 
+                               height: targetHeight,
+                               colOffset,
+                               rowOffset
+                           });
+                        } else {
+                           resolve(null);
+                        }
+                     };
+                     img.onerror = () => resolve(null);
+                     img.src = photoUrl;
+                  });
+
+                  if (imageData) {
+                     const imageId = workbook.addImage({
+                        base64: imageData.base64,
+                        extension: "jpeg",
+                     });
+                     
+                     worksheet.addImage(imageId, {
+                        tl: { col: 13 + imageData.colOffset, row: (rowNumber - 1) + imageData.rowOffset },
+                        ext: { width: imageData.width, height: imageData.height }
+                     });
+                  }
+               } catch (err) {
+                  console.error("Gagal memuat foto", item.buktiPembayaran, err);
+               }
+            }
+         }
+
          const namaKegiatan = (regTitle || "Peserta_Mandiri").replace(/\s+/g, "_");
          const tanggal = new Date().toISOString().slice(0, 10);
-         XLSX.writeFile(wb, `${namaKegiatan}_${tanggal}.xlsx`);
+         const suffix = filterStatusPeserta === "all" ? "" : `_${filterStatusPeserta.replace(/\s+/g, "")}`;
+         const fileName = `${namaKegiatan}_${tanggal}${suffix}.xlsx`;
+
+         const buffer = await workbook.xlsx.writeBuffer();
+         const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+         
+         const a = document.createElement("a");
+         a.href = window.URL.createObjectURL(blob);
+         a.download = fileName;
+         a.click();
+         window.URL.revokeObjectURL(a.href);
+
+         Swal.close();
       } catch (e) {
          Swal.fire({ icon: "error", title: "Gagal", text: "Gagal mengekspor data ke Excel." });
       }
