@@ -184,13 +184,10 @@ export default function MandiriPage() {
           <textarea id="swal-desc" class="form-control" rows="3" placeholder="Contoh: Diikuti oleh seluruh usia mandiri..." style="margin-bottom: 12px">${regDesc}</textarea>
           <label class="form-label">Status Pendaftaran</label>
           <select id="swal-status" class="form-control" style="margin-bottom: 12px">
-            <option value="1" ${regStatus === "1" ? "selected" : ""}>Buka (Open)</option>
-            <option value="0" ${regStatus === "0" ? "selected" : ""}>Tutup (Closed)</option>
-          </select>
-          <label class="form-label">Status Peserta</label>
-          <select id="swal-status-peserta" class="form-control">
-            <option value="Utusan Daerah" ${regStatusPeserta === "Utusan Daerah" ? "selected" : ""}>Utusan Daerah</option>
-            <option value="Person" ${regStatusPeserta === "Person" ? "selected" : ""}>Person</option>
+            <option value="1" ${regStatus === "1" ? "selected" : ""}>Buka Semua</option>
+            <option value="tutup_utusan" ${regStatus === "tutup_utusan" ? "selected" : ""}>Tutup Utusan Daerah Saja</option>
+            <option value="tutup_person" ${regStatus === "tutup_person" ? "selected" : ""}>Tutup Person Saja</option>
+            <option value="0" ${regStatus === "0" ? "selected" : ""}>Tutup Semua</option>
           </select>
         </div>
       `,
@@ -207,7 +204,6 @@ export default function MandiriPage() {
                title: titleText,
                desc: (document.getElementById("swal-desc") as HTMLTextAreaElement).value,
                status: (document.getElementById("swal-status") as HTMLSelectElement).value,
-               statusPeserta: (document.getElementById("swal-status-peserta") as HTMLSelectElement).value,
             };
          },
          footer: "Nama & deskripsi akan muncul di form publik"
@@ -230,11 +226,6 @@ export default function MandiriPage() {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ key: "mandiri_registration_status", value: formValues.status }),
-               }),
-               fetch("/api/mandiri/settings", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ key: "mandiri_registration_status_peserta", value: formValues.statusPeserta }),
                })
             ];
 
@@ -254,7 +245,6 @@ export default function MandiriPage() {
             setRegTitle(formValues.title);
             setRegDesc(formValues.desc);
             setRegStatus(formValues.status);
-            setRegStatusPeserta(formValues.statusPeserta);
             setIsClosed(formValues.status === "0");
             if (formValues.id) setSelectedKegiatanId(formValues.id);
             Swal.fire({ icon: "success", title: "Berhasil disimpan", timer: 1000, showConfirmButton: false });

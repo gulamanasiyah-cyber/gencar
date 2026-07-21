@@ -199,7 +199,7 @@ export default function RegisterPage() {
           </div>
           <h2 style={{ fontSize: "20px", marginBottom: "12px", color: "var(--text)" }}>Pendaftaran Ditutup</h2>
           <p style={{ color: "var(--text-muted)", fontSize: "14px", lineHeight: 1.5, marginBottom: "24px" }}>
-            Maaf, Anda tidak mempunyai akses pada halaman ini. Pendaftaran secara mandiri saat ini sedang ditutup.
+            Mohon maaf, Anda tidak mempunyai akses pada halaman ini. Pendaftaran sensus muda/i saat ini sedang ditutup.
           </p>
           <Link href="/" className="btn btn-primary" style={{ display: "inline-flex", alignItems: "center", gap: "8px", justifyContent: "center" }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

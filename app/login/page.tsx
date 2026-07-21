@@ -217,14 +217,6 @@ function LoginContent() {
         </form>
 
         <div className="auth-footer">
-          {registrationActive && (
-            <div style={{ marginBottom: "20px" }}>
-              Belum punya akun?{" "}
-              <Link href="/register" style={{ fontWeight: 600 }}>
-                Daftar sekarang
-              </Link>
-            </div>
-          )}
           <div style={{ paddingTop: "16px", borderTop: "1px solid var(--border)" }}>
             <Link 
               href="/" 

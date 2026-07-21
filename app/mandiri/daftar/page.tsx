@@ -74,11 +74,28 @@ export default function MandiriDaftarPage() {
   }, []);
 
   useEffect(() => {
+    let currentPesertaType = "Utusan Daerah";
+    
+    // Determine Peserta Type from URL ONLY
+    const urlParams = new URLSearchParams(window.location.search);
+    const statusParam = urlParams.get('status');
+    if (statusParam && statusParam.toLowerCase() === 'person') {
+      setRegStatusPeserta("Person");
+      currentPesertaType = "Person";
+    } else {
+      setRegStatusPeserta("Utusan Daerah");
+    }
+
     fetch("/api/public/mandiri/settings?key=mandiri_registration_status")
       .then(r => r.json())
       .then(d => {
-        setRegStatus(d.value ?? "1");
-        if (d.value === "0") {
+        const val = d.value ?? "1";
+        setRegStatus(val);
+        if (val === "0") {
+          setIsClosed(true);
+        } else if (val === "tutup_utusan" && currentPesertaType === "Utusan Daerah") {
+          setIsClosed(true);
+        } else if (val === "tutup_person" && currentPesertaType === "Person") {
           setIsClosed(true);
         }
       });
@@ -95,17 +112,6 @@ export default function MandiriDaftarPage() {
         if (d.value) setRegDesc(d.value);
       });
 
-    fetch("/api/public/mandiri/settings?key=mandiri_registration_status_peserta")
-      .then(r => r.json())
-      .then(d => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const statusParam = urlParams.get('status');
-        if (statusParam && statusParam.toLowerCase() === 'person') {
-          setRegStatusPeserta("Person");
-        } else if (d.value) {
-          setRegStatusPeserta(d.value);
-        }
-      });
 
     Promise.all([
       fetch("/api/public/mandiri/desa").then((r) => r.json()),
@@ -434,7 +440,7 @@ export default function MandiriDaftarPage() {
         Swal.fire({
           icon: "warning",
           title: "Kuota Daerah Penuh",
-          text: data.error,
+          html: `<p>${data.error}</p><span style="font-size: 13px; color: #64748b;">Harap lapor kepada Tim PNKB/Ibu Gambuh, Jika ingin mendaftar sebagai Peserta Person</span>`,
           confirmButtonText: "Mengerti",
           confirmButtonColor: "#f59e0b"
         });
@@ -749,12 +755,16 @@ export default function MandiriDaftarPage() {
         <div className="auth-card" style={{ maxWidth: "500px", textAlign: "center" }}>
           <div style={{ fontSize: "60px", marginBottom: "20px" }}>⌛</div>
           <h2 style={{ marginBottom: "10px" }}>Pendaftaran Ditutup</h2>
-          <p style={{ color: "var(--text-muted)", marginBottom: "24px" }}>
-            Mohon maaf, pendaftaran saat ini sedang ditutup secara manual oleh admin.
+          <p style={{ color: "var(--text-muted)", fontSize: "15px", marginBottom: "16px" }}>
+            Mohon maaf, pendaftaran peserta sudah ditutup.
           </p>
-          <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-            Silakan hubungi pengurus setempat untuk informasi lebih lanjut.
-          </p>
+          <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "16px", display: "inline-block", textAlign: "center" }}>
+            <p style={{ fontSize: "13.5px", color: "var(--text-muted)", margin: 0, lineHeight: "1.6" }}>
+              <strong>Pendaftaran Ta'aruf Kubro V9.0</strong><br />
+              Sudah ditutup pada hari <span style={{ color: "var(--text)", fontWeight: 600 }}>Kamis, 23 Juli 2026</span><br />
+              Pukul 00.00 WIB <span style={{ fontSize: "12px", opacity: 0.8 }}>(Waktu Indonesia Bagian Barat).</span>
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -865,7 +875,7 @@ export default function MandiriDaftarPage() {
               <label className="form-label">No. Telepon / WhatsApp <span className="required">*</span></label>
               <input type="tel" name="noTelp" className="form-control" value={form.noTelp} onChange={handleChange} required minLength={10} placeholder="08xx-xxxx-xxxx" pattern="[0-9]*" inputMode="numeric" />
               <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px", lineHeight: "1.3" }}>
-                Minimal 10 angka. Nomor ini tidak akan disebarluaskan, hanya untuk keperluan komunikasi antara muda/i dengan pengurus.
+                Minimal 10 angka. Nomor ini tidak akan disebarluaskan, hanya untuk keperluan komunikasi antara peserta dengan panitia.
               </p>
             </div>
 

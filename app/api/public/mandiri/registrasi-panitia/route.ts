@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     // 1. Check Registration Status
     const statusSet = await db.select().from(settings).where(eq(settings.key, "mandiri_registration_status"));
     if (statusSet[0]?.value === "0") {
-      return NextResponse.json({ error: "Pendaftaran saat ini sedang ditutup secara manual oleh admin." }, { status: 403 });
+      return NextResponse.json({ error: "Mohon maaf, pendaftaran saat ini sudah ditutup" }, { status: 403 });
     }
 
     const body = await request.json();

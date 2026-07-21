@@ -73,7 +73,6 @@ export default function HomeHeader({ session }: { session: any }) {
                 ) : (
                   <>
                     <Link href="/login" className="hh-cta-btn hh-cta-dark">Masuk</Link>
-                    {registrationActive && <Link href="/register" className="hh-cta-btn hh-cta-fill">Daftar Sekarang</Link>}
                   </>
                 )}
               </div>

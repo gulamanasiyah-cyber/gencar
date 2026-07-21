@@ -110,7 +110,6 @@ export default function HomeNavbar({ query, session }: { query?: string; session
             </button>
 
             <Link href="/login" className="nav-link nav-mobile-only" onClick={() => setIsOpen(false)}>Masuk</Link>
-            <Link href="/register" className="nav-link nav-mobile-only" onClick={() => setIsOpen(false)}>Daftar</Link>
           </div>
 
           {/* Search Bar - Desktop */}

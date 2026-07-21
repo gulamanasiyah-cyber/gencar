@@ -560,7 +560,7 @@ export default function AdminKatalogPage() {
         }
       });
 
-      doc.save(`KATALOG_PESERTA_${cleanSuffix}_${new Date().getTime()}.pdf`);
+      doc.save(`KATALOG_${cleanSuffix}_${new Date().getTime()}.pdf`);
       Swal.fire("Berhasil", "Laporan PDF telah berhasil diunduh.", "success");
     } catch (e) {
       console.error(e);

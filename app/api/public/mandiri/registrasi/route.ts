@@ -15,13 +15,24 @@ function generateNomorUnik() {
 
 export async function POST(request: NextRequest) {
   try {
+    const body = await request.json();
+
     // 1. Check Registration Status (Open/Closed)
     const statusSet = await db.select().from(settings).where(eq(settings.key, "mandiri_registration_status"));
-    if (statusSet[0]?.value === "0") {
-      return NextResponse.json({ error: "Pendaftaran saat ini sedang ditutup secara manual oleh admin." }, { status: 403 });
+    const currentStatus = statusSet[0]?.value;
+    const reqStatusPeserta = body.statusPeserta || "Utusan Daerah";
+
+    if (currentStatus === "0") {
+      return NextResponse.json({ error: "Mohon maaf, pendaftaran saat ini sudah ditutup" }, { status: 403 });
+    }
+    
+    if (currentStatus === "tutup_utusan" && reqStatusPeserta !== "Person") {
+      return NextResponse.json({ error: "Pendaftaran untuk Utusan Daerah saat ini sedang ditutup." }, { status: 403 });
     }
 
-    const body = await request.json();
+    if (currentStatus === "tutup_person" && reqStatusPeserta === "Person") {
+      return NextResponse.json({ error: "Pendaftaran untuk Peserta Person saat ini sedang ditutup." }, { status: 403 });
+    }
 
     // 2. Fetch active activity
     const activeSetting = await db.query.settings.findFirst({
@@ -98,7 +109,7 @@ export async function POST(request: NextRequest) {
         const genderLabel = jenisKelamin === "L" ? "pria" : "wanita";
         return NextResponse.json({
           status: "quota_full",
-          error: `kouta peserta ${genderLabel} untuk daerah ${targetDaerahNama} sudah penuh, jikaa ingin ikut dapat datang secara mandiri`
+          error: `Kuota peserta ${genderLabel} untuk daerah ${targetDaerahNama} sudah penuh.`
         }, { status: 409 });
       }
     }

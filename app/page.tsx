@@ -553,7 +553,6 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
                 menumbuhkan karakter islami, intelektualitas tinggi, dan profesionalisme dalam kehidupan bermasyarakat.
               </p>
               <div className="lp-about-actions">
-                <Link href="/register" className="lp-about-btn-1">Bergabung Sekarang</Link>
                 <Link href="/organisasi" className="lp-about-btn-2">Tentang Kami →</Link>
               </div>
             </div>
@@ -609,7 +608,6 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
               <div className="lp-footer-col-hd">Organisasi</div>
               <Link href="/agenda" className="lp-footer-link">Kegiatan</Link>
               <Link href="/login" className="lp-footer-link">Masuk</Link>
-              <Link href="/register" className="lp-footer-link">Daftar</Link>
             </div>
           </div>
           <hr className="lp-footer-sep" />
