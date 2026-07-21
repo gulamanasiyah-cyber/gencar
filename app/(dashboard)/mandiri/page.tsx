@@ -771,7 +771,7 @@ export default function MandiriPage() {
                      <h2>{regTitle || "Pengelolaan Peserta Mandiri"}</h2>
                      <p>Kelola data muda-mudi yang memasuki usia mandiri / persiapan nikah</p>
                   </div>
-                  {kegiatanList.length > 0 && (
+                  {!(userRole === "tim_pnkb" || userRole === "tim_pnkb_gambuh") && kegiatanList.length > 0 && (
                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                         <label style={{ fontWeight: 600, fontSize: 13, color: "#475569", whiteSpace: "nowrap" }}>Kegiatan:</label>
                         <select
@@ -789,6 +789,7 @@ export default function MandiriPage() {
                </div>
 
                <div className="toolbar-container">
+                   {!(userRole === "tim_pnkb" || userRole === "tim_pnkb_gambuh") && (
                    <div className="toolbar-row">
                       <button
                          className={`toolbar-btn ${regStatus === "1" ? 'toolbar-btn-success' : 'toolbar-btn-danger-status'}`}
@@ -829,7 +830,9 @@ export default function MandiriPage() {
                          Link Person
                       </button>
                    </div>
+                   )}
                    <div className="toolbar-row">
+                      {!(userRole === "tim_pnkb" || userRole === "tim_pnkb_gambuh") && (
                       <button
                          className="toolbar-btn toolbar-btn-teal"
                          onClick={handleFixNomorUrut}
@@ -843,7 +846,8 @@ export default function MandiriPage() {
                          </svg>
                          Perbaiki Nomor
                       </button>
-                      {userRole === "admin_romantic_room" && (
+                      )}
+                      {(userRole === "admin_romantic_room" || userRole === "admin" || userRole === "pengurus_daerah" || userRole === "kmm_daerah" || userRole === "tim_pnkb" || userRole === "tim_pnkb_gambuh") && (
                          <button
                             className="toolbar-btn toolbar-btn-emerald"
                             onClick={handleExportExcel}
@@ -855,6 +859,7 @@ export default function MandiriPage() {
                             Export Excel
                          </button>
                       )}
+                      {!(userRole === "tim_pnkb" || userRole === "tim_pnkb_gambuh") && (
                       <button
                          className="toolbar-btn toolbar-btn-danger"
                          onClick={handleDeleteAll}
@@ -865,6 +870,7 @@ export default function MandiriPage() {
                          </svg>
                          Hapus Semua
                       </button>
+                      )}
                    </div>
                 </div>
 

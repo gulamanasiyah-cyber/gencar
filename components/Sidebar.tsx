@@ -124,6 +124,12 @@ const userNavs: Record<string, any[]> = {
   ],
   tim_pnkb: [
     {
+      section: "Usia Mandiri/Nikah",
+      items: [
+        { href: "/mandiri", label: "Registrasi Peserta", icon: "sparkles" },
+      ],
+    },
+    {
       section: "Menu Utama",
       items: [
         { href: "/dashboard", label: "Dashboard", icon: "grid" },
@@ -189,6 +195,12 @@ const userNavs: Record<string, any[]> = {
     },
   ],
   tim_pnkb_gambuh: [
+    {
+      section: "Usia Mandiri/Nikah",
+      items: [
+        { href: "/mandiri", label: "Registrasi Peserta", icon: "sparkles" },
+      ],
+    },
     {
       section: "Menu Utama",
       items: [

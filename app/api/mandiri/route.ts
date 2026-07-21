@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const allowedRoles = ["admin", "pengurus_daerah", "kmm_daerah", "admin_romantic_room", "admin_keuangan", "admin_kegiatan"];
+    const allowedRoles = ["admin", "pengurus_daerah", "kmm_daerah", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "tim_pnkb", "tim_pnkb_gambuh"];
     if (!allowedRoles.includes(session.role)) {
       return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
     }

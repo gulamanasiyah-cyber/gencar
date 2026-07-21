@@ -121,7 +121,7 @@ export async function middleware(request: NextRequest) {
   const isMandiriRoute = pathname.startsWith("/mandiri") || pathname.startsWith("/admin/katalog");
   const isMandiriApi = pathname.startsWith("/api/mandiri");
 
-  if ((isMandiriRoute || isMandiriApi) && !(["admin", "admin_romantic_room", "admin_pdkt", "tim_pnkb_gambuh"] as string[]).includes(payload.role)) {
+  if ((isMandiriRoute || isMandiriApi) && !(["admin", "admin_romantic_room", "admin_pdkt", "tim_pnkb_gambuh", "tim_pnkb"] as string[]).includes(payload.role)) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -131,13 +131,11 @@ export async function middleware(request: NextRequest) {
   // Tim Gambuh strict restriction
   if (payload.role === "tim_pnkb_gambuh" &&
       !pathname.startsWith("/dashboard") &&
-      !pathname.startsWith("/mandiri/tim-gambuh") &&
-      !pathname.startsWith("/mandiri/tim-penunggu") &&
+      !pathname.startsWith("/mandiri") &&
       !pathname.startsWith("/admin/katalog") &&
       !pathname.startsWith("/tim-gambuh/katalog") &&
       !pathname.startsWith("/api/public/mandiri") &&
-      !pathname.startsWith("/api/mandiri/rooms") &&
-      !pathname.startsWith("/api/mandiri/kunjungan") &&
+      !pathname.startsWith("/api/mandiri") &&
       !pathname.startsWith("/api/profile") &&
       !pathname.startsWith("/profile") &&
       !pathname.startsWith("/api/admin/tim-gambuh") &&

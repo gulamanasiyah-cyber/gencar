@@ -71,6 +71,7 @@ export default function Topbar({ title, role, className = "", children, userName
     admin_romantic_room: "Admin Romantic Room",
     admin_keuangan: "Admin Keuangan",
     admin_kegiatan: "Admin Kegiatan",
+    tim_pnkb_gambuh: "Tim PNKB & Ibu Gambuh",
   };
 
   const roleColor: Record<string, string> = {
@@ -86,6 +87,7 @@ export default function Topbar({ title, role, className = "", children, userName
     admin_romantic_room: "badge-purple",
     admin_keuangan: "badge-blue",
     admin_kegiatan: "badge-orange",
+    tim_pnkb_gambuh: "badge-purple",
   };
 
   return (
