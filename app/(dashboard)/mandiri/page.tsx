@@ -1028,7 +1028,7 @@ export default function MandiriPage() {
                                        <th>Dibayarkan Senilai</th>
                                        <th>Foto Bukti Bayar</th>
                                        <th>Catatan</th>
-                                       <th>Aksi</th>
+                                       {userRole !== "tim_pnkb_gambuh" && <th>Aksi</th>}
                                     </tr>
                                  </thead>
                                  <tbody>
@@ -1141,12 +1141,14 @@ export default function MandiriPage() {
                                           <td data-label="Catatan" style={{ fontSize: 12, maxWidth: "150px", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
                                              {item.catatan || "gratis"}
                                           </td>
+                                          {userRole !== "tim_pnkb_gambuh" && (
                                           <td data-label="Aksi">
                                              <div className="flex gap-2">
                                                 <button className="btn btn-sm btn-secondary" onClick={() => handleUpdate(item)}>Edit</button>
                                                 <button className="btn btn-sm btn-danger" onClick={() => handleDelete(item.id, item.nama)}>Hapus</button>
                                              </div>
                                           </td>
+                                          )}
                                        </tr>
                                     ))}
                                  </tbody>
@@ -1295,6 +1297,7 @@ export default function MandiriPage() {
                                        </div>
                                     )}
 
+                                    {userRole !== "tim_pnkb_gambuh" && (
                                     <div className="card-actions">
                                        <button className="btn btn-sm btn-secondary flex-grow" onClick={() => handleUpdate(item)}>
                                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14, marginRight: 6 }}>
@@ -1310,6 +1313,7 @@ export default function MandiriPage() {
                                           </svg>
                                        </button>
                                     </div>
+                                    )}
                                  </div>
                               ))}
                            </div>
