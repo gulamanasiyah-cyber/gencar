@@ -127,7 +127,7 @@ export default function TimGambuhOperatorPage() {
             const buildOptionHtml = (list: any[]) =>
                 list.map(item => `<option value="${item.id}">${item.nama} (${item.tipe})</option>`).join('');
 
-            const currentSavedId = localStorage.getItem("my_tim_pnkb_gambuh_id") || "";
+            // Removed currentSavedId logic so it always defaults to empty
 
             const { value: selectedId, isConfirmed } = await Swal.fire({
                 title: 'Pilih Identitas Anda',
@@ -176,7 +176,7 @@ export default function TimGambuhOperatorPage() {
                 },
                 didOpen: () => {
                     const sel = document.getElementById('swal-identity') as HTMLSelectElement;
-                    if (sel && currentSavedId) sel.value = currentSavedId;
+                    // Do not pre-select value, defaulting to "-- Pilih Nama Anda --"
 
                     document.getElementById('btn-toggle-add')?.addEventListener('click', () => {
                         const form = document.getElementById('add-member-form');
@@ -333,14 +333,10 @@ export default function TimGambuhOperatorPage() {
 
             if (cancelled) return;
 
-            const savedId = (localStorage.getItem("my_tim_pnkb_gambuh_id") || "").trim();
-            const savedNama = (localStorage.getItem("my_tim_pnkb_gambuh_nama") || "").trim();
-            if (savedId) {
-                setMyId(savedId);
-                setMyName(savedNama);
-            } else {
-                showSelectIdentityModal(true);
-            }
+            // Selalu mengharuskan user memilih identitas pada saat pertama kali komponen dibuka
+            setMyId("");
+            setMyName("");
+            showSelectIdentityModal(true);
         };
 
         initializeIdentity();
@@ -811,11 +807,9 @@ export default function TimGambuhOperatorPage() {
                         <p>Kelola sesi taaruf di dalam ruangan: Mulai timer, dampingi, dan simpan hasil pertemuan.</p>
                     </div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        {myName && (
-                            <span className="identity-badge">
-                                Sebagai: <strong>{myName}</strong>
-                            </span>
-                        )}
+                        <span className="identity-badge">
+                            Sebagai: <strong>{myName || "Pilih Nama Anda"}</strong>
+                        </span>
                         <button className="btn-identity" onClick={() => showSelectIdentityModal(false)} title="Ubah Identitas">
                             Ubah Identitas
                         </button>
