@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Swal from "sweetalert2";
 import withReactContent from "sweetalert2-react-content";
 import Link from "next/link";
+import PhotoUpload from "@/components/mandiri/PhotoUpload";
 import IDCardComponent from "@/components/IDCardComponent";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -27,6 +28,21 @@ interface PanitiaItem {
   foto: string;
   isHadir: number;
   waktuHadir?: string;
+  tanggalLahir?: string;
+  pekerjaan?: string;
+  tempatLahir?: string;
+  alamat?: string;
+  pendidikan?: string;
+  suku?: string;
+  hobi?: string;
+  makananMinumanFavorit?: string;
+  instagram?: string;
+  kriteriaPasangan?: string;
+  mandiriDaerahId?: number | null;
+  mandiriDesaId?: number | null;
+  mandiriKelompokId?: number | null;
+  kelompokNama?: string;
+  generusId?: string;
   createdAt: string;
 }
 
@@ -44,6 +60,39 @@ export default function MandiriPanitiaPage() {
   const limit = 200;
   const cardRef = useRef<HTMLDivElement>(null);
 
+  // Wilayah state
+  const [daerahList, setDaerahList] = useState<{id: number, nama: string}[]>([]);
+  const [desaList, setDesaList] = useState<{id: number, nama: string, mandiriDaerahId: number}[]>([]);
+  const [kelompokList, setKelompokList] = useState<{id: number, nama: string, mandiriDesaId: number}[]>([]);
+
+  // Edit Modal State
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editForm, setEditForm] = useState({
+     id: "",
+     generusId: "",
+     nama: "",
+     jenisKelamin: "L",
+     noTelp: "",
+     tanggalLahir: "",
+     pekerjaan: "",
+     tempatLahir: "",
+     alamat: "",
+     pendidikan: "",
+     suku: "",
+     hobi: "",
+     makananMinumanFavorit: "",
+     instagram: "",
+     kriteriaPasangan: "",
+     mandiriDaerahId: "",
+     mandiriDesaId: "",
+     mandiriKelompokId: "",
+     dapukan: "Panitia",
+     foto: "",
+     nomorUnik: "",
+  });
+
+
   useEffect(() => {
     fetch("/api/profile")
       .then((r) => r.json())
@@ -51,9 +100,12 @@ export default function MandiriPanitiaPage() {
 
     const fetchInit = async () => {
       try {
-        const [settingsRes, kegiatanRes] = await Promise.all([
+        const [settingsRes, kegiatanRes, daerahRes, desaRes, kelRes] = await Promise.all([
           fetch("/api/settings"),
           fetch("/api/mandiri/kegiatan"),
+          fetch("/api/public/mandiri/daerah"),
+          fetch("/api/public/mandiri/desa?scope=all"),
+          fetch("/api/public/mandiri/kelompok?scope=all")
         ]);
         const s = await settingsRes.json();
         const kList = await kegiatanRes.json();
@@ -63,6 +115,12 @@ export default function MandiriPanitiaPage() {
           if (activeId) setSelectedKegiatanId(activeId);
           else if (kList.length > 0) setSelectedKegiatanId(kList[0].id);
         }
+        const ds = await daerahRes.json();
+        if (Array.isArray(ds)) setDaerahList(ds);
+        const de = await desaRes.json();
+        if (Array.isArray(de)) setDesaList(de);
+        const kl = await kelRes.json();
+        if (Array.isArray(kl)) setKelompokList(kl);
       } catch (e) {
         console.error("Failed to fetch init data:", e);
       }
@@ -94,32 +152,55 @@ export default function MandiriPanitiaPage() {
     fetchData();
   }, [fetchData]);
 
-  const handleUpdate = async (item: PanitiaItem) => {
-    const { value: dapukan } = await Swal.fire({
-      title: "Update Dapukan",
-      input: "select",
-      inputOptions: {
-        Panitia: "Panitia",
-        Pengurus: "Pengurus",
-      },
-      inputValue: item.dapukan,
-      showCancelButton: true,
-      confirmButtonText: "Simpan",
+  const handleUpdate = (item: PanitiaItem) => {
+    setEditForm({
+      id: item.id,
+      generusId: item.generusId || "",
+      nama: item.nama || "",
+      jenisKelamin: item.jenisKelamin || "L",
+      noTelp: item.noTelp || "",
+      tanggalLahir: item.tanggalLahir || "",
+      pekerjaan: item.pekerjaan || "",
+      tempatLahir: item.tempatLahir || "",
+      alamat: item.alamat || "",
+      pendidikan: item.pendidikan || "",
+      suku: item.suku || "",
+      hobi: item.hobi || "",
+      makananMinumanFavorit: item.makananMinumanFavorit || "",
+      instagram: item.instagram || "",
+      kriteriaPasangan: item.kriteriaPasangan || "",
+      mandiriDaerahId: item.mandiriDaerahId ? String(item.mandiriDaerahId) : "",
+      mandiriDesaId: item.mandiriDesaId ? String(item.mandiriDesaId) : "",
+      mandiriKelompokId: item.mandiriKelompokId ? String(item.mandiriKelompokId) : "",
+      dapukan: item.dapukan || "Panitia",
+      foto: item.foto || "",
+      nomorUnik: item.nomorUnik || "",
     });
+    setEditModalOpen(true);
+  };
 
-    if (dapukan) {
-      try {
-        const res = await fetch("/api/mandiri/panitia", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: item.id, dapukan }),
-        });
-        if (!res.ok) throw new Error("Gagal update");
-        Swal.fire({ icon: "success", title: "Berhasil", timer: 1000, showConfirmButton: false });
-        fetchData();
-      } catch (e: any) {
-        Swal.fire({ icon: "error", title: "Error", text: e.message });
+  const submitEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/mandiri/panitia", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+
+      if (!res.ok) {
+         const data = await res.json();
+         throw new Error(data.error || "Gagal update status");
       }
+
+      setEditModalOpen(false);
+      Swal.fire({ icon: "success", title: "Berhasil Diperbarui", timer: 1500, showConfirmButton: false });
+      fetchData();
+    } catch (err: any) {
+      Swal.fire({ icon: "error", title: "Gagal", text: err.message });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -258,8 +339,8 @@ export default function MandiriPanitiaPage() {
         <div className="page-content">
           <div className="page-header">
             <div className="page-header-left">
-              <h2>Pengelolaan Panitia & Pengurus</h2>
-              <p>Daftar pengguna yang sudah terdaftar sebagai panitia dan pengurus kegiatan.</p>
+              <h2>Pengelolaan Panitia</h2>
+              <p>Daftar pengguna yang sudah terdaftar sebagai panitia kegiatan.</p>
             </div>
             <div style={{ display: "flex", gap: "10px" }}>
               <Link href="/mandiri/daftar-panitia" className="btn btn-primary" title="Tambah Panitia/Pengurus">
@@ -303,7 +384,7 @@ export default function MandiriPanitiaPage() {
 
           <div className="card">
             <div className="card-header" style={{ justifyContent: "space-between" }}>
-              <span className="card-title">Daftar Panitia & Pengurus ({total})</span>
+              <span className="card-title">Daftar Panitia({total})</span>
               <div className="search-bar" style={{ maxWidth: "250px" }}>
                 <input type="text" className="form-control" placeholder="Cari nama atau status..." value={search} onChange={(e) => setSearch(e.target.value)} />
               </div>
@@ -319,7 +400,7 @@ export default function MandiriPanitiaPage() {
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 48, opacity: 0.3 }}>
                     <path d="M12 2v20M2 12h20" />
                   </svg>
-                  <p>Belum ada panitia atau pengurus yang terdaftar.</p>
+                  <p>Belum ada panitia yang terdaftar.</p>
                 </div>
               ) : (
                 <table className="responsive-table">
@@ -410,6 +491,292 @@ export default function MandiriPanitiaPage() {
       
       {/* Target for PDF generation if needed */}
       <div id="hidden-card-gen" style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}></div>
+      {/* Edit Modal */}
+      {editModalOpen && (
+         <div
+            style={{
+               position: "fixed",
+               left: 0,
+               top: 0,
+               width: "100%",
+               height: "100%",
+               backgroundColor: "rgba(15, 23, 42, 0.6)",
+               backdropFilter: "blur(4px)",
+               display: "flex",
+               alignItems: "center",
+               justifyContent: "center",
+               zIndex: 9999,
+            }}
+         >
+            <div
+               className="card animate-fade-in"
+               style={{
+                  width: "100%",
+                  maxWidth: "500px",
+                  margin: "20px",
+                  padding: "24px",
+                  boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+                  maxHeight: "90vh",
+                  overflowY: "auto"
+               }}
+            >
+               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                  <h3 style={{ fontSize: "18px", fontWeight: "800", color: "#0f172a", margin: 0 }}>
+                     Update Panitia
+                  </h3>
+                  <button 
+                     onClick={() => setEditModalOpen(false)}
+                     style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}
+                  >
+                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 20, height: 20 }}>
+                        <path d="M18 6L6 18M6 6l12 12" />
+                     </svg>
+                  </button>
+               </div>
+               
+               <div style={{ padding: "12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0", marginBottom: "20px" }}>
+                  <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "2px" }}>User</div>
+                  <div style={{ fontWeight: "700", color: "#0f172a" }}>{editForm.nama} <span style={{ color: "#94a3b8", fontWeight: "normal" }}>#{editForm.nomorUnik}</span></div>
+               </div>
+
+               <form onSubmit={submitEdit}>
+                  {/* Data Diri Section */}
+                  <div style={{ marginBottom: "20px" }}>
+                     <div style={{ fontSize: "14px", fontWeight: "700", color: "#334155", borderBottom: "1px solid #e2e8f0", paddingBottom: "8px", marginBottom: "16px" }}>1. Data Pengguna</div>
+
+                     <div className="form-group" style={{ marginBottom: "24px", textAlign: "center" }}>
+                        <PhotoUpload
+                           value={editForm.foto}
+                           onChange={(url) => setEditForm((prev) => ({ ...prev, foto: url }))}
+                           helperText="Maksimal 1 MB"
+                        />
+                     </div>
+                     
+                     <div className="form-group" style={{ marginBottom: "16px" }}>
+                        <label className="form-label">Nama Lengkap</label>
+                        <input
+                           type="text"
+                           className="form-control"
+                           value={editForm.nama}
+                           onChange={(e) => setEditForm({ ...editForm, nama: e.target.value })}
+                           required
+                        />
+                     </div>
+
+                     <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
+                        <div className="form-group" style={{ flex: 1 }}>
+                           <label className="form-label">Jenis Kelamin</label>
+                           <select
+                              className="form-control"
+                              value={editForm.jenisKelamin}
+                              onChange={(e) => setEditForm({ ...editForm, jenisKelamin: e.target.value })}
+                              required
+                           >
+                              <option value="L">Laki-laki</option>
+                              <option value="P">Perempuan</option>
+                           </select>
+                        </div>
+                        <div className="form-group" style={{ flex: 1 }}>
+                           <label className="form-label">Nomor WA</label>
+                           <input
+                              type="text"
+                              className="form-control"
+                              value={editForm.noTelp}
+                              onChange={(e) => setEditForm({ ...editForm, noTelp: e.target.value })}
+                           />
+                        </div>
+                     </div>
+
+                     <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
+                        <div className="form-group" style={{ flex: 1 }}>
+                           <label className="form-label">Tempat Lahir</label>
+                           <input
+                              type="text"
+                              className="form-control"
+                              value={editForm.tempatLahir}
+                              onChange={(e) => setEditForm({ ...editForm, tempatLahir: e.target.value })}
+                           />
+                        </div>
+                        <div className="form-group" style={{ flex: 1 }}>
+                           <label className="form-label">Tanggal Lahir</label>
+                           <input
+                              type="date"
+                              className="form-control"
+                              value={editForm.tanggalLahir}
+                              onChange={(e) => setEditForm({ ...editForm, tanggalLahir: e.target.value })}
+                           />
+                        </div>
+                     </div>
+
+                     <div className="form-group" style={{ marginBottom: "16px" }}>
+                        <label className="form-label">Pendidikan Terakhir <span style={{ color: "#ef4444" }}>*</span></label>
+                        <input
+                           type="text"
+                           className="form-control"
+                           placeholder="S1/SMA/dll"
+                           value={editForm.pendidikan || ""}
+                           onChange={(e) => setEditForm({ ...editForm, pendidikan: e.target.value })}
+                           required
+                        />
+                     </div>
+
+                     <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
+                        <div className="form-group" style={{ flex: 1 }}>
+                           <label className="form-label">Pekerjaan <span style={{ color: "#ef4444" }}>*</span></label>
+                           <input
+                              type="text"
+                              className="form-control"
+                              placeholder="Pekerjaan saat ini"
+                              value={editForm.pekerjaan || ""}
+                              onChange={(e) => setEditForm({ ...editForm, pekerjaan: e.target.value })}
+                              required
+                           />
+                        </div>
+                        <div className="form-group" style={{ flex: 1 }}>
+                           <label className="form-label">Suku <span style={{ color: "#ef4444" }}>*</span></label>
+                           <input
+                              type="text"
+                              className="form-control"
+                              placeholder="Betawi / Jawa / dll"
+                              value={editForm.suku || ""}
+                              onChange={(e) => setEditForm({ ...editForm, suku: e.target.value })}
+                              required
+                           />
+                        </div>
+                     </div>
+
+                     <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
+                        <div className="form-group" style={{ flex: 1 }}>
+                           <label className="form-label">Hobi <span style={{ color: "#ef4444" }}>*</span></label>
+                           <input
+                              type="text"
+                              className="form-control"
+                              placeholder="Hobi anda"
+                              value={editForm.hobi || ""}
+                              onChange={(e) => setEditForm({ ...editForm, hobi: e.target.value })}
+                              required
+                           />
+                        </div>
+                        <div className="form-group" style={{ flex: 1 }}>
+                           <label className="form-label">Favorit Makanan/Minuman <span style={{ color: "#ef4444" }}>*</span></label>
+                           <input
+                              type="text"
+                              className="form-control"
+                              placeholder="Sate / Jus / dll"
+                              value={editForm.makananMinumanFavorit || ""}
+                              onChange={(e) => setEditForm({ ...editForm, makananMinumanFavorit: e.target.value })}
+                              required
+                           />
+                        </div>
+                     </div>
+
+                     <div className="form-group" style={{ marginBottom: "16px" }}>
+                        <label className="form-label">Kriteria Pasangan (Opsional)</label>
+                        <textarea
+                           className="form-control"
+                           rows={3}
+                           placeholder="Sebutkan kriteria pasangan yang Anda harapkan"
+                           value={editForm.kriteriaPasangan || ""}
+                           onChange={(e) => setEditForm({ ...editForm, kriteriaPasangan: e.target.value })}
+                        />
+                     </div>
+
+                     <div className="form-group" style={{ marginBottom: "16px" }}>
+                        <label className="form-label">Akun Instagram (Opsional)</label>
+                        <div style={{ display: "flex", alignItems: "center", position: "relative" }}>
+                           <span style={{ position: "absolute", left: "10px", color: "#94a3b8" }}>@</span>
+                           <input
+                              type="text"
+                              className="form-control"
+                              style={{ paddingLeft: "30px" }}
+                              placeholder="username_kamu"
+                              value={editForm.instagram || ""}
+                              onChange={(e) => setEditForm({ ...editForm, instagram: e.target.value })}
+                           />
+                        </div>
+                     </div>
+
+                     <div className="form-group" style={{ marginBottom: "16px" }}>
+                        <label className="form-label">Alamat Lengkap</label>
+                        <textarea
+                           className="form-control"
+                           rows={3}
+                           placeholder="Alamat saat ini (opsional)"
+                           value={editForm.alamat || ""}
+                           onChange={(e) => setEditForm({ ...editForm, alamat: e.target.value })}
+                        />
+                     </div>
+                     
+                     <div className="form-group">
+                        <label className="form-label">Dapukan</label>
+                        <select
+                           className="form-control"
+                           value={editForm.dapukan}
+                           onChange={(e) => setEditForm({ ...editForm, dapukan: e.target.value })}
+                           required
+                        >
+                           <option value="Panitia">Panitia</option>
+                        </select>
+                     </div>
+                  </div>
+
+                  {/* Wilayah Section */}
+                  <div style={{ marginBottom: "20px" }}>
+                     <div style={{ fontSize: "14px", fontWeight: "700", color: "#334155", borderBottom: "1px solid #e2e8f0", paddingBottom: "8px", marginBottom: "16px" }}>2. Wilayah / Asal</div>
+                     
+                     <div className="form-group" style={{ marginBottom: "16px" }}>
+                        <label className="form-label">Daerah</label>
+                        <select
+                           className="form-control"
+                           value={editForm.mandiriDaerahId}
+                           onChange={(e) => setEditForm({ ...editForm, mandiriDaerahId: e.target.value, mandiriDesaId: "", mandiriKelompokId: "" })}
+                        >
+                           <option value="">-- Pilih Daerah --</option>
+                           {daerahList.map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
+                        </select>
+                     </div>
+
+                     <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
+                        <div className="form-group" style={{ flex: 1 }}>
+                           <label className="form-label">Desa</label>
+                           <select
+                              className="form-control"
+                              value={editForm.mandiriDesaId}
+                              onChange={(e) => setEditForm({ ...editForm, mandiriDesaId: e.target.value, mandiriKelompokId: "" })}
+                              disabled={!editForm.mandiriDaerahId}
+                           >
+                              <option value="">-- Pilih Desa --</option>
+                              {desaList.filter(d => d.mandiriDaerahId === Number(editForm.mandiriDaerahId)).map(d => <option key={d.id} value={d.id}>{d.nama}</option>)}
+                           </select>
+                        </div>
+                        <div className="form-group" style={{ flex: 1 }}>
+                           <label className="form-label">Kelompok</label>
+                           <select
+                              className="form-control"
+                              value={editForm.mandiriKelompokId}
+                              onChange={(e) => setEditForm({ ...editForm, mandiriKelompokId: e.target.value })}
+                              disabled={!editForm.mandiriDesaId}
+                           >
+                              <option value="">-- Pilih Kelompok --</option>
+                              {kelompokList.filter(k => k.mandiriDesaId === Number(editForm.mandiriDesaId)).map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                           </select>
+                        </div>
+                     </div>
+                  </div>
+
+                  <div style={{ marginTop: "24px", display: "flex", gap: "12px", justifyContent: "flex-end", borderTop: "1px solid #e2e8f0", paddingTop: "16px" }}>
+                     <button type="button" className="btn btn-secondary" onClick={() => setEditModalOpen(false)}>
+                        Batal
+                     </button>
+                     <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                        {isSubmitting ? "Menyimpan..." : "Simpan Perubahan"}
+                     </button>
+                  </div>
+               </form>
+            </div>
+         </div>
+      )}
+
 
       <style jsx>{`
         .badge-blue {

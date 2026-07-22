@@ -24,6 +24,14 @@ interface MandiriItem {
    kategoriUsia: string;
    tanggalLahir?: string | null;
    pekerjaan?: string | null;
+   tempatLahir?: string | null;
+   alamat?: string | null;
+   pendidikan?: string | null;
+   suku?: string | null;
+   hobi?: string | null;
+   makananMinumanFavorit?: string | null;
+   instagram?: string | null;
+   kriteriaPasangan?: string | null;
    desaNama: string;
    desaKota: string;
    kelompokNama?: string;
@@ -94,6 +102,14 @@ export default function MandiriPage() {
       noTelp: "",
       tanggalLahir: "",
       pekerjaan: "",
+      tempatLahir: "",
+      alamat: "",
+      pendidikan: "",
+      suku: "",
+      hobi: "",
+      makananMinumanFavorit: "",
+      instagram: "",
+      kriteriaPasangan: "",
       mandiriDaerahId: "",
       mandiriDesaId: "",
       mandiriKelompokId: "",
@@ -332,6 +348,14 @@ export default function MandiriPage() {
          noTelp: item.noTelp || "",
          tanggalLahir: item.tanggalLahir ? item.tanggalLahir.split('T')[0] : "",
          pekerjaan: item.pekerjaan || "",
+         tempatLahir: item.tempatLahir || "",
+         alamat: item.alamat || "",
+         pendidikan: item.pendidikan || "",
+         suku: item.suku || "",
+         hobi: item.hobi || "",
+         makananMinumanFavorit: item.makananMinumanFavorit || "",
+         instagram: item.instagram || "",
+         kriteriaPasangan: item.kriteriaPasangan || "",
          mandiriDaerahId: mDaerahId,
          mandiriDesaId: mDesaId,
          mandiriKelompokId: mKelId,
@@ -507,6 +531,14 @@ export default function MandiriPage() {
             { header: "JK", key: "jk", width: 12 },
             { header: "Umur", key: "umur", width: 10 },
             { header: "Pekerjaan", key: "pekerjaan", width: 20 },
+            { header: "Tempat Lahir", key: "tempatLahir", width: 20 },
+            { header: "Pendidikan", key: "pendidikan", width: 15 },
+            { header: "Suku", key: "suku", width: 15 },
+            { header: "Hobi", key: "hobi", width: 25 },
+            { header: "Makanan Favorit", key: "makananMinumanFavorit", width: 25 },
+            { header: "Instagram", key: "instagram", width: 20 },
+            { header: "Kriteria Pasangan", key: "kriteriaPasangan", width: 30 },
+            { header: "Alamat Lengkap", key: "alamat", width: 40 },
             { header: "Daerah", key: "daerah", width: 20 },
             { header: "Desa", key: "desa", width: 15 },
             { header: "Kelompok", key: "kelompok", width: 15 },
@@ -529,6 +561,14 @@ export default function MandiriPage() {
                jk: item.jenisKelamin === "L" ? "Laki-laki" : "Perempuan",
                umur: hitungUmur(item.tanggalLahir),
                pekerjaan: item.pekerjaan || "-",
+               tempatLahir: item.tempatLahir || "-",
+               pendidikan: item.pendidikan || "-",
+               suku: item.suku || "-",
+               hobi: item.hobi || "-",
+               makananMinumanFavorit: item.makananMinumanFavorit || "-",
+               instagram: item.instagram || "-",
+               kriteriaPasangan: item.kriteriaPasangan || "-",
+               alamat: item.alamat || "-",
                daerah: item.desaKota && item.desaKota !== "N/A" ? item.desaKota : "-",
                desa: item.desaNama && item.desaNama !== "N/A" ? item.desaNama : "-",
                kelompok: item.kelompokNama && item.kelompokNama !== "N/A" ? item.kelompokNama : "-",
@@ -1462,23 +1502,123 @@ export default function MandiriPage() {
 
                         <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
                            <div className="form-group" style={{ flex: 1 }}>
+                              <label className="form-label">Tempat Lahir</label>
+                              <input
+                                 type="text"
+                                 className="form-control"
+                                 placeholder="Kota Kelahiran"
+                                 value={editForm.tempatLahir || ""}
+                                 onChange={(e) => setEditForm({ ...editForm, tempatLahir: e.target.value })}
+                              />
+                           </div>
+                           <div className="form-group" style={{ flex: 1 }}>
                               <label className="form-label">Tanggal Lahir</label>
                               <input
                                  type="date"
                                  className="form-control"
-                                 value={editForm.tanggalLahir}
+                                 value={editForm.tanggalLahir || ""}
                                  onChange={(e) => setEditForm({ ...editForm, tanggalLahir: e.target.value })}
                               />
                            </div>
+                        </div>
+
+                        <div className="form-group" style={{ marginBottom: "16px" }}>
+                           <label className="form-label">Pendidikan Terakhir <span style={{ color: "#ef4444" }}>*</span></label>
+                           <input
+                              type="text"
+                              className="form-control"
+                              placeholder="S1/SMA/dll"
+                              value={editForm.pendidikan || ""}
+                              onChange={(e) => setEditForm({ ...editForm, pendidikan: e.target.value })}
+                              required
+                           />
+                        </div>
+                        
+                        <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
                            <div className="form-group" style={{ flex: 1 }}>
-                              <label className="form-label">Pekerjaan</label>
+                              <label className="form-label">Pekerjaan <span style={{ color: "#ef4444" }}>*</span></label>
                               <input
                                  type="text"
                                  className="form-control"
-                                 value={editForm.pekerjaan}
+                                 placeholder="Pekerjaan saat ini"
+                                 value={editForm.pekerjaan || ""}
                                  onChange={(e) => setEditForm({ ...editForm, pekerjaan: e.target.value })}
+                                 required
                               />
                            </div>
+                           <div className="form-group" style={{ flex: 1 }}>
+                              <label className="form-label">Suku <span style={{ color: "#ef4444" }}>*</span></label>
+                              <input
+                                 type="text"
+                                 className="form-control"
+                                 placeholder="Betawi / Jawa / dll"
+                                 value={editForm.suku || ""}
+                                 onChange={(e) => setEditForm({ ...editForm, suku: e.target.value })}
+                                 required
+                              />
+                           </div>
+                        </div>
+
+                        <div style={{ display: "flex", gap: "12px", marginBottom: "16px" }}>
+                           <div className="form-group" style={{ flex: 1 }}>
+                              <label className="form-label">Hobi <span style={{ color: "#ef4444" }}>*</span></label>
+                              <input
+                                 type="text"
+                                 className="form-control"
+                                 placeholder="Hobi anda"
+                                 value={editForm.hobi || ""}
+                                 onChange={(e) => setEditForm({ ...editForm, hobi: e.target.value })}
+                                 required
+                              />
+                           </div>
+                           <div className="form-group" style={{ flex: 1 }}>
+                              <label className="form-label">Favorit Makanan/Minuman <span style={{ color: "#ef4444" }}>*</span></label>
+                              <input
+                                 type="text"
+                                 className="form-control"
+                                 placeholder="Sate / Jus / dll"
+                                 value={editForm.makananMinumanFavorit || ""}
+                                 onChange={(e) => setEditForm({ ...editForm, makananMinumanFavorit: e.target.value })}
+                                 required
+                              />
+                           </div>
+                        </div>
+
+                        <div className="form-group" style={{ marginBottom: "16px" }}>
+                           <label className="form-label">Kriteria Pasangan (Opsional)</label>
+                           <textarea
+                              className="form-control"
+                              rows={3}
+                              placeholder="Sebutkan kriteria pasangan yang Anda harapkan"
+                              value={editForm.kriteriaPasangan || ""}
+                              onChange={(e) => setEditForm({ ...editForm, kriteriaPasangan: e.target.value })}
+                           />
+                        </div>
+
+                        <div className="form-group" style={{ marginBottom: "16px" }}>
+                           <label className="form-label">Akun Instagram (Opsional)</label>
+                           <div style={{ display: "flex", alignItems: "center", position: "relative" }}>
+                              <span style={{ position: "absolute", left: "10px", color: "#94a3b8" }}>@</span>
+                              <input
+                                 type="text"
+                                 className="form-control"
+                                 style={{ paddingLeft: "30px" }}
+                                 placeholder="username_kamu"
+                                 value={editForm.instagram || ""}
+                                 onChange={(e) => setEditForm({ ...editForm, instagram: e.target.value })}
+                              />
+                           </div>
+                        </div>
+
+                        <div className="form-group" style={{ marginBottom: "16px" }}>
+                           <label className="form-label">Alamat Lengkap</label>
+                           <textarea
+                              className="form-control"
+                              rows={3}
+                              placeholder="Alamat saat ini (opsional)"
+                              value={editForm.alamat || ""}
+                              onChange={(e) => setEditForm({ ...editForm, alamat: e.target.value })}
+                           />
                         </div>
                      </div>
 

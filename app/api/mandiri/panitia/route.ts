@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { formPanitiaDanPengurus, mandiriDesa, mandiriAbsensi, mandiriKegiatan, settings, mandiriDaerah } from "@/lib/schema";
+import { formPanitiaDanPengurus, mandiriDesa, mandiriAbsensi, mandiriKegiatan, settings, mandiriDaerah, mandiriKelompok, generus } from "@/lib/schema";
 import { eq, and, or, like, sql, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 
@@ -51,21 +51,38 @@ export async function GET(request: NextRequest) {
     const dataQuery = db
       .select({
         id: formPanitiaDanPengurus.id,
+        generusId: formPanitiaDanPengurus.generusId,
         nama: formPanitiaDanPengurus.nama,
         nomorUnik: formPanitiaDanPengurus.nomorUnik,
         jenisKelamin: formPanitiaDanPengurus.jenisKelamin,
         dapukan: formPanitiaDanPengurus.dapukan,
         noTelp: formPanitiaDanPengurus.noTelp,
+        tanggalLahir: formPanitiaDanPengurus.tanggalLahir,
+        pekerjaan: generus.pekerjaan,
+        tempatLahir: generus.tempatLahir,
+        alamat: generus.alamat,
+        pendidikan: generus.pendidikan,
+        suku: generus.suku,
+        hobi: generus.hobi,
+        makananMinumanFavorit: generus.makananMinumanFavorit,
+        instagram: generus.instagram,
+        kriteriaPasangan: generus.kriteriaPasangan,
         foto: formPanitiaDanPengurus.foto,
+        mandiriDaerahId: mandiriDaerah.id,
+        mandiriDesaId: formPanitiaDanPengurus.mandiriDesaId,
+        mandiriKelompokId: formPanitiaDanPengurus.mandiriKelompokId,
         createdAt: formPanitiaDanPengurus.createdAt,
         desaKota: sql<string>`COALESCE(${mandiriDaerah.nama}, 'N/A')`,
         desaNama: sql<string>`COALESCE(${mandiriDesa.nama}, 'N/A')`,
+        kelompokNama: sql<string>`COALESCE(${mandiriKelompok.nama}, 'N/A')`,
         isHadir: sql<number>`CASE WHEN ${mandiriAbsensi.id} IS NOT NULL THEN 1 ELSE 0 END`,
         waktuHadir: mandiriAbsensi.timestamp,
       })
       .from(formPanitiaDanPengurus)
       .leftJoin(mandiriDesa, eq(formPanitiaDanPengurus.mandiriDesaId, mandiriDesa.id))
       .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
+      .leftJoin(mandiriKelompok, eq(formPanitiaDanPengurus.mandiriKelompokId, mandiriKelompok.id))
+      .leftJoin(generus, eq(formPanitiaDanPengurus.generusId, generus.id))
       .leftJoin(mandiriAbsensi, and(
         eq(formPanitiaDanPengurus.generusId, mandiriAbsensi.generusId),
         eq(mandiriAbsensi.kegiatanId, kegiatanId)
@@ -100,13 +117,39 @@ export async function PUT(request: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const { id, dapukan } = body;
+    const { 
+        id, generusId, nama, jenisKelamin, noTelp, tanggalLahir, pekerjaan, 
+        mandiriDesaId, mandiriKelompokId, dapukan, foto,
+        tempatLahir, alamat, pendidikan, suku, hobi, makananMinumanFavorit, instagram, kriteriaPasangan
+    } = body;
 
     if (!id) return NextResponse.json({ error: "ID wajib diisi" }, { status: 400 });
 
+    const updateAdminFields: any = { 
+        nama, jenisKelamin, noTelp, tanggalLahir, dapukan, foto,
+        tempatLahir, alamat, suku,
+        mandiriDesaId: mandiriDesaId ? Number(mandiriDesaId) : null,
+        mandiriKelompokId: mandiriKelompokId ? Number(mandiriKelompokId) : null,
+        updatedAt: sql`(datetime('now'))` 
+    };
+
+    // Update in formPanitiaDanPengurus
     await db.update(formPanitiaDanPengurus)
-      .set({ dapukan, updatedAt: sql`(datetime('now'))` })
+      .set(updateAdminFields)
       .where(eq(formPanitiaDanPengurus.id, id));
+
+    // Update in generus if they exist
+    if (generusId) {
+        await db.update(generus)
+            .set({ 
+                nama, jenisKelamin, noTelp, tanggalLahir, pekerjaan, foto,
+                tempatLahir, alamat, pendidikan, suku, hobi, makananMinumanFavorit, instagram, kriteriaPasangan,
+                mandiriDesaId: mandiriDesaId ? Number(mandiriDesaId) : null,
+                mandiriKelompokId: mandiriKelompokId ? Number(mandiriKelompokId) : null,
+                updatedAt: sql`(datetime('now'))`
+            })
+            .where(eq(generus.id, generusId));
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

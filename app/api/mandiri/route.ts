@@ -93,6 +93,14 @@ export async function GET(request: NextRequest) {
         kategoriUsia: generus.kategoriUsia,
         tanggalLahir: generus.tanggalLahir,
         pekerjaan: generus.pekerjaan,
+        tempatLahir: generus.tempatLahir,
+        alamat: generus.alamat,
+        pendidikan: generus.pendidikan,
+        suku: generus.suku,
+        hobi: generus.hobi,
+        makananMinumanFavorit: generus.makananMinumanFavorit,
+        instagram: generus.instagram,
+        kriteriaPasangan: generus.kriteriaPasangan,
         desaKota: sql<string>`COALESCE(${mandiriDaerah.nama}, 'Luar JB2')`,
         desaNama: sql<string>`COALESCE(${mandiriDesa.nama}, ${desa.nama}, 'N/A')`,
         kelompokNama: sql<string>`COALESCE(${mandiriKelompok.nama}, ${kelompok.nama}, 'N/A')`,
@@ -292,7 +300,8 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { 
       id: mandiriId, statusMandiri, catatan, resetDevice, statusPeserta, dibayarkanSenilai,
-      generusId, nama, foto, noTelp, jenisKelamin, tanggalLahir, pekerjaan, mandiriDesaId, mandiriKelompokId
+      generusId, nama, foto, noTelp, jenisKelamin, tanggalLahir, pekerjaan, mandiriDesaId, mandiriKelompokId,
+      tempatLahir, alamat, pendidikan, suku, hobi, makananMinumanFavorit, instagram, kriteriaPasangan
     } = body;
 
     if (!mandiriId) return NextResponse.json({ error: "ID wajib diisi" }, { status: 400 });
@@ -342,6 +351,14 @@ export async function PUT(request: NextRequest) {
       if (jenisKelamin !== undefined) genUpdate.jenisKelamin = jenisKelamin;
       if (tanggalLahir !== undefined) genUpdate.tanggalLahir = tanggalLahir;
       if (pekerjaan !== undefined) genUpdate.pekerjaan = pekerjaan;
+      if (tempatLahir !== undefined) genUpdate.tempatLahir = tempatLahir;
+      if (alamat !== undefined) genUpdate.alamat = alamat;
+      if (pendidikan !== undefined) genUpdate.pendidikan = pendidikan;
+      if (suku !== undefined) genUpdate.suku = suku;
+      if (hobi !== undefined) genUpdate.hobi = hobi;
+      if (makananMinumanFavorit !== undefined) genUpdate.makananMinumanFavorit = makananMinumanFavorit;
+      if (instagram !== undefined) genUpdate.instagram = instagram;
+      if (kriteriaPasangan !== undefined) genUpdate.kriteriaPasangan = kriteriaPasangan;
       if (mandiriDesaId !== undefined) genUpdate.mandiriDesaId = mandiriDesaId ? Number(mandiriDesaId) : null;
       if (mandiriKelompokId !== undefined) genUpdate.mandiriKelompokId = mandiriKelompokId ? Number(mandiriKelompokId) : null;
 
@@ -363,6 +380,9 @@ export async function PUT(request: NextRequest) {
         if (noTelp !== undefined) panitiaUpdate.noTelp = noTelp;
         if (jenisKelamin !== undefined) panitiaUpdate.jenisKelamin = jenisKelamin;
         if (tanggalLahir !== undefined) panitiaUpdate.tanggalLahir = tanggalLahir;
+        if (tempatLahir !== undefined) panitiaUpdate.tempatLahir = tempatLahir;
+        if (alamat !== undefined) panitiaUpdate.alamat = alamat;
+        if (suku !== undefined) panitiaUpdate.suku = suku;
         if (mandiriDesaId !== undefined) panitiaUpdate.mandiriDesaId = mandiriDesaId ? Number(mandiriDesaId) : null;
         if (mandiriKelompokId !== undefined) panitiaUpdate.mandiriKelompokId = mandiriKelompokId ? Number(mandiriKelompokId) : null;
         if (Object.keys(panitiaUpdate).length > 0) {
