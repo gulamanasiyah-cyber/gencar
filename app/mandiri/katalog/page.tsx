@@ -198,6 +198,13 @@ export default function PublicKatalogPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeRooms, setActiveRooms] = useState<any[]>([]);
 
+  const hasilRRPendingCount = hasilRRList.filter((item) => {
+    if (!currentUser?.id) return false;
+    const isPengirim = item.pengirimId === currentUser.id;
+    const myHasil = isPengirim ? item.hasilPengirim : item.hasilPenerima;
+    return !myHasil;
+  }).length;
+
 
 
   // ─── HELPER: Safely build a query string with encoded params ──────────────
@@ -658,9 +665,9 @@ export default function PublicKatalogPage() {
     }
   }, []);
 
-  const fetchHasilRR = useCallback(async () => {
+  const fetchHasilRR = useCallback(async (showLoading = false) => {
     if (!currentUser?.id) return;
-    setLoadingHasil(true);
+    if (showLoading) setLoadingHasil(true);
     try {
       const res = await fetch(`/api/mandiri/hasil-rr?generusId=${currentUser.id}`);
       if (res.ok) {
@@ -670,9 +677,9 @@ export default function PublicKatalogPage() {
     } catch (e) {
       console.error("fetchHasilRR error:", e);
     } finally {
-      setLoadingHasil(false);
+      if (showLoading) setLoadingHasil(false);
     }
-  }, [currentUser]);
+  }, [currentUser?.id]);
 
   const fetchMySaran = useCallback(async () => {
     if (!currentUser?.id) return;
@@ -689,12 +696,18 @@ export default function PublicKatalogPage() {
 
   useEffect(() => {
     if (activeTab === "hasil") {
-      fetchHasilRR();
+      fetchHasilRR(true);
     }
     if (activeTab === "saran") {
       fetchMySaran();
     }
   }, [activeTab, fetchHasilRR, fetchMySaran]);
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      fetchHasilRR(false);
+    }
+  }, [currentUser?.id, fetchHasilRR]);
 
   // Realtime updates using Pusher
   useEffect(() => {
@@ -707,6 +720,7 @@ export default function PublicKatalogPage() {
       // Trigger data refetching
       fetchData();
       fetchSelections();
+      fetchHasilRR(false);
     };
 
     const handleBoxLoveUpdate = (data: any) => {
@@ -725,7 +739,7 @@ export default function PublicKatalogPage() {
       channel.unbind("box-love-status-changed", handleBoxLoveUpdate);
       pusher.unsubscribe("taaruf-channel");
     };
-  }, [fetchData, fetchSelections]);
+  }, [fetchData, fetchSelections, fetchHasilRR]);
 
   const handleSendKomentar = async (penerimaId: string, itemNama: string, komentar: string) => {
     if (submittingKomentar) return;
@@ -1364,6 +1378,15 @@ export default function PublicKatalogPage() {
             )}
           </div>
           <span>Pilihanku</span>
+        </button>
+        <button className={activeTab === "hasil" ? "active" : ""} onClick={() => setActiveTab("hasil")}>
+          <div className="badge-icon-wrapper">
+            <MessageSquare size={16} />
+            {hasilRRPendingCount > 0 && (
+              <span className="badge-count-bubble">{hasilRRPendingCount}</span>
+            )}
+          </div>
+          <span>Hasil RR</span>
         </button>
         <button className={activeTab === "profile" ? "active" : ""} onClick={() => setActiveTab("profile")}>
           <User size={16} />
@@ -2076,7 +2099,7 @@ export default function PublicKatalogPage() {
             <div className="empty-cart" style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
               <MessageSquare size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
               <h3>Belum Ada Hasil</h3>
-              <p>Anda belum memiliki sesi Romantic Room yang selesai.</p>
+              <p>Anda belum memiliki sesi Romantic Room yang sedang berjalan atau selesai.</p>
             </div>
           ) : (
             <div className="cart-list" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -2085,7 +2108,7 @@ export default function PublicKatalogPage() {
                 const partnerName = isPengirim ? h.penerimaNama : h.pengirimNama;
                 const partnerNoUrut = isPengirim ? h.penerimaNoUrut : h.pengirimNoUrut;
                 const myHasil = isPengirim ? h.hasilPengirim : h.hasilPenerima;
-                const partnerHasil = isPengirim ? h.hasilPenerima : h.hasilPengirim;
+                const isDalamRuangan = h.status === "Diterima";
 
                 const isRagu = (val: string) => val === "Ragu-Ragu" || val === "Ragu-ragu";
 
@@ -2095,13 +2118,18 @@ export default function PublicKatalogPage() {
                       <div style={{ fontWeight: 800, fontSize: '16px', color: '#1e293b' }}>
                         {partnerName} <span style={{ color: '#64748b', fontSize: '12px' }}>#{partnerNoUrut}</span>
                       </div>
-                      <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-                        {new Date(h.createdAt).toLocaleDateString('id-ID')}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: isDalamRuangan ? '#1d4ed8' : '#166534', background: isDalamRuangan ? '#eff6ff' : '#f0fdf4', border: `1px solid ${isDalamRuangan ? '#bfdbfe' : '#bbf7d0'}`, borderRadius: '999px', padding: '4px 8px' }}>
+                          {isDalamRuangan ? "Dalam Ruangan" : "Selesai"}
+                        </span>
+                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                          {new Date(h.createdAt).toLocaleDateString('id-ID')}
+                        </span>
                       </div>
                     </div>
                     
                     <div style={{ marginBottom: '10px', fontSize: '13px', color: '#475569', fontWeight: 600 }}>Jawaban Anda:</div>
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '18px' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
                       <button 
                         disabled={!!myHasil}
                         onClick={() => submitHasilRR(h.id, "Lanjut")}
@@ -2152,22 +2180,6 @@ export default function PublicKatalogPage() {
                           transition: '0.2s',
                           opacity: !!myHasil && myHasil !== "Tidak Lanjut" ? 0.6 : 1
                         }}
-                      >Tidak Lanjut</button>
-                    </div>
-
-                    <div style={{ marginBottom: '10px', fontSize: '13px', color: '#475569', fontWeight: 600 }}>Jawaban {partnerName}:</div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button 
-                        disabled={true}
-                        style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, border: partnerHasil === "Lanjut" ? '2px solid #22c55e' : '1px solid #e2e8f0', background: partnerHasil === "Lanjut" ? '#f0fdf4' : '#f8fafc', color: partnerHasil === "Lanjut" ? '#166534' : '#94a3b8', cursor: 'not-allowed', transition: '0.2s', opacity: partnerHasil === "Lanjut" ? 1 : 0.6 }}
-                      >Lanjut</button>
-                      <button 
-                        disabled={true}
-                        style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, border: isRagu(partnerHasil) ? '2px solid #eab308' : '1px solid #e2e8f0', background: isRagu(partnerHasil) ? '#fefce8' : '#f8fafc', color: isRagu(partnerHasil) ? '#854d0e' : '#94a3b8', cursor: 'not-allowed', transition: '0.2s', opacity: isRagu(partnerHasil) ? 1 : 0.6 }}
-                      >Ragu-Ragu</button>
-                      <button 
-                        disabled={true}
-                        style={{ flex: 1, padding: '10px', borderRadius: '10px', fontSize: '13px', fontWeight: 700, border: partnerHasil === "Tidak Lanjut" ? '2px solid #ef4444' : '1px solid #e2e8f0', background: partnerHasil === "Tidak Lanjut" ? '#fef2f2' : '#f8fafc', color: partnerHasil === "Tidak Lanjut" ? '#991b1b' : '#94a3b8', cursor: 'not-allowed', transition: '0.2s', opacity: partnerHasil === "Tidak Lanjut" ? 1 : 0.6 }}
                       >Tidak Lanjut</button>
                     </div>
                   </div>
@@ -2697,7 +2709,12 @@ export default function PublicKatalogPage() {
           className={`nav-bar-item ${activeTab === "hasil" ? "active" : ""}`}
           onClick={() => setActiveTab("hasil")}
         >
-          <MessageSquare size={20} />
+          <div className="badge-icon-wrapper">
+            <MessageSquare size={20} />
+            {hasilRRPendingCount > 0 && (
+              <span className="badge-count-bubble">{hasilRRPendingCount}</span>
+            )}
+          </div>
           <span>Hasil RR</span>
         </button>
         <button
@@ -3385,6 +3402,29 @@ export default function PublicKatalogPage() {
         .desktop-tab-nav button.active :global(svg) {
           color: white !important;
         }
+        .badge-icon-wrapper {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .badge-count-bubble {
+          position: absolute;
+          top: -6px;
+          right: -10px;
+          background: #ef4444;
+          color: white;
+          font-size: 9px;
+          font-weight: 900;
+          border-radius: 50%;
+          min-width: 16px;
+          height: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 1.5px solid white;
+          padding: 0 2px;
+        }
         .mobile-nav-bar {
           display: none;
         }
@@ -3428,27 +3468,6 @@ export default function PublicKatalogPage() {
           }
           .nav-bar-item.active {
             color: #3b82f6;
-          }
-          .badge-icon-wrapper {
-            position: relative;
-            display: inline-flex;
-          }
-          .badge-count-bubble {
-            position: absolute;
-            top: -6px;
-            right: -10px;
-            background: #ef4444;
-            color: white;
-            font-size: 9px;
-            font-weight: 900;
-            border-radius: 50%;
-            min-width: 16px;
-            height: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 1.5px solid white;
-            padding: 0 2px;
           }
           .pb-24 {
             padding-bottom: 96px !important;

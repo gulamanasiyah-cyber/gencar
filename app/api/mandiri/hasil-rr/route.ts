@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { mandiriPemilihan, generus, mandiri } from "@/lib/schema";
 import { eq, and, or, desc } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
+import { pusherServer } from "@/lib/pusher";
 
 export async function GET(request: NextRequest) {
     try {
@@ -20,6 +21,7 @@ export async function GET(request: NextRequest) {
 
         const records = await db.select({
             id: mandiriPemilihan.id,
+            status: mandiriPemilihan.status,
             pengirimId: mandiriPemilihan.pengirimId,
             penerimaId: mandiriPemilihan.penerimaId,
             hasilPengirim: mandiriPemilihan.hasilPengirim,
@@ -37,7 +39,10 @@ export async function GET(request: NextRequest) {
         .leftJoin(mPenerima, eq(gPenerima.id, mPenerima.generusId))
         .where(
             and(
-                eq(mandiriPemilihan.status, "Selesai"),
+                or(
+                    eq(mandiriPemilihan.status, "Diterima"),
+                    eq(mandiriPemilihan.status, "Selesai")
+                ),
                 or(
                     eq(mandiriPemilihan.pengirimId, generusId),
                     eq(mandiriPemilihan.penerimaId, generusId)
@@ -72,6 +77,16 @@ export async function POST(request: NextRequest) {
             await db.update(mandiriPemilihan).set({ hasilPenerima: hasil }).where(eq(mandiriPemilihan.id, id));
         } else {
             return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+        }
+
+        try {
+            await pusherServer.trigger("taaruf-channel", "taaruf-changed", {
+                type: "hasil-rr-updated",
+                pemilihanId: id,
+                generusId
+            });
+        } catch (pusherErr) {
+            console.error("Pusher hasil-rr trigger error:", pusherErr);
         }
 
         return NextResponse.json({ success: true });
