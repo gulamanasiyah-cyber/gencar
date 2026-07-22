@@ -215,7 +215,7 @@ function PulangContent() {
         <div className="page-header">
           <div className="page-header-left">
             <h2>Daftar Peserta Pulang</h2>
-            <p>Daftar peserta Mandiri / Nikah yang telah check-out (pulang) beserta alasan</p>
+            <p>Daftar Peserta yang telah check-out (pulang) beserta alasan</p>
           </div>
         </div>
 

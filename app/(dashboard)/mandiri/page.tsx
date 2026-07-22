@@ -769,7 +769,7 @@ export default function MandiriPage() {
                <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px", marginBottom: "20px" }}>
                   <div className="page-header-left">
                      <h2>{regTitle || "Pengelolaan Peserta Mandiri"}</h2>
-                     <p>Kelola data muda-mudi yang memasuki usia mandiri / persiapan nikah</p>
+                     <p>Kelola data peserta yang memasuki usia mandiri / persiapan nikah</p>
                   </div>
                   {!(userRole === "tim_pnkb" || userRole === "tim_pnkb_gambuh") && kegiatanList.length > 0 && (
                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -877,7 +877,7 @@ export default function MandiriPage() {
                <div className="card">
                   <div className="card-header" style={{ justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
                      <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
-                        <span className="card-title" style={{ marginBottom: 0 }}>Daftar Peserta Mandiri ({total})</span>
+                        <span className="card-title" style={{ marginBottom: 0 }}>Daftar Peserta & Panitia ({total})</span>
                         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                            <button
                               onClick={() => setFilterStatusPeserta("all")}
