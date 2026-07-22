@@ -17,11 +17,15 @@ export async function POST(request: NextRequest) {
 
     // Periksa apakah kegiatan ada di kegiatan umum
     let validKegiatan = false;
+    let kegiatanJudul = "";
     let kegiatanExists = await db.query.kegiatan.findFirst({
       where: eq(kegiatan.id, kegiatanId),
     });
     
-    if (kegiatanExists) validKegiatan = true;
+    if (kegiatanExists) {
+      validKegiatan = true;
+      kegiatanJudul = kegiatanExists.judul;
+    }
 
     let isMandiri = false;
 
@@ -33,6 +37,7 @@ export async function POST(request: NextRequest) {
       if (mandiriKegExists) {
         validKegiatan = true;
         isMandiri = true;
+        kegiatanJudul = mandiriKegExists.judul;
       }
     }
 
@@ -54,6 +59,14 @@ export async function POST(request: NextRequest) {
 
     const resolvedGenerusId = resolvedGenerus.id;
 
+    let savedAttendance: {
+      id: string;
+      kegiatanId: string;
+      kegiatanJudul: string;
+      keterangan: string;
+      timestamp: string;
+    } | null = null;
+
     // Proses pencatatan sesuai tipe kegiatan
     if (isMandiri) {
       // Cek apakah sudah absen di mandiri
@@ -62,18 +75,26 @@ export async function POST(request: NextRequest) {
       });
 
       if (existing) {
-        return NextResponse.json({ error: "Anda sudah tercatat hadir!", existing }, { status: 409 });
+        return NextResponse.json({
+          error: "Anda sudah tercatat hadir!",
+          existing: { ...existing, kegiatanJudul },
+          attendance: { ...existing, kegiatanJudul },
+          kegiatanJudul,
+          generusNama: resolvedGenerus.nama
+        }, { status: 409 });
       }
 
       // Catat kehadiran di mandiri_absensi
       const id = uuidv4();
+      const timestamp = new Date().toISOString();
       await db.insert(mandiriAbsensi).values({
         id,
         kegiatanId,
         generusId: resolvedGenerusId,
         keterangan: "hadir",
-        timestamp: new Date().toISOString(),
+        timestamp,
       });
+      savedAttendance = { id, kegiatanId, kegiatanJudul, keterangan: "hadir", timestamp };
     } else {
       // Cek apakah sudah absen di umum
       const existing = await db.query.absensi.findFirst({
@@ -81,18 +102,26 @@ export async function POST(request: NextRequest) {
       });
 
       if (existing) {
-        return NextResponse.json({ error: "Anda sudah tercatat hadir!", existing }, { status: 409 });
+        return NextResponse.json({
+          error: "Anda sudah tercatat hadir!",
+          existing: { ...existing, kegiatanJudul },
+          attendance: { ...existing, kegiatanJudul },
+          kegiatanJudul,
+          generusNama: resolvedGenerus.nama
+        }, { status: 409 });
       }
 
       // Catat kehadiran di absensi umum
       const id = uuidv4();
+      const timestamp = new Date().toISOString();
       await db.insert(absensi).values({
         id,
         kegiatanId,
         generusId: resolvedGenerusId,
         keterangan: "hadir",
-        timestamp: new Date().toISOString(),
+        timestamp,
       });
+      savedAttendance = { id, kegiatanId, kegiatanJudul, keterangan: "hadir", timestamp };
     }
 
     try {
@@ -101,7 +130,12 @@ export async function POST(request: NextRequest) {
       console.error("Pusher trigger error in public absensi:", pusherErr);
     }
 
-    return NextResponse.json({ success: true, generusNama: resolvedGenerus.nama });
+    return NextResponse.json({
+      success: true,
+      generusNama: resolvedGenerus.nama,
+      kegiatanJudul,
+      attendance: savedAttendance
+    });
   } catch (error) {
     console.error("Public Absensi POST error:", error);
     return NextResponse.json({ error: "Gagal menyimpan absensi" }, { status: 500 });

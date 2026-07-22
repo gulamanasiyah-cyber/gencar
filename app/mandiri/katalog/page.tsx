@@ -190,6 +190,14 @@ export default function PublicKatalogPage() {
   const [absenTabMode, setAbsenTabMode] = useState<"show_barcode" | "scan_camera">("show_barcode");
   const [scanningAbsen, setScanningAbsen] = useState(false);
   const absenScannerRef = useRef<any>(null);
+  const [attendanceValidation, setAttendanceValidation] = useState<{
+    kegiatanId?: string | null;
+    kegiatanJudul?: string | null;
+    keterangan?: string | null;
+    timestamp?: string | null;
+    nama?: string | null;
+    nomorUrut?: string | number | null;
+  } | null>(null);
   const [myFullProfile, setMyFullProfile] = useState<any>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -219,6 +227,72 @@ export default function PublicKatalogPage() {
     });
     return p.toString();
   };
+
+  const formatAttendanceDate = (value?: string | null) => {
+    if (!value) return "";
+    const normalized = value.includes("T") ? value : value.replace(" ", "T");
+    const parsed = new Date(normalized);
+    if (Number.isNaN(parsed.getTime())) return "";
+    return parsed.toLocaleString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  };
+
+  const applyAttendanceValidation = useCallback((payload: any, fallback: any = {}) => {
+    const attendance = payload?.attendance || payload?.existing || {};
+    setAttendanceValidation({
+      kegiatanId: attendance.kegiatanId || payload?.kegiatanId || fallback.kegiatanId || null,
+      kegiatanJudul: attendance.kegiatanJudul || payload?.kegiatanJudul || fallback.kegiatanJudul || "Kegiatan Mandiri",
+      keterangan: attendance.keterangan || payload?.attendanceKeterangan || payload?.keterangan || fallback.keterangan || "hadir",
+      timestamp: attendance.timestamp || payload?.attendanceTimestamp || payload?.timestamp || fallback.timestamp || null,
+      nama: payload?.nama || payload?.generusNama || fallback.nama || null,
+      nomorUrut: payload?.nomorUrut || fallback.nomorUrut || null,
+    });
+  }, []);
+
+  const refreshAttendanceStatus = useCallback(async () => {
+    const storedUnik = localStorage.getItem("attended_nomor_unik");
+    if (!storedUnik) return;
+
+    const storedToken = localStorage.getItem("attended_session_token");
+    let deviceId = localStorage.getItem("mandiri_device_id");
+    if (!deviceId) {
+      deviceId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      localStorage.setItem("mandiri_device_id", deviceId);
+    }
+
+    try {
+      const res = await fetch(`/api/public/mandiri/katalog/check-status?${buildQuery({
+        nomorUnik: storedUnik,
+        ...(storedToken ? { sessionToken: storedToken } : {}),
+        deviceId,
+      })}`, { cache: "no-store" });
+      if (!res.ok) return;
+
+      const json = await res.json();
+      if (json.status === "attended") {
+        setHasAttended(true);
+        applyAttendanceValidation(json);
+        setCurrentUser((prev: any) => prev ? {
+          ...prev,
+          status: "attended",
+          id: json.id || prev.id,
+          nama: json.nama || prev.nama,
+          nomorUrut: json.nomorUrut || prev.nomorUrut,
+          nomorUnik: json.nomorUnik || prev.nomorUnik,
+        } : prev);
+      } else if (json.status === "waiting") {
+        setAttendanceValidation(null);
+        setCurrentUser((prev: any) => prev ? { ...prev, status: "waiting" } : prev);
+      }
+    } catch (e) {
+      console.error("refreshAttendanceStatus error:", e);
+    }
+  }, [applyAttendanceValidation]);
 
   const stopSelfAbsenScan = async () => {
     if (absenScannerRef.current) {
@@ -300,12 +374,27 @@ export default function PublicKatalogPage() {
             const data = await res.json();
 
             if (res.status === 409) {
+              applyAttendanceValidation(data, {
+                kegiatanId: kegId,
+                nama: currentUser?.nama,
+                nomorUrut: currentUser?.nomorUrut,
+              });
+              setCurrentUser((prev: any) => prev ? { ...prev, status: "attended" } : prev);
+              setAbsenTabMode("show_barcode");
               Swal.fire({ icon: "info", title: "Sudah Hadir", text: "Anda sudah tercatat hadir untuk kegiatan ini." });
             } else if (!res.ok) {
               Swal.fire({ icon: "error", title: "Gagal", text: data.error || "Gagal mencatat absensi." });
             } else {
+              applyAttendanceValidation(data, {
+                kegiatanId: kegId,
+                nama: currentUser?.nama,
+                nomorUrut: currentUser?.nomorUrut,
+                timestamp: new Date().toISOString(),
+              });
+              setCurrentUser((prev: any) => prev ? { ...prev, status: "attended" } : prev);
               Swal.fire({ icon: "success", title: "Berhasil", text: "Kehadiran Anda berhasil dicatat!", timer: 2000, showConfirmButton: false });
               setAbsenTabMode("show_barcode");
+              refreshAttendanceStatus();
             }
           } catch {
             Swal.fire({ icon: "error", title: "Error", text: "Terjadi kesalahan jaringan." });
@@ -510,6 +599,11 @@ export default function PublicKatalogPage() {
             const data = JSON.parse(rawText);
 
             if (data.status === "attended" || data.status === "waiting") {
+              if (data.status === "attended") {
+                applyAttendanceValidation(data);
+              } else {
+                setAttendanceValidation(null);
+              }
               setHasAttended(true);
               const userRole = data.role || localStorage.getItem("attended_role") || "Peserta";
               setCurrentUser({
@@ -725,6 +819,11 @@ export default function PublicKatalogPage() {
       fetchHasilRR(false);
     };
 
+    const handleAttendanceUpdate = () => {
+      fetchData();
+      refreshAttendanceStatus();
+    };
+
     const handleBoxLoveUpdate = (data: any) => {
       if (data && data.status) {
         setBoxLoveStatus(data.status);
@@ -733,15 +832,17 @@ export default function PublicKatalogPage() {
 
     channel.bind("taaruf-changed", handleUpdate);
     channel.bind("room-changed", handleUpdate);
+    channel.bind("absensi-updated", handleAttendanceUpdate);
     channel.bind("box-love-status-changed", handleBoxLoveUpdate);
 
     return () => {
       channel.unbind("taaruf-changed", handleUpdate);
       channel.unbind("room-changed", handleUpdate);
+      channel.unbind("absensi-updated", handleAttendanceUpdate);
       channel.unbind("box-love-status-changed", handleBoxLoveUpdate);
       pusher.unsubscribe("taaruf-channel");
     };
-  }, [fetchData, fetchSelections, fetchHasilRR]);
+  }, [fetchData, fetchSelections, fetchHasilRR, refreshAttendanceStatus]);
 
   const handleSendKomentar = async (penerimaId: string, itemNama: string, komentar: string) => {
     if (submittingKomentar) return;
@@ -2106,6 +2207,37 @@ export default function PublicKatalogPage() {
                 </>
               )}
             </div>
+
+            {attendanceValidation && (
+              <div style={{ background: "linear-gradient(135deg,#f0fdf4,#ffffff)", borderRadius: "16px", padding: "16px", border: "1px solid #bbf7d0", width: "100%", maxWidth: "340px", boxShadow: "0 8px 24px rgba(34,197,94,0.12)" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                  <div style={{ width: "42px", height: "42px", borderRadius: "50%", background: "#22c55e", display: "flex", alignItems: "center", justifyContent: "center", color: "white", flexShrink: 0 }}>
+                    <ShieldCheck size={22} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#166534", fontSize: "13px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.3px", marginBottom: "2px" }}>
+                      <CheckCircle2 size={15} />
+                      <span>Kehadiran Tervalidasi</span>
+                    </div>
+                    <div style={{ color: "#0f172a", fontSize: "14px", fontWeight: 800, lineHeight: 1.35 }}>
+                      {attendanceValidation.nama || currentUser?.nama || "Peserta"} sudah scan QR kegiatan.
+                    </div>
+                    <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "6px", color: "#475569", fontSize: "12px", fontWeight: 600 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
+                        <Calendar size={14} color="#16a34a" />
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{attendanceValidation.kegiatanJudul || "Kegiatan Mandiri"}</span>
+                      </div>
+                      {attendanceValidation.timestamp && (
+                        <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
+                          <Clock size={14} color="#16a34a" />
+                          <span>{formatAttendanceDate(attendanceValidation.timestamp)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {currentUser && (
               <div style={{ background: "white", borderRadius: "14px", padding: "16px 20px", border: "1px solid #e2e8f0", width: "100%", maxWidth: "340px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>

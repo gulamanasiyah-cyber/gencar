@@ -130,10 +130,15 @@ export async function GET(request: NextRequest) {
     };
 
     if (attendance.length > 0) {
+      let attendanceTimestamp = attendance[0].timestamp;
+      let attendanceKeterangan = attendance[0].keterangan;
+
       // If currently "pulang" (went home/logged out), reset to "hadir" since they are entering/logging in again
       if (attendance[0].keterangan === "pulang") {
+        attendanceTimestamp = new Date().toISOString();
+        attendanceKeterangan = "hadir";
         await db.update(mandiriAbsensi)
-          .set({ keterangan: "hadir", timestamp: new Date().toISOString() })
+          .set({ keterangan: attendanceKeterangan, timestamp: attendanceTimestamp })
           .where(and(
             eq(mandiriAbsensi.kegiatanId, kegiatanId),
             eq(mandiriAbsensi.generusId, generusId)
@@ -142,13 +147,23 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({ 
         status: "attended", 
-        ...commonResponse
+        ...commonResponse,
+        attendance: {
+          id: attendance[0].id,
+          kegiatanId,
+          kegiatanJudul: latestActivity[0].judul,
+          keterangan: attendanceKeterangan,
+          timestamp: attendanceTimestamp
+        },
+        attendanceKeterangan,
+        attendanceTimestamp
       });
     }
 
     return NextResponse.json({ 
       status: "waiting", 
-      ...commonResponse
+      ...commonResponse,
+      attendance: null
     });
   } catch (error) {
     console.error("Check status error:", error);
