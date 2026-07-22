@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { generus, mandiri, settings, desa, kelompok, users, mandiriDesa, mandiriDaerah, mandiriKegiatan, formPanitiaDanPengurus } from "@/lib/schema";
 import { eq, desc, and, or, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
-import { getNextMandiriNomorUrut, isMandiriJenisKelamin } from "@/lib/mandiriNomorUrut";
+import { getMandiriPersonPerempuanQuotaStatus, getNextMandiriNomorUrut, isMandiriJenisKelamin } from "@/lib/mandiriNomorUrut";
 
 function generateNomorUnik() {
   const prefix = "MND"; // Using MND prefix for public mandiri registration
@@ -65,6 +65,17 @@ export async function POST(request: NextRequest) {
 
     if (statusPeserta === "Person" && (!dibayarkanSenilai || !buktiPembayaran)) {
       return NextResponse.json({ error: "Mohon lengkapi nominal pembayaran dan bukti pembayaran." }, { status: 400 });
+    }
+
+    if (statusPeserta === "Person" && jenisKelamin === "P") {
+      const quota = await getMandiriPersonPerempuanQuotaStatus(db, activeKegiatanId);
+      if (!quota.femaleAvailable) {
+        return NextResponse.json({
+          status: "person_female_quota_full",
+          error: "Kuota perempuan sudah full.",
+          ...quota,
+        }, { status: 409 });
+      }
     }
 
     // 2.1. Quota Check for Daerah (Max 5 males, 5 females per kegiatan)

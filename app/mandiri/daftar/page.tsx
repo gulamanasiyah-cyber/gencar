@@ -15,6 +15,8 @@ import QRCode from "qrcode";
 interface Desa { id: number; nama: string; kota: string; }
 interface Kelompok { id: number; nama: string; }
 
+const PERSON_PEREMPUAN_QUOTA_DEFAULT = 100;
+
 export default function MandiriDaftarPage() {
   const maxDate = new Date();
   maxDate.setFullYear(maxDate.getFullYear() - 25);
@@ -60,6 +62,12 @@ export default function MandiriDaftarPage() {
   const [agreed, setAgreed] = useState(false);
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
   const [uploadingBukti, setUploadingBukti] = useState(false);
+  const [personQuota, setPersonQuota] = useState({
+    femaleCount: 0,
+    maxFemale: PERSON_PEREMPUAN_QUOTA_DEFAULT,
+    femaleAvailable: true,
+    loading: false,
+  });
 
 
   useEffect(() => {
@@ -82,6 +90,31 @@ export default function MandiriDaftarPage() {
     if (statusParam && statusParam.toLowerCase() === 'person') {
       setRegStatusPeserta("Person");
       currentPesertaType = "Person";
+      setPersonQuota(prev => ({ ...prev, loading: true }));
+      fetch("/api/public/mandiri/person-quota", { cache: "no-store" })
+        .then(r => r.json())
+        .then(d => {
+          const femaleAvailable = d.femaleAvailable !== false;
+          setPersonQuota({
+            femaleCount: Number(d.femaleCount || 0),
+            maxFemale: Number(d.maxFemale || PERSON_PEREMPUAN_QUOTA_DEFAULT),
+            femaleAvailable,
+            loading: false,
+          });
+          if (!femaleAvailable) {
+            setForm(prev => prev.jenisKelamin === "P" ? { ...prev, jenisKelamin: "L" } : prev);
+            Swal.fire({
+              icon: "warning",
+              title: "Kuota Perempuan Sudah Full",
+              text: "Kuota perempuan sudah full.",
+              confirmButtonText: "Mengerti",
+              confirmButtonColor: "#f59e0b"
+            });
+          }
+        })
+        .catch(() => {
+          setPersonQuota(prev => ({ ...prev, loading: false }));
+        });
     } else {
       setRegStatusPeserta("Utusan Daerah");
     }
@@ -349,6 +382,17 @@ export default function MandiriDaftarPage() {
 
   const handleChange = (e: any) => {
     const { name, value } = e.target;
+    if (name === "jenisKelamin" && value === "P" && regStatusPeserta === "Person" && !personQuota.femaleAvailable) {
+      Swal.fire({
+        icon: "warning",
+        title: "Kuota Perempuan Sudah Full",
+        text: "Kuota perempuan sudah full.",
+        confirmButtonText: "Mengerti",
+        confirmButtonColor: "#f59e0b"
+      });
+      setForm((prev) => ({ ...prev, jenisKelamin: "L" }));
+      return;
+    }
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -425,6 +469,19 @@ export default function MandiriDaftarPage() {
         return;
       }
 
+      if (regStatusPeserta === "Person" && form.jenisKelamin === "P" && !personQuota.femaleAvailable) {
+        Swal.fire({
+          icon: "warning",
+          title: "Kuota Perempuan Sudah Full",
+          text: "Kuota perempuan sudah full.",
+          confirmButtonText: "Mengerti",
+          confirmButtonColor: "#f59e0b"
+        });
+        setForm((prev) => ({ ...prev, jenisKelamin: "L" }));
+        setLoading(false);
+        return;
+      }
+
       const res = await fetch("/api/public/mandiri/registrasi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -435,6 +492,25 @@ export default function MandiriDaftarPage() {
         }),
       });
       const data = await res.json();
+
+      if (res.status === 409 && data.status === "person_female_quota_full") {
+        setPersonQuota({
+          femaleCount: Number(data.femaleCount || personQuota.maxFemale),
+          maxFemale: Number(data.maxFemale || PERSON_PEREMPUAN_QUOTA_DEFAULT),
+          femaleAvailable: false,
+          loading: false,
+        });
+        setForm((prev) => ({ ...prev, jenisKelamin: "L" }));
+        Swal.fire({
+          icon: "warning",
+          title: "Kuota Perempuan Sudah Full",
+          text: data.error || "Kuota perempuan sudah full.",
+          confirmButtonText: "Mengerti",
+          confirmButtonColor: "#f59e0b"
+        });
+        setLoading(false);
+        return;
+      }
 
       if (res.status === 409 && data.status === "quota_full") {
         Swal.fire({
@@ -761,8 +837,8 @@ export default function MandiriDaftarPage() {
           <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "16px", display: "inline-block", textAlign: "center" }}>
             <p style={{ fontSize: "13.5px", color: "var(--text-muted)", margin: 0, lineHeight: "1.6" }}>
               <strong>Pendaftaran Ta'aruf Kubro V9.0</strong><br />
-              Sudah ditutup pada hari <span style={{ color: "var(--text)", fontWeight: 600 }}>Kamis, 23 Juli 2026</span><br />
-              Pukul 00.00 WIB <span style={{ fontSize: "12px", opacity: 0.8 }}>(Waktu Indonesia Bagian Barat).</span>
+              Sudah ditutup pada hari <span style={{ color: "var(--text)", fontWeight: 600 }}>Jumat, 24 Juli 2026</span><br />
+              Pukul 15.00 WIB <span style={{ fontSize: "12px", opacity: 0.8 }}>(Waktu Indonesia Bagian Barat).</span>
             </p>
           </div>
         </div>
@@ -859,9 +935,11 @@ export default function MandiriDaftarPage() {
                 <label className="form-label">Jenis Kelamin <span className="required">*</span></label>
                 <select name="jenisKelamin" className="form-control" value={form.jenisKelamin} onChange={handleChange} required>
                   <option value="L">Laki-laki</option>
-                  {regStatusPeserta !== "Person" && (
-                    <option value="P">Perempuan</option>
-                  )}
+                  <option value="P">
+                    {regStatusPeserta === "Person" && !personQuota.femaleAvailable
+                      ? "Perempuan (Kuota Full)"
+                      : "Perempuan"}
+                  </option>
                 </select>
               </div>
               <div className="form-group">

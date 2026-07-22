@@ -3,6 +3,7 @@ import { generus, mandiri } from "@/lib/schema";
 
 export const MANDIRI_LAKI_LAKI_MAX_NOMOR = 199;
 export const MANDIRI_PEREMPUAN_MIN_NOMOR = 200;
+export const MANDIRI_PERSON_PEREMPUAN_QUOTA = 100;
 
 export type MandiriJenisKelamin = "L" | "P";
 
@@ -88,6 +89,39 @@ export async function getNextMandiriNomorUrut(
     nomor++;
   }
   return nomor;
+}
+
+export async function getMandiriPersonPerempuanQuotaStatus(
+  db: any,
+  kegiatanId?: string | null
+) {
+  if (!kegiatanId) {
+    return {
+      femaleCount: 0,
+      maxFemale: MANDIRI_PERSON_PEREMPUAN_QUOTA,
+      femaleAvailable: false,
+    };
+  }
+
+  const result = await db
+    .select({ count: sql<number>`count(DISTINCT ${mandiri.id})` })
+    .from(mandiri)
+    .innerJoin(generus, eq(mandiri.generusId, generus.id))
+    .where(and(
+      eq(mandiri.kegiatanId, kegiatanId),
+      eq(generus.jenisKelamin, "P"),
+      sql`${mandiri.generusId} NOT IN (
+        SELECT generus_id FROM form_panitia_dan_pengurus
+        WHERE generus_id IS NOT NULL AND kegiatan_id = ${kegiatanId}
+      )`
+    ));
+
+  const femaleCount = Number(result[0]?.count || 0);
+  return {
+    femaleCount,
+    maxFemale: MANDIRI_PERSON_PEREMPUAN_QUOTA,
+    femaleAvailable: femaleCount < MANDIRI_PERSON_PEREMPUAN_QUOTA,
+  };
 }
 
 export async function repairMandiriNomorUrut(
