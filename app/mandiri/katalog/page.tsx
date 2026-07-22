@@ -2066,6 +2066,13 @@ export default function PublicKatalogPage() {
           myFullProfile?.nomorUnik ||
           (typeof window !== "undefined" && localStorage.getItem("attended_nomor_unik")) ||
           "";
+        const attendanceRoleLabel = (() => {
+          const role = String(currentUser?.role || "").toLowerCase();
+          const nomorUnik = String(currentUser?.nomorUnik || myFullProfile?.nomorUnik || uniqueNo || "").toUpperCase();
+          return (role && !["peserta", "generus"].includes(role)) || nomorUnik.startsWith("PNB")
+            ? "Panitia"
+            : "Peserta";
+        })();
         return (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", padding: "24px 16px", minHeight: "60vh", justifyContent: "center" }}>
 
@@ -2220,7 +2227,7 @@ export default function PublicKatalogPage() {
                       <span>Kehadiran Tervalidasi</span>
                     </div>
                     <div style={{ color: "#0f172a", fontSize: "14px", fontWeight: 800, lineHeight: 1.35 }}>
-                      {attendanceValidation.nama || currentUser?.nama || "Peserta"} sudah scan QR kegiatan.
+                      {attendanceRoleLabel} sudah hadir.
                     </div>
                     <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "6px", color: "#475569", fontSize: "12px", fontWeight: 600 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
