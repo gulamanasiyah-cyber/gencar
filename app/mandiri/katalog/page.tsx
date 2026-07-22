@@ -177,6 +177,8 @@ export default function PublicKatalogPage() {
   const [activeTab, setActiveTab] = useState<"katalog" | "cart" | "profile" | "absen" | "hasil" | "saran">("katalog");
   const [hasilRRList, setHasilRRList] = useState<any[]>([]);
   const [loadingHasil, setLoadingHasil] = useState(false);
+  const [hasilRRDrafts, setHasilRRDrafts] = useState<Record<string, string>>({});
+  const [submittingHasilId, setSubmittingHasilId] = useState<string | null>(null);
   const [saranText, setSaranText] = useState("");
   const [kepadaSaran, setKepadaSaran] = useState("");
   const [kepadaSaranLainnya, setKepadaSaranLainnya] = useState("");
@@ -790,6 +792,7 @@ export default function PublicKatalogPage() {
   };
 
   const submitHasilRR = async (id: string, hasil: string) => {
+    setSubmittingHasilId(id);
     try {
       const res = await fetch("/api/mandiri/hasil-rr", {
         method: "POST",
@@ -799,12 +802,43 @@ export default function PublicKatalogPage() {
       const data = await res.json();
       if (data.success) {
         Swal.fire({ icon: "success", title: "Berhasil", text: "Hasil berhasil disimpan", timer: 1500, showConfirmButton: false });
+        setHasilRRDrafts(prev => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
         fetchHasilRR();
       } else {
         Swal.fire("Gagal", data.error || "Gagal menyimpan hasil", "error");
       }
     } catch (e) {
       Swal.fire("Error", "Gagal terhubung ke server", "error");
+    } finally {
+      setSubmittingHasilId(null);
+    }
+  };
+
+  const handleSubmitHasilRR = async (id: string, partnerName: string) => {
+    const hasil = hasilRRDrafts[id];
+    if (!hasil) {
+      Swal.fire("Pilih Hasil", "Silakan pilih hasil RR terlebih dahulu.", "warning");
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: "Submit Hasil RR?",
+      text: `Anda akan menyimpan jawaban "${hasil}" untuk sesi bersama ${partnerName}.`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Submit",
+      cancelButtonText: "Batal",
+      confirmButtonColor: "#10b981",
+      cancelButtonColor: "#64748b",
+      reverseButtons: true,
+    });
+
+    if (result.isConfirmed) {
+      await submitHasilRR(id, hasil);
     }
   };
 
@@ -2108,6 +2142,8 @@ export default function PublicKatalogPage() {
                 const partnerName = isPengirim ? h.penerimaNama : h.pengirimNama;
                 const partnerNoUrut = isPengirim ? h.penerimaNoUrut : h.pengirimNoUrut;
                 const myHasil = isPengirim ? h.hasilPengirim : h.hasilPenerima;
+                const selectedHasil = myHasil || hasilRRDrafts[h.id] || "";
+                const isSubmittingThis = submittingHasilId === h.id;
                 const isDalamRuangan = h.status === "Diterima";
 
                 const isRagu = (val: string) => val === "Ragu-Ragu" || val === "Ragu-ragu";
@@ -2132,56 +2168,82 @@ export default function PublicKatalogPage() {
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button 
                         disabled={!!myHasil}
-                        onClick={() => submitHasilRR(h.id, "Lanjut")}
+                        onClick={() => setHasilRRDrafts(prev => ({ ...prev, [h.id]: "Lanjut" }))}
                         style={{ 
                           flex: 1, 
                           padding: '10px', 
                           borderRadius: '10px', 
                           fontSize: '13px', 
                           fontWeight: 700, 
-                          border: myHasil === "Lanjut" ? '2px solid #22c55e' : '1px solid #e2e8f0', 
-                          background: myHasil === "Lanjut" ? '#f0fdf4' : (!!myHasil ? '#f8fafc' : 'white'), 
-                          color: myHasil === "Lanjut" ? '#166534' : (!!myHasil ? '#94a3b8' : '#64748b'), 
+                          border: selectedHasil === "Lanjut" ? '2px solid #22c55e' : '1px solid #e2e8f0',
+                          background: selectedHasil === "Lanjut" ? '#f0fdf4' : (!!myHasil ? '#f8fafc' : 'white'),
+                          color: selectedHasil === "Lanjut" ? '#166534' : (!!myHasil ? '#94a3b8' : '#64748b'),
                           cursor: !!myHasil ? 'not-allowed' : 'pointer', 
                           transition: '0.2s',
-                          opacity: !!myHasil && myHasil !== "Lanjut" ? 0.6 : 1
+                          opacity: !!myHasil && selectedHasil !== "Lanjut" ? 0.6 : 1
                         }}
                       >Lanjut</button>
                       <button 
                         disabled={!!myHasil}
-                        onClick={() => submitHasilRR(h.id, "Ragu-Ragu")}
+                        onClick={() => setHasilRRDrafts(prev => ({ ...prev, [h.id]: "Ragu-Ragu" }))}
                         style={{ 
                           flex: 1, 
                           padding: '10px', 
                           borderRadius: '10px', 
                           fontSize: '13px', 
                           fontWeight: 700, 
-                          border: isRagu(myHasil) ? '2px solid #eab308' : '1px solid #e2e8f0', 
-                          background: isRagu(myHasil) ? '#fefce8' : (!!myHasil ? '#f8fafc' : 'white'), 
-                          color: isRagu(myHasil) ? '#854d0e' : (!!myHasil ? '#94a3b8' : '#64748b'), 
+                          border: isRagu(selectedHasil) ? '2px solid #eab308' : '1px solid #e2e8f0',
+                          background: isRagu(selectedHasil) ? '#fefce8' : (!!myHasil ? '#f8fafc' : 'white'),
+                          color: isRagu(selectedHasil) ? '#854d0e' : (!!myHasil ? '#94a3b8' : '#64748b'),
                           cursor: !!myHasil ? 'not-allowed' : 'pointer', 
                           transition: '0.2s',
-                          opacity: !!myHasil && !isRagu(myHasil) ? 0.6 : 1
+                          opacity: !!myHasil && !isRagu(selectedHasil) ? 0.6 : 1
                         }}
                       >Ragu-Ragu</button>
                       <button 
                         disabled={!!myHasil}
-                        onClick={() => submitHasilRR(h.id, "Tidak Lanjut")}
+                        onClick={() => setHasilRRDrafts(prev => ({ ...prev, [h.id]: "Tidak Lanjut" }))}
                         style={{ 
                           flex: 1, 
                           padding: '10px', 
                           borderRadius: '10px', 
                           fontSize: '13px', 
                           fontWeight: 700, 
-                          border: myHasil === "Tidak Lanjut" ? '2px solid #ef4444' : '1px solid #e2e8f0', 
-                          background: myHasil === "Tidak Lanjut" ? '#fef2f2' : (!!myHasil ? '#f8fafc' : 'white'), 
-                          color: myHasil === "Tidak Lanjut" ? '#991b1b' : (!!myHasil ? '#94a3b8' : '#64748b'), 
+                          border: selectedHasil === "Tidak Lanjut" ? '2px solid #ef4444' : '1px solid #e2e8f0',
+                          background: selectedHasil === "Tidak Lanjut" ? '#fef2f2' : (!!myHasil ? '#f8fafc' : 'white'),
+                          color: selectedHasil === "Tidak Lanjut" ? '#991b1b' : (!!myHasil ? '#94a3b8' : '#64748b'),
                           cursor: !!myHasil ? 'not-allowed' : 'pointer', 
                           transition: '0.2s',
-                          opacity: !!myHasil && myHasil !== "Tidak Lanjut" ? 0.6 : 1
+                          opacity: !!myHasil && selectedHasil !== "Tidak Lanjut" ? 0.6 : 1
                         }}
                       >Tidak Lanjut</button>
                     </div>
+                    {!myHasil && (
+                      <button
+                        disabled={!hasilRRDrafts[h.id] || isSubmittingThis}
+                        onClick={() => handleSubmitHasilRR(h.id, partnerName)}
+                        style={{
+                          width: '100%',
+                          marginTop: '14px',
+                          padding: '11px',
+                          borderRadius: '10px',
+                          border: 'none',
+                          background: hasilRRDrafts[h.id] ? '#10b981' : '#e2e8f0',
+                          color: hasilRRDrafts[h.id] ? 'white' : '#94a3b8',
+                          fontSize: '13px',
+                          fontWeight: 800,
+                          cursor: hasilRRDrafts[h.id] && !isSubmittingThis ? 'pointer' : 'not-allowed',
+                          transition: '0.2s',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <CheckCircle2 size={16} />
+                        {isSubmittingThis ? "Menyimpan..." : "Submit"}
+                      </button>
+                    )}
                   </div>
                 )
               })}
