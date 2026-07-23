@@ -935,11 +935,6 @@ export default function MandiriDaftarPage() {
                 <label className="form-label">Jenis Kelamin <span className="required">*</span></label>
                 <select name="jenisKelamin" className="form-control" value={form.jenisKelamin} onChange={handleChange} required>
                   <option value="L">Laki-laki</option>
-                  <option value="P">
-                    {regStatusPeserta === "Person" && !personQuota.femaleAvailable
-                      ? "Perempuan (Kuota Full)"
-                      : "Perempuan"}
-                  </option>
                 </select>
               </div>
               <div className="form-group">
