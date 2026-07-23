@@ -424,7 +424,7 @@ export default function TimGambuhOperatorPage() {
     };
 
     useEffect(() => {
-        if (showAbsenScanner) {
+        if (showAbsenScanner && !hasAttended) {
             let scanner: any = null;
             const initScanner = async () => {
                 try {
@@ -435,25 +435,23 @@ export default function TimGambuhOperatorPage() {
                     scanner = new Html5Qrcode("gambuh-scanner-box");
                     absenScannerRef.current = scanner;
                     
-                    if (!hasAttended) {
-                        await scanner.start(
-                            { facingMode: "environment" },
-                            { fps: 10, qrbox: { width: 250, height: 250 } },
-                            (decodedText: string) => {
-                                if (decodedText.includes("kegiatanId=")) {
-                                    try {
-                                        const urlObj = new URL(decodedText);
-                                        const kId = urlObj.searchParams.get("kegiatanId");
-                                        if (kId) {
-                                            handleAbsenScan(kId);
-                                        }
-                                    } catch(e) {}
-                                }
-                            },
-                            () => {} // ignore
-                        );
-                        setIsScanning(true);
-                    }
+                    await scanner.start(
+                        { facingMode: "environment" },
+                        { fps: 10, qrbox: { width: 250, height: 250 } },
+                        (decodedText: string) => {
+                            if (decodedText.includes("kegiatanId=")) {
+                                try {
+                                    const urlObj = new URL(decodedText);
+                                    const kId = urlObj.searchParams.get("kegiatanId");
+                                    if (kId) {
+                                        handleAbsenScan(kId);
+                                    }
+                                } catch(e) {}
+                            }
+                        },
+                        () => {} // ignore
+                    );
+                    setIsScanning(true);
                 } catch(e) {
                    Swal.fire('Error', 'Kamera gagal dimulai', 'error');
                    setShowAbsenScanner(false);
@@ -472,7 +470,9 @@ export default function TimGambuhOperatorPage() {
                 absenScannerRef.current = null;
             }
             setIsScanning(false);
-            setScanFeedback(null);
+            if (!hasAttended) {
+                setScanFeedback(null);
+            }
         }
     }, [showAbsenScanner, hasAttended]);
 
@@ -495,11 +495,13 @@ export default function TimGambuhOperatorPage() {
             });
             const data = await res.json();
             if (res.ok) {
-                 setScanFeedback({ type: "success", text: "Berhasil! Kehadiran Anda tersimpan." });
+                 setShowAbsenScanner(false);
                  setHasAttended(true);
+                 Swal.fire("Berhasil", "Kehadiran Anda tersimpan.", "success");
             } else if (res.status === 409) {
-                 setScanFeedback({ type: "success", text: "Berhasil! Kehadiran Anda sudah tercatat sebelumnya." });
+                 setShowAbsenScanner(false);
                  setHasAttended(true);
+                 Swal.fire("Info", "Kehadiran Anda sudah tercatat sebelumnya.", "info");
             } else {
                  throw new Error(data.error);
             }
