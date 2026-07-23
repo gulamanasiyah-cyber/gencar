@@ -936,7 +936,7 @@ export default function MandiriDaftarPage() {
                 <select name="jenisKelamin" className="form-control" value={form.jenisKelamin} onChange={handleChange} required>
                   <option value="L">Laki-laki</option>
                 </select>
-                <p style={{ fontSize: "10.5px", color: "#ef4444", marginTop: "4px" }}>
+                <p style={{ fontSize: "10.5px", color: "#ef4444", marginTop: "4px", fontWeight: "bold" }}>
                   (Perhatian : untuk kuota perempuan sudah penuh, amal sholih daftarkan hanya untuk laki-laki saja.)
                 </p>
               </div>
