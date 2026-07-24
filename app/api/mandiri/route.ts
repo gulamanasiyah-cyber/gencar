@@ -63,7 +63,21 @@ export async function GET(request: NextRequest) {
     
     const statusPeserta = searchParams.get("statusPeserta");
     if (statusPeserta && statusPeserta !== "all") {
-        conditions.push(eq(mandiri.statusPeserta, statusPeserta as "Utusan Daerah" | "Person"));
+        if (statusPeserta === "Utusan Daerah" || statusPeserta === "Person") {
+            conditions.push(eq(mandiri.statusPeserta, statusPeserta));
+        } else if (statusPeserta === "pesertaL") {
+            conditions.push(sql`${formPanitiaDanPengurus.id} IS NULL AND ${generus.jenisKelamin} = 'L'`);
+        } else if (statusPeserta === "pesertaP") {
+            conditions.push(sql`${formPanitiaDanPengurus.id} IS NULL AND ${generus.jenisKelamin} = 'P'`);
+        } else if (statusPeserta === "panitiaL") {
+            conditions.push(sql`${formPanitiaDanPengurus.id} IS NOT NULL AND ${generus.jenisKelamin} = 'L'`);
+        } else if (statusPeserta === "panitiaP") {
+            conditions.push(sql`${formPanitiaDanPengurus.id} IS NOT NULL AND ${generus.jenisKelamin} = 'P'`);
+        } else if (statusPeserta === "pesertaAll") {
+            conditions.push(sql`${formPanitiaDanPengurus.id} IS NULL`);
+        } else if (statusPeserta === "panitiaAll") {
+            conditions.push(sql`${formPanitiaDanPengurus.id} IS NOT NULL`);
+        }
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -114,6 +128,7 @@ export async function GET(request: NextRequest) {
         isHadir: sql<number>`CASE WHEN ${mandiriAbsensi.id} IS NOT NULL THEN 1 ELSE 0 END`,
         waktuHadir: mandiriAbsensi.timestamp,
         keterangan: mandiriAbsensi.keterangan,
+        isPanitia: sql<boolean>`CASE WHEN ${formPanitiaDanPengurus.id} IS NOT NULL THEN true ELSE false END`,
       })
       .from(mandiri)
       .innerJoin(generus, eq(mandiri.generusId, generus.id))
@@ -122,7 +137,11 @@ export async function GET(request: NextRequest) {
       .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
       .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
-      .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id));
+      .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id))
+      .leftJoin(formPanitiaDanPengurus, and(
+          eq(generus.id, formPanitiaDanPengurus.generusId),
+          eq(formPanitiaDanPengurus.kegiatanId, kegiatanId)
+      ));
 
     if (onlyAttended) {
       dataQuery = (dataQuery as any).innerJoin(mandiriAbsensi, and(
@@ -147,10 +166,20 @@ export async function GET(request: NextRequest) {
       .select({ 
           count: sql<number>`count(*)`,
           utusanDaerah: sql<number>`SUM(CASE WHEN ${mandiri.statusPeserta} = 'Utusan Daerah' OR ${mandiri.statusPeserta} IS NULL THEN 1 ELSE 0 END)`,
-          person: sql<number>`SUM(CASE WHEN ${mandiri.statusPeserta} = 'Person' THEN 1 ELSE 0 END)`
+          person: sql<number>`SUM(CASE WHEN ${mandiri.statusPeserta} = 'Person' THEN 1 ELSE 0 END)`,
+          pesertaAll: sql<number>`SUM(CASE WHEN ${formPanitiaDanPengurus.id} IS NULL THEN 1 ELSE 0 END)`,
+          panitiaAll: sql<number>`SUM(CASE WHEN ${formPanitiaDanPengurus.id} IS NOT NULL THEN 1 ELSE 0 END)`,
+          pesertaL: sql<number>`SUM(CASE WHEN ${formPanitiaDanPengurus.id} IS NULL AND ${generus.jenisKelamin} = 'L' THEN 1 ELSE 0 END)`,
+          pesertaP: sql<number>`SUM(CASE WHEN ${formPanitiaDanPengurus.id} IS NULL AND ${generus.jenisKelamin} = 'P' THEN 1 ELSE 0 END)`,
+          panitiaL: sql<number>`SUM(CASE WHEN ${formPanitiaDanPengurus.id} IS NOT NULL AND ${generus.jenisKelamin} = 'L' THEN 1 ELSE 0 END)`,
+          panitiaP: sql<number>`SUM(CASE WHEN ${formPanitiaDanPengurus.id} IS NOT NULL AND ${generus.jenisKelamin} = 'P' THEN 1 ELSE 0 END)`
       })
       .from(mandiri)
-      .innerJoin(generus, eq(mandiri.generusId, generus.id));
+      .innerJoin(generus, eq(mandiri.generusId, generus.id))
+      .leftJoin(formPanitiaDanPengurus, and(
+          eq(generus.id, formPanitiaDanPengurus.generusId),
+          eq(formPanitiaDanPengurus.kegiatanId, kegiatanId)
+      ));
 
     if (onlyAttended) {
       countQuery.innerJoin(mandiriAbsensi, and(
@@ -171,6 +200,18 @@ export async function GET(request: NextRequest) {
         totalFiltered = Number(countResult[0]?.utusanDaerah || 0);
     } else if (statusPeserta === "Person") {
         totalFiltered = Number(countResult[0]?.person || 0);
+    } else if (statusPeserta === "pesertaAll") {
+        totalFiltered = Number(countResult[0]?.pesertaAll || 0);
+    } else if (statusPeserta === "panitiaAll") {
+        totalFiltered = Number(countResult[0]?.panitiaAll || 0);
+    } else if (statusPeserta === "pesertaL") {
+        totalFiltered = Number(countResult[0]?.pesertaL || 0);
+    } else if (statusPeserta === "pesertaP") {
+        totalFiltered = Number(countResult[0]?.pesertaP || 0);
+    } else if (statusPeserta === "panitiaL") {
+        totalFiltered = Number(countResult[0]?.panitiaL || 0);
+    } else if (statusPeserta === "panitiaP") {
+        totalFiltered = Number(countResult[0]?.panitiaP || 0);
     }
 
     return NextResponse.json({
@@ -178,7 +219,13 @@ export async function GET(request: NextRequest) {
       total: totalFiltered,
       counts: {
           utusanDaerah: Number(countResult[0]?.utusanDaerah || 0),
-          person: Number(countResult[0]?.person || 0)
+          person: Number(countResult[0]?.person || 0),
+          pesertaAll: Number(countResult[0]?.pesertaAll || 0),
+          panitiaAll: Number(countResult[0]?.panitiaAll || 0),
+          pesertaL: Number(countResult[0]?.pesertaL || 0),
+          pesertaP: Number(countResult[0]?.pesertaP || 0),
+          panitiaL: Number(countResult[0]?.panitiaL || 0),
+          panitiaP: Number(countResult[0]?.panitiaP || 0),
       },
       page,
       limit,

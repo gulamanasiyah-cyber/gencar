@@ -47,9 +47,10 @@ export default function PanitiaDaftarPage() {
   const [result, setResult] = useState<any>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>("" );
   const [isClosed, setIsClosed] = useState(false);
-  const [regTitle, setRegTitle] = useState("Pendaftaran Panitia");
-  const [regDesc, setRegDesc] = useState("Silakan isi data diri Anda untuk keperluan kepanitiaan.");
+  const [regTitle, setRegTitle] = useState("");
+  const [regDesc, setRegDesc] = useState("");
   const [agreed, setAgreed] = useState(false);
+  const [regGender, setRegGender] = useState("Semua");
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
 
   useEffect(() => {
@@ -72,18 +73,25 @@ export default function PanitiaDaftarPage() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/public/mandiri/settings?key=mandiri_registration_status")
-      .then(r => r.json())
-      .then(d => {
-        if (d.value === "0") {
-          setIsClosed(true);
-        }
-      });
-
     Promise.all([
+      fetch("/api/public/mandiri/settings?key=mandiri_panitia_registration_status").then(r => r.json()),
+      fetch("/api/public/mandiri/settings?key=mandiri_registration_status").then(r => r.json()),
+      fetch("/api/public/mandiri/settings?key=mandiri_registration_title").then(r => r.json()),
+      fetch("/api/public/mandiri/settings?key=mandiri_registration_description").then(r => r.json()),
+      fetch("/api/public/mandiri/settings?key=mandiri_registration_gender").then(r => r.json()),
       fetch("/api/public/mandiri/desa").then((r) => r.json()),
       fetch("/api/public/mandiri/kelompok").then((r) => r.json()),
-    ]).then(([daerahs, desas]) => {
+    ]).then(([panitiaStatus, mainStatus, title, desc, gender, daerahs, desas]) => {
+      if (panitiaStatus.value === "0" || mainStatus.value === "0") {
+        setIsClosed(true);
+      }
+      if (title?.value) setRegTitle(title.value);
+      if (desc?.value) setRegDesc(desc.value);
+      if (gender?.value) {
+         setRegGender(gender.value);
+         if (gender.value === "Laki-laki") setForm(prev => ({...prev, jenisKelamin: "L"}));
+         else if (gender.value === "Perempuan") setForm(prev => ({...prev, jenisKelamin: "P"}));
+      }
       if (Array.isArray(daerahs)) {
         setDaerahList(daerahs);
         const cities = Array.from(new Set(daerahs.map((d: any) => d.kota))).sort() as string[];
@@ -360,8 +368,8 @@ export default function PanitiaDaftarPage() {
             <div className="form-group">
               <label className="form-label">Jenis Kelamin <span className="required">*</span></label>
               <select name="jenisKelamin" className="form-control" value={form.jenisKelamin} onChange={handleChange} required>
-                <option value="L">Laki-laki</option>
-                <option value="P">Perempuan</option>
+                {regGender !== "Perempuan" && <option value="L">Laki-laki</option>}
+                {regGender !== "Laki-laki" && <option value="P">Perempuan</option>}
               </select>
             </div>
 

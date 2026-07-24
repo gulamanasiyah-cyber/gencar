@@ -72,12 +72,19 @@ export default function MandiriPage() {
    const [regTitle, setRegTitle] = useState("");
    const [regDesc, setRegDesc] = useState("");
    const [regStatusPeserta, setRegStatusPeserta] = useState("Utusan Daerah");
+   const [regGender, setRegGender] = useState("Semua");
    const [isClosed, setIsClosed] = useState(false);
    const [kegiatanList, setKegiatanList] = useState<KegiatanOption[]>([]);
    const [selectedKegiatanId, setSelectedKegiatanId] = useState("");
    const [filterStatusPeserta, setFilterStatusPeserta] = useState("all");
    const [utusanDaerahCount, setUtusanDaerahCount] = useState(0);
    const [personCount, setPersonCount] = useState(0);
+   const [pesertaAllCount, setPesertaAllCount] = useState(0);
+   const [panitiaAllCount, setPanitiaAllCount] = useState(0);
+   const [pesertaLCount, setPesertaLCount] = useState(0);
+   const [pesertaPCount, setPesertaPCount] = useState(0);
+   const [panitiaLCount, setPanitiaLCount] = useState(0);
+   const [panitiaPCount, setPanitiaPCount] = useState(0);
    
    // Wilayah state
    const [daerahList, setDaerahList] = useState<{id: number, nama: string}[]>([]);
@@ -143,6 +150,7 @@ export default function MandiriPage() {
             setRegTitle(s.mandiri_registration_title || "");
             setRegDesc(s.mandiri_registration_description || "");
             setRegStatusPeserta(s.mandiri_registration_status_peserta || "Utusan Daerah");
+            setRegGender(s.mandiri_registration_gender || "Semua");
 
             const kList = await kegiatanRes.json();
             if (Array.isArray(kList)) {
@@ -205,6 +213,12 @@ export default function MandiriPage() {
             <option value="tutup_person" ${regStatus === "tutup_person" ? "selected" : ""}>Tutup Person Saja</option>
             <option value="0" ${regStatus === "0" ? "selected" : ""}>Tutup Semua</option>
           </select>
+          <label class="form-label">Jenis Kelamin</label>
+          <select id="swal-gender" class="form-control" style="margin-bottom: 12px">
+            <option value="Semua" ${regGender === "Semua" ? "selected" : ""}>Semua Jenis Kelamin</option>
+            <option value="Laki-laki" ${regGender === "Laki-laki" ? "selected" : ""}>Laki-laki Saja</option>
+            <option value="Perempuan" ${regGender === "Perempuan" ? "selected" : ""}>Perempuan Saja</option>
+          </select>
         </div>
       `,
          focusConfirm: false,
@@ -220,6 +234,7 @@ export default function MandiriPage() {
                title: titleText,
                desc: (document.getElementById("swal-desc") as HTMLTextAreaElement).value,
                status: (document.getElementById("swal-status") as HTMLSelectElement).value,
+               gender: (document.getElementById("swal-gender") as HTMLSelectElement).value,
             };
          },
          footer: "Nama & deskripsi akan muncul di form publik"
@@ -242,6 +257,11 @@ export default function MandiriPage() {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ key: "mandiri_registration_status", value: formValues.status }),
+               }),
+               fetch("/api/mandiri/settings", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ key: "mandiri_registration_gender", value: formValues.gender }),
                })
             ];
 
@@ -261,6 +281,7 @@ export default function MandiriPage() {
             setRegTitle(formValues.title);
             setRegDesc(formValues.desc);
             setRegStatus(formValues.status);
+            setRegGender(formValues.gender);
             setIsClosed(formValues.status === "0");
             if (formValues.id) setSelectedKegiatanId(formValues.id);
             Swal.fire({ icon: "success", title: "Berhasil disimpan", timer: 1000, showConfirmButton: false });
@@ -291,6 +312,12 @@ export default function MandiriPage() {
          if (json.counts) {
             setUtusanDaerahCount(json.counts.utusanDaerah || 0);
             setPersonCount(json.counts.person || 0);
+            setPesertaAllCount(json.counts.pesertaAll || 0);
+            setPanitiaAllCount(json.counts.panitiaAll || 0);
+            setPesertaLCount(json.counts.pesertaL || 0);
+            setPesertaPCount(json.counts.pesertaP || 0);
+            setPanitiaLCount(json.counts.panitiaL || 0);
+            setPanitiaPCount(json.counts.panitiaP || 0);
          }
       } catch (e) {
          console.error(e);
@@ -917,7 +944,7 @@ export default function MandiriPage() {
                <div className="card">
                   <div className="card-header" style={{ justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
                      <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
-                        <span className="card-title" style={{ marginBottom: 0 }}>Daftar Peserta & Panitia ({total})</span>
+                        <span className="card-title" style={{ marginBottom: 0 }}>Daftar Peserta ({total})</span>
                         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                            <button
                               onClick={() => setFilterStatusPeserta("all")}
@@ -1008,6 +1035,61 @@ export default function MandiriPage() {
                                  {personCount}
                               </span>
                            </button>
+                           
+                           {/* Pemisah */}
+                           <div style={{ width: "1px", background: "#e2e8f0", margin: "0 4px" }}></div>
+                           
+                           <button onClick={() => setFilterStatusPeserta("pesertaAll")} style={{
+                               padding: "6px 12px", border: "1px solid #e0f2fe", borderRadius: "20px", fontSize: "13px", 
+                               background: filterStatusPeserta === "pesertaAll" ? "#0ea5e9" : "#f0f9ff",
+                               color: filterStatusPeserta === "pesertaAll" ? "#fff" : "#0284c7", fontWeight: filterStatusPeserta === "pesertaAll" ? 600 : 500, cursor: "pointer", display: "flex", gap: "6px", alignItems: "center"
+                           }}>
+                              Peserta <span style={{ background: filterStatusPeserta === "pesertaAll" ? "rgba(255,255,255,0.2)" : "#bae6fd", color: filterStatusPeserta === "pesertaAll" ? "#fff" : "#0369a1", padding: "1px 6px", borderRadius: "10px", fontSize: "11px" }}>{pesertaAllCount}</span>
+                           </button>
+
+                           <button onClick={() => setFilterStatusPeserta("pesertaL")} style={{
+                               padding: "6px 12px", border: "1px solid #e0f2fe", borderRadius: "20px", fontSize: "13px",
+                               background: filterStatusPeserta === "pesertaL" ? "#0ea5e9" : "transparent",
+                               color: filterStatusPeserta === "pesertaL" ? "#fff" : "#0284c7", fontWeight: filterStatusPeserta === "pesertaL" ? 600 : 500, cursor: "pointer", display: "flex", gap: "6px", alignItems: "center"
+                           }}>
+                              Peserta (L) <span style={{ background: filterStatusPeserta === "pesertaL" ? "rgba(255,255,255,0.2)" : "#bae6fd", color: filterStatusPeserta === "pesertaL" ? "#fff" : "#0369a1", padding: "1px 6px", borderRadius: "10px", fontSize: "11px" }}>{pesertaLCount}</span>
+                           </button>
+
+                           <button onClick={() => setFilterStatusPeserta("pesertaP")} style={{
+                               padding: "6px 12px", border: "1px solid #e0f2fe", borderRadius: "20px", fontSize: "13px",
+                               background: filterStatusPeserta === "pesertaP" ? "#0ea5e9" : "transparent",
+                               color: filterStatusPeserta === "pesertaP" ? "#fff" : "#0284c7", fontWeight: filterStatusPeserta === "pesertaP" ? 600 : 500, cursor: "pointer", display: "flex", gap: "6px", alignItems: "center"
+                           }}>
+                              Peserta (P) <span style={{ background: filterStatusPeserta === "pesertaP" ? "rgba(255,255,255,0.2)" : "#bae6fd", color: filterStatusPeserta === "pesertaP" ? "#fff" : "#0369a1", padding: "1px 6px", borderRadius: "10px", fontSize: "11px" }}>{pesertaPCount}</span>
+                           </button>
+
+                           {/* Pemisah */}
+                           <div style={{ width: "1px", background: "#e2e8f0", margin: "0 4px" }}></div>
+                           
+                           <button onClick={() => setFilterStatusPeserta("panitiaAll")} style={{
+                               padding: "6px 12px", border: "1px solid #dcfce7", borderRadius: "20px", fontSize: "13px",
+                               background: filterStatusPeserta === "panitiaAll" ? "#10b981" : "#f0fdf4",
+                               color: filterStatusPeserta === "panitiaAll" ? "#fff" : "#15803d", fontWeight: filterStatusPeserta === "panitiaAll" ? 600 : 500, cursor: "pointer", display: "flex", gap: "6px", alignItems: "center"
+                           }}>
+                              Panitia <span style={{ background: filterStatusPeserta === "panitiaAll" ? "rgba(255,255,255,0.2)" : "#bbf7d0", color: filterStatusPeserta === "panitiaAll" ? "#fff" : "#15803d", padding: "1px 6px", borderRadius: "10px", fontSize: "11px" }}>{panitiaAllCount}</span>
+                           </button>
+
+                           <button onClick={() => setFilterStatusPeserta("panitiaL")} style={{
+                               padding: "6px 12px", border: "1px solid #dcfce7", borderRadius: "20px", fontSize: "13px",
+                               background: filterStatusPeserta === "panitiaL" ? "#10b981" : "transparent",
+                               color: filterStatusPeserta === "panitiaL" ? "#fff" : "#15803d", fontWeight: filterStatusPeserta === "panitiaL" ? 600 : 500, cursor: "pointer", display: "flex", gap: "6px", alignItems: "center"
+                           }}>
+                              Panitia (L) <span style={{ background: filterStatusPeserta === "panitiaL" ? "rgba(255,255,255,0.2)" : "#bbf7d0", color: filterStatusPeserta === "panitiaL" ? "#fff" : "#15803d", padding: "1px 6px", borderRadius: "10px", fontSize: "11px" }}>{panitiaLCount}</span>
+                           </button>
+
+                           <button onClick={() => setFilterStatusPeserta("panitiaP")} style={{
+                               padding: "6px 12px", border: "1px solid #dcfce7", borderRadius: "20px", fontSize: "13px",
+                               background: filterStatusPeserta === "panitiaP" ? "#10b981" : "transparent",
+                               color: filterStatusPeserta === "panitiaP" ? "#fff" : "#15803d", fontWeight: filterStatusPeserta === "panitiaP" ? 600 : 500, cursor: "pointer", display: "flex", gap: "6px", alignItems: "center"
+                           }}>
+                              Panitia (P) <span style={{ background: filterStatusPeserta === "panitiaP" ? "rgba(255,255,255,0.2)" : "#bbf7d0", color: filterStatusPeserta === "panitiaP" ? "#fff" : "#15803d", padding: "1px 6px", borderRadius: "10px", fontSize: "11px" }}>{panitiaPCount}</span>
+                           </button>
+
                         </div>
                      </div>
                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>

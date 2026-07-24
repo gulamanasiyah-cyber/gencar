@@ -60,7 +60,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="layout">
-      <AutoLogout timeoutMinutes={5} />
+      <AutoLogout timeoutMinutes={30} />
       <Sidebar user={{ name: session.name, email: session.email, role: session.role, foto: userFoto, isInMandiri }} />
       <main className="main-content">{children}</main>
     </div>

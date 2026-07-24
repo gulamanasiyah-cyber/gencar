@@ -1,10 +1,10 @@
 "use client";
 
 import Topbar from "@/components/Topbar";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Swal from "sweetalert2";
 import {
-    Timer, LogOut, Search, Undo2, RefreshCw, BookOpen, FileSpreadsheet
+    Timer, LogOut, Search, Undo2, RefreshCw, BookOpen, FileSpreadsheet, QrCode, X, CheckCircle, Camera
 } from "lucide-react";
 import { getPusherClient } from "@/lib/pusher-client";
 import Link from "next/link";
@@ -86,6 +86,13 @@ export default function TimGambuhOperatorPage() {
     const [queueData, setQueueData] = useState<any[]>([]);
     const [reportSearch, setReportSearch] = useState("");
     const [resultFilter, setResultFilter] = useState("Semua");
+    
+    // Scanner Absensi
+    const [showAbsenScanner, setShowAbsenScanner] = useState(false);
+    const [scanFeedback, setScanFeedback] = useState<any>(null);
+    const [isScanning, setIsScanning] = useState(false);
+    const [hasAttended, setHasAttended] = useState(false);
+    const absenScannerRef = useRef<any>(null);
 
     const saveCurrentIdentity = useCallback((identity: any) => {
         const normalizedId = String(identity?.id || "").trim();
@@ -414,6 +421,103 @@ export default function TimGambuhOperatorPage() {
         } catch (err) {
             Swal.fire("Error", "Gagal memproses permintaan", "error");
         }
+    };
+
+    useEffect(() => {
+        if (showAbsenScanner) {
+            let scanner: any = null;
+            const initScanner = async () => {
+                try {
+                    const { Html5Qrcode } = await import("html5-qrcode");
+                    if (absenScannerRef.current) {
+                        try { await absenScannerRef.current.stop(); } catch(e){}
+                    }
+                    scanner = new Html5Qrcode("gambuh-scanner-box");
+                    absenScannerRef.current = scanner;
+                    
+                    if (!hasAttended) {
+                        await scanner.start(
+                            { facingMode: "environment" },
+                            { fps: 10, qrbox: { width: 250, height: 250 } },
+                            (decodedText: string) => {
+                                if (decodedText.includes("kegiatanId=")) {
+                                    try {
+                                        const urlObj = new URL(decodedText);
+                                        const kId = urlObj.searchParams.get("kegiatanId");
+                                        if (kId) {
+                                            handleAbsenScan(kId);
+                                        }
+                                    } catch(e) {}
+                                }
+                            },
+                            () => {} // ignore
+                        );
+                        setIsScanning(true);
+                    }
+                } catch(e) {
+                   Swal.fire('Error', 'Kamera gagal dimulai', 'error');
+                   setShowAbsenScanner(false);
+                }
+            };
+            initScanner();
+
+            return () => {
+                if (scanner) {
+                    try { scanner.stop(); } catch(e){}
+                }
+            };
+        } else {
+            if (absenScannerRef.current) {
+                try { absenScannerRef.current.stop(); } catch(e){}
+                absenScannerRef.current = null;
+            }
+            setIsScanning(false);
+            setScanFeedback(null);
+        }
+    }, [showAbsenScanner, hasAttended]);
+
+    const handleAbsenScan = async (kegiatanId: string) => {
+        if (absenScannerRef.current) {
+            try { await absenScannerRef.current.stop(); } catch(e){}
+        }
+        setIsScanning(false);
+
+        setScanFeedback({ type: "processing", text: "Mengirim absensi..." });
+
+        try {
+            const res = await fetch("/api/mandiri/absensi", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    kegiatanId,
+                    generusId: myId
+                })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                 setScanFeedback({ type: "success", text: "Berhasil! Kehadiran Anda tersimpan." });
+                 setHasAttended(true);
+            } else if (res.status === 409) {
+                 setScanFeedback({ type: "success", text: "Berhasil! Kehadiran Anda sudah tercatat sebelumnya." });
+                 setHasAttended(true);
+            } else {
+                 throw new Error(data.error);
+            }
+        } catch (e: any) {
+            setScanFeedback({ type: "error", text: e.message || "Gagal absen" });
+        }
+    };
+
+    const handleOpenAbsensi = async () => {
+        if (!myId) {
+            Swal.fire("Pilih Identitas", "Pilih nama Anda terlebih dahulu sebelum absen.", "warning");
+            return;
+        }
+        
+        // Asumsi kita buka dlu
+        setShowAbsenScanner(true);
+        setScanFeedback(null);
+        setHasAttended(false); 
     };
 
     const handleClearRoom = async (id: string) => {
@@ -813,6 +917,16 @@ export default function TimGambuhOperatorPage() {
                         <button className="btn-identity" onClick={() => showSelectIdentityModal(false)} title="Ubah Identitas">
                             Ubah Identitas
                         </button>
+                        <button className="btn-refresh" onClick={handleOpenAbsensi} style={{
+                            display: 'flex', alignItems: 'center', gap: '6px',
+                            background: '#fef3c7', color: '#92400e',
+                            border: '1px solid #fde68a', padding: '8px 16px',
+                            borderRadius: '8px', fontSize: '13px', fontWeight: '600',
+                            cursor: 'pointer'
+                        }}>
+                            <QrCode size={16} />
+                            Absensi
+                        </button>
                         <Link href="/tim-gambuh/katalog" className="btn-refresh" title="Katalog Peserta" style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -1079,6 +1193,40 @@ export default function TimGambuhOperatorPage() {
                 </div>
 
             </div>
+
+            {showAbsenScanner && (
+                <div style={{
+                    position: "fixed", inset: 0, zIndex: 9999,
+                    background: "rgba(0,0,0,0.8)", display: "flex",
+                    alignItems: "center", justifyContent: "center", padding: "16px"
+                }} onClick={() => setShowAbsenScanner(false)}>
+                    <div style={{
+                        background: "white", borderRadius: "16px", padding: "24px",
+                        width: "100%", maxWidth: "400px", textAlign: "center"
+                    }} onClick={e => e.stopPropagation()}>
+                        <h3 style={{ marginBottom: "16px" }}>{hasAttended ? "Sudah Hadir" : "Scan QR Absensi"}</h3>
+                        
+                        {hasAttended ? (
+                           <div style={{ padding: "40px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+                              <CheckCircle size={64} style={{ color: "#10b981", animation: "pulse 2s infinite" }} />
+                              <p style={{ fontSize: "16px", fontWeight: "bold", color: "#1e293b", margin: 0 }}>Anda sudah tercatat hadir!</p>
+                           </div>
+                        ) : (
+                           <div style={{ width: "100%", aspectRatio: "1/1", background: "#f8fafc", borderRadius: "8px", overflow: "hidden", border: "2px dashed #94a3b8" }}>
+                               <div id="gambuh-scanner-box" style={{ width: "100%", height: "100%" }}></div>
+                           </div>
+                        )}
+                        
+                        {scanFeedback && !hasAttended && (
+                            <div style={{ marginTop: "12px", padding: "10px", borderRadius: "8px", fontSize: "13px", fontWeight: 600, background: scanFeedback.type === 'error' ? '#fef2f2' : (scanFeedback.type === 'processing' ? '#eff6ff' : '#ecfdf5'), color: scanFeedback.type === 'error' ? '#ef4444' : (scanFeedback.type === 'processing' ? '#3b82f6' : '#10b981') }}>
+                                {scanFeedback.text}
+                            </div>
+                        )}
+                        
+                        <button onClick={() => setShowAbsenScanner(false)} style={{ marginTop: "24px", padding: "12px 20px", width: "100%", borderRadius: "8px", border: "none", background: "#ef4444", color: "white", fontWeight: "bold", cursor: "pointer" }}>Tutup</button>
+                    </div>
+                </div>
+            )}
 
             {selectedRoom && (
                 <div style={{
