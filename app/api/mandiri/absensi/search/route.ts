@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, mandiri, mandiriDesa, idCardBuilderData, formPanitiaDanPengurus, settings, mandiriDaerah } from "@/lib/schema";
+import { generus, mandiri, mandiriDesa, idCardBuilderData, formPanitiaDanPengurus, settings, mandiriDaerah, timGambuh } from "@/lib/schema";
 import { eq, or, like, and, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 
@@ -40,7 +40,14 @@ export async function GET(request: NextRequest) {
       .from(generus)
       .leftJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, kegiatanId)))
       .leftJoin(idCardBuilderData, and(eq(generus.nomorUnik, idCardBuilderData.nomorUnik), eq(idCardBuilderData.kegiatanId, kegiatanId)))
-      .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
+      .leftJoin(timGambuh, eq(generus.id, timGambuh.id))
+      .leftJoin(
+        mandiriDesa,
+        eq(
+          sql`COALESCE(${generus.mandiriDesaId}, ${timGambuh.desaId})`,
+          mandiriDesa.id
+        )
+      )
       .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
       .where(
         and(

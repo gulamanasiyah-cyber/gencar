@@ -35,10 +35,16 @@ export async function GET(request: NextRequest) {
       .leftJoin(generus, eq(mandiriAbsensi.generusId, generus.id))
       .leftJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, kegiatanId)))
       .leftJoin(idCardBuilderData, eq(generus.nomorUnik, idCardBuilderData.nomorUnik))
-      .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
-      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
       .leftJoin(formPanitiaDanPengurus, and(eq(generus.id, formPanitiaDanPengurus.generusId), eq(formPanitiaDanPengurus.kegiatanId, kegiatanId)))
       .leftJoin(timGambuh, eq(generus.id, timGambuh.id))
+      .leftJoin(
+        mandiriDesa,
+        eq(
+          sql`COALESCE(${generus.mandiriDesaId}, ${timGambuh.desaId}, ${formPanitiaDanPengurus.mandiriDesaId})`,
+          mandiriDesa.id
+        )
+      )
+      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
       .where(eq(mandiriAbsensi.kegiatanId, kegiatanId));
 
     return NextResponse.json(data);
@@ -128,6 +134,8 @@ export async function POST(request: NextRequest) {
               nomorUnik: `PNKB-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
               jenisKelamin: gb.tipe.toLowerCase().includes("ibu") ? "P" : "L",
               noTelp: gb.noTelp,
+              mandiriDesaId: gb.desaId,
+              mandiriKelompokId: gb.kelompokId,
               kategoriUsia: "Bekerja",
               isGenerus: 1,
               createdBy: "ABSENSI_AUTO_LINK_GAMBUH"
