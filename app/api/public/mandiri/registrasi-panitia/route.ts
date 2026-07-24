@@ -16,9 +16,16 @@ function generateNomorUnik() {
 export async function POST(request: NextRequest) {
   try {
     // 1. Check Registration Status
-    const statusSet = await db.select().from(settings).where(eq(settings.key, "mandiri_registration_status"));
-    if (statusSet[0]?.value === "0") {
-      return NextResponse.json({ error: "Mohon maaf, pendaftaran saat ini sudah ditutup" }, { status: 403 });
+    const panitiaStatusSet = await db.select().from(settings).where(eq(settings.key, "mandiri_panitia_registration_status"));
+    if (panitiaStatusSet.length > 0) {
+      if (panitiaStatusSet[0].value === "0") {
+        return NextResponse.json({ error: "Mohon maaf, pendaftaran panitia saat ini sudah ditutup" }, { status: 403 });
+      }
+    } else {
+      const statusSet = await db.select().from(settings).where(eq(settings.key, "mandiri_registration_status"));
+      if (statusSet[0]?.value === "0") {
+        return NextResponse.json({ error: "Mohon maaf, pendaftaran saat ini sudah ditutup" }, { status: 403 });
+      }
     }
 
     const body = await request.json();

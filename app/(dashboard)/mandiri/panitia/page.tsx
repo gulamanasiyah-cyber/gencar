@@ -57,6 +57,7 @@ export default function MandiriPanitiaPage() {
   const [userRole, setUserRole] = useState("");
   const [kegiatanList, setKegiatanList] = useState<KegiatanOption[]>([]);
   const [selectedKegiatanId, setSelectedKegiatanId] = useState("");
+  const [panitiaRegOpen, setPanitiaRegOpen] = useState(true);
   const limit = 200;
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -100,14 +101,18 @@ export default function MandiriPanitiaPage() {
 
     const fetchInit = async () => {
       try {
-        const [settingsRes, kegiatanRes, daerahRes, desaRes, kelRes] = await Promise.all([
+        const [settingsRes, panitiaRegRes, kegiatanRes, daerahRes, desaRes, kelRes] = await Promise.all([
           fetch("/api/settings"),
+          fetch("/api/public/mandiri/settings?key=mandiri_panitia_registration_status"),
           fetch("/api/mandiri/kegiatan"),
           fetch("/api/public/mandiri/daerah"),
           fetch("/api/public/mandiri/desa?scope=all"),
           fetch("/api/public/mandiri/kelompok?scope=all")
         ]);
         const s = await settingsRes.json();
+        const pReg = await panitiaRegRes.json();
+        setPanitiaRegOpen(pReg.value !== "0");
+        
         const kList = await kegiatanRes.json();
         if (Array.isArray(kList)) {
           setKegiatanList(kList);
@@ -147,6 +152,32 @@ export default function MandiriPanitiaPage() {
       setLoading(false);
     }
   }, [search, page, selectedKegiatanId]);
+
+  const handleTogglePanitiaReg = async () => {
+    try {
+      const newStatus = panitiaRegOpen ? "0" : "1";
+      const res = await fetch("/api/mandiri/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "mandiri_panitia_registration_status", value: newStatus }),
+      });
+      if (res.ok) {
+        setPanitiaRegOpen(!panitiaRegOpen);
+        Swal.fire({
+          icon: "success",
+          title: "Berhasil",
+          text: `Form Pendaftaran Panitia berhasil ${newStatus === "1" ? "dibuka" : "ditutup"}.`,
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      } else {
+        Swal.fire({ icon: "error", title: "Gagal", text: "Terjadi kesalahan saat menyimpan pengaturan." });
+      }
+    } catch (e) {
+      console.error(e);
+      Swal.fire({ icon: "error", title: "Gagal", text: "Terjadi kesalahan sistem." });
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -342,7 +373,20 @@ export default function MandiriPanitiaPage() {
               <h2>Pengelolaan Panitia</h2>
               <p>Daftar pengguna yang sudah terdaftar sebagai panitia kegiatan.</p>
             </div>
-            <div style={{ display: "flex", gap: "10px" }}>
+            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "white", padding: "8px 12px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+                <span style={{ fontSize: "13px", fontWeight: "600", color: "#475569" }}>Status Pendaftaran:</span>
+                <button
+                  className={`btn-toggle-status ${panitiaRegOpen ? "active" : ""}`}
+                  onClick={handleTogglePanitiaReg}
+                  title={panitiaRegOpen ? "Tutup Pendaftaran" : "Buka Pendaftaran"}
+                >
+                  <div className="toggle-circle"></div>
+                </button>
+                <span style={{ fontSize: "12px", fontWeight: "700", color: panitiaRegOpen ? "#10b981" : "#ef4444" }}>
+                  {panitiaRegOpen ? "BUKA" : "TUTUP"}
+                </span>
+              </div>
               <Link href="/mandiri/daftar-panitia" className="btn btn-primary" title="Tambah Panitia/Pengurus">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16 }}>
                   <path d="M12 5v14M5 12h14" />
@@ -831,6 +875,34 @@ export default function MandiriPanitiaPage() {
         .btn-icon:hover {
            transform: scale(1.1);
            filter: brightness(0.95);
+        }
+        .btn-toggle-status {
+          width: 44px;
+          height: 24px;
+          background: #e2e8f0;
+          border-radius: 999px;
+          border: none;
+          cursor: pointer;
+          position: relative;
+          transition: 0.3s;
+          display: flex;
+          align-items: center;
+        }
+        .btn-toggle-status.active {
+          background: #10b981;
+        }
+        .toggle-circle {
+          width: 18px;
+          height: 18px;
+          background: white;
+          border-radius: 50%;
+          position: absolute;
+          left: 3px;
+          transition: 0.3s;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .btn-toggle-status.active .toggle-circle {
+          left: calc(100% - 21px);
         }
       `}</style>
     </div>

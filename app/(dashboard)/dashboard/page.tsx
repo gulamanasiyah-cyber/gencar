@@ -513,7 +513,16 @@ async function getStats(session: any, searchParams?: any) {
           formPanitiaDanPengurus,
           eq(mandiriAbsensi.generusId, formPanitiaDanPengurus.generusId),
         )
-        .where(and(attendanceFilter(), panitiaFilter, panitiaFilterWithParams)),
+        .where(
+          and(
+            attendanceFilter(),
+            panitiaFilter,
+            panitiaFilterWithParams,
+            currentActivityId
+              ? eq(formPanitiaDanPengurus.kegiatanId, currentActivityId)
+              : undefined,
+          ),
+        ),
       // Hadir Panitia Laki-laki
       db
         .select({
@@ -529,6 +538,9 @@ async function getStats(session: any, searchParams?: any) {
             attendanceFilter(eq(formPanitiaDanPengurus.jenisKelamin, "L")),
             panitiaFilter,
             panitiaFilterWithParams,
+            currentActivityId
+              ? eq(formPanitiaDanPengurus.kegiatanId, currentActivityId)
+              : undefined,
           ),
         ),
       // Hadir Panitia Perempuan
@@ -546,6 +558,9 @@ async function getStats(session: any, searchParams?: any) {
             attendanceFilter(eq(formPanitiaDanPengurus.jenisKelamin, "P")),
             panitiaFilter,
             panitiaFilterWithParams,
+            currentActivityId
+              ? eq(formPanitiaDanPengurus.kegiatanId, currentActivityId)
+              : undefined,
           ),
         ),
       // Total Panitia
@@ -587,7 +602,16 @@ async function getStats(session: any, searchParams?: any) {
           formPanitiaDanPengurus,
           eq(mandiriAbsensi.generusId, formPanitiaDanPengurus.generusId),
         )
-        .where(and(pulangFilter(), panitiaFilter, panitiaFilterWithParams)),
+        .where(
+          and(
+            pulangFilter(),
+            panitiaFilter,
+            panitiaFilterWithParams,
+            currentActivityId
+              ? eq(formPanitiaDanPengurus.kegiatanId, currentActivityId)
+              : undefined,
+          ),
+        ),
       // Terdaftar Peserta Laki
       db
         .select({ count: sql<number>`count(DISTINCT ${mandiri.id})` })

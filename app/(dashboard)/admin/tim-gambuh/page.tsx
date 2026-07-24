@@ -17,7 +17,9 @@ import {
   X,
   Mars,
   Venus,
+  Download,
 } from "lucide-react";
+import ExcelJS from "exceljs";
 
 type TimGambuhType =
   | "PNKB"
@@ -33,7 +35,10 @@ interface TimGambuhItem {
   daerahNama: string | null;
   desaId: number | null;
   desaNama: string | null;
+  kelompokId?: number | null;
+  kelompokNama?: string | null;
   tipe: TimGambuhType;
+  noTelp?: string | null;
   foto?: string | null;
   createdAt: string | null;
 }
@@ -844,6 +849,95 @@ export default function AdminTimGambuhPage() {
     }
   };
 
+  const handleExportExcel = async () => {
+    if (members.length === 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "Tidak Ada Data",
+        text: "Tidak ada data Tim Gambuh untuk diekspor.",
+      });
+      return;
+    }
+
+    Swal.fire({
+      title: 'Menyiapkan Export...',
+      text: 'Mengunduh data dan foto, mohon tunggu.',
+      allowOutsideClick: false,
+      didOpen: () => { Swal.showLoading(); }
+    });
+
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet("Data Tim Gambuh");
+
+      worksheet.columns = [
+        { header: "No.", key: "no", width: 5 },
+        { header: "Nama Lengkap", key: "nama", width: 30 },
+        { header: "No. WhatsApp / Telp", key: "noTelp", width: 25 },
+        { header: "Umur", key: "umur", width: 10 },
+        { header: "Dapukan / Tipe", key: "tipe", width: 25 },
+        { header: "Daerah", key: "daerah", width: 20 },
+        { header: "Desa", key: "desa", width: 20 },
+        { header: "Waktu Daftar", key: "createdAt", width: 25 },
+      ];
+
+      for (let i = 0; i < members.length; i++) {
+        const item = members[i];
+        const rowNumber = i + 2;
+        const rowData = {
+          no: i + 1,
+          nama: item.nama || "-",
+          noTelp: item.noTelp || "-",
+          umur: item.umur ? `${item.umur} Tahun` : "-",
+          tipe: item.tipe || "-",
+          daerah: item.daerahNama || "-",
+          desa: item.desaNama || "-",
+          createdAt: item.createdAt ? new Date(item.createdAt).toLocaleString("id-ID") : "-",
+        };
+
+        worksheet.addRow(rowData);
+      }
+
+      // Add a thin border to all cells
+      worksheet.eachRow((row, rowNumber) => {
+        row.eachCell((cell, colNumber) => {
+          if (rowNumber === 1) { // Header
+            cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF3B82F6" } };
+            cell.alignment = { vertical: "middle", horizontal: "center" };
+          } else {
+            cell.alignment = { vertical: "middle", horizontal: "left" };
+          }
+          cell.border = {
+            top: { style: "thin", color: { argb: "FFDDDDDD" } },
+            left: { style: "thin", color: { argb: "FFDDDDDD" } },
+            bottom: { style: "thin", color: { argb: "FFDDDDDD" } },
+            right: { style: "thin", color: { argb: "FFDDDDDD" } },
+          };
+        });
+      });
+
+      const kegiatanObj = kegiatanList.find((k) => k.id === selectedKegiatanId);
+      const namaKegiatan = kegiatanObj ? kegiatanObj.judul.replace(/\s+/g, "_") : "Semua_Kegiatan";
+      const tanggal = new Date().toISOString().slice(0, 10);
+      const fileName = `Export_Tim_Gambuh_${namaKegiatan}_${tanggal}.xlsx`;
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      
+      const a = document.createElement("a");
+      a.href = window.URL.createObjectURL(blob);
+      a.download = fileName;
+      a.click();
+      window.URL.revokeObjectURL(a.href);
+
+      Swal.close();
+    } catch (e: any) {
+      console.error(e);
+      Swal.fire({ icon: "error", title: "Error", text: e.message || "Gagal mengekspor data ke Excel." });
+    }
+  };
+
   const handleCopyLink = () => {
     const link = `${window.location.origin}/mandiri/daftar-tim-gambuh`;
 
@@ -981,6 +1075,21 @@ export default function AdminTimGambuhPage() {
               <span style={{ fontWeight: 700 }}>
                 Status: {registrationStatus === "open" ? "BUKA" : "TUTUP"}
               </span>
+            </button>
+
+            <button
+              onClick={handleExportExcel}
+              className="btn btn-outline"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                margin: 0,
+                color: "#16a34a",
+                borderColor: "#bbf7d0",
+              }}
+            >
+              <Download size={16} /> Export Excel
             </button>
 
             <button

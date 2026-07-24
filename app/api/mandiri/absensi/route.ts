@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriAbsensi, generus, mandiriKegiatan, mandiriDesa, mandiri, idCardBuilderData, formPanitiaDanPengurus, mandiriDaerah } from "@/lib/schema";
+import { mandiriAbsensi, generus, mandiriKegiatan, mandiriDesa, mandiri, idCardBuilderData, formPanitiaDanPengurus, mandiriDaerah, timGambuh } from "@/lib/schema";
 import { eq, and, or, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
@@ -28,14 +28,17 @@ export async function GET(request: NextRequest) {
         generusNomorUnik: generus.nomorUnik,
         desaNama: mandiriDesa.nama,
         desaKota: mandiriDaerah.nama,
-        nomorPeserta: sql<string>`COALESCE(CAST(${mandiri.nomorUrut} AS TEXT), ${idCardBuilderData.dapukan})`,
+        nomorPeserta: sql<string>`COALESCE(CAST(${mandiri.nomorUrut} AS TEXT), COALESCE(${idCardBuilderData.dapukan}, ${timGambuh.tipe}))`,
+        dapukan: sql<string>`COALESCE(${formPanitiaDanPengurus.dapukan}, COALESCE(${timGambuh.tipe}, 'Peserta'))`,
       })
       .from(mandiriAbsensi)
       .leftJoin(generus, eq(mandiriAbsensi.generusId, generus.id))
-      .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
+      .leftJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, kegiatanId)))
       .leftJoin(idCardBuilderData, eq(generus.nomorUnik, idCardBuilderData.nomorUnik))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
       .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
+      .leftJoin(formPanitiaDanPengurus, and(eq(generus.id, formPanitiaDanPengurus.generusId), eq(formPanitiaDanPengurus.kegiatanId, kegiatanId)))
+      .leftJoin(timGambuh, eq(generus.id, timGambuh.id))
       .where(eq(mandiriAbsensi.kegiatanId, kegiatanId));
 
     return NextResponse.json(data);
@@ -108,10 +111,34 @@ export async function POST(request: NextRequest) {
         .limit(1);
 
       if (panitiaResults.length === 0) {
-        return NextResponse.json({ error: `Kode/No. Peserta "${rawGenerusId}" tidak terdaftar dalam sistem.` }, { status: 404 });
-      }
+        // Try searching in tim_gambuh
+        const gambuhResults = await db.select().from(timGambuh).where(eq(timGambuh.id, rawGenerusId)).limit(1);
+        
+        if (gambuhResults.length > 0) {
+          const gb = gambuhResults[0];
+          resolvedGenerusId = gb.id; // use same UUID
+          resolvedGenerusNama = gb.nama;
+          
+          // Check if already in generus
+          const existG = await db.query.generus.findFirst({ where: eq(generus.id, gb.id) });
+          if (!existG) {
+            await db.insert(generus).values({
+              id: gb.id,
+              nama: gb.nama,
+              nomorUnik: `PNKB-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+              jenisKelamin: gb.tipe.toLowerCase().includes("ibu") ? "P" : "L",
+              noTelp: gb.noTelp,
+              kategoriUsia: "Bekerja",
+              isGenerus: 1,
+              createdBy: "ABSENSI_AUTO_LINK_GAMBUH"
+            });
+          }
+        } else {
+          return NextResponse.json({ error: `Kode/No. Peserta "${rawGenerusId}" tidak terdaftar dalam sistem.` }, { status: 404 });
+        }
+      } else {
 
-      const panitia = panitiaResults[0];
+        const panitia = panitiaResults[0];
       
       if (panitia.generusId) {
         resolvedGenerusId = panitia.generusId;
@@ -139,6 +166,7 @@ export async function POST(request: NextRequest) {
         await db.update(formPanitiaDanPengurus)
           .set({ generusId: resolvedGenerusId })
           .where(eq(formPanitiaDanPengurus.id, panitia.id));
+      }
       }
     }
 

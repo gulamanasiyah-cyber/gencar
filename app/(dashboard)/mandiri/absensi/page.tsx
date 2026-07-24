@@ -27,6 +27,7 @@ interface AbsensiItem {
   nomorPeserta: any;
   timestamp: string | null;
   keterangan: string | null;
+  dapukan: string;
 }
 
 interface GenerusResult {
@@ -1028,6 +1029,7 @@ function AbsensiContent() {
                       <th className="table-hide-mobile">#</th>
                       <th>Peserta</th>
                       <th>Daerah</th>
+                      <th>Dapukan</th>
                       <th className="table-hide-mobile">Waktu</th>
                       <th></th>
                     </tr>
@@ -1043,6 +1045,13 @@ function AbsensiContent() {
                           </div>
                         </td>
                         <td data-label="Daerah"><span className="badge badge-blue" style={{ fontSize: "10px" }}>{item.desaKota || item.desaNama || "Umum"}</span></td>
+                        <td data-label="Dapukan">
+                          <span style={{ 
+                            fontSize: "11px", fontWeight: 700, padding: "4px 8px", borderRadius: "10px", textTransform: "uppercase",
+                            background: item.dapukan?.toLowerCase() === '' ? '#f1f5f9' : '#e0e7ff',
+                            color: item.dapukan?.toLowerCase() === '' ? '#475569' : '#4338ca' 
+                          }}>{item.dapukan || 'Peserta'}</span>
+                        </td>
                         <td className="text-sm text-muted table-hide-mobile" data-label="Waktu">
                           {item.timestamp ? new Date(item.timestamp).toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' }) : "-"}
                         </td>
