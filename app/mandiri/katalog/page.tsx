@@ -2274,18 +2274,108 @@ export default function PublicKatalogPage() {
               <h3>Belum Ada Hasil</h3>
               <p>Anda belum memiliki sesi Romantic Room yang sedang berjalan atau selesai.</p>
             </div>
-          ) : (
+          ) : (() => {
+            const matchList = hasilRRList.filter(h => h.hasilPengirim === "Lanjut" && h.hasilPenerima === "Lanjut");
+            return (
             <div className="cart-list" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {hasilRRList.map(h => {
+
+              {/* === MATCH SECTION: Both chose Lanjut === */}
+              {matchList.length > 0 && (
+                <div style={{ marginBottom: '8px' }}>
+                  <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                    <span style={{ fontSize: '28px' }}>💕</span>
+                    <h3 style={{ margin: '4px 0 2px', fontSize: '17px', fontWeight: 800, color: '#be185d' }}>Pasangan Lanjut</h3>
+                    <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>Kedua peserta memilih <b>Lanjut</b></p>
+                  </div>
+                  {matchList.map(h => {
+                    const isPengirim = h.pengirimId === currentUser?.id;
+                    const partnerName = isPengirim ? h.penerimaNama : h.pengirimNama;
+                    const partnerNoUrut = isPengirim ? h.penerimaNoUrut : h.pengirimNoUrut;
+                    const myName = isPengirim ? h.pengirimNama : h.penerimaNama;
+                    const myNoUrut = isPengirim ? h.pengirimNoUrut : h.penerimaNoUrut;
+                    return (
+                      <div key={`match-${h.id}`} style={{
+                        background: 'linear-gradient(135deg, #fdf2f8 0%, #fff1f2 50%, #fef2f2 100%)',
+                        borderRadius: '16px',
+                        padding: '20px',
+                        border: '2px solid #fbcfe8',
+                        boxShadow: '0 4px 15px rgba(190,24,93,0.08)',
+                        marginBottom: '4px',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                          {/* My side */}
+                          <div style={{ textAlign: 'center', flex: 1, minWidth: '100px' }}>
+                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#1e293b' }}>{myName}</div>
+                            <div style={{ fontSize: '11px', color: '#64748b' }}>#{myNoUrut}</div>
+                            <div style={{
+                              marginTop: '6px',
+                              display: 'inline-block',
+                              padding: '3px 10px',
+                              borderRadius: '999px',
+                              fontSize: '11px',
+                              fontWeight: 800,
+                              background: '#dcfce7',
+                              color: '#166534',
+                              border: '1px solid #bbf7d0',
+                            }}>✓ Lanjut</div>
+                          </div>
+
+                          {/* Heart icon */}
+                          <div style={{ fontSize: '28px', lineHeight: 1 }}>❤️</div>
+
+                          {/* Partner side */}
+                          <div style={{ textAlign: 'center', flex: 1, minWidth: '100px' }}>
+                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#1e293b' }}>{partnerName}</div>
+                            <div style={{ fontSize: '11px', color: '#64748b' }}>#{partnerNoUrut}</div>
+                            <div style={{
+                              marginTop: '6px',
+                              display: 'inline-block',
+                              padding: '3px 10px',
+                              borderRadius: '999px',
+                              fontSize: '11px',
+                              fontWeight: 800,
+                              background: '#dcfce7',
+                              color: '#166534',
+                              border: '1px solid #bbf7d0',
+                            }}>✓ Lanjut</div>
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'center', marginTop: '12px', fontSize: '12px', color: '#94a3b8' }}>
+                          {new Date(h.createdAt).toLocaleDateString('id-ID')}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* === ALL SESSIONS (excluding matches shown above) === */}
+              {hasilRRList.filter(h => !(h.hasilPengirim === "Lanjut" && h.hasilPenerima === "Lanjut")).length > 0 && (
+                <>
+                  {matchList.length > 0 && (
+                    <div style={{ textAlign: 'center', margin: '4px 0 8px' }}>
+                      <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#475569', margin: 0 }}>Sesi Lainnya</h4>
+                    </div>
+                  )}
+                  {hasilRRList.filter(h => !(h.hasilPengirim === "Lanjut" && h.hasilPenerima === "Lanjut")).map(h => {
                 const isPengirim = h.pengirimId === currentUser?.id;
                 const partnerName = isPengirim ? h.penerimaNama : h.pengirimNama;
                 const partnerNoUrut = isPengirim ? h.penerimaNoUrut : h.pengirimNoUrut;
                 const myHasil = isPengirim ? h.hasilPengirim : h.hasilPenerima;
+                const partnerHasil = isPengirim ? h.hasilPenerima : h.hasilPengirim;
                 const selectedHasil = myHasil || hasilRRDrafts[h.id] || "";
                 const isSubmittingThis = submittingHasilId === h.id;
                 const isDalamRuangan = h.status === "Diterima";
 
                 const isRagu = (val: string) => val === "Ragu-Ragu" || val === "Ragu-ragu";
+
+                const bothAnswered = !!myHasil && !!partnerHasil;
+
+                const getResultBadge = (val: string) => {
+                  if (val === "Lanjut") return { bg: '#dcfce7', color: '#166534', border: '#bbf7d0', label: '✓ Lanjut' };
+                  if (isRagu(val)) return { bg: '#fef9c3', color: '#854d0e', border: '#fde68a', label: '~ Ragu-Ragu' };
+                  return { bg: '#fee2e2', color: '#991b1b', border: '#fecaca', label: '✗ Tidak Lanjut' };
+                };
 
                 return (
                   <div key={h.id} style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
@@ -2383,11 +2473,42 @@ export default function PublicKatalogPage() {
                         {isSubmittingThis ? "Menyimpan..." : "Submit"}
                       </button>
                     )}
+
+                    {/* Show partner's result once both have answered */}
+                    {bothAnswered && (
+                      <div style={{ marginTop: '14px', padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '8px' }}>Jawaban {partnerName}:</div>
+                        {(() => {
+                          const badge = getResultBadge(partnerHasil);
+                          return (
+                            <span style={{
+                              display: 'inline-block',
+                              padding: '4px 12px',
+                              borderRadius: '999px',
+                              fontSize: '12px',
+                              fontWeight: 800,
+                              background: badge.bg,
+                              color: badge.color,
+                              border: `1px solid ${badge.border}`,
+                            }}>{badge.label}</span>
+                          );
+                        })()}
+                      </div>
+                    )}
+                    {myHasil && !partnerHasil && (
+                      <div style={{ marginTop: '14px', padding: '10px', borderRadius: '12px', background: '#fffbeb', border: '1px solid #fde68a', fontSize: '12px', color: '#92400e', textAlign: 'center' }}>
+                        <Timer size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
+                        Menunggu jawaban dari {partnerName}...
+                      </div>
+                    )}
                   </div>
                 )
               })}
+                </>
+              )}
             </div>
-          )}
+            );
+          })()}
         </div>
       )}
 

@@ -57,6 +57,7 @@ interface DesaItem {
 interface FormState {
   nama: string;
   umur: string;
+  noTelp: string;
   daerahId: string;
   desaId: string;
   tipe: TimGambuhType;
@@ -66,6 +67,7 @@ interface FormState {
 const initialForm: FormState = {
   nama: "",
   umur: "",
+  noTelp: "",
   daerahId: "",
   desaId: "",
   tipe: "PNKB",
@@ -595,6 +597,7 @@ export default function AdminTimGambuhPage() {
     setForm({
       nama: member.nama || "",
       umur: member.umur != null ? String(member.umur) : "",
+      noTelp: member.noTelp || "",
       daerahId: member.daerahId ? String(member.daerahId) : "",
       desaId: member.desaId ? String(member.desaId) : "",
       tipe: member.tipe || "PNKB",
@@ -702,6 +705,7 @@ export default function AdminTimGambuhPage() {
       const payload = {
         nama: form.nama.trim(),
         umur: form.umur ? Number(form.umur) : null,
+        noTelp: form.noTelp.trim() || null,
         daerahId: form.daerahId ? Number(form.daerahId) : null,
         desaId: form.desaId ? Number(form.desaId) : null,
         tipe: form.tipe,
@@ -1726,6 +1730,23 @@ export default function AdminTimGambuhPage() {
                     setForm((prev) => ({
                       ...prev,
                       umur: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: "16px" }}>
+                <label className="form-label">No. Telepon / WhatsApp</label>
+
+                <input
+                  type="tel"
+                  className="form-control"
+                  placeholder="Contoh: 08123456789"
+                  value={form.noTelp}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      noTelp: e.target.value,
                     }))
                   }
                 />

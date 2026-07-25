@@ -15,7 +15,7 @@ export async function PUT(
     }
 
     const { id } = params;
-    const { nama, daerahId, desaId, tipe } = await request.json();
+    const { nama, daerahId, desaId, tipe, umur, noTelp, foto } = await request.json();
 
     if (!nama || !tipe || !daerahId || !desaId) {
       return NextResponse.json({ error: "Nama, Tipe, Daerah, dan Desa wajib diisi" }, { status: 400 });
@@ -28,9 +28,12 @@ export async function PUT(
     await db.update(timGambuh)
       .set({
         nama,
+        umur: umur ? Number(umur) : null,
+        noTelp: noTelp || null,
         daerahId: daerahId ? Number(daerahId) : null,
         desaId: desaId ? Number(desaId) : null,
         tipe: tipe as "PNKB" | "Ibu Gambuh" | "Penunggu PNKB" | "Penunggu Ibu Gambuh",
+        foto: foto || null,
       })
       .where(eq(timGambuh.id, id));
 
