@@ -1839,7 +1839,16 @@ export default function RomanticRoomPage() {
                                                 <div className="pair-names-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                                                     {/* Caller */}
                                                     <div className="participant-row caller" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                                                        <div className="p-role-tag caller" style={{ alignSelf: 'flex-start', margin: 0, padding: '1px 4px', fontSize: '7.5px', borderRadius: '3px' }}>Pemanggil</div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', alignSelf: 'flex-start' }}>
+                                                            <div className="p-role-tag caller" style={{ margin: 0, padding: '1px 4px', fontSize: '7.5px', borderRadius: '3px' }}>Pemanggil</div>
+                                                            {item.pengirimStatus && (
+                                                                <div style={{ 
+                                                                    background: item.pengirimStatus.toLowerCase().includes('panitia') ? '#fef08a' : '#d1fae5', 
+                                                                    color: item.pengirimStatus.toLowerCase().includes('panitia') ? '#a16207' : '#047857', 
+                                                                    padding: '1px 4px', fontSize: '7.5px', borderRadius: '3px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px' 
+                                                                }}>{item.pengirimStatus}</div>
+                                                            )}
+                                                        </div>
                                                         <div className="p-main-box" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                                                             <span className="p-number-badge" style={{ padding: '1px 4px', fontSize: '9px', minWidth: '20px', borderRadius: '3px' }}>{item.pengirimNomorUrut || item.pengirimNo || '-'}</span>
                                                             <span className="p-name" style={{ fontSize: '12.5px', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -1859,7 +1868,16 @@ export default function RomanticRoomPage() {
  
                                                     {/* Called */}
                                                     <div className="participant-row called" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1px', alignItems: 'flex-end', textAlign: 'right' }}>
-                                                        <div className="p-role-tag called" style={{ alignSelf: 'flex-end', margin: 0, padding: '1px 4px', fontSize: '7.5px', borderRadius: '3px' }}>Dipanggil</div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', alignSelf: 'flex-end' }}>
+                                                            {item.penerimaStatus && (
+                                                                <div style={{ 
+                                                                    background: item.penerimaStatus.toLowerCase().includes('panitia') ? '#fef08a' : '#d1fae5', 
+                                                                    color: item.penerimaStatus.toLowerCase().includes('panitia') ? '#a16207' : '#047857', 
+                                                                    padding: '1px 4px', fontSize: '7.5px', borderRadius: '3px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px' 
+                                                                }}>{item.penerimaStatus}</div>
+                                                            )}
+                                                            <div className="p-role-tag called" style={{ margin: 0, padding: '1px 4px', fontSize: '7.5px', borderRadius: '3px' }}>Dipanggil</div>
+                                                        </div>
                                                         <div className="p-main-box" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', flexDirection: 'row-reverse' }}>
                                                             <span className="p-number-badge" style={{ padding: '1px 4px', fontSize: '9px', minWidth: '20px', borderRadius: '3px' }}>{item.penerimaNomorUrut || item.penerimaNo || '-'}</span>
                                                             <span className="p-name" style={{ fontSize: '12.5px', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -2004,7 +2022,7 @@ export default function RomanticRoomPage() {
                                                 const selectBase: React.CSSProperties = {
                                                     fontSize: '11px', fontWeight: 800, borderRadius: '4px',
                                                     border: '1px solid', cursor: 'pointer', outline: 'none',
-                                                    padding: '4px 6px', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                                    padding: '4px 6px', width: '100%', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.3',
                                                     appearance: 'none' as const, WebkitAppearance: 'none' as const,
                                                 };
                                                 const isKosong = room.status === 'Kosong';
@@ -2516,8 +2534,8 @@ export default function RomanticRoomPage() {
                     
                     .occupied-pair { display: flex; flex-direction: column; gap: 5px; width: 100%; }
                     .pair-member { display: flex; align-items: center; gap: 6px; justify-content: center; min-width: 0; }
-                    .room-p-number { background: #166534; color: white; padding: 1px 4px; border-radius: 4px; font-size: 9px; font-weight: 800; flex-shrink: 0; }
-                    .room-p-name { font-size: 11px; font-weight: 700; color: #166534; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                    .room-p-number { background: #166534; color: white; padding: 1px 4px; border-radius: 4px; font-size: 9px; font-weight: 800; flex-shrink: 0; align-self: flex-start; margin-top: 2px; }
+                    .room-p-name { font-size: 11px; font-weight: 700; color: #166534; white-space: normal; word-break: break-word; line-height: 1.3; text-align: left; flex: 1; }
                     .pair-separator { font-size: 10px; color: #166534; opacity: 0.4; font-weight: 800; }
                     
                     .btn-clear { background: #166534; color: white; border: none; border-radius: 6px; padding: 4px 6px; font-size: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; transition: all 0.2s; }
