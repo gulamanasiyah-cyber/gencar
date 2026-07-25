@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { mandiriPemilihan, generus, mandiri, mandiriRooms } from "@/lib/schema";
-import { eq, and, or, desc } from "drizzle-orm";
+import { eq, and, or, desc, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { pusherServer } from "@/lib/pusher";
 
@@ -85,6 +85,59 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
         }
 
+        // Check if both results are now filled
+        const updatedRecord = await db.query.mandiriPemilihan.findFirst({
+            where: eq(mandiriPemilihan.id, id)
+        });
+
+        const hasFinished = updatedRecord && 
+            updatedRecord.hasilPengirim && 
+            updatedRecord.hasilPengirim !== "Menunggu" && 
+            updatedRecord.hasilPenerima && 
+            updatedRecord.hasilPenerima !== "Menunggu";
+
+        if (hasFinished) {
+            // 1. Mark the pemilihan as "Selesai"
+            await db.update(mandiriPemilihan)
+                .set({ status: "Selesai" })
+                .where(eq(mandiriPemilihan.id, id));
+
+            // 2. Clean up matches if both chose "Lanjut"
+            try {
+                const { handleMatchCleanup } = await import("@/lib/matchCleanup");
+                await handleMatchCleanup(id);
+            } catch (cleanupErr) {
+                console.error("Failed to run match cleanup:", cleanupErr);
+            }
+
+            // 3. Find if this selection is in any active room and clear the room
+            const room = await db.query.mandiriRooms.findFirst({
+                where: eq(mandiriRooms.pemilihanId, id)
+            });
+
+            if (room) {
+                await db.update(mandiriRooms)
+                    .set({
+                        pemilihanId: null,
+                        timGambuhId: null,
+                        status: "Kosong",
+                        startedAt: null,
+                        updatedAt: sql`(datetime('now'))`
+                    })
+                    .where(eq(mandiriRooms.id, room.id));
+
+                // 4. Trigger Pusher room clear event
+                try {
+                    await pusherServer.trigger("taaruf-channel", "room-changed", {
+                        roomId: room.id,
+                        action: "clear",
+                    });
+                } catch (pusherErr) {
+                    console.error("Pusher trigger error:", pusherErr);
+                }
+            }
+        }
+
         try {
             await pusherServer.trigger("taaruf-channel", "taaruf-changed", {
                 type: "hasil-rr-updated",
@@ -95,7 +148,7 @@ export async function POST(request: NextRequest) {
             console.error("Pusher hasil-rr trigger error:", pusherErr);
         }
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, finished: !!hasFinished });
     } catch (e) {
         console.error("POST hasil-rr error:", e);
         return NextResponse.json({ error: "Gagal menyimpan data" }, { status: 500 });

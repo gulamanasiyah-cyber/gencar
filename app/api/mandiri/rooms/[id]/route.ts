@@ -393,7 +393,68 @@ export async function PATCH(
                         if (isPenerima && hasilPenerima) {
                             await db.update(mandiriPemilihan).set({ hasilPenerima }).where(eq(mandiriPemilihan.id, sel.id));
                         }
-                        return NextResponse.json({ success: true, message: "Hasil disimpan" });
+
+                        // Check if both results are now filled
+                        const updatedSel = await db.query.mandiriPemilihan.findFirst({
+                            where: eq(mandiriPemilihan.id, sel.id)
+                        });
+
+                        const hasFinished = updatedSel && 
+                            updatedSel.hasilPengirim && 
+                            updatedSel.hasilPengirim !== "Menunggu" && 
+                            updatedSel.hasilPenerima && 
+                            updatedSel.hasilPenerima !== "Menunggu";
+
+                        if (hasFinished) {
+                            // 1. Mark the pemilihan as "Selesai"
+                            await db.update(mandiriPemilihan)
+                                .set({ status: "Selesai" })
+                                .where(eq(mandiriPemilihan.id, sel.id));
+
+                            // 2. Clean up matches if both chose "Lanjut"
+                            try {
+                                const { handleMatchCleanup } = await import("@/lib/matchCleanup");
+                                await handleMatchCleanup(sel.id);
+                            } catch (cleanupErr) {
+                                console.error("Failed to run match cleanup:", cleanupErr);
+                            }
+
+                            // 3. Clear the room
+                            await db.update(mandiriRooms)
+                                .set({ 
+                                    pemilihanId: null, 
+                                    timGambuhId: null,
+                                    status: "Kosong",
+                                    startedAt: null,
+                                    updatedAt: sql`(datetime('now'))`
+                                })
+                                .where(eq(mandiriRooms.id, roomId));
+
+                            // 4. Trigger Pusher update
+                            try {
+                                await pusherServer.trigger("taaruf-channel", "room-changed", {
+                                    roomId,
+                                    action: "clear",
+                                });
+                            } catch (pusherErr) {
+                                console.error("Pusher trigger error:", pusherErr);
+                            }
+
+                            return NextResponse.json({ success: true, finished: true, message: "Sesi selesai, ruangan dikosongkan" });
+                        }
+
+                        // If not finished yet, trigger Pusher taaruf-changed so the other party sees the update
+                        try {
+                            await pusherServer.trigger("taaruf-channel", "taaruf-changed", {
+                                type: "hasil-rr-updated",
+                                pemilihanId: sel.id,
+                                generusId: userId
+                            });
+                        } catch (pusherErr) {
+                            console.error("Pusher hasil-rr trigger error:", pusherErr);
+                        }
+
+                        return NextResponse.json({ success: true, finished: false, message: "Hasil disimpan" });
                     } else if (isAssignedPanitia || isPanitiaThirdParty) {
                         const updates: any = {};
                         if (hasilPengirim) updates.hasilPengirim = hasilPengirim;
