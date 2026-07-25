@@ -1986,7 +1986,7 @@ export default function RomanticRoomPage() {
                                                 const selectBase: React.CSSProperties = {
                                                     fontSize: '11px', fontWeight: 800, borderRadius: '4px',
                                                     border: '1px solid', cursor: 'pointer', outline: 'none',
-                                                    padding: '4px 6px', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis',
+                                                    padding: '4px 6px', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                                     appearance: 'none' as const, WebkitAppearance: 'none' as const,
                                                 };
                                                 const isKosong = room.status === 'Kosong';

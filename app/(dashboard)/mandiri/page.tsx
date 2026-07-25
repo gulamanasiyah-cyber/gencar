@@ -202,34 +202,34 @@ export default function MandiriPage() {
          html: `
         <div style="text-align: left">
           <label class="form-label">Nama Kegiatan / Judul Form</label>
-          <select id="swal-title" class="form-control" style="margin-bottom: 12px" onchange="document.getElementById('swal-desc').value = this.options[this.selectedIndex].getAttribute('data-desc') || ''">
+          <select id="swal-title" class="form-control" style="margin-bottom: 12px; width: 100%; box-sizing: border-box;" onchange="document.getElementById('swal-desc').value = this.options[this.selectedIndex].getAttribute('data-desc') || ''">
              <option value="" data-desc="">-- Pilih Kegiatan --</option>
              ${kegiatanOptions}
           </select>
           <label class="form-label">Deskripsi Kegiatan</label>
-          <textarea id="swal-desc" class="form-control" rows="3" placeholder="Contoh: Diikuti oleh seluruh usia mandiri..." style="margin-bottom: 12px">${regDesc}</textarea>
+          <textarea id="swal-desc" class="form-control" rows="3" placeholder="Contoh: Diikuti oleh seluruh usia mandiri..." style="margin-bottom: 12px; width: 100%; box-sizing: border-box;">${regDesc}</textarea>
           <label class="form-label">Status Pendaftaran</label>
-          <select id="swal-status" class="form-control" style="margin-bottom: 12px">
+          <select id="swal-status" class="form-control" style="margin-bottom: 12px; width: 100%; box-sizing: border-box;">
             <option value="1" ${regStatus === "1" ? "selected" : ""}>Buka Semua</option>
             <option value="tutup_utusan" ${regStatus === "tutup_utusan" ? "selected" : ""}>Tutup Utusan Daerah Saja</option>
             <option value="tutup_person" ${regStatus === "tutup_person" ? "selected" : ""}>Tutup Person Saja</option>
             <option value="0" ${regStatus === "0" ? "selected" : ""}>Tutup Semua</option>
           </select>
           <label class="form-label">Jenis Kelamin</label>
-          <select id="swal-gender" class="form-control" style="margin-bottom: 12px">
+          <select id="swal-gender" class="form-control" style="margin-bottom: 12px; width: 100%; box-sizing: border-box;">
             <option value="Semua" ${regGender === "Semua" ? "selected" : ""}>Semua Jenis Kelamin</option>
             <option value="Laki-laki" ${regGender === "Laki-laki" ? "selected" : ""}>Laki-laki Saja</option>
             <option value="Perempuan" ${regGender === "Perempuan" ? "selected" : ""}>Perempuan Saja</option>
           </select>
           <label class="form-label">Batasan Peserta (Per Daerah)</label>
-          <select id="swal-quota" class="form-control" style="margin-bottom: 12px" onchange="document.getElementById('manual-quota-container').style.display = this.value === 'manual' ? 'block' : 'none'">
+          <select id="swal-quota" class="form-control" style="margin-bottom: 12px; width: 100%; box-sizing: border-box;" onchange="document.getElementById('manual-quota-container').style.display = this.value === 'manual' ? 'block' : 'none'">
             <option value="0" ${regQuota === "0" ? "selected" : ""}>Unlimited (Tidak ada batasan)</option>
             ${[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(i => `<option value="${i}" ${regQuota === String(i) ? "selected" : ""}>${i} pasangan persetiap daerah (${i/2} laki-laki dan ${i/2} perempuan)</option>`).join('')}
             <option value="manual" ${!["0", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"].includes(regQuota) && regQuota !== "" ? "selected" : ""}>Tambahkan data input secara manual</option>
           </select>
           <div id="manual-quota-container" style="display: ${!["0", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"].includes(regQuota) && regQuota !== "" ? "block" : "none"}; margin-bottom: 12px">
              <label class="form-label">Masukkan Kuota Manual (Total Peserta per Daerah)</label>
-             <input type="number" id="swal-manual-quota" class="form-control" placeholder="Contoh: 15" value="${!["0", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"].includes(regQuota) && regQuota !== "" ? regQuota : ""}" />
+             <input type="number" id="swal-manual-quota" class="form-control" placeholder="Contoh: 15" style="width: 100%; box-sizing: border-box;" value="${!["0", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"].includes(regQuota) && regQuota !== "" ? regQuota : ""}" />
           </div>
         </div>
       `,
