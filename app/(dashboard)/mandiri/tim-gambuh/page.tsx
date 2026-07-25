@@ -266,10 +266,11 @@ export default function TimGambuhOperatorPage() {
         }
     }, [saveCurrentIdentity]);
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (showFeedback = false) => {
         setLoading(true);
+        const t = new Date().getTime();
         try {
-            const roomsRes = await fetch("/api/mandiri/rooms");
+            const roomsRes = await fetch(`/api/mandiri/rooms?t=${t}`);
             if (roomsRes.ok) {
                 const roomsJson = await roomsRes.json();
                 const sortedRooms = Array.isArray(roomsJson)
@@ -278,7 +279,7 @@ export default function TimGambuhOperatorPage() {
                 setAllRooms(sortedRooms);
             }
 
-            const kunjunganRes = await fetch("/api/mandiri/kunjungan", { credentials: "include" });
+            const kunjunganRes = await fetch(`/api/mandiri/kunjungan?t=${t}`, { credentials: "include" });
             if (kunjunganRes.ok) {
                 const kunjunganJson = await kunjunganRes.json();
                 setVisitHistory(Array.isArray(kunjunganJson) ? kunjunganJson : []);
@@ -286,7 +287,7 @@ export default function TimGambuhOperatorPage() {
                 console.error("Failed to fetch visit history", kunjunganRes.status, await kunjunganRes.text());
             }
 
-            const queueRes = await fetch("/api/mandiri/pilih?all=true", { credentials: "include" });
+            const queueRes = await fetch(`/api/mandiri/pilih?all=true&t=${t}`, { credentials: "include" });
             if (queueRes.ok) {
                 const queueJson = await queueRes.json();
                 const waiting = Array.isArray(queueJson) ? queueJson.filter((q: any) => q.status === "Menunggu") : [];
@@ -294,8 +295,30 @@ export default function TimGambuhOperatorPage() {
             } else {
                 console.error("Failed to fetch queue", queueRes.status, await queueRes.text());
             }
+            
+            if (showFeedback) {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: 'Data berhasil diperbarui',
+                    showConfirmButton: false,
+                    timer: 1500,
+                    timerProgressBar: true
+                });
+            }
         } catch (err) {
             console.error("Error fetching rooms:", err);
+            if (showFeedback) {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'error',
+                    title: 'Gagal memperbarui data',
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+            }
         } finally {
             setLoading(false);
         }
@@ -946,8 +969,8 @@ export default function TimGambuhOperatorPage() {
                         }}>
                             <BookOpen size={16} /> Katalog Peserta
                         </Link>
-                        <button className="btn-refresh" onClick={fetchData} title="Refresh Data">
-                            <RefreshCw size={16} /> Refresh
+                        <button className="btn-refresh" onClick={() => fetchData(true)} disabled={loading} title="Refresh Data">
+                            <RefreshCw size={16} className={loading ? "spin" : ""} /> {loading ? "Memuat..." : "Refresh"}
                         </button>
                     </div>
                 </div>
@@ -1390,6 +1413,13 @@ export default function TimGambuhOperatorPage() {
                     padding: 24px;
                     max-width: 1200px;
                     margin: 0 auto;
+                }
+                .spin {
+                    animation: spin 1s linear infinite;
+                }
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
                 }
                 .operator-header {
                     display: flex;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriPemilihan, generus, mandiri } from "@/lib/schema";
+import { mandiriPemilihan, generus, mandiri, mandiriRooms } from "@/lib/schema";
 import { eq, and, or, desc } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { pusherServer } from "@/lib/pusher";
@@ -21,6 +21,8 @@ export async function GET(request: NextRequest) {
 
         const records = await db.select({
             id: mandiriPemilihan.id,
+            roomId: mandiriRooms.id,
+            roomNama: mandiriRooms.nama,
             status: mandiriPemilihan.status,
             pengirimId: mandiriPemilihan.pengirimId,
             penerimaId: mandiriPemilihan.penerimaId,
@@ -33,6 +35,7 @@ export async function GET(request: NextRequest) {
             createdAt: mandiriPemilihan.createdAt
         })
         .from(mandiriPemilihan)
+        .leftJoin(mandiriRooms, eq(mandiriRooms.pemilihanId, mandiriPemilihan.id))
         .innerJoin(gPengirim, eq(mandiriPemilihan.pengirimId, gPengirim.id))
         .innerJoin(gPenerima, eq(mandiriPemilihan.penerimaId, gPenerima.id))
         .leftJoin(mPengirim, eq(gPengirim.id, mPengirim.generusId))
@@ -45,7 +48,10 @@ export async function GET(request: NextRequest) {
                 ),
                 or(
                     eq(mandiriPemilihan.pengirimId, generusId),
-                    eq(mandiriPemilihan.penerimaId, generusId)
+                    eq(mandiriPemilihan.penerimaId, generusId),
+                    eq(mandiriRooms.assignedGuardId, generusId),
+                    eq(mandiriRooms.assignedCallerId, generusId),
+                    eq(mandiriRooms.assignedCaller2Id, generusId)
                 )
             )
         )

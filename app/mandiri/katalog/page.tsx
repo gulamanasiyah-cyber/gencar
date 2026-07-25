@@ -2332,10 +2332,68 @@ export default function PublicKatalogPage() {
                   </div>
                   {matchList.map(h => {
                     const isPengirim = h.pengirimId === currentUser?.id;
+                    const isPenerima = h.penerimaId === currentUser?.id;
+                    const isPanitia = !isPengirim && !isPenerima;
                     const partnerName = isPengirim ? h.penerimaNama : h.pengirimNama;
                     const partnerNoUrut = isPengirim ? h.penerimaNoUrut : h.pengirimNoUrut;
                     const myName = isPengirim ? h.pengirimNama : h.penerimaNama;
                     const myNoUrut = isPengirim ? h.pengirimNoUrut : h.penerimaNoUrut;
+                    const isDalamRuangan = h.status === "Diterima";
+
+                    if (isPanitia) {
+                      return (
+                        <div key={`match-${h.id}`} style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '2px solid #fbcfe8', marginBottom: '4px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                            <div style={{ fontWeight: 800, fontSize: '16px', color: '#1e293b' }}>
+                              Ruangan: {h.roomNama || "Romantic Room"}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 800, color: isDalamRuangan ? '#1d4ed8' : '#166534', background: isDalamRuangan ? '#eff6ff' : '#f0fdf4', border: `1px solid ${isDalamRuangan ? '#bfdbfe' : '#bbf7d0'}`, borderRadius: '999px', padding: '4px 8px' }}>
+                                {isDalamRuangan ? "Dalam Ruangan" : "Selesai"}
+                              </span>
+                            </div>
+                          </div>
+                          <div style={{ marginBottom: '16px', fontSize: '13px', color: '#475569' }}>
+                            Peserta: <strong>{h.pengirimNama}</strong> & <strong>{h.penerimaNama}</strong>
+                          </div>
+                          {isDalamRuangan ? (
+                            <button
+                              onClick={() => handleAdminSelesaikanSesi({ roomId: h.roomId, ...currentUser })}
+                              style={{
+                                width: '100%',
+                                padding: '11px',
+                                borderRadius: '10px',
+                                border: 'none',
+                                background: '#f43f5e',
+                                color: 'white',
+                                fontSize: '13px',
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                                transition: '0.2s',
+                              }}
+                            >
+                              Selesaikan Sesi
+                            </button>
+                          ) : (
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                              <div style={{ flex: 1, padding: '12px', borderRadius: '12px', background: '#dcfce7', border: '1px solid #bbf7d0', textAlign: 'center' }}>
+                                <div style={{ fontSize: '12px', fontWeight: 700, color: '#166534', marginBottom: '8px' }}>{h.pengirimNama}:</div>
+                                <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 800, background: '#dcfce7', color: '#166534', border: `1px solid #bbf7d0` }}>
+                                  ✓ Lanjut
+                                </span>
+                              </div>
+                              <div style={{ flex: 1, padding: '12px', borderRadius: '12px', background: '#dcfce7', border: '1px solid #bbf7d0', textAlign: 'center' }}>
+                                <div style={{ fontSize: '12px', fontWeight: 700, color: '#166534', marginBottom: '8px' }}>{h.penerimaNama}:</div>
+                                <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 800, background: '#dcfce7', color: '#166534', border: `1px solid #bbf7d0` }}>
+                                  ✓ Lanjut
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
                     return (
                       <div key={`match-${h.id}`} style={{
                         background: 'linear-gradient(135deg, #fdf2f8 0%, #fff1f2 50%, #fef2f2 100%)',
@@ -2410,6 +2468,8 @@ export default function PublicKatalogPage() {
                 const isSubmittingThis = submittingHasilId === h.id;
                 const isDalamRuangan = h.status === "Diterima";
 
+                const isPanitia = !isPengirim && !isPenerima;
+                
                 const isRagu = (val: string) => val === "Ragu-Ragu" || val === "Ragu-ragu";
 
                 const bothAnswered = !!myHasil && !!partnerHasil;
@@ -2419,6 +2479,64 @@ export default function PublicKatalogPage() {
                   if (isRagu(val)) return { bg: '#fef9c3', color: '#854d0e', border: '#fde68a', label: '~ Ragu-Ragu' };
                   return { bg: '#fee2e2', color: '#991b1b', border: '#fecaca', label: '✗ Tidak Lanjut' };
                 };
+
+                if (isPanitia) {
+                  return (
+                    <div key={h.id} style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                        <div style={{ fontWeight: 800, fontSize: '16px', color: '#1e293b' }}>
+                          Ruangan: {h.roomNama || "Romantic Room"}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 800, color: isDalamRuangan ? '#1d4ed8' : '#166534', background: isDalamRuangan ? '#eff6ff' : '#f0fdf4', border: `1px solid ${isDalamRuangan ? '#bfdbfe' : '#bbf7d0'}`, borderRadius: '999px', padding: '4px 8px' }}>
+                            {isDalamRuangan ? "Dalam Ruangan" : "Selesai"}
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: '16px', fontSize: '13px', color: '#475569' }}>
+                        Peserta: <strong>{h.pengirimNama}</strong> & <strong>{h.penerimaNama}</strong>
+                      </div>
+                      {isDalamRuangan ? (
+                        <button
+                          onClick={() => handleAdminSelesaikanSesi({ roomId: h.roomId, ...currentUser })}
+                          style={{
+                            width: '100%',
+                            padding: '11px',
+                            borderRadius: '10px',
+                            border: 'none',
+                            background: '#f43f5e',
+                            color: 'white',
+                            fontSize: '13px',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            transition: '0.2s',
+                          }}
+                        >
+                          Selesaikan Sesi
+                        </button>
+                      ) : (
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                          <div style={{ flex: 1, padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '8px' }}>{h.pengirimNama}:</div>
+                            {h.hasilPengirim ? (
+                              <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 800, background: getResultBadge(h.hasilPengirim).bg, color: getResultBadge(h.hasilPengirim).color, border: `1px solid ${getResultBadge(h.hasilPengirim).border}` }}>
+                                {getResultBadge(h.hasilPengirim).label}
+                              </span>
+                            ) : "-"}
+                          </div>
+                          <div style={{ flex: 1, padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '8px' }}>{h.penerimaNama}:</div>
+                            {h.hasilPenerima ? (
+                              <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 800, background: getResultBadge(h.hasilPenerima).bg, color: getResultBadge(h.hasilPenerima).color, border: `1px solid ${getResultBadge(h.hasilPenerima).border}` }}>
+                                {getResultBadge(h.hasilPenerima).label}
+                              </span>
+                            ) : "-"}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
 
                 return (
                   <div key={h.id} style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
