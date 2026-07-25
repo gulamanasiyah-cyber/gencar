@@ -472,6 +472,7 @@ function AbsensiContent() {
       "Nomor Peserta": (item.nomorPeserta && isNaN(Number(item.nomorPeserta))) ? item.nomorPeserta : (item.nomorPeserta ? `#${item.nomorPeserta}` : 'PANITIA'),
       "Kota/Daerah": item.desaKota || "-",
       "Desa": item.desaNama || "-",
+      "Dapukan": item.dapukan || "Peserta",
       "Waktu": item.timestamp ? new Date(item.timestamp).toLocaleTimeString("id-ID") : "-",
       "Keterangan": item.keterangan || "hadir"
     }));
@@ -485,6 +486,7 @@ function AbsensiContent() {
       { wch: 5 },
       { wch: 30 },
       { wch: 15 },
+      { wch: 20 },
       { wch: 20 },
       { wch: 20 },
       { wch: 15 },

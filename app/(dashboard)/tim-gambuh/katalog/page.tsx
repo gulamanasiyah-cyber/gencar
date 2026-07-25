@@ -902,8 +902,11 @@ export default function AdminKatalogPage() {
                   <div className="tags-row">
                     <div className="info-pill"><User size={10} /> <span>{calculateAge(item.tanggalLahir ?? undefined)} thn &bull; {item.jenisKelamin === 'L' ? 'Laki-laki' : item.jenisKelamin === 'P' ? 'Perempuan' : item.jenisKelamin || '-'}</span></div>
                     <div className="info-pill"><GraduationCap size={10} /> <span>{item.pendidikan || "-"}</span></div>
-                    <div className="info-pill" style={{ background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0' }}>
-                      <span>Dipanggil/Memanggil: <strong style={{ fontWeight: 850 }}>({(item as any).totalDipanggil || 0}/{(item as any).totalMemanggil || 0})</strong></span>
+                    <div className="info-pill" style={{ background: '#f0fdf4', color: '#166534', border: '1px solid #dcfce7' }}>
+                      <span>Dipanggil: <strong style={{ fontWeight: 850 }}>{(item as any).totalDipanggil || 0}</strong></span>
+                    </div>
+                    <div className="info-pill" style={{ background: '#eff6ff', color: '#1e40af', border: '1px solid #dbeafe' }}>
+                      <span>Memanggil: <strong style={{ fontWeight: 850 }}>{(item as any).totalMemanggil || 0}</strong></span>
                     </div>
                   </div>
 
@@ -1068,9 +1071,13 @@ export default function AdminKatalogPage() {
                   <span className="pd-label">Usia</span>
                   <span className="pd-value">{calculateAge(profileDetail.tanggalLahir ?? undefined)} tahun</span>
                 </div>
-                <div className="pd-item pd-item-full" style={{ background: '#f8fafc', borderRadius: '12px', padding: '12px', gridColumn: 'span 2' }}>
-                  <span className="pd-label" style={{ color: '#475569' }}>Statistik Taaruf (Dipanggil/Memanggil)</span>
-                  <span className="pd-value" style={{ color: '#1e293b', fontWeight: 800 }}>({(profileDetail as any).totalDipanggil || 0}/{(profileDetail as any).totalMemanggil || 0})</span>
+                <div className="pd-item" style={{ background: '#f0fdf4', borderRadius: '12px', padding: '12px' }}>
+                  <span className="pd-label" style={{ color: '#166534' }}>Total Dipanggil</span>
+                  <span className="pd-value" style={{ color: '#14532d', fontWeight: 800 }}>{(profileDetail as any).totalDipanggil || 0} kali</span>
+                </div>
+                <div className="pd-item" style={{ background: '#eff6ff', borderRadius: '12px', padding: '12px' }}>
+                  <span className="pd-label" style={{ color: '#1e40af' }}>Total Memanggil</span>
+                  <span className="pd-value" style={{ color: '#1e3a8a', fontWeight: 800 }}>{(profileDetail as any).totalMemanggil || 0} kali</span>
                 </div>
                 <div className="pd-item">
                   <span className="pd-label">Tempat Lahir</span>

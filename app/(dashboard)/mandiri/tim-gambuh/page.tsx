@@ -999,7 +999,7 @@ export default function TimGambuhOperatorPage() {
                                                             <span className="room-p-name">{room.pengirimNama}</span>
                                                         </div>
                                                         <span style={{ fontSize: '10px', color: '#475569', fontWeight: 700 }}>
-                                                            ({room.pengirimTotalDipanggil || 0}/{room.pengirimTotalMemanggil || 0})
+                                                            Dipanggil: {room.pengirimTotalDipanggil || 0} &bull; Memanggil: {room.pengirimTotalMemanggil || 0}
                                                         </span>
                                                     </div>
                                                     <span className="pair-separator">&</span>
@@ -1009,7 +1009,7 @@ export default function TimGambuhOperatorPage() {
                                                             <span className="room-p-name">{room.penerimaNama}</span>
                                                         </div>
                                                         <span style={{ fontSize: '10px', color: '#475569', fontWeight: 700 }}>
-                                                            ({room.penerimaTotalDipanggil || 0}/{room.penerimaTotalMemanggil || 0})
+                                                            Dipanggil: {room.penerimaTotalDipanggil || 0} &bull; Memanggil: {room.penerimaTotalMemanggil || 0}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -1292,8 +1292,9 @@ export default function TimGambuhOperatorPage() {
                                             <div style={{ fontSize: "22px", fontWeight: 900, color: "#3b82f6" }}>{selectedRoom.pengirimNomorUrut || selectedRoom.pengirimNo || "-"}</div>
                                             <div style={{ fontSize: "12px", fontWeight: 700, color: "#1e40af", marginTop: "2px" }}>{selectedRoom.pengirimNama}</div>
                                             <div style={{ fontSize: "10px", color: "#94a3b8", marginTop: "2px" }}>Pria</div>
-                                            <div style={{ fontSize: "11px", color: "#475569", fontWeight: 700, marginTop: "6px" }}>
-                                                Dipanggil/Memanggil: ({selectedRoom.pengirimTotalDipanggil || 0}/{selectedRoom.pengirimTotalMemanggil || 0})
+                                            <div style={{ fontSize: "11px", color: "#475569", fontWeight: 700, marginTop: "6px", display: "flex", flexDirection: "column", gap: "2px" }}>
+                                                <div>Dipanggil: {selectedRoom.pengirimTotalDipanggil || 0}</div>
+                                                <div>Memanggil: {selectedRoom.pengirimTotalMemanggil || 0}</div>
                                             </div>
                                         </div>
                                         <div style={{ fontSize: "20px", color: "#e2e8f0", fontWeight: 900 }}>&amp;</div>
@@ -1301,8 +1302,9 @@ export default function TimGambuhOperatorPage() {
                                             <div style={{ fontSize: "22px", fontWeight: 900, color: "#ec4899" }}>{selectedRoom.penerimaNomorUrut || selectedRoom.penerimaNo || "-"}</div>
                                             <div style={{ fontSize: "12px", fontWeight: 700, color: "#be185d", marginTop: "2px" }}>{selectedRoom.penerimaNama}</div>
                                             <div style={{ fontSize: "10px", color: "#94a3b8", marginTop: "2px" }}>Wanita</div>
-                                            <div style={{ fontSize: "11px", color: "#475569", fontWeight: 700, marginTop: "6px" }}>
-                                                Dipanggil/Memanggil: ({selectedRoom.penerimaTotalDipanggil || 0}/{selectedRoom.penerimaTotalMemanggil || 0})
+                                            <div style={{ fontSize: "11px", color: "#475569", fontWeight: 700, marginTop: "6px", display: "flex", flexDirection: "column", gap: "2px" }}>
+                                                <div>Dipanggil: {selectedRoom.penerimaTotalDipanggil || 0}</div>
+                                                <div>Memanggil: {selectedRoom.penerimaTotalMemanggil || 0}</div>
                                             </div>
                                         </div>
                                     </div>

@@ -88,8 +88,34 @@ export async function GET(request: NextRequest) {
       )
       .limit(limitRecords);
 
+    // Also search specifically in tim_gambuh for Tim PNKB and Ibu Gambuh
+    const dataTimGambuh = await db
+      .select({
+        id: timGambuh.id,
+        nama: timGambuh.nama,
+        nomorUnik: sql<string>`COALESCE(${generus.nomorUnik}, ${timGambuh.id})`,
+        desaNama: mandiriDesa.nama,
+        desaKota: mandiriDaerah.nama,
+        nomorPeserta: timGambuh.tipe,
+      })
+      .from(timGambuh)
+      .leftJoin(generus, eq(timGambuh.id, generus.id))
+      .leftJoin(mandiriDesa, eq(timGambuh.desaId, mandiriDesa.id))
+      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
+      .where(
+        and(
+          eq(timGambuh.kegiatanId, kegiatanId),
+          q ? or(
+            like(timGambuh.nama, `%${q}%`),
+            like(timGambuh.tipe, `%${q}%`),
+            like(timGambuh.noTelp, `%${q}%`)
+          ) : undefined
+        )
+      )
+      .limit(limitRecords);
+
     // Combine and deduplicate by nama + nomorUnik
-    const combined = [...dataGenerus, ...dataPanitia];
+    const combined = [...dataGenerus, ...dataPanitia, ...dataTimGambuh];
     const seen = new Set();
     const data = combined.filter(item => {
       const key = `${item.nama}-${item.nomorUnik}`;
