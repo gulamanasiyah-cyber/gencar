@@ -125,6 +125,89 @@ export default function RomanticRoomPage() {
     const [kegiatanList, setKegiatanList] = useState<{ id: string; judul: string; kota: string }[]>([]);
     const [selectedKegiatanId, setSelectedKegiatanId] = useState("");
 
+    // State for manual input modal
+    const [showAddManualModal, setShowAddManualModal] = useState(false);
+    const [manualPemilihSearch, setManualPemilihSearch] = useState("");
+    const [manualTerpilihSearch, setManualTerpilihSearch] = useState("");
+    const [selectedPemilih, setSelectedPemilih] = useState<any>(null);
+    const [selectedTerpilih, setSelectedTerpilih] = useState<any>(null);
+    const [manualHasilPengirim, setManualHasilPengirim] = useState("Lanjut");
+    const [manualHasilPenerima, setManualHasilPenerima] = useState("Lanjut");
+    const [selectedManualRoomId, setSelectedManualRoomId] = useState("");
+    const [isSubmittingManual, setIsSubmittingManual] = useState(false);
+    const [showPemilihDropdown, setShowPemilihDropdown] = useState(false);
+    const [showTerpilihDropdown, setShowTerpilihDropdown] = useState(false);
+
+    const filterParticipantsForManual = (query: string, excludeId?: string) => {
+        const q = query.trim().toLowerCase();
+        return allParticipants
+            .filter(p => {
+                const pid = p.generusId || p.id;
+                if (excludeId && pid === excludeId) return false;
+                if (!q) return true;
+                const namaMatch = (p.nama || "").toLowerCase().includes(q);
+                const noUrutMatch = p.nomorUrut !== undefined && String(p.nomorUrut).toLowerCase().includes(q);
+                const noUnikMatch = (p.nomorUnik || "").toLowerCase().includes(q);
+                const desaMatch = (p.desa || p.mandiriDesaNama || "").toLowerCase().includes(q);
+                const kotaMatch = (p.kota || p.mandiriDaerahNama || "").toLowerCase().includes(q);
+                return namaMatch || noUrutMatch || noUnikMatch || desaMatch || kotaMatch;
+            })
+            .slice(0, 20);
+    };
+
+    const handleSaveManualRecord = async () => {
+        if (!selectedPemilih) {
+            Swal.fire("Peringatan", "Silakan pilih Peserta / Panitia Pemilih terlebih dahulu.", "warning");
+            return;
+        }
+        if (!selectedTerpilih) {
+            Swal.fire("Peringatan", "Silakan pilih Peserta / Panitia Yang Dipilih terlebih dahulu.", "warning");
+            return;
+        }
+        const pengirimId = selectedPemilih.generusId || selectedPemilih.id;
+        const penerimaId = selectedTerpilih.generusId || selectedTerpilih.id;
+
+        if (pengirimId === penerimaId) {
+            Swal.fire("Peringatan", "Pemilih dan yang dipilih tidak boleh orang yang sama.", "warning");
+            return;
+        }
+
+        setIsSubmittingManual(true);
+        try {
+            const res = await fetch("/api/mandiri/kunjungan/manual", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    pengirimId,
+                    penerimaId,
+                    hasilPengirim: manualHasilPengirim,
+                    hasilPenerima: manualHasilPenerima,
+                    roomId: selectedManualRoomId || (allRooms[0]?.id || null),
+                    kegiatanId: selectedKegiatanId
+                })
+            });
+
+            const json = await res.json();
+            if (!res.ok) {
+                throw new Error(json.error || "Gagal menyimpan hasil Romantic Room");
+            }
+
+            Swal.fire("Berhasil!", "Hasil Romantic Room berhasil ditambahkan secara manual.", "success");
+            setShowAddManualModal(false);
+            setSelectedPemilih(null);
+            setSelectedTerpilih(null);
+            setManualPemilihSearch("");
+            setManualTerpilihSearch("");
+            setManualHasilPengirim("Lanjut");
+            setManualHasilPenerima("Lanjut");
+            fetchData();
+        } catch (err: any) {
+            Swal.fire("Error", err.message || "Terjadi kesalahan", "error");
+        } finally {
+            setIsSubmittingManual(false);
+        }
+    };
+
     // Helper for independent auth
     const getAuthHeaders = () => {
         const headers: any = { "Content-Type": "application/json" };
@@ -2167,6 +2250,38 @@ export default function RomanticRoomPage() {
                                 <h3>Laporan Hasil Romantic Room Peserta & Panitia</h3>
                             </div>
                             <div className="manual-record-box">
+                                <button
+                                    className="btn-add-manual"
+                                    onClick={() => {
+                                        setSelectedPemilih(null);
+                                        setSelectedTerpilih(null);
+                                        setManualPemilihSearch("");
+                                        setManualTerpilihSearch("");
+                                        setManualHasilPengirim("Lanjut");
+                                        setManualHasilPenerima("Lanjut");
+                                        setSelectedManualRoomId(allRooms[0]?.id || "");
+                                        setShowAddManualModal(true);
+                                    }}
+                                    style={{
+                                        marginRight: '10px',
+                                        background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                                        color: 'white',
+                                        border: 'none',
+                                        padding: '4px 10px',
+                                        borderRadius: '6px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        fontSize: '11px',
+                                        fontWeight: '700',
+                                        cursor: 'pointer',
+                                        boxShadow: '0 2px 4px rgba(37, 99, 235, 0.25)',
+                                        whiteSpace: 'nowrap'
+                                    }}
+                                >
+                                    <Plus size={16} /> Tambah Manual
+                                </button>
+
                                 <button className="btn-export-excel" onClick={handleExportExcel} style={{ marginRight: '10px', background: '#16a34a' }}>
                                     <Download size={16} /> Export Excel
                                 </button>
@@ -2445,6 +2560,373 @@ export default function RomanticRoomPage() {
                     </div>
 
                 </div>
+
+                {/* Modal Input Manual Hasil Romantic Room */}
+                {showAddManualModal && (
+                    <div
+                        className="modal-overlay"
+                        style={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                            backdropFilter: 'blur(4px)',
+                            zIndex: 9999,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '20px',
+                            animation: 'fadeIn 0.2s ease-out'
+                        }}
+                        onClick={() => setShowAddManualModal(false)}
+                    >
+                        <div
+                            className="modal-card"
+                            style={{
+                                background: '#ffffff',
+                                borderRadius: '20px',
+                                maxWidth: '820px',
+                                width: '100%',
+                                maxHeight: '90vh',
+                                overflowY: 'auto',
+                                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                                border: '1px solid #e2e8f0',
+                                padding: '24px 28px',
+                                position: 'relative'
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Modal Header */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '14px', borderBottom: '1px solid #f1f5f9' }}>
+                                <div>
+                                    <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Plus size={20} style={{ color: '#2563eb' }} />
+                                        Tambah Hasil Romantic Room Manual
+                                    </h3>
+                                    <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#64748b' }}>
+                                        Cari nomor / nama peserta & panitia, lalu tentukan hasil Romantic Room.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setShowAddManualModal(false)}
+                                    style={{
+                                        background: '#f1f5f9',
+                                        border: 'none',
+                                        borderRadius: '50%',
+                                        width: '32px',
+                                        height: '32px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: 'pointer',
+                                        color: '#64748b',
+                                        fontWeight: 'bold',
+                                        fontSize: '14px'
+                                    }}
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            {/* Modal Body */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                                {/* 2 Column Participant Selection Grid */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+                                    
+                                    {/* Pemilih Column */}
+                                    <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#1e293b', marginBottom: '8px' }}>
+                                            1. Peserta / Panitia Pemilih (Pengirim)
+                                        </label>
+                                        
+                                        {selectedPemilih ? (
+                                            <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: '10px', border: '2px solid #3b82f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <div>
+                                                    <div style={{ fontWeight: 800, fontSize: '13px', color: '#1e293b' }}>
+                                                        {selectedPemilih.nomorUrut ? `#${selectedPemilih.nomorUrut} ` : selectedPemilih.nomorUnik ? `[${selectedPemilih.nomorUnik}] ` : ''}
+                                                        {selectedPemilih.nama}
+                                                    </div>
+                                                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                                        <span style={{ background: selectedPemilih.jenisKelamin === 'L' ? '#dbeafe' : '#fce7f3', color: selectedPemilih.jenisKelamin === 'L' ? '#1d4ed8' : '#be185d', padding: '1px 6px', borderRadius: '4px', fontWeight: 700, fontSize: '10px' }}>
+                                                            {selectedPemilih.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan'}
+                                                        </span>
+                                                        <span>{selectedPemilih.kota || selectedPemilih.mandiriDaerahNama || ''} - {selectedPemilih.desa || selectedPemilih.mandiriDesaNama || ''}</span>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => { setSelectedPemilih(null); setManualPemilihSearch(''); }}
+                                                    style={{ background: '#fee2e2', color: '#dc2626', border: 'none', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                                                >
+                                                    Ganti
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div style={{ position: 'relative' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0 10px' }}>
+                                                    <Search size={15} style={{ color: '#94a3b8', marginRight: '6px', flexShrink: 0 }} />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Cari no. urut, no. unik, nama..."
+                                                        value={manualPemilihSearch}
+                                                        onChange={(e) => {
+                                                            setManualPemilihSearch(e.target.value);
+                                                            setShowPemilihDropdown(true);
+                                                        }}
+                                                        onFocus={() => setShowPemilihDropdown(true)}
+                                                        style={{ width: '100%', padding: '9px 0', border: 'none', outline: 'none', fontSize: '12px' }}
+                                                    />
+                                                </div>
+
+                                                {showPemilihDropdown && (
+                                                    <div style={{
+                                                        position: 'absolute', top: '105%', left: 0, right: 0, background: '#ffffff',
+                                                        border: '1px solid #cbd5e1', borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.12)',
+                                                        maxHeight: '200px', overflowY: 'auto', zIndex: 100
+                                                    }}>
+                                                        {filterParticipantsForManual(manualPemilihSearch, selectedTerpilih?.generusId || selectedTerpilih?.id).length === 0 ? (
+                                                            <div style={{ padding: '10px', textAlign: 'center', fontSize: '12px', color: '#94a3b8' }}>Tidak ada peserta yang cocok</div>
+                                                        ) : (
+                                                            filterParticipantsForManual(manualPemilihSearch, selectedTerpilih?.generusId || selectedTerpilih?.id).map((p: any) => (
+                                                                <div
+                                                                    key={p.generusId || p.id}
+                                                                    onClick={() => {
+                                                                        setSelectedPemilih(p);
+                                                                        setShowPemilihDropdown(false);
+                                                                    }}
+                                                                    style={{ padding: '8px 10px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
+                                                                    onMouseEnter={(e) => e.currentTarget.style.background = '#f0f9ff'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
+                                                                >
+                                                                    <div style={{ fontWeight: 700, fontSize: '12px', color: '#1e293b' }}>
+                                                                        {p.nomorUrut ? `#${p.nomorUrut} ` : p.nomorUnik ? `[${p.nomorUnik}] ` : ''}
+                                                                        {p.nama}
+                                                                    </div>
+                                                                    <div style={{ fontSize: '10px', color: '#64748b', display: 'flex', gap: '6px', marginTop: '2px' }}>
+                                                                        <span style={{ color: p.jenisKelamin === 'L' ? '#2563eb' : '#db2777', fontWeight: 600 }}>({p.jenisKelamin})</span>
+                                                                        <span>{p.kota || p.mandiriDaerahNama || ''} {p.desa ? `/ ${p.desa}` : ''}</span>
+                                                                    </div>
+                                                                </div>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        <div style={{ marginTop: '12px' }}>
+                                            <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                                                Hasil Pilihan Pemilih:
+                                            </label>
+                                            <select
+                                                value={manualHasilPengirim}
+                                                onChange={(e) => setManualHasilPengirim(e.target.value)}
+                                                style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 700, color: '#1e293b' }}
+                                            >
+                                                <option value="Lanjut">🟢 Lanjut</option>
+                                                <option value="Tidak Lanjut">🔴 Tidak Lanjut</option>
+                                                <option value="Ragu-ragu">🟡 Ragu-ragu</option>
+                                                <option value="Menunggu">⚪ Sedang Menunggu</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* Terpilih Column */}
+                                    <div style={{ background: '#f8fafc', padding: '14px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#1e293b', marginBottom: '8px' }}>
+                                            2. Peserta / Panitia Yang Dipilih (Penerima)
+                                        </label>
+                                        
+                                        {selectedTerpilih ? (
+                                            <div style={{ background: '#ffffff', padding: '10px 12px', borderRadius: '10px', border: '2px solid #ec4899', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <div>
+                                                    <div style={{ fontWeight: 800, fontSize: '13px', color: '#1e293b' }}>
+                                                        {selectedTerpilih.nomorUrut ? `#${selectedTerpilih.nomorUrut} ` : selectedTerpilih.nomorUnik ? `[${selectedTerpilih.nomorUnik}] ` : ''}
+                                                        {selectedTerpilih.nama}
+                                                    </div>
+                                                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                                        <span style={{ background: selectedTerpilih.jenisKelamin === 'L' ? '#dbeafe' : '#fce7f3', color: selectedTerpilih.jenisKelamin === 'L' ? '#1d4ed8' : '#be185d', padding: '1px 6px', borderRadius: '4px', fontWeight: 700, fontSize: '10px' }}>
+                                                            {selectedTerpilih.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan'}
+                                                        </span>
+                                                        <span>{selectedTerpilih.kota || selectedTerpilih.mandiriDaerahNama || ''} - {selectedTerpilih.desa || selectedTerpilih.mandiriDesaNama || ''}</span>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => { setSelectedTerpilih(null); setManualTerpilihSearch(''); }}
+                                                    style={{ background: '#fee2e2', color: '#dc2626', border: 'none', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                                                >
+                                                    Ganti
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div style={{ position: 'relative' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '0 10px' }}>
+                                                    <Search size={15} style={{ color: '#94a3b8', marginRight: '6px', flexShrink: 0 }} />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Cari no. urut, no. unik, nama..."
+                                                        value={manualTerpilihSearch}
+                                                        onChange={(e) => {
+                                                            setManualTerpilihSearch(e.target.value);
+                                                            setShowTerpilihDropdown(true);
+                                                        }}
+                                                        onFocus={() => setShowTerpilihDropdown(true)}
+                                                        style={{ width: '100%', padding: '9px 0', border: 'none', outline: 'none', fontSize: '12px' }}
+                                                    />
+                                                </div>
+
+                                                {showTerpilihDropdown && (
+                                                    <div style={{
+                                                        position: 'absolute', top: '105%', left: 0, right: 0, background: '#ffffff',
+                                                        border: '1px solid #cbd5e1', borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.12)',
+                                                        maxHeight: '200px', overflowY: 'auto', zIndex: 100
+                                                    }}>
+                                                        {filterParticipantsForManual(manualTerpilihSearch, selectedPemilih?.generusId || selectedPemilih?.id).length === 0 ? (
+                                                            <div style={{ padding: '10px', textAlign: 'center', fontSize: '12px', color: '#94a3b8' }}>Tidak ada peserta yang cocok</div>
+                                                        ) : (
+                                                            filterParticipantsForManual(manualTerpilihSearch, selectedPemilih?.generusId || selectedPemilih?.id).map((p: any) => (
+                                                                <div
+                                                                    key={p.generusId || p.id}
+                                                                    onClick={() => {
+                                                                        setSelectedTerpilih(p);
+                                                                        setShowTerpilihDropdown(false);
+                                                                    }}
+                                                                    style={{ padding: '8px 10px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
+                                                                    onMouseEnter={(e) => e.currentTarget.style.background = '#fcf0f7'}
+                                                                    onMouseLeave={(e) => e.currentTarget.style.background = '#ffffff'}
+                                                                >
+                                                                    <div style={{ fontWeight: 700, fontSize: '12px', color: '#1e293b' }}>
+                                                                        {p.nomorUrut ? `#${p.nomorUrut} ` : p.nomorUnik ? `[${p.nomorUnik}] ` : ''}
+                                                                        {p.nama}
+                                                                    </div>
+                                                                    <div style={{ fontSize: '10px', color: '#64748b', display: 'flex', gap: '6px', marginTop: '2px' }}>
+                                                                        <span style={{ color: p.jenisKelamin === 'L' ? '#2563eb' : '#db2777', fontWeight: 600 }}>({p.jenisKelamin})</span>
+                                                                        <span>{p.kota || p.mandiriDaerahNama || ''} {p.desa ? `/ ${p.desa}` : ''}</span>
+                                                                    </div>
+                                                                </div>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        <div style={{ marginTop: '12px' }}>
+                                            <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                                                Hasil Pilihan Yang Dipilih:
+                                            </label>
+                                            <select
+                                                value={manualHasilPenerima}
+                                                onChange={(e) => setManualHasilPenerima(e.target.value)}
+                                                style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 700, color: '#1e293b' }}
+                                            >
+                                                <option value="Lanjut">🟢 Lanjut</option>
+                                                <option value="Tidak Lanjut">🔴 Tidak Lanjut</option>
+                                                <option value="Ragu-ragu">🟡 Ragu-ragu</option>
+                                                <option value="Menunggu">⚪ Sedang Menunggu</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                {/* Preset Buttons */}
+                                <div style={{ background: '#f1f5f9', padding: '10px 14px', borderRadius: '10px' }}>
+                                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 800, color: '#64748b', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                        Pilih Hasil Cepat (Preset):
+                                    </label>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                        {[
+                                            { label: 'Lanjut - Lanjut', h1: 'Lanjut', h2: 'Lanjut', bg: '#dcfce7', color: '#15803d' },
+                                            { label: 'Lanjut - Tidak Lanjut', h1: 'Lanjut', h2: 'Tidak Lanjut', bg: '#fef3c7', color: '#b45309' },
+                                            { label: 'Tidak Lanjut - Tidak Lanjut', h1: 'Tidak Lanjut', h2: 'Tidak Lanjut', bg: '#fee2e2', color: '#b91c1c' },
+                                            { label: 'Ragu-ragu - Ragu-ragu', h1: 'Ragu-ragu', h2: 'Ragu-ragu', bg: '#fef9c3', color: '#a16207' },
+                                            { label: 'Lanjut - Ragu-ragu', h1: 'Lanjut', h2: 'Ragu-ragu', bg: '#e0f2fe', color: '#0369a1' },
+                                            { label: 'Tidak Lanjut - Ragu-ragu', h1: 'Tidak Lanjut', h2: 'Ragu-ragu', bg: '#f3e8ff', color: '#7e22ce' },
+                                        ].map((preset) => (
+                                            <button
+                                                key={preset.label}
+                                                type="button"
+                                                onClick={() => {
+                                                    setManualHasilPengirim(preset.h1);
+                                                    setManualHasilPenerima(preset.h2);
+                                                }}
+                                                style={{
+                                                    background: manualHasilPengirim === preset.h1 && manualHasilPenerima === preset.h2 ? preset.bg : '#ffffff',
+                                                    color: preset.color,
+                                                    border: manualHasilPengirim === preset.h1 && manualHasilPenerima === preset.h2 ? `2px solid ${preset.color}` : '1px solid #cbd5e1',
+                                                    padding: '5px 10px',
+                                                    borderRadius: '6px',
+                                                    fontSize: '11px',
+                                                    fontWeight: 700,
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.15s'
+                                                }}
+                                            >
+                                                {preset.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Room Selection */}
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                                        Pilih Room / Ruangan (Opsional):
+                                    </label>
+                                    <select
+                                        value={selectedManualRoomId}
+                                        onChange={(e) => setSelectedManualRoomId(e.target.value)}
+                                        style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12px', color: '#1e293b' }}
+                                    >
+                                        {allRooms.map((room) => (
+                                            <option key={room.id} value={room.id}>
+                                                {room.nama} ({room.status})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px', paddingTop: '14px', borderTop: '1px solid #f1f5f9' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAddManualModal(false)}
+                                    style={{ background: '#f1f5f9', color: '#64748b', border: 'none', padding: '9px 18px', borderRadius: '8px', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleSaveManualRecord}
+                                    disabled={isSubmittingManual}
+                                    style={{
+                                        background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                                        color: 'white',
+                                        border: 'none',
+                                        padding: '9px 20px',
+                                        borderRadius: '8px',
+                                        fontWeight: 700,
+                                        fontSize: '12px',
+                                        cursor: isSubmittingManual ? 'not-allowed' : 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)',
+                                        opacity: isSubmittingManual ? 0.7 : 1
+                                    }}
+                                >
+                                    {isSubmittingManual ? 'Menyimpan...' : 'Simpan Data Manual'}
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+                )}
 
                 <style jsx>{`
                     .admin-layout { width: 100%; min-width: 0; max-width: 1400px; padding: 20px; margin: 0 auto; background: #f8fafc; min-height: 100vh; box-sizing: border-box; }
