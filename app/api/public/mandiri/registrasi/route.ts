@@ -61,65 +61,21 @@ export async function POST(request: NextRequest) {
 
     if (!isMandiriJenisKelamin(jenisKelamin)) {
       return NextResponse.json({ error: "Jenis kelamin tidak valid. Gunakan L atau P." }, { status: 400 });
-
-function generateNomorUnik() {
-  const prefix = "MND"; // Using MND prefix for public mandiri registration
-  const num = Math.floor(100000 + Math.random() * 900000);
-  return `${prefix}${num}`;
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-
-    // 1. Check Registration Status (Open/Closed)
-    const statusSet = await db.select().from(settings).where(eq(settings.key, "mandiri_registration_status"));
-    const currentStatus = statusSet[0]?.value;
-    const reqStatusPeserta = body.statusPeserta || "Utusan Daerah";
-
-    if (currentStatus === "0") {
-      return NextResponse.json({ error: "Mohon maaf, pendaftaran saat ini sudah ditutup" }, { status: 403 });
-    }
-    
-    if (currentStatus === "tutup_utusan" && reqStatusPeserta !== "Person") {
-      return NextResponse.json({ error: "Pendaftaran untuk Utusan Daerah saat ini sedang ditutup." }, { status: 403 });
-    }
-
-    if (currentStatus === "tutup_person" && reqStatusPeserta === "Person") {
-      return NextResponse.json({ error: "Pendaftaran untuk Peserta Person saat ini sedang ditutup." }, { status: 403 });
-    }
-
-    // 2. Fetch active activity
-    const activeSetting = await db.query.settings.findFirst({
-        where: eq(settings.key, "mandiri_active_kegiatan_id")
-    });
-    const activeKegiatanId = activeSetting?.value;
-    
-    if (!activeKegiatanId) {
-        return NextResponse.json({ error: "Pendaftaran tidak dapat diproses karena tidak ada kegiatan mandiri yang sedang aktif." }, { status: 400 });
-    }
-
-    const activeKegRes = await db.select().from(mandiriKegiatan).where(eq(mandiriKegiatan.id, activeKegiatanId)).limit(1);
-    const activeKegNama = activeKegRes[0]?.judul || "Kegiatan Mandiri";
-    const {
-        nama, jenisKelamin, tempatLahir, tanggalLahir,
-        alamat, noTelp, pendidikan, pekerjaan, statusNikah,
-        hobi, makananMinumanFavorit, suku, foto,
-        mandiriDesaId, mandiriKelompokId, instagram,
-        statusPeserta, dibayarkanSenilai, buktiPembayaran,
-        kriteriaPasangan
-    } = body;
-
-    if (!nama || !jenisKelamin || !mandiriDesaId || !tempatLahir || !tanggalLahir || !noTelp || !pendidikan || !pekerjaan || !hobi || !makananMinumanFavorit || !foto) {
-      return NextResponse.json({ error: "Mohon lengkapi semua data wajib." }, { status: 400 });
-    }
-
-    if (!isMandiriJenisKelamin(jenisKelamin)) {
-      return NextResponse.json({ error: "Jenis kelamin tidak valid. Gunakan L atau P." }, { status: 400 });
     }
 
     if (statusPeserta === "Person" && (!dibayarkanSenilai || !buktiPembayaran)) {
       return NextResponse.json({ error: "Mohon lengkapi nominal pembayaran dan bukti pembayaran." }, { status: 400 });
+    }
+
+    if (statusPeserta === "Person" && jenisKelamin === "P") {
+      const quota = await getMandiriPersonPerempuanQuotaStatus(db, activeKegiatanId);
+      if (!quota.femaleAvailable) {
+        return NextResponse.json({
+          status: "person_female_quota_full",
+          error: "Kuota perempuan sudah full.",
+          ...quota,
+        }, { status: 409 });
+      }
     }
 
     // 2.1. Quota Check for Daerah (Max 5 males, 5 females per kegiatan)
@@ -128,46 +84,6 @@ export async function POST(request: NextRequest) {
       daerahNama: mandiriDaerah.nama
     })
     .from(mandiriDesa)
-    .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
-    .where(eq(mandiriDesa.id, Number(mandiriDesaId)))
-    .limit(1);
-
-    const catatanPembayaran = statusPeserta === "Person"
-      ? "Sudah dibayar oleh peserta Person"
-      : `Sudah dibayar oleh ${desaRecord[0]?.daerahNama || "Daerah Terkait"}`;
-
-    if (statusPeserta !== "Person" && desaRecord.length > 0 && desaRecord[0].daerahId) {
-      const targetDaerahId = desaRecord[0].daerahId;
-      const targetDaerahNama = desaRecord[0].daerahNama || "Daerah Terkait";
-
-      const countResult = await db.select({
-        count: sql<number>`count(*)`
-      })
-      .from(mandiri)
-      .innerJoin(generus, eq(mandiri.generusId, generus.id))
-      .innerJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
-      .leftJoin(formPanitiaDanPengurus, and(
-          eq(generus.id, formPanitiaDanPengurus.generusId),
-          eq(formPanitiaDanPengurus.kegiatanId, activeKegiatanId)
-      ))
-      .where(and(
-        eq(mandiri.kegiatanId, activeKegiatanId),
-        eq(mandiriDesa.mandiriDaerahId, targetDaerahId),
-        eq(generus.jenisKelamin, jenisKelamin),
-        eq(mandiri.statusPeserta, "Utusan Daerah"),
-        sql`${formPanitiaDanPengurus.id} IS NULL`
-      ));
-
-      const registeredCount = Number(countResult[0]?.count || 0);
-
-      if (registeredCount >= 5) {
-        const genderLabel = jenisKelamin === "L" ? "pria" : "wanita";
-        return NextResponse.json({
-          status: "quota_full",
-          error: `Kuota peserta ${genderLabel} untuk daerah ${targetDaerahNama} sudah penuh.`
-        }, { status: 409 });
-      }
-    }
     .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
     .where(eq(mandiriDesa.id, Number(mandiriDesaId)))
     .limit(1);
