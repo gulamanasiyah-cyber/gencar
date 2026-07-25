@@ -396,8 +396,8 @@ export default function MandiriDaftarPage() {
       return;
     }
 
-    if (file.size > 1 * 1024 * 1024) {
-      Swal.fire({ icon: "error", title: "File Terlalu Besar", text: "Ukuran bukti pembayaran maksimal 1 MB." });
+    if (file.size > 5 * 1024 * 1024) {
+      Swal.fire({ icon: "error", title: "File Terlalu Besar", text: "Ukuran bukti pembayaran maksimal 5 MB." });
       e.target.value = "";
       return;
     }
@@ -835,7 +835,7 @@ export default function MandiriDaftarPage() {
                 value={form.foto} 
                 onChange={(url) => setForm(prev => ({ ...prev, foto: url }))}
                 helperText="Kirim foto yang terbaik & terbaru, foto bebas, dan muka tampak jelas (tidak tertutup masker)"
-                maxSizeMb={1}
+                maxSizeMb={5}
               />
             </div>
 
@@ -1057,7 +1057,7 @@ export default function MandiriDaftarPage() {
                     required={regStatusPeserta === "Person" && !form.buktiPembayaran}
                   />
                   <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px" }}>
-                    Format JPEG, JPG, atau PNG. Ukuran maksimal 1 MB.
+                    Format JPEG, JPG, atau PNG. Ukuran maksimal 5 MB.
                   </p>
                   {uploadingBukti && (
                     <p style={{ fontSize: "12px", color: "#3b82f6", marginTop: "6px" }}>Mengunggah...</p>

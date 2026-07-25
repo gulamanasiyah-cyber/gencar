@@ -2730,8 +2730,8 @@ export default function PublicKatalogPage() {
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
-                        if (file.size > 1 * 1024 * 1024) {
-                           Swal.fire("File Terlalu Besar", "Maksimal ukuran foto adalah 1MB.", "warning");
+                        if (file.size > 5 * 1024 * 1024) {
+                           Swal.fire("File Terlalu Besar", "Maksimal ukuran foto adalah 5MB.", "warning");
                            return;
                         }
                         setUploadingFoto(true);
@@ -2759,7 +2759,7 @@ export default function PublicKatalogPage() {
                      </button>
                   )}
                 </div>
-                <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "8px" }}>Format JPG/PNG/WEBP maks 1MB.</div>
+                <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "8px" }}>Format JPG/PNG/WEBP maks 5MB.</div>
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Nama Lengkap</label>

@@ -1,8 +1,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-// Max file size: 1 MB (in bytes)
-const MAX_FILE_SIZE = 1 * 1024 * 1024;
+// Max file size: 5 MB (in bytes)
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 // Allowed MIME types for photo uploads
 const ALLOWED_MIME_TYPES = [
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: `Ukuran file terlalu besar (${(file.size / 1024 / 1024).toFixed(1)} MB). Maksimal 1 MB.` },
+        { error: `Ukuran file terlalu besar (${(file.size / 1024 / 1024).toFixed(1)} MB). Maksimal 5 MB.` },
         { status: 400 }
       );
     }
