@@ -67,7 +67,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Mohon lengkapi nominal pembayaran dan bukti pembayaran." }, { status: 400 });
     }
 
-    // 2.1. Quota Check for Daerah (Max 5 males, 5 females per kegiatan)
+    // 2.1. Quota Check for Daerah
+    const quotaSet = await db.select().from(settings).where(eq(settings.key, "mandiri_registration_quota"));
+    const quotaValue = Number(quotaSet[0]?.value || "0");
+
     const desaRecord = await db.select({
       daerahId: mandiriDesa.mandiriDaerahId,
       daerahNama: mandiriDaerah.nama
@@ -81,7 +84,7 @@ export async function POST(request: NextRequest) {
       ? "Sudah dibayar oleh peserta Person"
       : `Sudah dibayar oleh ${desaRecord[0]?.daerahNama || "Daerah Terkait"}`;
 
-    if (statusPeserta !== "Person" && desaRecord.length > 0 && desaRecord[0].daerahId) {
+    if (quotaValue > 0 && desaRecord.length > 0 && desaRecord[0].daerahId) {
       const targetDaerahId = desaRecord[0].daerahId;
       const targetDaerahNama = desaRecord[0].daerahNama || "Daerah Terkait";
 
@@ -99,17 +102,17 @@ export async function POST(request: NextRequest) {
         eq(mandiri.kegiatanId, activeKegiatanId),
         eq(mandiriDesa.mandiriDaerahId, targetDaerahId),
         eq(generus.jenisKelamin, jenisKelamin),
-        eq(mandiri.statusPeserta, "Utusan Daerah"),
         sql`${formPanitiaDanPengurus.id} IS NULL`
       ));
 
       const registeredCount = Number(countResult[0]?.count || 0);
+      const genderLimit = quotaValue / 2;
 
-      if (registeredCount >= 5) {
+      if (registeredCount >= genderLimit) {
         const genderLabel = jenisKelamin === "L" ? "pria" : "wanita";
         return NextResponse.json({
           status: "quota_full",
-          error: `Kuota peserta ${genderLabel} untuk daerah ${targetDaerahNama} sudah penuh.`
+          error: `Kuota maksimal peserta ${genderLabel} untuk daerah ${targetDaerahNama} (${genderLimit} orang) sudah penuh.`
         }, { status: 409 });
       }
     }

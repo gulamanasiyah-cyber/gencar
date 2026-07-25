@@ -451,7 +451,7 @@ export default function MandiriDaftarPage() {
         Swal.fire({
           icon: "warning",
           title: "Kuota Daerah Penuh",
-          html: `<p>${data.error}</p><span style="font-size: 13px; color: #64748b;">Harap lapor kepada Tim PNKB/Ibu Gambuh, Jika ingin mendaftar sebagai Peserta Person</span>`,
+          html: `<p>${data.error}</p><span style="font-size: 13px; color: #64748b;">Harap lapor kepada Tim PNKB/Ibu Gambuh untuk informasi lebih lanjut.</span>`,
           confirmButtonText: "Mengerti",
           confirmButtonColor: "#f59e0b"
         });
