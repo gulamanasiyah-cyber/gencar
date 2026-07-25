@@ -1217,7 +1217,7 @@ export default function PublicKatalogPage() {
                     ${isThirdPartyAdmin ? 'Pemilih: ' : 'Anda: '}<span style="color: #f43f5e; margin-left: 4px;">${room.pengirimNama}</span>
                 </label>
                 <div style="display: flex; gap: 8px;">
-                    <input type="radio" id="p_lanjut" name="hasil_p" value="Lanjut" checked style="display:none">
+                    <input type="radio" id="p_lanjut" name="hasil_p" value="Lanjut" style="display:none">
                     <label for="p_lanjut" class="swal-custom-radio">Lanjut</label>
                     <input type="radio" id="p_ragu" name="hasil_p" value="Ragu-ragu" style="display:none">
                     <label for="p_ragu" class="swal-custom-radio">Ragu-ragu</label>
@@ -1235,7 +1235,7 @@ export default function PublicKatalogPage() {
                     ${isThirdPartyAdmin ? 'Terpilih: ' : 'Anda: '}<span style="color: #f43f5e; margin-left: 4px;">${room.penerimaNama}</span>
                 </label>
                 <div style="display: flex; gap: 8px;">
-                    <input type="radio" id="t_lanjut" name="hasil_t" value="Lanjut" checked style="display:none">
+                    <input type="radio" id="t_lanjut" name="hasil_t" value="Lanjut" style="display:none">
                     <label for="t_lanjut" class="swal-custom-radio">Lanjut</label>
                     <input type="radio" id="t_ragu" name="hasil_t" value="Ragu-ragu" style="display:none">
                     <label for="t_ragu" class="swal-custom-radio">Ragu-ragu</label>
@@ -1272,7 +1272,7 @@ export default function PublicKatalogPage() {
     </div>`;
 
     const { value: formValues } = await Swal.fire({
-            title: isAdmin ? 'Selesaikan Sesi?' : 'Input Hasil RR',
+            title: isThirdPartyAdmin ? 'Selesaikan Sesi?' : 'Input Hasil RR',
             html: htmlContent,
             showCancelButton: true,
             confirmButtonColor: '#10b981',
@@ -1281,41 +1281,62 @@ export default function PublicKatalogPage() {
             preConfirm: () => {
                 const hasil_p = document.querySelector('input[name="hasil_p"]:checked') ? (document.querySelector('input[name="hasil_p"]:checked') as HTMLInputElement).value : undefined;
                 const hasil_t = document.querySelector('input[name="hasil_t"]:checked') ? (document.querySelector('input[name="hasil_t"]:checked') as HTMLInputElement).value : undefined;
+                
+                if (isPengirim && !hasil_p) {
+                    Swal.showValidationMessage("Silakan pilih hasil pertemuan Anda terlebih dahulu.");
+                    return false;
+                }
+                if (isPenerima && !hasil_t) {
+                    Swal.showValidationMessage("Silakan pilih hasil pertemuan Anda terlebih dahulu.");
+                    return false;
+                }
+
                 return { hasil_p, hasil_t };
             }
         });
 
         if (formValues) {
             try {
-                // If the user only submitted their own result, we can save it via /api/mandiri/hasil-rr first
-                if (isPengirim || isPenerima) {
-                     const roleSide = isPengirim ? 'Pemilih' : 'Terpilih';
-                     const resultVal = isPengirim ? formValues.hasil_p : formValues.hasil_t;
-                     // Optional: we could directly submit to hasil-rr if we don't want to clear the room,
-                     // BUT clicking "Selesaikan Sesi" implies they are clearing the room. 
-                     // We will proceed to clear the room via PATCH.
-                }
-
-                const res = await fetch(`/api/mandiri/rooms/${room.id}`, {
-                    method: "PATCH",
-                    headers: { 
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${localStorage.getItem("attended_session_token") || ""}`
-                    },
-                    body: JSON.stringify({ action: "clear", hasilPengirim: formValues.hasil_p, hasilPenerima: formValues.hasil_t, operatorCompanionId: currentUser?.id })
-                });
-
-                if (!res.ok) throw new Error((await res.json()).error);
-
-                Swal.fire({
-                    title: "Berhasil!",
-                    text: isAdmin ? "Sesi telah selesai dan hasil disimpan." : "Hasil pertemuan Anda berhasil disimpan.",
-                    icon: "success",
-                    timer: 1500,
-                    showConfirmButton: false
-                });
+                let isSuccess = false;
                 
-                fetchData();
+                if (isThirdPartyAdmin) {
+                    // Panitia clears the room
+                    const res = await fetch(`/api/mandiri/rooms/${room.id}`, {
+                        method: "PATCH",
+                        headers: { 
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${localStorage.getItem("attended_session_token") || ""}`
+                        },
+                        body: JSON.stringify({ action: "clear", hasilPengirim: formValues.hasil_p, hasilPenerima: formValues.hasil_t, operatorCompanionId: currentUser?.id })
+                    });
+                    if (!res.ok) throw new Error((await res.json()).error);
+                    isSuccess = true;
+                } else {
+                    // Peserta submits their individual result
+                    const resultVal = isPengirim ? formValues.hasil_p : formValues.hasil_t;
+                    const res = await fetch("/api/mandiri/hasil-rr", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            id: room.pemilihanId,
+                            generusId: currentUser?.id,
+                            hasil: resultVal
+                        })
+                    });
+                    if (!res.ok) throw new Error((await res.json()).error);
+                    isSuccess = true;
+                }
+                if (isSuccess) {
+                    Swal.fire({
+                        title: "Berhasil!",
+                        text: isThirdPartyAdmin ? "Sesi telah selesai dan hasil disimpan." : "Hasil pertemuan Anda berhasil disimpan.",
+                        icon: "success",
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                    
+                    fetchData();
+                }
             } catch (err: any) {
                 Swal.fire("Error", err.message, "error");
             }
@@ -2468,6 +2489,7 @@ export default function PublicKatalogPage() {
                 const isSubmittingThis = submittingHasilId === h.id;
                 const isDalamRuangan = h.status === "Diterima";
 
+                const isPenerima = h.penerimaId === currentUser?.id;
                 const isPanitia = !isPengirim && !isPenerima;
                 
                 const isRagu = (val: string) => val === "Ragu-Ragu" || val === "Ragu-ragu";

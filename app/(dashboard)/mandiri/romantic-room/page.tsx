@@ -94,6 +94,7 @@ export default function RomanticRoomPage() {
     const [allQueue, setAllQueue] = useState<any[]>([]); // Status "Menunggu"
     const [allParticipants, setAllParticipants] = useState<any[]>([]);
     const [resultFilter, setResultFilter] = useState("Semua");
+    const [historySearchQuery, setHistorySearchQuery] = useState("");
     const [myRoom, setMyRoom] = useState<any>(null);
     const [myQueueStatus, setMyQueueStatus] = useState<any>(null);
     const [visitHistory, setVisitHistory] = useState<any[]>([]);
@@ -1510,7 +1511,12 @@ export default function RomanticRoomPage() {
     const combinedList = [
         ...normalizedQueue,
         ...visitHistory.map(h => ({ ...h, status: "Selesai", isQueue: false }))
-    ];
+    ].sort((a, b) => {
+        // Finished items ("Selesai") first, then sort by date (newest first). 
+        if (a.status !== "Menunggu" && b.status === "Menunggu") return -1;
+        if (a.status === "Menunggu" && b.status !== "Menunggu") return 1;
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
 
     const filteredData = combinedList.filter(item => {
         // Result Filter
@@ -1553,7 +1559,18 @@ export default function RomanticRoomPage() {
             matchVillage = (item.pemilihDesa === villageFilter || item.terpilihDesa === villageFilter);
         }
 
-        return matchResult && matchCity && matchVillage;
+        // Search Filter
+        let matchSearch = true;
+        if (historySearchQuery && historySearchQuery.trim() !== "") {
+            const q = historySearchQuery.toLowerCase();
+            matchSearch = 
+                (item.pemilihNama && item.pemilihNama.toLowerCase().includes(q)) ||
+                (item.terpilihNama && item.terpilihNama.toLowerCase().includes(q)) ||
+                (item.pemilihNo && String(item.pemilihNo).includes(q)) ||
+                (item.terpilihNo && String(item.terpilihNo).includes(q));
+        }
+
+        return matchResult && matchCity && matchVillage && matchSearch;
     });
 
     if (loading && !myProfile) return <div className="room-loading">Membuka Romantic Room...</div>;
@@ -2192,6 +2209,16 @@ export default function RomanticRoomPage() {
                                     <option value="Lanjut - Ragu-ragu">Lanjut - Ragu-ragu</option>
                                     <option value="Tidak Lanjut - Ragu-ragu">Tidak Lanjut - Ragu-ragu</option>
                                 </select>
+                                <div className="search-bar-container" style={{ padding: '0', flex: 1, minWidth: '200px', margin: '0' }}>
+                                    <Search size={16} />
+                                    <input
+                                        type="text"
+                                        placeholder="Cari nama peserta..."
+                                        value={historySearchQuery}
+                                        onChange={(e) => setHistorySearchQuery(e.target.value)}
+                                        style={{ width: '100%' }}
+                                    />
+                                </div>
                                 <span className="count-badge">{filteredData.length} Record</span>
                             </div>
                         </div>

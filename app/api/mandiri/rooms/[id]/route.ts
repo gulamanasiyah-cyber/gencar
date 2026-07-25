@@ -378,7 +378,11 @@ export async function PATCH(
                     const isPenerima = sel.penerimaId === userId;
                     const isAssignedPanitia = room.assignedGuardId === userId || room.assignedCallerId === userId || room.assignedCaller2Id === userId;
                     
-                    if (!isPengirim && !isPenerima && !isAssignedPanitia) {
+                    const isPanitiaThirdParty = await db.query.formPanitiaDanPengurus.findFirst({
+                        where: eq(formPanitiaDanPengurus.generusId, userId || "")
+                    });
+
+                    if (!isPengirim && !isPenerima && !isAssignedPanitia && !isPanitiaThirdParty) {
                         return NextResponse.json({ error: "Anda tidak ditugaskan di ruangan ini." }, { status: 403 });
                     }
                     
@@ -390,7 +394,7 @@ export async function PATCH(
                             await db.update(mandiriPemilihan).set({ hasilPenerima }).where(eq(mandiriPemilihan.id, sel.id));
                         }
                         return NextResponse.json({ success: true, message: "Hasil disimpan" });
-                    } else if (isAssignedPanitia) {
+                    } else if (isAssignedPanitia || isPanitiaThirdParty) {
                         const updates: any = {};
                         if (hasilPengirim) updates.hasilPengirim = hasilPengirim;
                         if (hasilPenerima) updates.hasilPenerima = hasilPenerima;
