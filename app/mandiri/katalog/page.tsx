@@ -1258,7 +1258,7 @@ export default function PublicKatalogPage() {
     const isPenerima = String(currentUser?.nomorUnik) === String(room.penerimaNo);
     // A third-party admin is someone who is NOT one of the two participants
     // AND is not an assigned panitia in this room
-    const isAssignedPanitia = currentUser?.id && (
+    const isAssignedPanitia = !isPengirim && !isPenerima && currentUser?.id && (
         room.assignedGuardId === currentUser.id ||
         room.assignedCallerId === currentUser.id ||
         room.assignedCaller2Id === currentUser.id
@@ -1277,11 +1277,13 @@ export default function PublicKatalogPage() {
     
     if (isThirdPartyAdmin) {
         htmlContent += `<p style="font-size: 14px; margin-bottom: 15px; color: #64748b;">Tentukan hasil pertemuan untuk kedua belah pihak:</p>`;
+    } else if (isAssignedPanitia) {
+        htmlContent += `<p style="font-size: 14px; margin-bottom: 15px; color: #64748b;">Anda bertugas di ruangan ini. Tentukan hasil pertemuan untuk kedua peserta:</p>`;
     } else {
         htmlContent += `<p style="font-size: 14px; margin-bottom: 15px; color: #64748b;">Bagaimana hasil pertemuan Anda?</p>`;
     }
 
-    if (isPengirim || isThirdPartyAdmin) {
+    if (isPengirim || isThirdPartyAdmin || isAssignedPanitia) {
         htmlContent += `
             <div style="margin-bottom: 20px;">
                 <label style="display: block; font-weight: 800; font-size: 11px; text-transform: uppercase; color: #1e293b; margin-bottom: 8px; letter-spacing: 0.5px;">
@@ -1299,7 +1301,7 @@ export default function PublicKatalogPage() {
         `;
     }
 
-    if (isPenerima || isThirdPartyAdmin) {
+    if (isPenerima || isThirdPartyAdmin || isAssignedPanitia) {
         htmlContent += `
             <div>
                 <label style="display: block; font-weight: 800; font-size: 11px; text-transform: uppercase; color: #1e293b; margin-bottom: 8px; letter-spacing: 0.5px;">
@@ -1361,7 +1363,7 @@ export default function PublicKatalogPage() {
                     Swal.showValidationMessage("Silakan pilih hasil pertemuan Anda terlebih dahulu.");
                     return false;
                 }
-                if (isThirdPartyAdmin && (!hasil_p || !hasil_t)) {
+                if ((isThirdPartyAdmin || isAssignedPanitia) && (!hasil_p || !hasil_t)) {
                     Swal.showValidationMessage("Silakan pilih hasil untuk kedua peserta.");
                     return false;
                 }
@@ -1374,8 +1376,8 @@ export default function PublicKatalogPage() {
             try {
                 let isSuccess = false;
                 
-                if (isThirdPartyAdmin) {
-                    // Admin/panitia clears the room
+                if (isThirdPartyAdmin || isAssignedPanitia) {
+                    // Admin / panitia yang ditugaskan: selesaikan room via PATCH
                     const res = await fetch(`/api/mandiri/rooms/${room.id}`, {
                         method: "PATCH",
                         headers: { 
@@ -1387,7 +1389,7 @@ export default function PublicKatalogPage() {
                     if (!res.ok) throw new Error((await res.json()).error);
                     isSuccess = true;
                 } else {
-                    // Peserta or assigned panitia submits their individual result
+                    // Peserta (pengirim / penerima): submit hasil individual via POST
                     if (!room.pemilihanId) {
                         Swal.fire("Info", "Sesi ini sudah berakhir.", "info");
                         await fetchActiveRooms();
@@ -1410,7 +1412,7 @@ export default function PublicKatalogPage() {
                 if (isSuccess) {
                     Swal.fire({
                         title: "Berhasil!",
-                        text: isThirdPartyAdmin ? "Sesi telah selesai dan hasil disimpan." : "Hasil pertemuan Anda berhasil disimpan.",
+                        text: (isThirdPartyAdmin || isAssignedPanitia) ? "Sesi telah selesai dan hasil disimpan." : "Hasil pertemuan Anda berhasil disimpan.",
                         icon: "success",
                         timer: 1500,
                         showConfirmButton: false
