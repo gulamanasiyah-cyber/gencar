@@ -172,6 +172,51 @@ export default function RomanticRoomPage() {
             return;
         }
 
+        // Check if existing record with non-empty results already exists in visitHistory
+        const existingRecord = visitHistory.find((item: any) => {
+            const isDirect = (item.pemilihNo === selectedPemilih.nomorUnik || item.pemilihNama === selectedPemilih.nama) &&
+                             (item.terpilihNo === selectedTerpilih.nomorUnik || item.terpilihNama === selectedTerpilih.nama);
+            const isReverse = (item.pemilihNo === selectedTerpilih.nomorUnik || item.pemilihNama === selectedTerpilih.nama) &&
+                              (item.terpilihNo === selectedPemilih.nomorUnik || item.pemilihNama === selectedPemilih.nama);
+            return isDirect || isReverse;
+        });
+
+        const hasExistingHasil = existingRecord && (
+            (existingRecord.pemilihHasil && existingRecord.pemilihHasil !== "Menunggu") ||
+            (existingRecord.terpilihHasil && existingRecord.terpilihHasil !== "Menunggu")
+        );
+
+        if (hasExistingHasil) {
+            const prevHasilText = `${existingRecord.pemilihHasil || "Menunggu"} - ${existingRecord.terpilihHasil || "Menunggu"}`;
+            const newHasilText = `${manualHasilPengirim} - ${manualHasilPenerima}`;
+
+            const confirmResult = await Swal.fire({
+                title: "Konfirmasi Ubah Hasil Romantic Room",
+                html: `
+                    <div style="text-align: left; font-size: 13px; color: #334155; line-height: 1.6;">
+                        <div style="background: #fff7ed; border: 1px solid #ffedd5; padding: 12px; border-radius: 10px; margin-bottom: 14px;">
+                            <div style="font-weight: 800; color: #c2410c; margin-bottom: 4px;">⚠️ Perhatian: Data Sudah Memiliki Hasil</div>
+                            <div>Data hasil Romantic Room untuk pasangan ini sudah pernah diisi sebelumnya.</div>
+                        </div>
+                        <div style="margin-bottom: 8px;"><b>Pasangan:</b> ${selectedPemilih.nama} & ${selectedTerpilih.nama}</div>
+                        <div style="margin-bottom: 8px;"><b style="color: #64748b;">Hasil Sebelumnya:</b> <span style="background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-weight: 700;">${prevHasilText}</span></div>
+                        <div style="margin-bottom: 14px;"><b style="color: #2563eb;">Hasil Baru yang Dimasukkan:</b> <span style="background: #eff6ff; color: #1d4ed8; padding: 2px 8px; border-radius: 4px; font-weight: 800;">${newHasilText}</span></div>
+                        <div style="font-weight: 700; color: #1e293b;">Apakah Anda yakin ingin memperbarui / mengubah data ini?</div>
+                    </div>
+                `,
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#f97316",
+                cancelButtonColor: "#94a3b8",
+                confirmButtonText: "Ya, Ubah Hasil",
+                cancelButtonText: "Batal"
+            });
+
+            if (!confirmResult.isConfirmed) {
+                return;
+            }
+        }
+
         setIsSubmittingManual(true);
         try {
             const res = await fetch("/api/mandiri/kunjungan/manual", {
@@ -2573,7 +2618,7 @@ export default function RomanticRoomPage() {
                             bottom: 0,
                             backgroundColor: 'rgba(15, 23, 42, 0.65)',
                             backdropFilter: 'blur(4px)',
-                            zIndex: 9999,
+                            zIndex: 1040,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -2929,6 +2974,7 @@ export default function RomanticRoomPage() {
                 )}
 
                 <style jsx>{`
+                    :global(.swal2-container) { z-index: 99999 !important; }
                     .admin-layout { width: 100%; min-width: 0; max-width: 1400px; padding: 20px; margin: 0 auto; background: #f8fafc; min-height: 100vh; box-sizing: border-box; }
                     .room-header-modern { margin-bottom: 25px; }
                     .header-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
