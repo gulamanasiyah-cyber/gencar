@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       kegiatanId = activeSetting[0]?.value || "";
     }
 
-    // 1. Check if a selection already exists between these two participants
+    // 1. MUTUAL CHECK: Check if a selection already exists between these two participants (A -> B or B -> A)
     const existingPemilihan = await db.query.mandiriPemilihan.findFirst({
       where: and(
         eq(mandiriPemilihan.kegiatanId, kegiatanId),
@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
       await db.update(mandiriPemilihan)
         .set({
           status: "Selesai",
+          statusTunggu: "antrean",
           hasilPengirim: existingPemilihan.pengirimId === pengirimId ? hasilPengirim : hasilPenerima,
           hasilPenerima: existingPemilihan.penerimaId === penerimaId ? hasilPenerima : hasilPengirim
         })
@@ -69,13 +70,63 @@ export async function POST(request: NextRequest) {
         penerimaId,
         kegiatanId,
         status: "Selesai",
+        statusTunggu: "antrean",
         hasilPengirim,
         hasilPenerima,
         createdAt: sql`(datetime('now'))`
       });
     }
 
-    // 2. Check room target
+    // 2. ROOM CLEANUP: Check if either participant is currently in an active room and vacate that room
+    const occupiedRooms = await db.select({
+      roomId: mandiriRooms.id,
+      pemilihanId: mandiriRooms.pemilihanId,
+      pengirimId: mandiriPemilihan.pengirimId,
+      penerimaId: mandiriPemilihan.penerimaId,
+      assignedGuardId: mandiriRooms.assignedGuardId,
+      assignedCallerId: mandiriRooms.assignedCallerId,
+      assignedCaller2Id: mandiriRooms.assignedCaller2Id,
+    })
+    .from(mandiriRooms)
+    .leftJoin(mandiriPemilihan, eq(mandiriRooms.pemilihanId, mandiriPemilihan.id))
+    .where(and(
+      eq(mandiriRooms.status, "Terisi"),
+      or(
+        eq(mandiriRooms.pemilihanId, pemilihanId),
+        eq(mandiriPemilihan.pengirimId, pengirimId),
+        eq(mandiriPemilihan.penerimaId, pengirimId),
+        eq(mandiriPemilihan.pengirimId, penerimaId),
+        eq(mandiriPemilihan.penerimaId, penerimaId)
+      )
+    ));
+
+    for (const r of occupiedRooms) {
+      await db.update(mandiriRooms)
+        .set({
+          pemilihanId: null,
+          timGambuhId: null,
+          status: "Kosong",
+          startedAt: null,
+          updatedAt: sql`(datetime('now'))`
+        })
+        .where(eq(mandiriRooms.id, r.roomId));
+
+      try {
+        await pusherServer.trigger("taaruf-channel", "room-changed", {
+          roomId: r.roomId,
+          action: "clear",
+          pengirimId: r.pengirimId,
+          penerimaId: r.penerimaId,
+          assignedGuardId: r.assignedGuardId,
+          assignedCallerId: r.assignedCallerId,
+          assignedCaller2Id: r.assignedCaller2Id
+        });
+      } catch (pusherErr) {
+        console.error("Pusher room clear trigger error:", pusherErr);
+      }
+    }
+
+    // 3. TARGET ROOM: Check room target or use default room
     let targetRoomId = roomId;
     if (!targetRoomId) {
       const availableRoom = await db.query.mandiriRooms.findFirst({
@@ -84,7 +135,7 @@ export async function POST(request: NextRequest) {
       targetRoomId = availableRoom?.id || null;
     }
 
-    // 3. Ensure kunjungan records exist
+    // 4. Ensure kunjungan records exist for historical report
     if (targetRoomId) {
       const existingKunjungan = await db.query.mandiriKunjungan.findFirst({
         where: eq(mandiriKunjungan.pemilihanId, pemilihanId)
@@ -112,7 +163,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4. Handle match cleanup if both chose 'Lanjut'
+    // 5. MATCH CLEANUP: If both chose 'Lanjut', automatically clean up all other pending queues for A & B
     const finalSelection = await db.query.mandiriPemilihan.findFirst({
       where: eq(mandiriPemilihan.id, pemilihanId)
     });
@@ -126,11 +177,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 5. Pusher trigger
+    // 6. Pusher trigger for taaruf-changed
     try {
       await pusherServer.trigger("taaruf-channel", "taaruf-changed", {
         type: "manual-rr-added",
-        pemilihanId
+        pemilihanId,
+        pengirimId,
+        penerimaId
       });
     } catch (pusherErr) {
       console.error("Pusher manual RR trigger error:", pusherErr);
