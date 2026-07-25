@@ -92,11 +92,19 @@ export async function handleMatchCleanup(pemilihanId: string) {
           })
           .where(eq(mandiriRooms.id, r.roomId));
 
-        // Broadcast Pusher room update
+        // Broadcast Pusher room update — include participant IDs for notification targeting
+        const roomRecord = await db.query.mandiriRooms.findFirst({
+          where: eq(mandiriRooms.id, r.roomId)
+        });
         try {
           await pusherServer.trigger("taaruf-channel", "room-changed", {
             roomId: r.roomId,
             action: "clear",
+            pengirimId: p1,
+            penerimaId: p2,
+            assignedGuardId: roomRecord?.assignedGuardId,
+            assignedCallerId: roomRecord?.assignedCallerId,
+            assignedCaller2Id: roomRecord?.assignedCaller2Id,
           });
         } catch (pusherErr) {
           console.error("Pusher match cleanup room clear trigger error:", pusherErr);

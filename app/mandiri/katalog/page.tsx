@@ -468,6 +468,24 @@ export default function PublicKatalogPage() {
     localStorage.setItem("mandiri_selections", JSON.stringify(selectedIds));
   }, [selectedIds]);
 
+  const fetchActiveRooms = useCallback(async () => {
+    const storedUnik = localStorage.getItem("attended_nomor_unik");
+    const storedToken = localStorage.getItem("attended_session_token");
+    try {
+      const roomsRes = await fetch("/api/mandiri/rooms", {
+        headers: {
+          ...(storedUnik ? { "x-nomor-unik": storedUnik } : {}),
+          ...(storedToken ? { "x-session-token": storedToken } : {}),
+        }
+      });
+      if (roomsRes.ok) {
+        setActiveRooms(await roomsRes.json());
+      }
+    } catch (e) {
+      console.error("fetchActiveRooms error:", e);
+    }
+  }, []);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -684,15 +702,21 @@ export default function PublicKatalogPage() {
             }
           } catch (e) {}
         }
-        // Fetch active rooms for Admin to allow 'Selesaikan Sesi' from Katalog
-        if (userIsAdmin) {
-           try {
-             const roomsRes = await fetch("/api/mandiri/rooms");
-             if (roomsRes.ok) {
-               setActiveRooms(await roomsRes.json());
-             }
-           } catch(e) {}
-        }
+        // Fetch active rooms for all users (admin, peserta, panitia)
+        // so the banner/button reflects the real room state for everyone
+        try {
+          const storedUnikForRooms = localStorage.getItem("attended_nomor_unik");
+          const storedTokenForRooms = localStorage.getItem("attended_session_token");
+          const roomsRes = await fetch("/api/mandiri/rooms", {
+            headers: {
+              ...(storedUnikForRooms ? { "x-nomor-unik": storedUnikForRooms } : {}),
+              ...(storedTokenForRooms ? { "x-session-token": storedTokenForRooms } : {}),
+            }
+          });
+          if (roomsRes.ok) {
+            setActiveRooms(await roomsRes.json());
+          }
+        } catch(e) {}
       } catch (e) {
         console.error("init error:", e);
       } finally {
@@ -813,7 +837,8 @@ export default function PublicKatalogPage() {
     const channel = pusher.subscribe("taaruf-channel");
 
     const handleUpdate = () => {
-      // Trigger data refetching
+      // Trigger data refetching; also refresh rooms since auto-finalize may have cleared the room
+      fetchActiveRooms();
       fetchData();
       fetchSelections();
       fetchHasilRR(false);
@@ -831,6 +856,8 @@ export default function PublicKatalogPage() {
     };
 
     const handleRoomChanged = (data: any) => {
+      // Always refresh activeRooms so the banner/button clears for all users
+      fetchActiveRooms();
       fetchData();
       fetchSelections();
       fetchHasilRR(false);
@@ -869,7 +896,7 @@ export default function PublicKatalogPage() {
       channel.unbind("box-love-status-changed", handleBoxLoveUpdate);
       pusher.unsubscribe("taaruf-channel");
     };
-  }, [fetchData, fetchSelections, fetchHasilRR, refreshAttendanceStatus, currentUser]);
+  }, [fetchData, fetchSelections, fetchHasilRR, fetchActiveRooms, refreshAttendanceStatus, currentUser]);
 
   const handleSendKomentar = async (penerimaId: string, itemNama: string, komentar: string) => {
     if (submittingKomentar) return;
@@ -1221,13 +1248,30 @@ export default function PublicKatalogPage() {
     const room = sp.roomId ? activeRooms.find((r: any) => r.id === sp.roomId) : activeRooms.find((r: any) => String(r.pengirimNo) === String(sp.nomorUnik) || String(r.penerimaNo) === String(sp.nomorUnik));
     
     if (!room) {
-        Swal.fire("Error", "Ruangan tidak ditemukan", "error");
+        // Rooms might not be loaded yet — try refreshing first
+        await fetchActiveRooms();
+        Swal.fire("Error", "Ruangan tidak ditemukan. Coba lagi.", "error");
         return;
     }
 
     const isPengirim = String(currentUser?.nomorUnik) === String(room.pengirimNo);
     const isPenerima = String(currentUser?.nomorUnik) === String(room.penerimaNo);
-    const isThirdPartyAdmin = !isPengirim && !isPenerima;
+    // A third-party admin is someone who is NOT one of the two participants
+    // AND is not an assigned panitia in this room
+    const isAssignedPanitia = currentUser?.id && (
+        room.assignedGuardId === currentUser.id ||
+        room.assignedCallerId === currentUser.id ||
+        room.assignedCaller2Id === currentUser.id
+    );
+    const isThirdPartyAdmin = !isPengirim && !isPenerima && !isAssignedPanitia;
+
+    // Guard: if not a participant/admin and no pemilihanId, can't proceed
+    if (!isThirdPartyAdmin && !room.pemilihanId) {
+        Swal.fire("Info", "Sesi ini sudah berakhir atau belum memiliki data pemilihan.", "info");
+        await fetchActiveRooms();
+        await fetchHasilRR();
+        return;
+    }
 
     let htmlContent = `<div style="text-align: left; margin-bottom: 20px;">`;
     
@@ -1317,6 +1361,10 @@ export default function PublicKatalogPage() {
                     Swal.showValidationMessage("Silakan pilih hasil pertemuan Anda terlebih dahulu.");
                     return false;
                 }
+                if (isThirdPartyAdmin && (!hasil_p || !hasil_t)) {
+                    Swal.showValidationMessage("Silakan pilih hasil untuk kedua peserta.");
+                    return false;
+                }
 
                 return { hasil_p, hasil_t };
             }
@@ -1327,7 +1375,7 @@ export default function PublicKatalogPage() {
                 let isSuccess = false;
                 
                 if (isThirdPartyAdmin) {
-                    // Panitia clears the room
+                    // Admin/panitia clears the room
                     const res = await fetch(`/api/mandiri/rooms/${room.id}`, {
                         method: "PATCH",
                         headers: { 
@@ -1339,7 +1387,13 @@ export default function PublicKatalogPage() {
                     if (!res.ok) throw new Error((await res.json()).error);
                     isSuccess = true;
                 } else {
-                    // Peserta submits their individual result
+                    // Peserta or assigned panitia submits their individual result
+                    if (!room.pemilihanId) {
+                        Swal.fire("Info", "Sesi ini sudah berakhir.", "info");
+                        await fetchActiveRooms();
+                        await fetchHasilRR();
+                        return;
+                    }
                     const resultVal = isPengirim ? formValues.hasil_p : formValues.hasil_t;
                     const res = await fetch("/api/mandiri/hasil-rr", {
                         method: "POST",
@@ -1361,8 +1415,10 @@ export default function PublicKatalogPage() {
                         timer: 1500,
                         showConfirmButton: false
                     });
-                    
+                    // Refresh all relevant state so UI reflects the new status immediately
                     fetchData();
+                    fetchActiveRooms();
+                    fetchHasilRR();
                 }
             } catch (err: any) {
                 Swal.fire("Error", err.message, "error");
