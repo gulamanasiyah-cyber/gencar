@@ -675,6 +675,60 @@ export default function RomanticRoomPage() {
         } catch {}
     };
 
+    const handleOpenStaffSelector = async (roomId: string, field: 'caller' | 'caller2' | 'guard', currentAssignedId: string, allowedRoles: string[], title: string, iconStr: string) => {
+        const filteredStaff = staffList.filter(s => allowedRoles.includes(s.role));
+        
+        let optionsHtml = `<option value="">${iconStr} Belum Ditentukan</option>`;
+        filteredStaff.forEach(s => {
+            const label = allowedRoles.length > 1 ? `${s.name} (${s.role === 'PNKB' ? 'P' : 'G'})` : s.name;
+            optionsHtml += `<option value="${s.id}" ${s.id === currentAssignedId ? 'selected' : ''}>${iconStr} ${label}</option>`;
+        });
+
+        const { value: selectedId, isConfirmed } = await Swal.fire({
+            title: `Pilih ${title}`,
+            html: `
+                <div style="text-align: left">
+                    <input type="text" id="staff-search-input" class="form-control" placeholder="🔍 Cari nama petugas..." style="margin-bottom: 10px; width: 100%; box-sizing: border-box; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1;" oninput="
+                        const val = this.value.toLowerCase();
+                        const select = document.getElementById('staff-select');
+                        for(let i=0; i<select.options.length; i++) {
+                            const opt = select.options[i];
+                            if(opt.text.toLowerCase().includes(val)) {
+                                opt.style.display = '';
+                            } else {
+                                opt.style.display = 'none';
+                            }
+                        }
+                    "/>
+                    <select id="staff-select" class="form-control" size="8" style="width: 100%; overflow-y: auto; padding: 5px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                        ${optionsHtml}
+                    </select>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: "Simpan",
+            cancelButtonText: "Batal",
+            didOpen: () => {
+                document.getElementById('staff-search-input')?.focus();
+                
+                const selectEl = document.getElementById('staff-select');
+                if (selectEl) {
+                    selectEl.addEventListener('dblclick', () => {
+                        Swal.clickConfirm();
+                    });
+                }
+            },
+            preConfirm: () => {
+                const selectEl = document.getElementById("staff-select") as HTMLSelectElement;
+                return selectEl.value;
+            }
+        });
+
+        if (isConfirmed && selectedId !== undefined) {
+            handleQuickStaffChange(roomId, field, selectedId);
+        }
+    };
+
     const handleQuickStaffChange = async (roomId: string, field: 'caller' | 'caller2' | 'guard', staffId: string) => {
         const body: any = { action: "assign_staff" };
         const fieldMap = { caller: 'assignedCallerId', caller2: 'assignedCaller2Id', guard: 'assignedGuardId' };
@@ -1952,41 +2006,32 @@ export default function RomanticRoomPage() {
                                                 return (
                                                     <div style={{ paddingTop: '6px', borderTop: isKosong ? '1px dashed #f9a8d4' : '1px dashed #e2e8f0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                                         {/* Caller 1 - PNKB */}
-                                                        <select
-                                                            value={room.assignedCallerId || ""}
-                                                            onChange={e => handleQuickStaffChange(room.id, 'caller', e.target.value)}
+                                                        <button
+                                                            onClick={() => handleOpenStaffSelector(room.id, 'caller', room.assignedCallerId || "", ['PNKB'], 'Pemanggil 1 (PNKB)', '📢')}
                                                             title="Pemanggil 1 (PNKB)"
-                                                            style={{ ...selectBase, borderColor: '#bfdbfe', background: room.assignedCallerId ? '#eff6ff' : '#f8fafc', color: room.assignedCallerId ? '#2563eb' : '#94a3b8' }}
+                                                            style={{ ...selectBase, textAlign: 'left', borderColor: '#bfdbfe', background: room.assignedCallerId ? '#eff6ff' : '#f8fafc', color: room.assignedCallerId ? '#2563eb' : '#94a3b8' }}
                                                         >
-                                                            <option value="">📢 Pemanggil 1 (Belum)</option>
-                                                            {staffList.filter(s => s.role === 'PNKB').map(s => (
-                                                                <option key={s.id} value={s.id}>📢 {s.name}</option>
-                                                            ))}
-                                                        </select>
+                                                            📢 {room.assignedCallerId ? staffList.find(s => s.id === room.assignedCallerId)?.name : 'Pemanggil 1 (Belum)'}
+                                                        </button>
                                                         {/* Caller 2 - Ibu Gambuh */}
-                                                        <select
-                                                            value={room.assignedCaller2Id || ""}
-                                                            onChange={e => handleQuickStaffChange(room.id, 'caller2', e.target.value)}
+                                                        <button
+                                                            onClick={() => handleOpenStaffSelector(room.id, 'caller2', room.assignedCaller2Id || "", ['Ibu Gambuh'], 'Pemanggil 2 (Ibu Gambuh)', '📢')}
                                                             title="Pemanggil 2 (Ibu Gambuh)"
-                                                            style={{ ...selectBase, borderColor: '#e9d5ff', background: room.assignedCaller2Id ? '#fdf4ff' : '#f8fafc', color: room.assignedCaller2Id ? '#9333ea' : '#94a3b8' }}
+                                                            style={{ ...selectBase, textAlign: 'left', borderColor: '#e9d5ff', background: room.assignedCaller2Id ? '#fdf4ff' : '#f8fafc', color: room.assignedCaller2Id ? '#9333ea' : '#94a3b8' }}
                                                         >
-                                                            <option value="">📢 Pemanggil 2 (Belum)</option>
-                                                            {staffList.filter(s => s.role === 'Ibu Gambuh').map(s => (
-                                                                <option key={s.id} value={s.id}>📢 {s.name}</option>
-                                                            ))}
-                                                        </select>
+                                                            📢 {room.assignedCaller2Id ? staffList.find(s => s.id === room.assignedCaller2Id)?.name : 'Pemanggil 2 (Belum)'}
+                                                        </button>
                                                         {/* Guard - PNKB + Ibu Gambuh */}
-                                                        <select
-                                                            value={room.assignedGuardId || ""}
-                                                            onChange={e => handleQuickStaffChange(room.id, 'guard', e.target.value)}
+                                                        <button
+                                                            onClick={() => handleOpenStaffSelector(room.id, 'guard', room.assignedGuardId || "", ['PNKB', 'Ibu Gambuh'], 'Penunggu', '🚪')}
                                                             title="Penunggu (PNKB / Ibu Gambuh)"
-                                                            style={{ ...selectBase, borderColor: '#a7f3d0', background: room.assignedGuardId ? '#ecfdf5' : '#f8fafc', color: room.assignedGuardId ? '#059669' : '#94a3b8' }}
+                                                            style={{ ...selectBase, textAlign: 'left', borderColor: '#a7f3d0', background: room.assignedGuardId ? '#ecfdf5' : '#f8fafc', color: room.assignedGuardId ? '#059669' : '#94a3b8' }}
                                                         >
-                                                            <option value="">🚪 Penunggu (Belum)</option>
-                                                            {staffList.filter(s => s.role === 'PNKB' || s.role === 'Ibu Gambuh').map(s => (
-                                                                <option key={s.id} value={s.id}>🚪 {s.name} ({s.role === 'PNKB' ? 'P' : 'G'})</option>
-                                                            ))}
-                                                        </select>
+                                                            🚪 {room.assignedGuardId ? (() => {
+                                                                const s = staffList.find(st => st.id === room.assignedGuardId);
+                                                                return s ? `${s.name} (${s.role === 'PNKB' ? 'P' : 'G'})` : 'Penunggu (Belum)';
+                                                            })() : 'Penunggu (Belum)'}
+                                                        </button>
                                                     </div>
                                                 );
                                             })()}

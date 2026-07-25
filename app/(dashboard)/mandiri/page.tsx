@@ -73,6 +73,7 @@ export default function MandiriPage() {
    const [regDesc, setRegDesc] = useState("");
    const [regStatusPeserta, setRegStatusPeserta] = useState("Utusan Daerah");
    const [regGender, setRegGender] = useState("Semua");
+   const [regQuota, setRegQuota] = useState("0");
    const [isClosed, setIsClosed] = useState(false);
    const [kegiatanList, setKegiatanList] = useState<KegiatanOption[]>([]);
    const [selectedKegiatanId, setSelectedKegiatanId] = useState("");
@@ -151,6 +152,7 @@ export default function MandiriPage() {
             setRegDesc(s.mandiri_registration_description || "");
             setRegStatusPeserta(s.mandiri_registration_status_peserta || "Utusan Daerah");
             setRegGender(s.mandiri_registration_gender || "Semua");
+            setRegQuota(s.mandiri_registration_quota || "0");
 
             const kList = await kegiatanRes.json();
             if (Array.isArray(kList)) {
@@ -219,6 +221,16 @@ export default function MandiriPage() {
             <option value="Laki-laki" ${regGender === "Laki-laki" ? "selected" : ""}>Laki-laki Saja</option>
             <option value="Perempuan" ${regGender === "Perempuan" ? "selected" : ""}>Perempuan Saja</option>
           </select>
+          <label class="form-label">Batasan Peserta (Per Daerah)</label>
+          <select id="swal-quota" class="form-control" style="margin-bottom: 12px" onchange="document.getElementById('manual-quota-container').style.display = this.value === 'manual' ? 'block' : 'none'">
+            <option value="0" ${regQuota === "0" ? "selected" : ""}>Unlimited (Tidak ada batasan)</option>
+            ${[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(i => `<option value="${i}" ${regQuota === String(i) ? "selected" : ""}>${i} pasangan persetiap daerah (${i/2} laki-laki dan ${i/2} perempuan)</option>`).join('')}
+            <option value="manual" ${!["0", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"].includes(regQuota) && regQuota !== "" ? "selected" : ""}>Tambahkan data input secara manual</option>
+          </select>
+          <div id="manual-quota-container" style="display: ${!["0", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"].includes(regQuota) && regQuota !== "" ? "block" : "none"}; margin-bottom: 12px">
+             <label class="form-label">Masukkan Kuota Manual (Total Peserta per Daerah)</label>
+             <input type="number" id="swal-manual-quota" class="form-control" placeholder="Contoh: 15" value="${!["0", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"].includes(regQuota) && regQuota !== "" ? regQuota : ""}" />
+          </div>
         </div>
       `,
          focusConfirm: false,
@@ -229,12 +241,19 @@ export default function MandiriPage() {
             const selectedOption = selectEl.options[selectEl.selectedIndex];
             const titleText = selectedOption && selectEl.value !== "" ? (selectedOption.getAttribute("data-judul") || selectedOption.text) : "";
             
+            const quotaSelect = (document.getElementById("swal-quota") as HTMLSelectElement).value;
+            let finalQuota = quotaSelect;
+            if (quotaSelect === "manual") {
+                finalQuota = (document.getElementById("swal-manual-quota") as HTMLInputElement).value || "0";
+            }
+
             return {
                id: selectEl.value,
                title: titleText,
                desc: (document.getElementById("swal-desc") as HTMLTextAreaElement).value,
                status: (document.getElementById("swal-status") as HTMLSelectElement).value,
                gender: (document.getElementById("swal-gender") as HTMLSelectElement).value,
+               quota: finalQuota
             };
          },
          footer: "Nama & deskripsi akan muncul di form publik"
@@ -262,6 +281,11 @@ export default function MandiriPage() {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ key: "mandiri_registration_gender", value: formValues.gender }),
+               }),
+               fetch("/api/mandiri/settings", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ key: "mandiri_registration_quota", value: formValues.quota }),
                })
             ];
 
@@ -282,6 +306,7 @@ export default function MandiriPage() {
             setRegDesc(formValues.desc);
             setRegStatus(formValues.status);
             setRegGender(formValues.gender);
+            setRegQuota(formValues.quota);
             setIsClosed(formValues.status === "0");
             if (formValues.id) setSelectedKegiatanId(formValues.id);
             Swal.fire({ icon: "success", title: "Berhasil disimpan", timer: 1000, showConfirmButton: false });
