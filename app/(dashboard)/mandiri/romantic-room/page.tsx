@@ -1038,6 +1038,14 @@ export default function RomanticRoomPage() {
             preConfirm: () => {
                 const p = (document.querySelector('input[name="hasil_p"]:checked') as HTMLInputElement)?.value;
                 const t = (document.querySelector('input[name="hasil_t"]:checked') as HTMLInputElement)?.value;
+                if (!p) {
+                    Swal.showValidationMessage(`Silakan pilih hasil untuk ${room.pengirimNama}`);
+                    return false;
+                }
+                if (!t) {
+                    Swal.showValidationMessage(`Silakan pilih hasil untuk ${room.penerimaNama}`);
+                    return false;
+                }
                 return { hasilPengirim: p, hasilPenerima: t };
             }
         });
