@@ -1095,14 +1095,14 @@ export default function RomanticRoomPage() {
                             Pemilih: <span style="color: #f43f5e; margin-left: 4px;">${room.pengirimNama}</span>
                         </label>
                         <div style="display: flex; gap: 8px;">
-                            <input type="radio" id="p_lanjut" name="hasil_p" value="Lanjut" checked style="display:none">
-                            <label for="p_lanjut" class="swal-custom-radio">Lanjut</label>
+                            <input type="radio" id="p_lanjut_${id}" name="hasil_p" value="Lanjut" checked style="display:none">
+                            <label for="p_lanjut_${id}" class="swal-custom-radio">Lanjut</label>
                             
-                            <input type="radio" id="p_ragu" name="hasil_p" value="Ragu-ragu" style="display:none">
-                            <label for="p_ragu" class="swal-custom-radio">Ragu-ragu</label>
+                            <input type="radio" id="p_ragu_${id}" name="hasil_p" value="Ragu-ragu" style="display:none">
+                            <label for="p_ragu_${id}" class="swal-custom-radio">Ragu-ragu</label>
 
-                            <input type="radio" id="p_tidak" name="hasil_p" value="Tidak Lanjut" style="display:none">
-                            <label for="p_tidak" class="swal-custom-radio">Tidak Lanjut</label>
+                            <input type="radio" id="p_tidak_${id}" name="hasil_p" value="Tidak Lanjut" style="display:none">
+                            <label for="p_tidak_${id}" class="swal-custom-radio">Tidak Lanjut</label>
                         </div>
                     </div>
 
@@ -1111,14 +1111,14 @@ export default function RomanticRoomPage() {
                             Terpilih: <span style="color: #f43f5e; margin-left: 4px;">${room.penerimaNama}</span>
                         </label>
                         <div style="display: flex; gap: 8px;">
-                            <input type="radio" id="t_lanjut" name="hasil_t" value="Lanjut" checked style="display:none">
-                            <label for="t_lanjut" class="swal-custom-radio">Lanjut</label>
+                            <input type="radio" id="t_lanjut_${id}" name="hasil_t" value="Lanjut" checked style="display:none">
+                            <label for="t_lanjut_${id}" class="swal-custom-radio">Lanjut</label>
                             
-                            <input type="radio" id="t_ragu" name="hasil_t" value="Ragu-ragu" style="display:none">
-                            <label for="t_ragu" class="swal-custom-radio">Ragu-ragu</label>
+                            <input type="radio" id="t_ragu_${id}" name="hasil_t" value="Ragu-ragu" style="display:none">
+                            <label for="t_ragu_${id}" class="swal-custom-radio">Ragu-ragu</label>
 
-                            <input type="radio" id="t_tidak" name="hasil_t" value="Tidak Lanjut" style="display:none">
-                            <label for="t_tidak" class="swal-custom-radio">Tidak Lanjut</label>
+                            <input type="radio" id="t_tidak_${id}" name="hasil_t" value="Tidak Lanjut" style="display:none">
+                            <label for="t_tidak_${id}" class="swal-custom-radio">Tidak Lanjut</label>
                         </div>
                     </div>
 
@@ -1139,17 +1139,17 @@ export default function RomanticRoomPage() {
                             background: #f8fafc;
                             border-color: #e2e8f0;
                         }
-                        input[id$="_lanjut"]:checked + .swal-custom-radio { 
+                        input[value="Lanjut"]:checked + .swal-custom-radio { 
                             background: #f0fdf4; 
                             color: #16a34a; 
                             border-color: #16a34a; 
                         }
-                        input[id$="_ragu"]:checked + .swal-custom-radio { 
+                        input[value="Ragu-ragu"]:checked + .swal-custom-radio { 
                             background: #fffbeb; 
                             color: #d97706; 
                             border-color: #d97706; 
                         }
-                        input[id$="_tidak"]:checked + .swal-custom-radio { 
+                        input[value="Tidak Lanjut"]:checked + .swal-custom-radio { 
                             background: #fef2f2; 
                             color: #dc2626; 
                             border-color: #dc2626; 

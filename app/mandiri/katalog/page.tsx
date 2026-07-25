@@ -1282,6 +1282,7 @@ export default function PublicKatalogPage() {
     } else {
         htmlContent += `<p style="font-size: 14px; margin-bottom: 15px; color: #64748b;">Bagaimana hasil pertemuan Anda?</p>`;
     }
+    const uid = Math.random().toString(36).substring(7);
 
     if (isPengirim || isThirdPartyAdmin || isAssignedPanitia) {
         htmlContent += `
@@ -1290,12 +1291,12 @@ export default function PublicKatalogPage() {
                     ${isThirdPartyAdmin ? 'Pemilih: ' : 'Anda: '}<span style="color: #f43f5e; margin-left: 4px;">${room.pengirimNama}</span>
                 </label>
                 <div style="display: flex; gap: 8px;">
-                    <input type="radio" id="p_lanjut" name="hasil_p" value="Lanjut" style="display:none">
-                    <label for="p_lanjut" class="swal-custom-radio">Lanjut</label>
-                    <input type="radio" id="p_ragu" name="hasil_p" value="Ragu-ragu" style="display:none">
-                    <label for="p_ragu" class="swal-custom-radio">Ragu-ragu</label>
-                    <input type="radio" id="p_tidak" name="hasil_p" value="Tidak Lanjut" style="display:none">
-                    <label for="p_tidak" class="swal-custom-radio">Tidak Lanjut</label>
+                    <input type="radio" id="p_lanjut_${uid}" name="hasil_p" value="Lanjut" style="display:none">
+                    <label for="p_lanjut_${uid}" class="swal-custom-radio">Lanjut</label>
+                    <input type="radio" id="p_ragu_${uid}" name="hasil_p" value="Ragu-ragu" style="display:none">
+                    <label for="p_ragu_${uid}" class="swal-custom-radio">Ragu-ragu</label>
+                    <input type="radio" id="p_tidak_${uid}" name="hasil_p" value="Tidak Lanjut" style="display:none">
+                    <label for="p_tidak_${uid}" class="swal-custom-radio">Tidak Lanjut</label>
                 </div>
             </div>
         `;
@@ -1308,12 +1309,12 @@ export default function PublicKatalogPage() {
                     ${isThirdPartyAdmin ? 'Terpilih: ' : 'Anda: '}<span style="color: #f43f5e; margin-left: 4px;">${room.penerimaNama}</span>
                 </label>
                 <div style="display: flex; gap: 8px;">
-                    <input type="radio" id="t_lanjut" name="hasil_t" value="Lanjut" style="display:none">
-                    <label for="t_lanjut" class="swal-custom-radio">Lanjut</label>
-                    <input type="radio" id="t_ragu" name="hasil_t" value="Ragu-ragu" style="display:none">
-                    <label for="t_ragu" class="swal-custom-radio">Ragu-ragu</label>
-                    <input type="radio" id="t_tidak" name="hasil_t" value="Tidak Lanjut" style="display:none">
-                    <label for="t_tidak" class="swal-custom-radio">Tidak Lanjut</label>
+                    <input type="radio" id="t_lanjut_${uid}" name="hasil_t" value="Lanjut" style="display:none">
+                    <label for="t_lanjut_${uid}" class="swal-custom-radio">Lanjut</label>
+                    <input type="radio" id="t_ragu_${uid}" name="hasil_t" value="Ragu-ragu" style="display:none">
+                    <label for="t_ragu_${uid}" class="swal-custom-radio">Ragu-ragu</label>
+                    <input type="radio" id="t_tidak_${uid}" name="hasil_t" value="Tidak Lanjut" style="display:none">
+                    <label for="t_tidak_${uid}" class="swal-custom-radio">Tidak Lanjut</label>
                 </div>
             </div>
         `;
