@@ -389,6 +389,7 @@ export async function PATCH(
                         if (isPenerima && hasilPenerima) {
                             await db.update(mandiriPemilihan).set({ hasilPenerima }).where(eq(mandiriPemilihan.id, sel.id));
                         }
+                        return NextResponse.json({ success: true, message: "Hasil disimpan" });
                     } else if (isAssignedPanitia) {
                         const updates: any = {};
                         if (hasilPengirim) updates.hasilPengirim = hasilPengirim;
@@ -397,9 +398,10 @@ export async function PATCH(
                         if (Object.keys(updates).length > 0) {
                             await db.update(mandiriPemilihan).set(updates).where(eq(mandiriPemilihan.id, sel.id));
                         }
+                        // Allow Panitia to fall through and clear the room
                     }
                 }
-                return NextResponse.json({ success: true, message: "Hasil disimpan" });
+                // If it was panitia, it will fall through to clear the room
             }
 
             if (room?.pemilihanId) {

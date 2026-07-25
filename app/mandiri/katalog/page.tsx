@@ -1191,7 +1191,7 @@ export default function PublicKatalogPage() {
   };
 
   const handleAdminSelesaikanSesi = async (sp: any) => {
-    const room = activeRooms.find((r: any) => String(r.pengirimNo) === String(sp.nomorUnik) || String(r.penerimaNo) === String(sp.nomorUnik));
+    const room = sp.roomId ? activeRooms.find((r: any) => r.id === sp.roomId) : activeRooms.find((r: any) => String(r.pengirimNo) === String(sp.nomorUnik) || String(r.penerimaNo) === String(sp.nomorUnik));
     
     if (!room) {
         Swal.fire("Error", "Ruangan tidak ditemukan", "error");
@@ -1563,6 +1563,49 @@ export default function PublicKatalogPage() {
           </button>
         </div>
       </header>
+
+      {(() => {
+        if (!currentUser) return null;
+        const activeRoomForUser = activeRooms.find((r: any) => 
+            String(r.pengirimNo) === String(currentUser.nomorUnik) || 
+            String(r.penerimaNo) === String(currentUser.nomorUnik) || 
+            r.assignedGuardId === currentUser.id || 
+            r.assignedCallerId === currentUser.id || 
+            r.assignedCaller2Id === currentUser.id
+        );
+
+        if (activeRoomForUser) {
+            const isPeserta = (String(activeRoomForUser.pengirimNo) === String(currentUser.nomorUnik) || String(activeRoomForUser.penerimaNo) === String(currentUser.nomorUnik));
+            const roleStr = isPeserta ? 'Peserta' : 'Panitia';
+            return (
+                <div style={{ background: '#fef2f2', border: '1px solid #fecdd3', borderRadius: '12px', padding: '14px 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '16px', color: '#9f1239', boxShadow: '0 4px 12px rgba(244, 63, 94, 0.1)' }}>
+                    <div style={{ background: '#f43f5e', color: 'white', padding: '10px', borderRadius: '50%', display: 'flex' }}>
+                        <Users size={24} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 900, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            Di Dalam Ruangan 
+                            <span style={{ fontSize: '10px', background: '#ffe4e6', color: '#be123c', padding: '2px 8px', borderRadius: '12px', fontWeight: 800, textTransform: 'uppercase' }}>
+                                {roleStr}
+                            </span>
+                        </div>
+                        <div style={{ fontSize: '13px', marginTop: '4px', opacity: 0.9 }}>
+                            Anda saat ini sedang ditugaskan/berada di dalam <strong>{activeRoomForUser.nama || activeRoomForUser.roomNama}</strong>.
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => handleAdminSelesaikanSesi({ roomId: activeRoomForUser.id, ...currentUser })} 
+                        style={{ flexShrink: 0, background: '#f43f5e', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: 800, fontSize: '13px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(244, 63, 94, 0.3)', transition: 'transform 0.2s' }}
+                        onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                        onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                    >
+                        {roleStr === 'Peserta' ? 'Input Hasil RR' : 'Selesaikan Sesi'}
+                    </button>
+                </div>
+            );
+        }
+        return null;
+      })()}
 
       {/* TAB CONTENT: KATALOG */}
       {activeTab === "katalog" && (
