@@ -170,13 +170,10 @@ export async function GET(request: NextRequest) {
     const isGenerusPage = searchParams.get("isGenerus") === "true";
     let filterIsGenerus = false;
 
-    let kegiatanId = "";
-    if (mandiriOnly) {
-      kegiatanId = searchParams.get("kegiatanId") || "";
-      if (!kegiatanId) {
-        const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-        kegiatanId = activeSetting[0]?.value || "";
-      }
+    let kegiatanId = searchParams.get("kegiatanId") || "";
+    if (!kegiatanId) {
+      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+      kegiatanId = activeSetting[0]?.value || "";
     }
 
     if ((!all && !mandiriOnly) || isGenerusPage) {
@@ -247,6 +244,8 @@ export async function GET(request: NextRequest) {
         createdAt: generus.createdAt,
         panitiaStatus: formPanitiaDanPengurus.dapukan,
         keterangan: mandiriAbsensi.keterangan,
+        totalMemanggil: sql<number>`(SELECT COUNT(*) FROM mandiri_pemilihan WHERE mandiri_pemilihan.pengirim_id = ${generus.id} AND mandiri_pemilihan.kegiatan_id = ${kegiatanId})`,
+        totalDipanggil: sql<number>`(SELECT COUNT(*) FROM mandiri_pemilihan WHERE mandiri_pemilihan.penerima_id = ${generus.id} AND mandiri_pemilihan.kegiatan_id = ${kegiatanId})`,
     };
 
     // Sorting logic
