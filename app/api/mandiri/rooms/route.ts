@@ -100,6 +100,8 @@ export async function GET(request: NextRequest) {
             assignedGuardId: mandiriRooms.assignedGuardId,
             assignedGuardNama: uGuard.nama,
             updatedAt: mandiriRooms.updatedAt,
+            hasilPengirim: mandiriPemilihan.hasilPengirim,
+            hasilPenerima: mandiriPemilihan.hasilPenerima,
         })
         .from(mandiriRooms)
         .leftJoin(mandiriPemilihan, eq(mandiriRooms.pemilihanId, mandiriPemilihan.id))
