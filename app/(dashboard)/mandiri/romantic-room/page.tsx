@@ -678,31 +678,53 @@ export default function RomanticRoomPage() {
     const handleOpenStaffSelector = async (roomId: string, field: 'caller' | 'caller2' | 'guard', currentAssignedId: string, allowedRoles: string[], title: string, iconStr: string) => {
         const filteredStaff = staffList.filter(s => allowedRoles.includes(s.role));
         
-        let optionsHtml = `<option value="">${iconStr} Belum Ditentukan</option>`;
+        let optionsHtml = `
+            <label class="staff-item" data-text="belum ditentukan" style="display: flex; align-items: center; padding: 12px; cursor: pointer; border-bottom: 1px solid #f8fafc; transition: background 0.2s; font-size: 14px;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                <input type="radio" name="staff_selection" value="" ${!currentAssignedId ? 'checked' : ''} style="margin-right: 12px; transform: scale(1.2);" />
+                <span>${iconStr} Belum Ditentukan</span>
+            </label>
+        `;
         filteredStaff.forEach(s => {
             const label = allowedRoles.length > 1 ? `${s.name} (${s.role === 'PNKB' ? 'P' : 'G'})` : s.name;
-            optionsHtml += `<option value="${s.id}" ${s.id === currentAssignedId ? 'selected' : ''}>${iconStr} ${label}</option>`;
+            const isChecked = s.id === currentAssignedId ? 'checked' : '';
+            optionsHtml += `
+            <label class="staff-item" data-text="${label.toLowerCase().replace(/"/g, '&quot;')}" style="display: flex; align-items: center; padding: 12px; cursor: pointer; border-bottom: 1px solid #f8fafc; transition: background 0.2s; font-size: 14px;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                <input type="radio" name="staff_selection" value="${s.id}" ${isChecked} style="margin-right: 12px; transform: scale(1.2);" />
+                <span>${iconStr} ${label}</span>
+            </label>
+            `;
         });
 
         const { value: selectedId, isConfirmed } = await Swal.fire({
             title: `Pilih ${title}`,
             html: `
-                <div style="text-align: left">
-                    <input type="text" id="staff-search-input" class="form-control" placeholder="🔍 Cari nama petugas..." style="margin-bottom: 10px; width: 100%; box-sizing: border-box; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1;" oninput="
+                <div style="text-align: left; display: flex; flex-direction: column; gap: 12px; max-height: 70vh;">
+                    <input type="text" id="staff-search-input" class="form-control" placeholder="🔍 Cari nama petugas..." style="width: 100%; box-sizing: border-box; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 15px; outline: none; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);" oninput="
                         const val = this.value.toLowerCase();
-                        const select = document.getElementById('staff-select');
-                        for(let i=0; i<select.options.length; i++) {
-                            const opt = select.options[i];
-                            if(opt.text.toLowerCase().includes(val)) {
-                                opt.style.display = '';
+                        const container = document.getElementById('staff-list-container');
+                        const items = container.querySelectorAll('.staff-item');
+                        let hasVisible = false;
+                        for(let i=0; i<items.length; i++) {
+                            const item = items[i];
+                            const text = item.getAttribute('data-text');
+                            if(text.includes(val)) {
+                                item.style.display = 'flex';
+                                hasVisible = true;
                             } else {
-                                opt.style.display = 'none';
+                                item.style.display = 'none';
                             }
                         }
+                        const emptyState = document.getElementById('staff-empty-state');
+                        if (emptyState) {
+                            emptyState.style.display = hasVisible ? 'none' : 'block';
+                        }
                     "/>
-                    <select id="staff-select" class="form-control" size="8" style="width: 100%; overflow-y: auto; padding: 5px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                    <div id="staff-list-container" style="max-height: 300px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff;">
                         ${optionsHtml}
-                    </select>
+                        <div id="staff-empty-state" style="display: none; padding: 20px; text-align: center; color: #64748b; font-size: 14px;">
+                            Tidak ada petugas yang cocok dengan pencarian
+                        </div>
+                    </div>
                 </div>
             `,
             showCancelButton: true,
@@ -710,17 +732,13 @@ export default function RomanticRoomPage() {
             cancelButtonText: "Batal",
             didOpen: () => {
                 document.getElementById('staff-search-input')?.focus();
-                
-                const selectEl = document.getElementById('staff-select');
-                if (selectEl) {
-                    selectEl.addEventListener('dblclick', () => {
-                        Swal.clickConfirm();
-                    });
-                }
             },
             preConfirm: () => {
-                const selectEl = document.getElementById("staff-select") as HTMLSelectElement;
-                return selectEl.value;
+                const selected = document.querySelector('input[name="staff_selection"]:checked') as HTMLInputElement;
+                if (selected) {
+                    return selected.value;
+                }
+                return undefined;
             }
         });
 
