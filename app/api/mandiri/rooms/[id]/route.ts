@@ -453,14 +453,9 @@ export async function PATCH(
                 return NextResponse.json({ error: "Anda tidak memiliki wewenang untuk mengembalikan pasangan ke antrean." }, { status: 403 });
             }
 
-            // Find current pemilihanId
             const room = await db.query.mandiriRooms.findFirst({
                 where: eq(mandiriRooms.id, roomId)
             });
-
-            if (room?.startedAt) {
-                return NextResponse.json({ error: "Sesi sudah dimulai, tidak dapat dikembalikan ke antrean." }, { status: 400 });
-            }
 
             if (room?.pemilihanId) {
                 // 1. Reset selection status to "Menunggu" and statusTunggu to "antrean"
