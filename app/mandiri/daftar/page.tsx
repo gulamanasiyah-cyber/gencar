@@ -83,6 +83,20 @@ export default function MandiriDaftarPage() {
     if (statusParam && statusParam.toLowerCase() === 'person') {
       setRegStatusPeserta("Person");
       currentPesertaType = "Person";
+      setPersonQuota(prev => ({ ...prev, loading: true }));
+      fetch("/api/public/mandiri/person-quota", { cache: "no-store" })
+        .then(r => r.json())
+        .then(d => {
+          setPersonQuota({
+            femaleCount: Number(d.femaleCount || 0),
+            maxFemale: Number(d.maxFemale || PERSON_PEREMPUAN_QUOTA_DEFAULT),
+            femaleAvailable: true,
+            loading: false,
+          });
+        })
+        .catch(() => {
+          setPersonQuota(prev => ({ ...prev, loading: false }));
+        });
     } else {
       setRegStatusPeserta("Utusan Daerah");
     }
