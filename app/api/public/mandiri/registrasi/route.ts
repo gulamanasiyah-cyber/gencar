@@ -67,17 +67,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Mohon lengkapi nominal pembayaran dan bukti pembayaran." }, { status: 400 });
     }
 
-    if (statusPeserta === "Person" && jenisKelamin === "P") {
-      const quota = await getMandiriPersonPerempuanQuotaStatus(db, activeKegiatanId);
-      if (!quota.femaleAvailable) {
-        return NextResponse.json({
-          status: "person_female_quota_full",
-          error: "Kuota perempuan sudah full.",
-          ...quota,
-        }, { status: 409 });
-      }
-    }
-
     // 2.1. Quota Check for Daerah (Max 5 males, 5 females per kegiatan)
     const desaRecord = await db.select({
       daerahId: mandiriDesa.mandiriDaerahId,
