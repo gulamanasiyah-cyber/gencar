@@ -1834,8 +1834,20 @@ export default function RomanticRoomPage() {
                                 <div className="empty-state">Antrean kosong</div>
                             ) : (
                                 <div className="scrollable">
-                                    {filteredQueue.map((item: any) => (
-                                            <div key={item.id} className="queue-item" style={{ padding: '6px 10px', margin: '0 0 6px 0', borderRadius: '8px' }}>
+                                    {(() => {
+                                        const activeUsersInRooms = new Set<string>();
+                                        allRooms.forEach((r: any) => {
+                                            if (r.status === "Diterima" || r.status === "Terisi") {
+                                                if (r.pengirimNama) activeUsersInRooms.add(r.pengirimNama);
+                                                if (r.penerimaNama) activeUsersInRooms.add(r.penerimaNama);
+                                            }
+                                        });
+
+                                        return filteredQueue.map((item: any) => {
+                                            const isPengirimActive = activeUsersInRooms.has(item.pengirimNama);
+                                            const isPenerimaActive = activeUsersInRooms.has(item.penerimaNama);
+                                            return (
+                                                <div key={item.id} className="queue-item" style={{ padding: '6px 10px', margin: '0 0 6px 0', borderRadius: '8px' }}>
                                                 <div className="pair-names-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                                                     {/* Caller */}
                                                     <div className="participant-row caller" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1px' }}>
@@ -1856,7 +1868,12 @@ export default function RomanticRoomPage() {
                                                                 {item.pengirimKeterangan === 'pulang' && <span className="p-pulang-badge" style={{ fontSize: '9px' }}> (P)</span>}
                                                             </span>
                                                         </div>
-                                                        <div className="p-sub-info" style={{ fontSize: '9.5px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                                        {isPengirimActive && (
+                                                            <div style={{ fontSize: '8px', color: '#be185d', fontWeight: 800, backgroundColor: '#fdf2f8', border: '1px solid #fbcfe8', padding: '2px 4px', borderRadius: '3px', alignSelf: 'flex-start', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                                <DoorOpen size={8} /> Sedang didalam romantic room
+                                                            </div>
+                                                        )}
+                                                        <div className="p-sub-info" style={{ fontSize: '9.5px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '2px', marginTop: '2px' }}>
                                                             <MapPin size={9} /> <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.pengirimKota || '-'} / {item.pengirimDesa || '-'}</span>
                                                         </div>
                                                     </div>
@@ -1885,7 +1902,12 @@ export default function RomanticRoomPage() {
                                                                 {item.penerimaKeterangan === 'pulang' && <span className="p-pulang-badge" style={{ fontSize: '9px' }}> (P)</span>}
                                                             </span>
                                                         </div>
-                                                        <div className="p-sub-info" style={{ fontSize: '9.5px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '2px', justifyContent: 'flex-end' }}>
+                                                        {isPenerimaActive && (
+                                                            <div style={{ fontSize: '8px', color: '#be185d', fontWeight: 800, backgroundColor: '#fdf2f8', border: '1px solid #fbcfe8', padding: '2px 4px', borderRadius: '3px', alignSelf: 'flex-end', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                                Sedang didalam romantic room <DoorOpen size={8} />
+                                                            </div>
+                                                        )}
+                                                        <div className="p-sub-info" style={{ fontSize: '9.5px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '2px', justifyContent: 'flex-end', marginTop: '2px' }}>
                                                             <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.penerimaKota || '-'} / {item.penerimaDesa || '-'}</span> <MapPin size={9} />
                                                         </div>
                                                     </div>
@@ -1922,7 +1944,9 @@ export default function RomanticRoomPage() {
                                                     </button>
                                                 </div>
                                             </div>
-                                        ))}
+                                            );
+                                        });
+                                    })()}
                                 </div>
                             )}
                         </div>
