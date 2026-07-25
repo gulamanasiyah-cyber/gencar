@@ -685,7 +685,7 @@ export default function RomanticRoomPage() {
             </label>
         `;
         filteredStaff.forEach(s => {
-            const label = allowedRoles.length > 1 ? `${s.name} (${s.role === 'PNKB' ? 'P' : 'G'})` : s.name;
+            const label = allowedRoles.length > 1 ? `${s.name} (${s.role})` : s.name;
             const isChecked = s.id === currentAssignedId ? 'checked' : '';
             optionsHtml += `
             <label class="staff-item" data-text="${label.toLowerCase().replace(/"/g, '&quot;')}" style="display: flex; align-items: center; padding: 12px; cursor: pointer; border-bottom: 1px solid #f8fafc; transition: background 0.2s; font-size: 14px;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
@@ -2023,21 +2023,27 @@ export default function RomanticRoomPage() {
                                                 }
                                                 return (
                                                     <div style={{ paddingTop: '6px', borderTop: isKosong ? '1px dashed #f9a8d4' : '1px dashed #e2e8f0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                        {/* Caller 1 - PNKB */}
+                                                        {/* Caller 1 - PNKB & Ibu Gambuh */}
                                                         <button
-                                                            onClick={() => handleOpenStaffSelector(room.id, 'caller', room.assignedCallerId || "", ['PNKB'], 'Pemanggil 1 (PNKB)', '📢')}
-                                                            title="Pemanggil 1 (PNKB)"
+                                                            onClick={() => handleOpenStaffSelector(room.id, 'caller', room.assignedCallerId || "", ['PNKB', 'Ibu Gambuh'], 'Pemanggil 1 (PNKB / Ibu Gambuh)', '📢')}
+                                                            title="Pemanggil 1 (PNKB / Ibu Gambuh)"
                                                             style={{ ...selectBase, textAlign: 'left', borderColor: '#bfdbfe', background: room.assignedCallerId ? '#eff6ff' : '#f8fafc', color: room.assignedCallerId ? '#2563eb' : '#94a3b8' }}
                                                         >
-                                                            📢 {room.assignedCallerId ? staffList.find(s => s.id === room.assignedCallerId)?.name : 'Pemanggil 1 (Belum)'}
+                                                            📢 {room.assignedCallerId ? (() => {
+                                                                const s = staffList.find(st => st.id === room.assignedCallerId);
+                                                                return s ? `${s.name} (${s.role})` : 'Pemanggil 1 (Belum)';
+                                                            })() : 'Pemanggil 1 (Belum)'}
                                                         </button>
-                                                        {/* Caller 2 - Ibu Gambuh */}
+                                                        {/* Caller 2 - PNKB & Ibu Gambuh */}
                                                         <button
-                                                            onClick={() => handleOpenStaffSelector(room.id, 'caller2', room.assignedCaller2Id || "", ['Ibu Gambuh'], 'Pemanggil 2 (Ibu Gambuh)', '📢')}
-                                                            title="Pemanggil 2 (Ibu Gambuh)"
+                                                            onClick={() => handleOpenStaffSelector(room.id, 'caller2', room.assignedCaller2Id || "", ['PNKB', 'Ibu Gambuh'], 'Pemanggil 2 (PNKB / Ibu Gambuh)', '📢')}
+                                                            title="Pemanggil 2 (PNKB / Ibu Gambuh)"
                                                             style={{ ...selectBase, textAlign: 'left', borderColor: '#e9d5ff', background: room.assignedCaller2Id ? '#fdf4ff' : '#f8fafc', color: room.assignedCaller2Id ? '#9333ea' : '#94a3b8' }}
                                                         >
-                                                            📢 {room.assignedCaller2Id ? staffList.find(s => s.id === room.assignedCaller2Id)?.name : 'Pemanggil 2 (Belum)'}
+                                                            📢 {room.assignedCaller2Id ? (() => {
+                                                                const s = staffList.find(st => st.id === room.assignedCaller2Id);
+                                                                return s ? `${s.name} (${s.role})` : 'Pemanggil 2 (Belum)';
+                                                            })() : 'Pemanggil 2 (Belum)'}
                                                         </button>
                                                         {/* Guard - PNKB + Ibu Gambuh */}
                                                         <button
@@ -2047,7 +2053,7 @@ export default function RomanticRoomPage() {
                                                         >
                                                             🚪 {room.assignedGuardId ? (() => {
                                                                 const s = staffList.find(st => st.id === room.assignedGuardId);
-                                                                return s ? `${s.name} (${s.role === 'PNKB' ? 'P' : 'G'})` : 'Penunggu (Belum)';
+                                                                return s ? `${s.name} (${s.role})` : 'Penunggu (Belum)';
                                                             })() : 'Penunggu (Belum)'}
                                                         </button>
                                                     </div>
