@@ -455,19 +455,18 @@ export async function PATCH(request: NextRequest) {
                     const penerima = penerimaData[0];
 
 
-                    if (pengirim) {
-                        const msgToPengirim = `Amal sholihnya untuk *${pengirim.nama}* (*#${pengirim.nomorUrut || '-'}*), dimintai amal sholih untuk segera merapat ke *Titik Tunggu*.`;
-                        if (pengirim.noTelp) {
-                            sendWhatsApp(pengirim.noTelp, msgToPengirim);
-                        }
+                    const waPromises: Promise<any>[] = [];
+                    if (pengirim && pengirim.noTelp) {
+                        const msgToPengirim = `*PANGGILAN TAARUF*\n\nKepada: *${pengirim.nama}* (#${pengirim.nomorUrut || '-'})\nInstruksi: Amal shalihnya segera merapat ke *Titik Tunggu Utama*.\n\nCatatan: Mohon tetap berada di titik tunggu agar memudahkan panitia untuk menjemput dan mengarahkan Anda menuju ruang taaruf.\n\nAlhamdulillah jazakumullahu khaira.`;
+                        waPromises.push(sendWhatsApp(pengirim.noTelp, msgToPengirim));
                     }
 
-                    if (penerima) {
-                        const msgToPenerima = `Amal sholihnya untuk *${penerima.nama}* (*#${penerima.nomorUrut || '-'}*), dimintai amal sholih untuk segera merapat ke *Titik Tunggu*.`;
-                        if (penerima.noTelp) {
-                            sendWhatsApp(penerima.noTelp, msgToPenerima);
-                        }
+                    if (penerima && penerima.noTelp) {
+                        const msgToPenerima = `*PANGGILAN TAARUF*\n\nKepada: *${penerima.nama}* (#${penerima.nomorUrut || '-'})\nInstruksi: Amal shalihnya segera merapat ke *Titik Tunggu Utama*.\n\nCatatan: Mohon tetap berada di titik tunggu agar memudahkan panitia untuk menjemput dan mengarahkan Anda menuju ruang taaruf.\n\nAlhamdulillah jazakumullahu khaira.`;
+                        waPromises.push(sendWhatsApp(penerima.noTelp, msgToPenerima));
                     }
+
+                    await Promise.allSettled(waPromises);
                 }
             } catch (notifyErr) {
                 console.error("Failed to send waiting room WA notification:", notifyErr);

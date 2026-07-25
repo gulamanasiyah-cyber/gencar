@@ -899,8 +899,8 @@ export default function AdminTimGambuhPage() {
       }
 
       // Add a thin border to all cells
-      worksheet.eachRow((row, rowNumber) => {
-        row.eachCell((cell, colNumber) => {
+      worksheet.eachRow((row: any, rowNumber: number) => {
+        row.eachCell((cell: any, colNumber: number) => {
           if (rowNumber === 1) { // Header
             cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
             cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF3B82F6" } };

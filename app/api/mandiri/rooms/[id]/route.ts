@@ -333,15 +333,17 @@ export async function PATCH(
 
                 if (pengirim && penerima) {
 
-                    const msgToPengirim = `Amal sholihnya untuk *${pengirim.nama}* (*#${pengirim.nomorUrut || '-'}*), dimintai amal sholih untuk ke *${roomName}* dengan *${penerima.nama}* (*#${penerima.nomorUrut || '-'}*).`;
-                    const msgToPenerima = `Amal sholihnya untuk *${penerima.nama}* (*#${penerima.nomorUrut || '-'}*), dimintai amal sholih untuk ke *${roomName}* dengan *${pengirim.nama}* (*#${pengirim.nomorUrut || '-'}*).`;
+                    const msgToPengirim = `*PANGGILAN TAARUF*\n\nKepada: *${pengirim.nama}* (#${pengirim.nomorUrut || '-'})\nInstruksi: Amal shalihnya segera merapat ke *Titik Tunggu Utama*.\n\nCatatan: Mohon tetap berada di titik tunggu agar memudahkan panitia untuk menjemput dan mengarahkan Anda menuju ruang taaruf.\n\nAlhamdulillah jazakumullahu khaira.`;
+                    const msgToPenerima = `*PANGGILAN TAARUF*\n\nKepada: *${penerima.nama}* (#${penerima.nomorUrut || '-'})\nInstruksi: Amal shalihnya segera merapat ke *Titik Tunggu Utama*.\n\nCatatan: Mohon tetap berada di titik tunggu agar memudahkan panitia untuk menjemput dan mengarahkan Anda menuju ruang taaruf.\n\nAlhamdulillah jazakumullahu khaira.`;
 
-                    if (pengirim.noTelp) {
-                        sendWhatsApp(pengirim.noTelp, msgToPengirim);
+                    const waPromises: Promise<any>[] = [];
+                    if (pengirim?.noTelp) {
+                        waPromises.push(sendWhatsApp(pengirim.noTelp, msgToPengirim));
                     }
-                    if (penerima.noTelp) {
-                        sendWhatsApp(penerima.noTelp, msgToPenerima);
+                    if (penerima?.noTelp) {
+                        waPromises.push(sendWhatsApp(penerima.noTelp, msgToPenerima));
                     }
+                    await Promise.allSettled(waPromises);
                 }
             } catch (notifyErr) {
                 console.error("Failed to send room assignment WA notification:", notifyErr);
