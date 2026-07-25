@@ -367,12 +367,12 @@ export async function PATCH(
 
             if (!room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
 
+            const sel = room.pemilihanId ? await db.query.mandiriPemilihan.findFirst({
+                where: eq(mandiriPemilihan.id, room.pemilihanId)
+            }) : null;
+
             if (userRole === "peserta_atau_panitia") {
                 // Peserta and Panitia can only update results, not clear the room
-                const sel = await db.query.mandiriPemilihan.findFirst({
-                    where: eq(mandiriPemilihan.id, room.pemilihanId || "")
-                });
-
                 if (sel) {
                     const isPengirim = sel.pengirimId === userId;
                     const isPenerima = sel.penerimaId === userId;
@@ -435,6 +435,11 @@ export async function PATCH(
                                 await pusherServer.trigger("taaruf-channel", "room-changed", {
                                     roomId,
                                     action: "clear",
+                                    pengirimId: sel.pengirimId,
+                                    penerimaId: sel.penerimaId,
+                                    assignedGuardId: room.assignedGuardId,
+                                    assignedCallerId: room.assignedCallerId,
+                                    assignedCaller2Id: room.assignedCaller2Id
                                 });
                             } catch (pusherErr) {
                                 console.error("Pusher trigger error:", pusherErr);
@@ -469,25 +474,20 @@ export async function PATCH(
                 // If it was panitia, it will fall through to clear the room
             }
 
-            if (room?.pemilihanId) {
-                // Fetch existing pemilihan to preserve results if not provided
-                const existingPemilihan = await db.query.mandiriPemilihan.findFirst({
-                    where: eq(mandiriPemilihan.id, room.pemilihanId)
-                });
-                
+            if (sel) {
                 // Mark as Selesai and update results
                 await db.update(mandiriPemilihan)
                     .set({ 
                         status: "Selesai",
-                        hasilPengirim: hasilPengirim !== undefined ? (hasilPengirim || null) : (existingPemilihan?.hasilPengirim || null),
-                        hasilPenerima: hasilPenerima !== undefined ? (hasilPenerima || null) : (existingPemilihan?.hasilPenerima || null)
+                        hasilPengirim: hasilPengirim !== undefined ? (hasilPengirim || null) : (sel.hasilPengirim || null),
+                        hasilPenerima: hasilPenerima !== undefined ? (hasilPenerima || null) : (sel.hasilPenerima || null)
                     })
-                    .where(eq(mandiriPemilihan.id, room.pemilihanId));
+                    .where(eq(mandiriPemilihan.id, sel.id));
 
                 // Clean up matched participants if both chose 'Lanjut'
                 try {
                     const { handleMatchCleanup } = await import("@/lib/matchCleanup");
-                    await handleMatchCleanup(room.pemilihanId);
+                    await handleMatchCleanup(sel.id);
                 } catch (cleanupErr) {
                     console.error("Failed to run match cleanup:", cleanupErr);
                 }
@@ -508,6 +508,11 @@ export async function PATCH(
                 await pusherServer.trigger("taaruf-channel", "room-changed", {
                     roomId,
                     action: "clear",
+                    pengirimId: sel?.pengirimId,
+                    penerimaId: sel?.penerimaId,
+                    assignedGuardId: room.assignedGuardId,
+                    assignedCallerId: room.assignedCallerId,
+                    assignedCaller2Id: room.assignedCaller2Id
                 });
             } catch (pusherErr) {
                 console.error("Pusher trigger error:", pusherErr);

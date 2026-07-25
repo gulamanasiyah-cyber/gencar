@@ -830,19 +830,46 @@ export default function PublicKatalogPage() {
       }
     };
 
+    const handleRoomChanged = (data: any) => {
+      fetchData();
+      fetchSelections();
+      fetchHasilRR(false);
+
+      if (data && data.action === "clear" && currentUser) {
+        const myId = String(currentUser.id);
+        const isAssociated = 
+          String(data.pengirimId) === myId ||
+          String(data.penerimaId) === myId ||
+          String(data.assignedGuardId) === myId ||
+          String(data.assignedCallerId) === myId ||
+          String(data.assignedCaller2Id) === myId;
+
+        if (isAssociated) {
+          Swal.fire({
+            title: "Pemberitahuan",
+            text: "Amal sholeh anda ke ruang titik tunggu utama, agar dijemput oleh Tim PNKB & Ibu Gambuh",
+            icon: "info",
+            confirmButtonText: "Baik",
+            confirmButtonColor: "#3b82f6",
+            allowOutsideClick: false
+          });
+        }
+      }
+    };
+
     channel.bind("taaruf-changed", handleUpdate);
-    channel.bind("room-changed", handleUpdate);
+    channel.bind("room-changed", handleRoomChanged);
     channel.bind("absensi-updated", handleAttendanceUpdate);
     channel.bind("box-love-status-changed", handleBoxLoveUpdate);
 
     return () => {
       channel.unbind("taaruf-changed", handleUpdate);
-      channel.unbind("room-changed", handleUpdate);
+      channel.unbind("room-changed", handleRoomChanged);
       channel.unbind("absensi-updated", handleAttendanceUpdate);
       channel.unbind("box-love-status-changed", handleBoxLoveUpdate);
       pusher.unsubscribe("taaruf-channel");
     };
-  }, [fetchData, fetchSelections, fetchHasilRR, refreshAttendanceStatus]);
+  }, [fetchData, fetchSelections, fetchHasilRR, refreshAttendanceStatus, currentUser]);
 
   const handleSendKomentar = async (penerimaId: string, itemNama: string, komentar: string) => {
     if (submittingKomentar) return;

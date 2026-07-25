@@ -131,6 +131,11 @@ export async function POST(request: NextRequest) {
                     await pusherServer.trigger("taaruf-channel", "room-changed", {
                         roomId: room.id,
                         action: "clear",
+                        pengirimId: record.pengirimId,
+                        penerimaId: record.penerimaId,
+                        assignedGuardId: room.assignedGuardId,
+                        assignedCallerId: room.assignedCallerId,
+                        assignedCaller2Id: room.assignedCaller2Id
                     });
                 } catch (pusherErr) {
                     console.error("Pusher trigger error:", pusherErr);
