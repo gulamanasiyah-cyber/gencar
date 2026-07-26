@@ -1742,7 +1742,7 @@ export default function PublicKatalogPage() {
                   inputMode="search"
                   autoCorrect="off"
                   autoComplete="off"
-                  placeholder="Cari nama, no. urut, kota, atau desa..."
+                  placeholder="Cari nama, no. urut, kriteria, kota, atau desa..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   style={{ minWidth: 0, width: '100%' }}
@@ -1818,7 +1818,13 @@ export default function PublicKatalogPage() {
                 <div className="select-container">
                   <select className="select-box" value={umurFilter} onChange={(e) => { setUmurFilter(e.target.value); setPage(1); }}>
                     <option value="all">Semua Umur</option>
-                    {umurList.map(u => <option key={u} value={u}>{u} Tahun</option>)}
+                    <option value="17-20">17 - 20 Tahun</option>
+                    <option value="21-25">21 - 25 Tahun</option>
+                    <option value="26-30">26 - 30 Tahun</option>
+                    <option value=">30">&gt; 30 Tahun</option>
+                    <optgroup label="Umur Spesifik">
+                      {umurList.map(u => <option key={u} value={u}>{u} Tahun</option>)}
+                    </optgroup>
                   </select>
                   <ChevronDown size={14} className="select-arrow" />
                 </div>
@@ -2050,6 +2056,10 @@ export default function PublicKatalogPage() {
                             // Ensure button is visible for BOTH peserta and panitia AS LONG AS they are not waiting.
                             // isBelumHadir already checks for Panitia attendance, and currentUser.status checks for the logged in user.
                             if (currentUser?.status === "waiting" || isBelumHadir || (!hasAttended && isAdmin)) {
+                              return null;
+                            }
+
+                            if (katalogPublicStatus === "closed") {
                               return null;
                             }
 
@@ -3494,7 +3504,9 @@ export default function PublicKatalogPage() {
                     return <button className="dm-btn dm-btn-disabled" disabled>Batas Pilihan Tercapai (3/3)</button>;
                   }
 
-
+                  if (katalogPublicStatus === "closed") {
+                    return null;
+                  }
 
                   return (
                     <button className="dm-btn" style={{ background: accentGrad }} onClick={() => handleConfirmSelection(String(sp.id), sp.nama)}>

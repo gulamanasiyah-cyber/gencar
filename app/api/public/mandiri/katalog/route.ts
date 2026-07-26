@@ -103,7 +103,8 @@ export async function GET(request: NextRequest) {
             like(mandiriDesa.nama, `%${search}%`),
             like(desa.nama, `%${search}%`),
             like(kelompok.nama, `%${search}%`),
-            like(formPanitiaDanPengurus.dapukan, `%${search}%`)
+            like(formPanitiaDanPengurus.dapukan, `%${search}%`),
+            like(generus.kriteriaPasangan, `%${search}%`)
           )
         );
       }
@@ -173,8 +174,17 @@ export async function GET(request: NextRequest) {
     }
 
     if (umur && umur !== "all") {
-      // Cast the strftime to integer for accurate year subtraction comparison
-      conditions.push(sql`cast(strftime('%Y', 'now') as integer) - cast(strftime('%Y', ${generus.tanggalLahir}) as integer) = ${Number(umur)}`);
+      // Check if it's a range like "17-20" or ">30"
+      if (umur.includes("-")) {
+        const [min, max] = umur.split("-").map(Number);
+        conditions.push(sql`cast(strftime('%Y', 'now') as integer) - cast(strftime('%Y', ${generus.tanggalLahir}) as integer) BETWEEN ${min} AND ${max}`);
+      } else if (umur.startsWith(">")) {
+        const min = Number(umur.replace(">", ""));
+        conditions.push(sql`cast(strftime('%Y', 'now') as integer) - cast(strftime('%Y', ${generus.tanggalLahir}) as integer) > ${min}`);
+      } else {
+        // Exact age
+        conditions.push(sql`cast(strftime('%Y', 'now') as integer) - cast(strftime('%Y', ${generus.tanggalLahir}) as integer) = ${Number(umur)}`);
+      }
     }
 
     if (desaId && desaId !== "all") {
