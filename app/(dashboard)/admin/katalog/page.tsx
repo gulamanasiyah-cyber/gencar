@@ -456,10 +456,10 @@ export default function AdminKatalogPage() {
           if (item.foto) {
             try {
               const url = item.foto.startsWith('http') ? item.foto : `${window.location.origin}${item.foto.startsWith('/') ? '' : '/'}${item.foto}`;
-              const imgRes = await fetch(url);
-              const blob = await imgRes.blob();
-              const base64 = await new Promise<string>((resolve, reject) => {
+              
+              const base64 = await new Promise<string>((resolve) => {
                 const img = new Image();
+                img.crossOrigin = "Anonymous";
                 img.onload = () => {
                   const canvas = document.createElement('canvas');
                   // crop to square for consistency
@@ -478,8 +478,8 @@ export default function AdminKatalogPage() {
                     resolve('');
                   }
                 };
-                img.onerror = reject;
-                img.src = URL.createObjectURL(blob);
+                img.onerror = () => resolve('');
+                img.src = url;
               });
               if (base64) photoMap[item.id] = base64;
             } catch (e) {
@@ -554,7 +554,7 @@ export default function AdminKatalogPage() {
       doc.text(`Dicetak pada: ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, pageWidth - 15, 34, { align: "right" });
 
       // Table Data
-      const tableColumn = ["No", "Foto", "Nama Lengkap", "L/P", "Usia", "Status", "Daerah / Desa / Kelompok", "Kontak Tim PNKB / Ibu Gambuh", "Pendidikan & Pekerjaan"];
+      const tableColumn = ["No", "Foto", "Nama Lengkap", "L/P", "Usia", "Status", "Daerah / Desa / Kelompok", "Kontak Tim PNKB / Ibu Gambuh", "Kontak & Media Sosial", "Pendidikan & Pekerjaan"];
       const tableRows = allParticipants.map((item, index) => {
         if (!item) return [];
         const pnkbInfo = getTimGambuhInfo(item.mandiriDesaKota, "PNKB");
@@ -569,6 +569,7 @@ export default function AdminKatalogPage() {
           (item.panitiaStatus || item.role === 'admin') ? "PANITIA" : "PESERTA",
           `${item.mandiriDesaKota || "-"}\n${item.mandiriDesaNama || "-"}\n${item.mandiriKelompokNama || "-"}`,
           `Tim PNKB: ${pnkbInfo}\nIbu Gambuh: ${gambuhInfo}`,
+          [item.noTelp || "-", item.instagram ? `IG: @${item.instagram.replace('@', '')}` : ""].filter(Boolean).join("\n"),
           `${item.pendidikan || "-"}\n${item.pekerjaan || "-"}`
         ];
       });
@@ -596,15 +597,16 @@ export default function AdminKatalogPage() {
           fillColor: [248, 250, 252]
         },
         columnStyles: {
-          0: { halign: 'center', cellWidth: 10 },
-          1: { halign: 'center', cellWidth: 20 },
-          2: { fontStyle: 'bold', cellWidth: 40 },
-          3: { halign: 'center', cellWidth: 10 },
+          0: { halign: 'center', cellWidth: 8 },
+          1: { halign: 'center', cellWidth: 16 },
+          2: { fontStyle: 'bold', cellWidth: 35 },
+          3: { halign: 'center', cellWidth: 8 },
           4: { halign: 'center', cellWidth: 10 },
           5: { halign: 'center', fontStyle: 'bold', cellWidth: 15 },
-          6: { cellWidth: 45 },
-          7: { cellWidth: 45 },
-          8: { cellWidth: 45 },
+          6: { cellWidth: 35 },
+          7: { cellWidth: 46 },
+          8: { cellWidth: 35 },
+          9: { cellWidth: 45 },
         },
         margin: { left: 15, right: 15, bottom: 20 },
         didParseCell: (data) => {
