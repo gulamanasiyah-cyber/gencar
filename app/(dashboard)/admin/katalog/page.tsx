@@ -447,6 +447,70 @@ export default function AdminKatalogPage() {
         return;
       }
 
+      // Preload images
+      const photoMap: Record<string, string> = {};
+      const chunkSize = 10;
+      for (let i = 0; i < allParticipants.length; i += chunkSize) {
+        const chunk = allParticipants.slice(i, i + chunkSize);
+        await Promise.all(chunk.map(async (item) => {
+          if (item.foto) {
+            try {
+              const url = item.foto.startsWith('http') ? item.foto : `${window.location.origin}${item.foto.startsWith('/') ? '' : '/'}${item.foto}`;
+              const imgRes = await fetch(url);
+              const blob = await imgRes.blob();
+              const base64 = await new Promise<string>((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => {
+                  const canvas = document.createElement('canvas');
+                  // crop to square for consistency
+                  const size = Math.min(img.width, img.height);
+                  canvas.width = size;
+                  canvas.height = size;
+                  const ctx = canvas.getContext('2d');
+                  if (ctx) {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, size, size);
+                    const offsetX = (img.width - size) / 2;
+                    const offsetY = (img.height - size) / 2;
+                    ctx.drawImage(img, offsetX, offsetY, size, size, 0, 0, size, size);
+                    resolve(canvas.toDataURL('image/jpeg', 0.8));
+                  } else {
+                    resolve('');
+                  }
+                };
+                img.onerror = reject;
+                img.src = URL.createObjectURL(blob);
+              });
+              if (base64) photoMap[item.id] = base64;
+            } catch (e) {
+              // ignore
+            }
+          }
+        }));
+        Swal.update({ text: `Mengambil data foto peserta... (${Math.min(i + chunkSize, allParticipants.length)}/${allParticipants.length})` });
+      }
+
+      Swal.update({ text: "Mengambil data Tim PNKB & Ibu Gambuh..." });
+      let timGambuhList: any[] = [];
+      try {
+        const tgRes = await fetch(`/api/admin/tim-gambuh${selectedKegiatanId ? `?kegiatanId=${selectedKegiatanId}` : ""}`);
+        if (tgRes.ok) {
+          const data = await tgRes.json();
+          if (Array.isArray(data)) timGambuhList = data;
+        }
+      } catch(e) {
+        // ignore
+      }
+
+      const getTimGambuhInfo = (daerahNama: string | null | undefined, tipe: string) => {
+        if (!daerahNama) return "..................";
+        const found = timGambuhList.filter(t => String(t.daerahNama).toLowerCase() === String(daerahNama).toLowerCase() && String(t.tipe).toLowerCase() === String(tipe).toLowerCase());
+        if (found.length === 0) return "..................";
+        return found.map(t => `${t.nama}${t.noTelp ? ` (${t.noTelp})` : ""}`).join(", ");
+      };
+
+      Swal.update({ text: "Menyusun tabel PDF..." });
+
       const doc = new jsPDF({
         orientation: "landscape",
         unit: "mm",
@@ -464,11 +528,11 @@ export default function AdminKatalogPage() {
       doc.setFont("helvetica", "bold");
       doc.text("KATALOG LENGKAP PESERTA", 15, 20);
 
-      const daerahPart = selectedDaerah !== "all" ? daerahList.find(d => String(d.id) === selectedDaerah)?.nama : "SEMUA_DAERAH";
-      const desaPart = selectedDesa !== "all" ? desaList.find(d => String(d.id) === selectedDesa)?.nama : "";
-      const kelompokPart = selectedKelompok !== "all" ? kelompokList.find(k => String(k.id) === selectedKelompok)?.nama : "";
+      const daerahPart = selectedDaerah !== "all" ? daerahList.find(d => String(d?.id) === selectedDaerah)?.nama : "SEMUA_DAERAH";
+      const desaPart = selectedDesa !== "all" ? desaList.find(d => String(d?.id) === selectedDesa)?.nama : "";
+      const kelompokPart = selectedKelompok !== "all" ? kelompokList.find(k => String(k?.id) === selectedKelompok)?.nama : "";
 
-      let filterSuffix = daerahPart;
+      let filterSuffix = String(daerahPart || "SEMUA_DAERAH");
       if (desaPart) filterSuffix += `_${desaPart}`;
       if (kelompokPart) filterSuffix += `_${kelompokPart}`;
       const cleanSuffix = filterSuffix.replace(/[^a-zA-Z0-9_]/g, "_").toUpperCase();
@@ -490,17 +554,24 @@ export default function AdminKatalogPage() {
       doc.text(`Dicetak pada: ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, pageWidth - 15, 34, { align: "right" });
 
       // Table Data
-      const tableColumn = ["No", "Nama Lengkap", "L/P", "Usia", "Status", "Daerah / Desa / Kelompok", "Kontak / Sosial Media", "Pendidikan & Pekerjaan"];
-      const tableRows = allParticipants.map((item, index) => [
-        index + 1,
-        item.nama.toUpperCase(),
-        item.jenisKelamin || "-",
-        calculateAge(item.tanggalLahir ?? undefined),
-        (item.panitiaStatus || item.role === 'admin') ? "PANITIA" : "PESERTA",
-        `${item.mandiriDesaKota || "-"}\n${item.mandiriDesaNama || "-"}\n${item.mandiriKelompokNama || "-"}`,
-        `${item.noTelp || "-"}\n${item.instagram ? '@' + item.instagram.replace('@', '') : "-"}`,
-        `${item.pendidikan || "-"}\n${item.pekerjaan || "-"}`
-      ]);
+      const tableColumn = ["No", "Foto", "Nama Lengkap", "L/P", "Usia", "Status", "Daerah / Desa / Kelompok", "Kontak Tim PNKB / Ibu Gambuh", "Pendidikan & Pekerjaan"];
+      const tableRows = allParticipants.map((item, index) => {
+        if (!item) return [];
+        const pnkbInfo = getTimGambuhInfo(item.mandiriDesaKota, "PNKB");
+        const gambuhInfo = getTimGambuhInfo(item.mandiriDesaKota, "Ibu Gambuh");
+
+        return [
+          index + 1,
+          item.id || "", // placeholder for Foto
+          (item.nama || "-").toUpperCase(),
+          item.jenisKelamin || "-",
+          calculateAge(item.tanggalLahir ?? undefined),
+          (item.panitiaStatus || item.role === 'admin') ? "PANITIA" : "PESERTA",
+          `${item.mandiriDesaKota || "-"}\n${item.mandiriDesaNama || "-"}\n${item.mandiriKelompokNama || "-"}`,
+          `Tim PNKB: ${pnkbInfo}\nIbu Gambuh: ${gambuhInfo}`,
+          `${item.pendidikan || "-"}\n${item.pekerjaan || "-"}`
+        ];
+      });
 
       autoTable(doc, {
         head: [tableColumn],
@@ -518,22 +589,48 @@ export default function AdminKatalogPage() {
         bodyStyles: {
           fontSize: 8,
           textColor: [30, 41, 59],
-          valign: 'middle'
+          valign: 'middle',
+          minCellHeight: 22
         },
         alternateRowStyles: {
           fillColor: [248, 250, 252]
         },
         columnStyles: {
           0: { halign: 'center', cellWidth: 10 },
-          1: { fontStyle: 'bold', cellWidth: 50 },
-          2: { halign: 'center', cellWidth: 10 },
-          3: { halign: 'center', cellWidth: 12 },
-          4: { halign: 'center', fontStyle: 'bold', cellWidth: 20 },
-          5: { cellWidth: 45 },
+          1: { halign: 'center', cellWidth: 20 },
+          2: { fontStyle: 'bold', cellWidth: 40 },
+          3: { halign: 'center', cellWidth: 10 },
+          4: { halign: 'center', cellWidth: 10 },
+          5: { halign: 'center', fontStyle: 'bold', cellWidth: 15 },
           6: { cellWidth: 45 },
           7: { cellWidth: 45 },
+          8: { cellWidth: 45 },
         },
         margin: { left: 15, right: 15, bottom: 20 },
+        didParseCell: (data) => {
+          if (data.section === 'body' && data.column.index === 1) {
+            // Hapus teks (ID) agar tidak tercetak, kita hanya butuh raw value-nya untuk gambar
+            data.cell.text = [];
+          }
+        },
+        didDrawCell: (data) => {
+          if (data.section === 'body' && data.column.index === 1) {
+            const itemId = typeof data.cell.raw === 'string' ? data.cell.raw : '';
+            if (!itemId) return;
+            
+            const base64Img = photoMap[itemId];
+            if (base64Img) {
+              try {
+                const dim = 18; 
+                const x = data.cell.x + (data.cell.width - dim) / 2;
+                const y = data.cell.y + (data.cell.height - dim) / 2;
+                doc.addImage(base64Img, "JPEG", x, y, dim, dim);
+              } catch (e) {
+                // Abaikan error jika gambar tidak valid
+              }
+            }
+          }
+        },
         didDrawPage: (data) => {
           // Footer
           const pageCount = doc.getNumberOfPages();
@@ -546,9 +643,9 @@ export default function AdminKatalogPage() {
 
       doc.save(`KATALOG_${cleanSuffix}_${new Date().getTime()}.pdf`);
       Swal.fire("Berhasil", "Laporan PDF telah berhasil diunduh.", "success");
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      Swal.fire("Gagal", "Terjadi kesalahan saat membuat PDF", "error");
+      Swal.fire("Gagal", `Terjadi kesalahan saat membuat PDF: ${e.message || String(e)}`, "error");
     }
   };
 
