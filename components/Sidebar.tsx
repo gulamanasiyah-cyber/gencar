@@ -76,7 +76,7 @@ const navItems = [
       { href: "/admin/saran", label: "Saran & Masukan", icon: "message-square", roles: ["admin", "pengurus_daerah", "kmm_daerah"] },
       { href: "/admin/maintenance", label: "Mode Maintenance", icon: "settings", roles: ["admin"] },
       { href: "/katalog", label: "Katalog Mandiri", icon: "katalog", roles: ["admin_romantic_room"] },
-      { href: "/mandiri/romantic-room", label: "Romantic Room", icon: "romantic", roles: ["admin_romantic_room", "admin"] },
+      { href: "/mandiri/romantic-room", label: "Romantic Room", icon: "romantic", roles: ["admin_romantic_room"] },
       { href: "/mandiri/saran", label: "Saran / Masukkan", icon: "message-square", roles: ["admin_romantic_room", "admin"] },
     ],
   },

@@ -35,6 +35,7 @@ export default function GenerusPage() {
   const [kelompoks, setKelompoks] = useState<{id: number, nama: string}[]>([]);
   const [isActive, setIsActive] = useState("true");
   const [showPasswords, setShowPasswords] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   const limit = 10;
 
@@ -523,6 +524,7 @@ export default function GenerusPage() {
 
         <div className="card">
           <div className="card-header" style={{ flexDirection: "column", gap: "16px", alignItems: "flex-start" }}>
+            
             {/* Kategori Usia Buttons */}
             <div style={{ display: "flex", gap: "8px", overflowX: "auto", width: "100%", paddingBottom: "4px", scrollbarWidth: "none" }}>
               <button 

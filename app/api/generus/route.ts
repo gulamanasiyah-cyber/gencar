@@ -28,12 +28,26 @@ function buildWhereClause(
   pendidikan?: string,
   mandiriDesaId?: string,
   mandiriDaerahId?: string,
-  mandiriKelompokId?: string
+  mandiriKelompokId?: string,
+  isPnkb?: boolean
 ) {
   const conditions: any[] = [];
   
-  if (isGenerus) {
+  if (isPnkb) {
+      conditions.push(
+          or(
+              like(generus.nomorUnik, 'PNKB-%'),
+              like(generus.nomorUnik, 'PNB-%')
+          )
+      );
+  } else if (isGenerus) {
     conditions.push(eq(generus.isGenerus, 1));
+    conditions.push(
+        and(
+            not(like(generus.nomorUnik, 'PNKB-%')),
+            not(like(generus.nomorUnik, 'PNB-%'))
+        )
+    );
     conditions.push(
       or(
         isNull(users.role),
@@ -168,6 +182,7 @@ export async function GET(request: NextRequest) {
     const mandiriOnly = searchParams.get("mandiriOnly") === "true";
     let notInMandiri = searchParams.get("notInMandiri") === "true";
     const isGenerusPage = searchParams.get("isGenerus") === "true";
+    const isPnkb = searchParams.get("isPnkb") === "true";
     let filterIsGenerus = false;
 
     let kegiatanId = searchParams.get("kegiatanId") || "";
@@ -191,7 +206,7 @@ export async function GET(request: NextRequest) {
     const finalWhere = buildWhereClause(
       session, search, all, statusNikah, desaId, kelompokId, 
       jenisKelamin, status, kategoriUsia, notInMandiri, filterIsGenerus,
-      pendidikan, mandiriDesaId, mandiriDaerahId, mandiriKelompokId
+      pendidikan, mandiriDesaId, mandiriDaerahId, mandiriKelompokId, isPnkb
     );
 
     let whereClause = finalWhere;
