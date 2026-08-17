@@ -179,84 +179,63 @@ export default function AdminSaranPage() {
             <span style={{ fontSize: "13px", opacity: 0.7 }}>Saran yang dikirim melalui Landing Page akan muncul di sini.</span>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "20px" }}>
-            {filteredSaran.map((item) => (
-              <div 
-                key={item.id} 
-                className="card" 
-                style={{ 
-                  display: "flex", 
-                  flexDirection: "column", 
-                  justifyContent: "space-between",
-                  transition: "all 0.2s ease"
-                }}
-              >
-                <div className="card-body" style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "14px" }}>
-                  {/* Header: Untuk Siapa */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: "800", color: "var(--gray)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Ditujukan Untuk:</span>
-                      <span className="badge badge-blue" style={{ fontSize: "13.5px", padding: "6px 12px", display: "inline-block", fontWeight: "700" }}>
-                        {item.untuk}
-                      </span>
-                    </div>
-                    
-                    <button
-                      className="btn btn-sm btn-danger"
-                      onClick={() => handleDelete(item.id)}
-                      title="Hapus Masukan"
-                      style={{ padding: "8px", borderRadius: "50%", width: "34px", height: "34px", display: "flex", alignItems: "center", justifyContent: "center" }}
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-
-                  {/* Body: Isi Saran */}
-                  <div style={{ 
-                    background: "var(--bg)", 
-                    padding: "14px 16px", 
-                    borderRadius: "10px", 
-                    border: "1px solid var(--border)",
-                    fontSize: "14px",
-                    lineHeight: "1.5",
-                    color: "var(--text-main, #334155)",
-                    whiteSpace: "pre-wrap"
-                  }}>
-                    {item.saran}
-                  </div>
-                </div>
-
-                {/* Footer: Pengirim & Waktu */}
-                <div style={{ 
-                  padding: "12px 20px", 
-                  background: "#f8fafc", 
-                  borderTop: "1px solid #f1f5f9",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  fontSize: "12px",
-                  color: "var(--gray)",
-                  flexWrap: "wrap",
-                  gap: "10px"
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    {item.isAnonim ? (
-                      <HelpCircle size={14} style={{ color: "#94a3b8" }} />
-                    ) : (
-                      <UserCheck size={14} style={{ color: "var(--success)" }} />
-                    )}
-                    <span style={{ fontWeight: 600, color: item.isAnonim ? "#64748b" : "var(--success-dk)" }}>
-                      {item.nama || "Anonim"}
-                    </span>
-                  </div>
-                  
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <Calendar size={14} />
-                    <span>{formatDate(item.createdAt)}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="table-wrapper">
+            <div className="table-responsive" style={{ border: "1px solid var(--border)", borderRadius: "12px", background: "var(--bg)" }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th style={{ width: "40px", textAlign: "center" }}>No</th>
+                    <th style={{ minWidth: "150px" }}>Pengirim</th>
+                    <th style={{ minWidth: "160px" }}>Tujuan (Untuk)</th>
+                    <th style={{ minWidth: "350px" }}>Saran / Masukan</th>
+                    <th style={{ width: "160px" }}>Waktu Masuk</th>
+                    <th style={{ width: "80px", textAlign: "center" }}>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredSaran.map((item, index) => (
+                    <tr key={item.id} className="table-row-hover">
+                      <td style={{ textAlign: "center", color: "var(--text-muted)", fontWeight: 500 }}>
+                        {index + 1}
+                      </td>
+                      <td>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          {item.isAnonim ? (
+                            <HelpCircle size={15} style={{ color: "var(--text-muted)" }} />
+                          ) : (
+                            <UserCheck size={15} style={{ color: "var(--color-primary)" }} />
+                          )}
+                          <span style={{ fontWeight: 600, color: item.isAnonim ? "var(--text-muted)" : "var(--text-main)" }}>
+                            {item.nama || "Anonim"}
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="badge badge-blue">
+                          {item.untuk}
+                        </span>
+                      </td>
+                      <td style={{ whiteSpace: "pre-wrap", color: "var(--text-main)", fontSize: "14px", lineHeight: "1.5" }}>
+                        {item.saran}
+                      </td>
+                      <td style={{ color: "var(--text-muted)", fontSize: "13px" }}>
+                        {formatDate(item.createdAt)}
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        <button
+                          className="btn btn-sm btn-danger"
+                          onClick={() => handleDelete(item.id)}
+                          title="Hapus Masukan"
+                          style={{ padding: "6px", width: "32px", height: "32px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

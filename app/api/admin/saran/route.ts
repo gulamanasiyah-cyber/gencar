@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { saranMasukan } from "@/lib/schema";
-import { eq } from "drizzle-orm";
+import { eq, ne } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 
 export async function GET() {
@@ -11,9 +11,7 @@ export async function GET() {
     if (!session || !["admin", "pengurus_daerah", "kmm_daerah"].includes(session.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const data = await db.select().from(saranMasukan).orderBy(saranMasukan.createdAt);
-    // Reverse array to put newest first (or order by desc)
-    // Note: Drizzle sqlite default ordered by createdAt ascending, let's reverse it to have newest first.
+    const data = await db.select().from(saranMasukan).where(ne(saranMasukan.untuk, "Romantic Room")).orderBy(saranMasukan.createdAt);
     return NextResponse.json(data.reverse());
   } catch (error) {
     console.error(error);
