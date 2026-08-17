@@ -1,7 +1,7 @@
 
 export const dynamic = 'force-dynamic';
 import { db } from "@/lib/db";
-import { artikel, users, generus, kegiatan, visitorStats } from "@/lib/schema";
+import { artikel, users, generus, kegiatan, visitorStats, mandiriKegiatan } from "@/lib/schema";
 import { eq, desc, and, inArray, sql, like, gt } from "drizzle-orm";
 
 import Link from "next/link";
@@ -123,17 +123,24 @@ async function getPopularArticles(limit = 6) {
 
 async function getRecentKegiatan(limit = 4, searchQuery?: string) {
   try {
-    const filters = [];
-    if (searchQuery) {
-      filters.push(like(kegiatan.judul, `%${searchQuery}%`));
-    }
+    const filters1 = [];
+    if (searchQuery) filters1.push(like(kegiatan.judul, `%${searchQuery}%`));
 
-    return await db
-      .select()
+    const k1 = await db
+      .select({ id: kegiatan.id, judul: kegiatan.judul, tanggal: kegiatan.tanggal, lokasi: kegiatan.lokasi })
       .from(kegiatan)
-      .where(filters.length > 0 ? and(...filters) : undefined)
-      .orderBy(desc(kegiatan.tanggal))
-      .limit(limit);
+      .where(filters1.length > 0 ? and(...filters1) : undefined);
+
+    const filters2 = [];
+    if (searchQuery) filters2.push(like(mandiriKegiatan.judul, `%${searchQuery}%`));
+
+    const k2 = await db
+      .select({ id: mandiriKegiatan.id, judul: mandiriKegiatan.judul, tanggal: mandiriKegiatan.tanggal, lokasi: mandiriKegiatan.lokasi })
+      .from(mandiriKegiatan)
+      .where(filters2.length > 0 ? and(...filters2) : undefined);
+
+    const merged = [...k1, ...k2].sort((a, b) => new Date(b.tanggal || 0).getTime() - new Date(a.tanggal || 0).getTime());
+    return merged.slice(0, limit);
   } catch {
     return [];
   }
@@ -258,21 +265,6 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
       {/* News Ticker */}
       <NewsTicker articles={combinedForHero} />
 
-      {!query && (
-        <section id="profile" className="lp-wrap" style={{ marginTop: '28px', marginBottom: '8px' }}>
-          <div className="lp-sect-hd" style={{ marginBottom: '16px' }}>
-            <span className="lp-sect-hd-title">Profil Kami</span>
-          </div>
-          <div className="lp-video-wrap">
-            <iframe
-              src="https://www.youtube.com/embed/kkDN69-4zco?autoplay=1&mute=1&loop=1&playlist=kkDN69-4zco&controls=0&modestbranding=1&rel=0&vq=hd720"
-              title="GENCAR Hero Video"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
-        </section>
-      )}
 
       {/* ═══ MAIN CONTENT LAYOUT ═══ */}
       <div id="beranda" className="lp-main-layout" suppressHydrationWarning>
@@ -288,6 +280,20 @@ export default async function LandingPage({ searchParams }: { searchParams: { q?
             </div>
           ) : (
             <div style={{ minWidth: 0, marginBottom: '28px' }}>
+              <section id="profile" style={{ marginBottom: '28px' }}>
+                <div className="lp-sect-hd" style={{ marginBottom: '16px' }}>
+                  <span className="lp-sect-hd-title">Profil Kami</span>
+                </div>
+                <div className="lp-video-wrap" style={{ marginBottom: '16px' }}>
+                  <iframe
+                    src="https://www.youtube.com/embed/kkDN69-4zco?autoplay=1&mute=1&loop=1&playlist=kkDN69-4zco&controls=0&modestbranding=1&rel=0&vq=hd720"
+                    title="GENCAR Hero Video"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              </section>
+
               <FeaturedArticleSlider articles={heroSliderArticles} />
             </div>
           )}

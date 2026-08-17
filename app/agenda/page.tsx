@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { kegiatan, desa, kelompok } from "@/lib/schema";
+import { kegiatan, desa, kelompok, mandiriKegiatan, mandiriDesa, mandiriKelompok } from "@/lib/schema";
 import { eq, desc } from "drizzle-orm";
 import Link from "next/link";
 import HomeHeader from "@/components/HomeHeader";
@@ -8,7 +8,7 @@ import { getSession } from "@/lib/auth";
 
 async function getAllKegiatan() {
   try {
-    return await db
+    const k1 = await db
       .select({
         id: kegiatan.id,
         judul: kegiatan.judul,
@@ -20,8 +20,23 @@ async function getAllKegiatan() {
       })
       .from(kegiatan)
       .leftJoin(desa, eq(kegiatan.desaId, desa.id))
-      .leftJoin(kelompok, eq(kegiatan.kelompokId, kelompok.id))
-      .orderBy(desc(kegiatan.tanggal));
+      .leftJoin(kelompok, eq(kegiatan.kelompokId, kelompok.id));
+
+    const k2 = await db
+      .select({
+        id: mandiriKegiatan.id,
+        judul: mandiriKegiatan.judul,
+        deskripsi: mandiriKegiatan.deskripsi,
+        tanggal: mandiriKegiatan.tanggal,
+        lokasi: mandiriKegiatan.lokasi,
+        desaNama: mandiriDesa.nama,
+        kelompokNama: mandiriKelompok.nama,
+      })
+      .from(mandiriKegiatan)
+      .leftJoin(mandiriDesa, eq(mandiriKegiatan.desaId, mandiriDesa.id))
+      .leftJoin(mandiriKelompok, eq(mandiriKegiatan.kelompokId, mandiriKelompok.id));
+
+    return [...k1, ...k2].sort((a, b) => new Date(b.tanggal || 0).getTime() - new Date(a.tanggal || 0).getTime());
   } catch (error) {
     console.error("Error fetching kegiatan:", error);
     return [];
