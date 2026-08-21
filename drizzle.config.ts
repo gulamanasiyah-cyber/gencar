@@ -20,11 +20,15 @@ if (dbUrl && (dbUrl.includes(" ") || dbUrl.includes("%20") || dbUrl.includes("TU
 }
 
 export default defineConfig({
-  schema: "./lib/schema.ts",
+  schema: "./shared/schema.ts",
   out: "./drizzle",
-  dialect: "turso",
+  dialect: "sqlite",
+  driver: "d1-http",
   dbCredentials: {
-    url: dbUrl,
-    authToken: dbAuthToken,
-  },
+    accountId: process.env.CLOUDFLARE_ACCOUNT_ID || "",
+    databaseId: process.env.CLOUDFLARE_D1_DATABASE_ID || "",
+    token: process.env.CLOUDFLARE_D1_TOKEN || "",
+    // Fallback untuk lokal: wrangler d1 execute --local tidak butuh http credentials
+    ...(dbUrl ? { url: dbUrl, authToken: dbAuthToken } : {}),
+  } as any,
 });

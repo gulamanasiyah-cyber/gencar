@@ -30,7 +30,8 @@ import {
   ClipboardList,
   CreditCard,
   MessageSquare,
-  Camera
+  Camera,
+  BarChart3
 } from "lucide-react";
 
 interface SidebarProps {
@@ -49,6 +50,7 @@ const navItems = [
     section: "Menu Utama",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: "grid" },
+      { href: "/statistik", label: "Statistik", icon: "bar-chart" },
     ],
   },
   {
@@ -111,6 +113,7 @@ const userNavs: Record<string, any[]> = {
       section: "Menu Utama",
       items: [
         { href: "/dashboard", label: "Dashboard", icon: "grid" },
+        { href: "/statistik", label: "Statistik", icon: "bar-chart" },
         { href: "/artikel", label: "Artikel", icon: "book-open" },
         { href: "/berita", label: "Berita", icon: "file-text" },
       ],
@@ -133,6 +136,7 @@ const userNavs: Record<string, any[]> = {
       section: "Menu Utama",
       items: [
         { href: "/dashboard", label: "Dashboard", icon: "grid" },
+        { href: "/statistik", label: "Statistik", icon: "bar-chart" },
       ],
     },
   ],
@@ -141,6 +145,7 @@ const userNavs: Record<string, any[]> = {
       section: "Menu Utama",
       items: [
         { href: "/dashboard", label: "Dashboard", icon: "grid" },
+        { href: "/statistik", label: "Statistik", icon: "bar-chart" },
       ],
     },
     {
@@ -178,6 +183,7 @@ const userNavs: Record<string, any[]> = {
       section: "Menu Utama",
       items: [
         { href: "/dashboard", label: "Dashboard", icon: "grid" },
+        { href: "/statistik", label: "Statistik", icon: "bar-chart" },
       ],
     },
     {
@@ -205,6 +211,7 @@ const userNavs: Record<string, any[]> = {
       section: "Menu Utama",
       items: [
         { href: "/dashboard", label: "Dashboard", icon: "grid" },
+        { href: "/statistik", label: "Statistik", icon: "bar-chart" },
         { href: "/mandiri/tim-gambuh", label: "Panel Tim PNKB & Ibu Gambuh", icon: "romantic" },
         { href: "/tim-gambuh/katalog", label: "Katalog Peserta", icon: "katalog" },
       ],
@@ -214,6 +221,7 @@ const userNavs: Record<string, any[]> = {
 
 const icons: Record<string, React.ReactNode> = {
   grid: <LayoutDashboard size={18} />,
+  "bar-chart": <BarChart3 size={18} />,
   users: <Users size={18} />,
   calendar: <Calendar size={18} />,
   "check-square": <ClipboardCheck size={18} />,

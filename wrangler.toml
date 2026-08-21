@@ -1,13 +1,27 @@
-name = "mudamudicengkareng"
-main = ".open-next/worker.js"
+name = "gencar-api"
+main = "worker/index.ts"
 compatibility_date = "2025-05-05"
 compatibility_flags = [ "nodejs_compat" ]
 
+# Next.js frontend (SPA) dibuild ke frontend/dist — Hono Worker serve via assets binding
 [assets]
-directory = "open-next-assets"
+directory = "frontend/dist"
 binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+# D1 — isi database_id setelah `wrangler d1 create gencar-db`
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "gencar-db"
+# database_id = "REPLACE_ME"
+
+# KV untuk magic_tokens rate-limit & session (buat via `wrangler kv namespace create`)
+# [[kv_namespaces]]
+# binding = "KV"
+# id = "REPLACE_ME"
+
+[vars]
+DAERAH_NAMA = "Cengkareng"
 
 [build]
-command = "npm run build:cf"
-
-
+command = "npm run build"

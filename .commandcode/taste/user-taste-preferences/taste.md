@@ -1,0 +1,32 @@
+# User Taste Preferences
+- Prefers Indonesian (Bahasa Indonesia) for technical discussions. Confidence: 0.9
+- Prefers discussion-style responses ("diskus aja") over direct prescriptive answers. Confidence: 0.85
+- Wants practical investigation and testing, not just theoretical suggestions. Confidence: 0.85
+- Uses `scratch/` directory for experimental/debugging scripts and iteration. Confidence: 0.8
+- Runs code on VPS for production-like testing and checks locally for comparison. Confidence: 0.8
+- Iterates rapidly when debugging — creates and re-runs scripts multiple times to narrow down issues. Confidence: 0.8
+- TypeScript-first workflow using `npx tsx` for quick script execution. Confidence: 0.9
+- Next.js application structure (route.ts, schema.ts patterns). Confidence: 0.85
+- Works with Meta/Firebase ecosystem (WhatsApp Business API, Firebase Cloud Messaging). Confidence: 0.85
+- Prefers checking configuration and console settings systematically when something fails. Confidence: 0.8
+- Provides raw context (logs, errors, what was tried) rather than summarizing issues abstractly. Confidence: 0.8
+- Expects the assistant to be aware of dev server auto-refresh (Vite HMR) and not waste time on manual build verification. Confidence: 0.85
+- Provides visual design references/mockups to guide UI implementation rather than describing aesthetics in text. Confidence: 0.85
+- Sends raw HTML markup as layout specification with terse directives (e.g. "penyusunan perbaiki") — expects the assistant to interpret the structure, improve it, and return a cleaner version. Confidence: 0.85
+- Issues bare-bones imperative feature requests in Indonesian with no detail or spec (e.g. "halaman member tambah search dan export excel") — expects the assistant to explore the codebase, plan, and implement autonomously without asking clarifying questions. Confidence: 0.7
+- Iterates on UI by sending screenshots with brief critiques (e.g. "masih terlalu beda dari rujukan") — expects close visual fidelity to provided references. Confidence: 0.85
+- Prefers full-width page layouts without rounded border containers on the outer page shell — content should fill the whole viewport. Confidence: 0.85
+- Prefers floating card-style sidebar with border-radius on all screen sizes (not just mobile), with logo/brand and nav items integrated inside. Confidence: 0.9
+- Prefers no topbar/header at all — wants the topbar removed entirely and the logo/brand integrated inside the floating sidebar instead. Confidence: 0.85
+- Prefers viewport-locked height layout (100dvh on parent with overflow: hidden) so sidebar and main content scroll independently within fixed containers, rather than the page itself scrolling. Confidence: 0.85
+- Prefers custom-built UI components (e.g. custom `<Select>`) over native browser form controls (e.g. `<select>`) for consistent styling and behavior. Confidence: 0.9
+- Mobile layout should show only cards, never tables — explicitly hides table view and view-toggle on small screens. Confidence: 0.9
+- Prefers generous breathing space in card components (larger padding and internal gaps, e.g. 20px padding, 12px gap between elements) — rejects cramped card layouts. Confidence: 0.85
+- Wants data cards with clear visual hierarchy (header section → meta/tags → separated info rows with label-value pairs → actions) rather than flat concatenated info lines joined by separators. Confidence: 0.85
+- Prefers semantic CSS class names (e.g. `.member-card-head`, `.member-card-actions`) over inline styles for component structure. Confidence: 0.8
+- Maintains plan/spec documents (e.g. `.claude/plans/`) and expects the assistant to find, read, and implement features based on them when referenced — gives brief directives like "berdasarkan plan" and expects the assistant to self-discover the relevant spec. Confidence: 0.85
+- Asks the assistant to build new UI components according to the existing design system ("sesuai dengan design system yang ada") — expects reuse of established design tokens and component patterns rather than introducing new styling approaches or libraries. Confidence: 0.8
+- Prefers icon/controls buttons to hug their content (`width: auto`, not stretched full-width) while keeping padding, rather than expanding to fill container width. Confidence: 0.85
+- Wants visible gaps between adjacent footer/control elements (e.g. between a button and nearby text) — elements should never sit flush/touching each other, even when using `justify-content: space-between`. Confidence: 0.85
+- Prefers concise, context-sensitive UI text over verbose static descriptions that list all possibilities at once — considers text "pile-up" as ugly and wants only the relevant information for the current user's context. Confidence: 0.85
+- Prefers filter controls hidden behind a toggle button (that opens a modal/panel on click) rather than always-visible inline filter panels — progressive disclosure pattern for secondary UI controls. Confidence: 0.85

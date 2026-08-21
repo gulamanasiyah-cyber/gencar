@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(npx tsc -b --noEmit)",
+      "Shell(npx vite build 2 >& 1)",
+      "Shell(npx vite --host 127.0.0.1 --port 5173 2 >& 1)",
+      "Shell(npx tsc --noEmit 2 >& 1)",
+      "Shell(npx tsc --noEmit 2>&1)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
+}

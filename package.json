@@ -26,6 +26,7 @@
     "exceljs": "^4.4.0",
     "firebase": "^12.15.0",
     "heic2any": "^0.0.4",
+    "hono": "^4.13.3",
     "html2canvas": "^1.4.1",
     "html5-qrcode": "^2.3.8",
     "jose": "^5.2.4",
@@ -73,5 +74,11 @@
     "are-we-there-yet": "^4.0.2",
     "gauge": "^5.0.2",
     "glob": "^13.0.6"
+  },
+  "allowScripts": {
+    "workerd@1.20250718.0": true,
+    "workerd@1.20260526.1": true,
+    "drizzle-orm@0.45.2": true,
+    "hono@4.13.3": true
   }
 }
