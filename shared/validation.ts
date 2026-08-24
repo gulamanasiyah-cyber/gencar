@@ -75,6 +75,18 @@ export function sambungJudulTemplate(level: "daerah" | "desa" | "kelompok", nama
   return `Sambung Muda-Mudi ${tingkat}${nama}`.trim();
 }
 
+export const pengurusLevelEnum = ["pimpinan", "sekretariat", "bidang", "koordinator"] as const;
+
+export const pengurusCreateSchema = z.object({
+  nama: z.string().min(2).max(80).trim(),
+  dapukan: z.string().min(2).max(80).trim(),
+  foto: z.string().url().nullable().optional().or(z.literal("")),
+  level: z.enum(pengurusLevelEnum).default("bidang"),
+  bio: z.string().max(280).nullable().optional(),
+  kontakWa: z.string().max(20).nullable().optional(),
+  urutan: z.number().int().min(0).max(999).default(0),
+});
+
 export function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;

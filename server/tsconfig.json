@@ -1,0 +1,12 @@
+{
+  "extends": "../frontend/tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tsbuildinfo",
+    "rootDir": "../",
+    "baseUrl": ".",
+    "paths": { "@/*": ["src/*"], "@shared/*": ["../shared/*"] },
+    "types": ["node", "@cloudflare/workers-types"]
+  },
+  "include": ["src", "../shared"],
+  "exclude": ["node_modules"]
+}

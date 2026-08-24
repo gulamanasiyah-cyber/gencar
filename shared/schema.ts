@@ -524,11 +524,16 @@ export type MandiriKomentar = typeof mandiriKomentar.$inferSelect;
 export type MagicToken = typeof magicTokens.$inferSelect;
 export type WilayahQr = typeof wilayahQr.$inferSelect;
 
+export const pengurusLevelEnum = ["pimpinan", "sekretariat", "bidang", "koordinator"] as const;
+
 export const organisasiPengurus = sqliteTable("organisasi_pengurus", {
   id: text("id").primaryKey(),
   nama: text("nama").notNull(),
   dapukan: text("dapukan").notNull(),
   foto: text("foto"),
+  level: text("level", { enum: ["pimpinan", "sekretariat", "bidang", "koordinator"] }).default("bidang"),
+  bio: text("bio"),
+  kontakWa: text("kontak_wa"),
   urutan: integer("urutan").default(0),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),

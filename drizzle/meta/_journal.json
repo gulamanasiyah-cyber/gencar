@@ -50,6 +50,13 @@
       "when": 1783656000000,
       "tag": "0006_tim_gambuh_foto",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1787382752266,
+      "tag": "0007_pengurus_hierarchy",
+      "breakpoints": true
     }
   ]
 }

@@ -6,6 +6,22 @@ import {
   PieChart, Pie, Cell,
   AreaChart, Area,
 } from "recharts";
+import { QRCodeCanvas } from "qrcode.react";
+import { toPng } from "html-to-image";
+import {
+  Users as IcoUsers,
+  CalendarDays as IcoCalendar,
+  Shield as IcoShield,
+  QrCode as IcoQr,
+  Search as IcoSearch,
+  X as IcoX,
+  ChevronDown as IcoChevronDown,
+  MapPin as IcoMapPin,
+  BarChart3 as IcoBarChart,
+  FoldVertical as IcoFold,
+  UnfoldVertical as IcoUnfold,
+} from "lucide-react";
+import MapPickerModal from "./components/MapPickerModal";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -19,70 +35,7 @@ function useIsMobile() {
   return isMobile;
 }
 
-// ── Inline SVG icons (currentColor, 16-18px) — no extra dep ──
-function IcoUsers(props: { size?: number }) {
-  return (
-    <svg width={props.size ?? 16} height={props.size ?? 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx={9} cy={7} r={4} /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-  );
-}
-function IcoCalendar(props: { size?: number }) {
-  return (
-    <svg width={props.size ?? 16} height={props.size ?? 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <rect x={3} y={4} width={18} height={18} rx={2} /><path d="M16 2v4M8 2v4M3 10h18" />
-    </svg>
-  );
-}
-function IcoShield(props: { size?: number }) {
-  return (
-    <svg width={props.size ?? 16} height={props.size ?? 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
-    </svg>
-  );
-}
-function IcoQr(props: { size?: number }) {
-  return (
-    <svg width={props.size ?? 16} height={props.size ?? 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <rect x={3} y={3} width={7} height={7} rx={1} /><rect x={14} y={3} width={7} height={7} rx={1} /><rect x={14} y={14} width={7} height={7} rx={1} /><rect x={3} y={14} width={7} height={7} rx={1} />
-    </svg>
-  );
-}
-function IcoSearch(props: { size?: number }) {
-  return (
-    <svg width={props.size ?? 16} height={props.size ?? 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <circle cx={11} cy={11} r={7} /><path d="m20 20-3.5-3.5" />
-    </svg>
-  );
-}
-function IcoX(props: { size?: number }) {
-  return (
-    <svg width={props.size ?? 16} height={props.size ?? 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M18 6 6 18M6 6l12 12" />
-    </svg>
-  );
-}
-function IcoChevronDown(props: { size?: number }) {
-  return (
-    <svg width={props.size ?? 16} height={props.size ?? 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  );
-}
-function IcoMapPin(props: { size?: number }) {
-  return (
-    <svg width={props.size ?? 16} height={props.size ?? 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx={12} cy={10} r={3} />
-    </svg>
-  );
-}
-function IcoBarChart(props: { size?: number }) {
-  return (
-    <svg width={props.size ?? 16} height={props.size ?? 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M3 3v18h18" /><path d="M7 16V9" /><path d="M12 16V5" /><path d="M17 16v-3" />
-    </svg>
-  );
-}
+// ── Icons: lucide-react (aliased ke nama Ico* biar call site nggak berubah) ──
 
 // ── Custom select (bukan bawaan browser) ──
 function Select({
@@ -201,6 +154,108 @@ const DEMO_MEMBERS: Member[] = [
   { id: "m5", nama: "Eka Putri", desa: "Fajar", kelompok: "Fajar C", pendidikan: "SMA", noTelp: "081234567894", kategoriMudaMudi: "pribumi", domisiliAnak: "Jl. Fajar No 8", isOrtuSama: true, status: "aktif" },
 ];
 
+// ── QR Absensi modal (kartu template + download PNG) ──
+type QrTarget = { level: "daerah" | "desa" | "kelompok"; nama: string };
+
+function QrModal({ target, onClose }: { target: QrTarget; onClose: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const value = `gencar-absen|${target.level}|${target.nama}`;
+
+  async function download() {
+    const node = document.getElementById("qr-template-card") as HTMLElement | null;
+    if (!node) return;
+    setBusy(true);
+    try {
+      const w = Math.ceil(node.offsetWidth);
+      const h = Math.ceil(node.offsetHeight);
+      const scale = 3;
+      const dataUrl = await toPng(node, {
+        cacheBust: true,
+        pixelRatio: scale,
+        width: w,
+        height: h,
+        canvasWidth: w * scale,
+        canvasHeight: h * scale,
+        // transparent biar sudut rounded nggak ketutup kotak putih di curve
+        backgroundColor: null as unknown as string,
+        style: { margin: "0", transform: "none", boxShadow: "none" },
+      });
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `qr-absen-${target.nama.toLowerCase().replace(/\s+/g, "-")}.png`;
+      a.click();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal qr-modal" onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <strong className="modal-title">QR Absensi</strong>
+          <button className="btn-close" aria-label="Tutup" onClick={onClose}><IcoX /></button>
+        </div>
+
+        <div id="qr-template-card" style={{
+          borderRadius: 18,
+          overflow: "hidden",
+          border: "1px solid #e2e8f0",
+          background: "#fff",
+          maxWidth: 320,
+          margin: "0 auto",
+        }}>
+          <div style={{
+            background: "#1a1a2e",
+            padding: "14px 16px",
+            display: "flex", alignItems: "center", gap: 10,
+          }}>
+            <div style={{
+              width: 34, height: 34, borderRadius: 10,
+              background: "#c5f54c", color: "#1a1a2e",
+              display: "grid", placeItems: "center",
+              fontWeight: 800, fontSize: 15,
+            }}>G</div>
+            <div>
+              <div style={{ color: "#fff", fontWeight: 800, fontSize: 14, letterSpacing: "-0.01em" }}>GENCAR</div>
+              <div style={{ color: "#94a3b8", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>QR Absensi Kegiatan</div>
+            </div>
+          </div>
+
+          <div style={{ padding: "20px 16px 16px", display: "grid", justifyItems: "center", gap: 10, background: "#fff" }}>
+            <span className="pill pill-slate">{target.level}</span>
+            <QRCodeCanvas value={value} size={196} level="M" includeMargin={false} bgColor="#ffffff" fgColor="#1a1a2e" />
+            <div style={{ fontWeight: 800, fontSize: 15, textAlign: "center", lineHeight: 1.25 }}>{target.nama}</div>
+          </div>
+
+          <div style={{
+            borderTop: "1px dashed #e2e8f0",
+            background: "#f8fafc",
+            padding: "10px 16px",
+            textAlign: "center",
+            fontSize: 11,
+            color: "#64748b",
+            fontWeight: 600,
+          }}>
+            Scan untuk absensi &bull; Daerah Cengkareng
+          </div>
+        </div>
+
+        <p className="muted" style={{ textAlign: "center", marginTop: 12, marginBottom: 0 }}>
+          Download dapat file PNG utuh (frame + QR), siap diprint / dibagikan ke grup.
+        </p>
+
+        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Tutup</button>
+          <button className="btn btn-primary" style={{ flex: 1 }} disabled={busy} onClick={download}>
+            {busy ? "Menyiapkan..." : "Download PNG"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Statistik (mock data — frontend only, no API) ── recharts
 type StatFilter = {
   waktu: "harian" | "mingguan" | "bulanan" | "tahunan";
@@ -277,18 +332,27 @@ function StatistikPage() {
         <span className="pill pill-slate statistik-filter-count">{totalFiltered} anggota (filter)</span>
       </div>
 
+      {/* ═══ SEKSI 1: DATA KEHADIRAN ═══ */}
+      <div className="statistik-section-head">
+        <span className="kpi-icon kpi-icon--emerald"><IcoCalendar size={18} /></span>
+        <div>
+          <h2>Data Kehadiran</h2>
+          <p>Rekap absensi dari seluruh kegiatan — hadir, izin, alpha</p>
+        </div>
+      </div>
+
       <div className="kpi" style={{ marginBottom: 16 }}>
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span><div><div className="muted">Total Anggota</div><strong>{STAT_MOCK.kpi.totalAnggota}</strong></div></div>
         <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--slate"><IcoCalendar size={18} /></span><div><div className="muted">Hadir Rate</div><strong>{STAT_MOCK.kpi.hadirRate}%</strong></div></div>
+        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span><div><div className="muted">Total Absensi</div><strong>159</strong></div></div>
         <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--amber"><IcoBarChart size={18} /></span><div><div className="muted">Total Kegiatan</div><strong>{STAT_MOCK.kpi.totalKegiatan}</strong></div></div>
         <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--peach"><IcoMapPin size={18} /></span><div><div className="muted">Rata-rata / Kegiatan</div><strong>{STAT_MOCK.kpi.avgPerKegiatan}</strong></div></div>
       </div>
 
       {/* Tren + Komposisi — single col on mobile */}
-      <div className="statistik-grid-2" style={{ display: "grid", gap: 16, marginBottom: 16 }}>
+      <div className="statistik-grid-2" style={{ display: "grid", gap: 16, marginBottom: 24 }}>
         <div className="card" style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 800, marginBottom: 4 }}>Tren Kehadiran per Bulan</div>
-          <div className="muted" style={{ marginBottom: 8 }}>Hadir / Izin / Alpha — stacked area</div>
+          <div className="muted" style={{ marginBottom: 8 }}>Hadir / Izin / Alpha per bulan</div>
           <div style={{ height: isMobile ? 200 : 220, minWidth: 0 }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={STAT_MOCK.tren}>
@@ -322,6 +386,22 @@ function StatistikPage() {
             </ResponsiveContainer>
           </div>
         </div>
+      </div>
+
+      {/* ═══ SEKSI 2: KOMPOSISI MEMBER ═══ */}
+      <div className="statistik-section-head">
+        <span className="kpi-icon kpi-icon--slate"><IcoUsers size={18} /></span>
+        <div>
+          <h2>Komposisi Member</h2>
+          <p>Sebaran demografi anggota terdaftar — terpisah dari data kehadiran</p>
+        </div>
+      </div>
+
+      <div className="kpi" style={{ marginBottom: 16 }}>
+        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span><div><div className="muted">Total Anggota</div><strong>{STAT_MOCK.kpi.totalAnggota}</strong></div></div>
+        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--peach"><IcoUsers size={18} /></span><div><div className="muted">Pribumi</div><strong>{STAT_MOCK.byMudaMudi[0].value}</strong></div></div>
+        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--slate"><IcoMapPin size={18} /></span><div><div className="muted">Perantauan</div><strong>{STAT_MOCK.byMudaMudi[1].value}</strong></div></div>
+        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--amber"><IcoMapPin size={18} /></span><div><div className="muted">Jumlah Desa</div><strong>{STAT_MOCK.byDesa.length}</strong></div></div>
       </div>
 
       {/* Sebaran — 1 col on mobile, 2 on tablet, 3 on desktop */}
@@ -413,9 +493,194 @@ function AdminShell({
         <button aria-label="Kegiatan" className={page === "kegiatan" ? "active" : ""} onClick={() => setPage("kegiatan")}><IcoCalendar /> <span>Kegiatan</span></button>
         <button aria-label="Kelola user" className={page === "users" ? "active" : ""} onClick={() => setPage("users")}><IcoShield /> <span>User</span></button>
         <button aria-label="Manajemen wilayah" className={page === "wilayah" ? "active" : ""} onClick={() => setPage("wilayah")}><IcoMapPin /> <span>Wilayah</span></button>
+        <button aria-label="Pengurus" className={page === "pengurus" ? "active" : ""} onClick={() => setPage("pengurus")}><IcoUsers /> <span>Pengurus</span></button>
         <button aria-label="Statistik" className={page === "statistik" ? "active" : ""} onClick={() => setPage("statistik")}><IcoBarChart /> <span>Statistik</span></button>
       </nav>
       <main className="admin-main">{children}</main>
+    </div>
+  );
+}
+
+type PengurusLevel = "pimpinan" | "sekretariat" | "bidang" | "koordinator";
+type PengurusRow = { id: string; nama: string; dapukan: string; foto: string | null; level: PengurusLevel; bio: string | null; kontakWa: string | null; urutan: number; createdAt?: string };
+const PENGURUS_LEVEL_OPTIONS: { value: PengurusLevel; label: string }[] = [
+  { value: "pimpinan", label: "Pimpinan Inti" },
+  { value: "sekretariat", label: "Sekretariat" },
+  { value: "bidang", label: "Bidang" },
+  { value: "koordinator", label: "Koordinator Wilayah" },
+];
+
+function PengurusAdmin() {
+  const [rows, setRows] = useState<PengurusRow[]>(() => [
+    { id: "1", nama: "Fulan A", dapukan: "Ketua Umum", foto: null, level: "pimpinan", bio: "Penanggung jawab harian.", kontakWa: null, urutan: 0 },
+    { id: "2", nama: "Fulanah B", dapukan: "Sekretaris", foto: null, level: "sekretariat", bio: "Arsip & jadwal.", kontakWa: null, urutan: 1 },
+    { id: "3", nama: "Fulan C", dapukan: "Bendahara", foto: null, level: "sekretariat", bio: "Kelola kas.", kontakWa: null, urutan: 2 },
+  ]);
+  const [editing, setEditing] = useState<PengurusRow | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [q, setQ] = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/pengurus")
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((j) => { if (Array.isArray(j) && j.length) setRows(j.map((x: any) => ({ id: x.id, nama: x.nama, dapukan: x.dapukan, foto: x.foto ?? null, level: (x.level as PengurusLevel) || "bidang", bio: x.bio ?? null, kontakWa: x.kontakWa ?? x.kontak_wa ?? null, urutan: Number(x.urutan ?? 0), createdAt: x.createdAt ?? x.created_at })))} )
+      .catch(() => {});
+  }, []);
+
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (!s) return rows;
+    return rows.filter((r) => `${r.nama} ${r.dapukan} ${r.level} ${r.bio ?? ""}`.toLowerCase().includes(s));
+  }, [rows, q]);
+
+  const grouped = useMemo(() => {
+    const g: Record<PengurusLevel, PengurusRow[]> = { pimpinan: [], sekretariat: [], bidang: [], koordinator: [] };
+    for (const r of filtered) {
+      const lvl = (r.level as PengurusLevel) || "bidang";
+      (g[lvl] ? g[lvl].push(r) : g.bidang.push(r));
+    }
+    for (const k of Object.keys(g) as PengurusLevel[]) g[k].sort((a, b) => (a.urutan ?? 0) - (b.urutan ?? 0));
+    return g;
+  }, [filtered]);
+
+  const openCreate = () => { setEditing(null); setShowForm(true); };
+  const openEdit = (r: PengurusRow) => { setEditing(r); setShowForm(true); };
+
+  const handleDelete = (id: string) => {
+    if (!confirm("Hapus pengurus ini?")) return;
+    setRows((prev) => prev.filter((x) => x.id !== id));
+    void fetch(`/api/admin/pengurus?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
+  };
+
+  const levelLabel = (lvl: PengurusLevel) => PENGURUS_LEVEL_OPTIONS.find((o) => o.value === lvl)?.label ?? lvl;
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h1>Pengurus</h1>
+          <div className="page-header-sub">Kelola hierarki pengurus — level + urutan + bio + WA. Tampil di halaman publik /pengurus.</div>
+        </div>
+        <button className="btn btn-primary" style={{ width: "auto" }} onClick={openCreate}>+ Tambah Pengurus</button>
+      </div>
+
+      <div className="kpi" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span><div><div className="muted">Pimpinan</div><strong>{grouped.pimpinan.length}</strong></div></div>
+        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--amber"><IcoShield size={18} /></span><div><div className="muted">Sekretariat</div><strong>{grouped.sekretariat.length}</strong></div></div>
+        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--peach"><IcoCalendar size={18} /></span><div><div className="muted">Bidang</div><strong>{grouped.bidang.length}</strong></div></div>
+        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--slate"><IcoMapPin size={18} /></span><div><div className="muted">Total</div><strong>{rows.length}</strong></div></div>
+      </div>
+
+      <div className="admin-toolbar" style={{ marginTop: 16 }}>
+        <label className="search">
+          <IcoSearch size={14} />
+          <input placeholder="Cari nama / dapukan / level..." value={q} onChange={(e) => setQ(e.target.value)} />
+        </label>
+        <a href="/pengurus" target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm" style={{ width: "auto" }}>Lihat publik →</a>
+      </div>
+
+      {(["pimpinan", "sekretariat", "bidang", "koordinator"] as PengurusLevel[]).map((lvl) => {
+        const list = grouped[lvl];
+        if (!list.length && q.trim()) return null;
+        return (
+          <div key={lvl} className="card" style={{ marginTop: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, paddingBottom: 10, borderBottom: "1px solid var(--line)" }}>
+              <span style={{ width: 8, height: 8, borderRadius: 999, background: lvl === "pimpinan" ? "var(--ink)" : lvl === "sekretariat" ? "var(--primary)" : "#86efac", display: "inline-block" }} />
+              <strong style={{ fontSize: 13, letterSpacing: "-0.01em" }}>{levelLabel(lvl)}</strong>
+              <span className="pill pill-slate">{list.length}</span>
+              {lvl === "pimpinan" && list.length > 2 && <span className="pill pill-amber">Ideal 1–2</span>}
+            </div>
+
+            {list.length === 0 ? (
+              <div className="muted" style={{ padding: 8 }}>Belum ada — tambah pengurus di level ini.</div>
+            ) : (
+              <div style={{ display: "grid", gap: 8 }}>
+                {list.map((r) => (
+                  <div key={r.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 12, border: "1px solid var(--line)", background: "#fff" }}>
+                    <span className="pill pill-slate" style={{ minWidth: 28, justifyContent: "center" }}>{r.urutan}</span>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--primary)", color: "var(--ink)", display: "grid", placeItems: "center", fontWeight: 800, fontSize: 12, overflow: "hidden", flexShrink: 0 }}>
+                      {r.foto ? <img src={r.foto} alt={r.nama} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : r.nama.split(" ").map((w) => w[0]).slice(0, 2).join("")}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.nama} <span className="muted">· {r.dapukan}</span></div>
+                      {r.bio ? <div className="muted" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.bio}</div> : <div className="muted" style={{ fontSize: 11 }}>— tanpa bio</div>}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(r)}>Edit</button>
+                      <button className="btn btn-danger btn-sm" onClick={() => handleDelete(r.id)}>Hapus</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {showForm && (
+        <PengurusFormModal
+          initial={editing}
+          onClose={() => setShowForm(false)}
+          onSave={(saved) => {
+            if (editing) {
+              setRows((prev) => prev.map((x) => (x.id === saved.id ? saved : x)));
+              void fetch("/api/admin/pengurus", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: saved.id, nama: saved.nama, dapukan: saved.dapukan, foto: saved.foto, level: saved.level, bio: saved.bio, kontakWa: saved.kontakWa, urutan: saved.urutan }) }).catch(() => {});
+            } else {
+              setRows((prev) => [saved, ...prev]);
+              void fetch("/api/admin/pengurus", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nama: saved.nama, dapukan: saved.dapukan, foto: saved.foto, level: saved.level, bio: saved.bio, kontakWa: saved.kontakWa, urutan: saved.urutan }) }).then((r) => r.json()).then((j) => { if (j?.id) setRows((prev) => prev.map((x) => (x.id === saved.id ? { ...x, id: j.id } : x))); }).catch(() => {});
+            }
+            setShowForm(false);
+            setEditing(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function PengurusFormModal({ initial, onClose, onSave }: { initial: PengurusRow | null; onClose: () => void; onSave: (r: PengurusRow) => void }) {
+  const [form, setForm] = useState(() => ({
+    nama: initial?.nama ?? "",
+    dapukan: initial?.dapukan ?? "",
+    foto: initial?.foto ?? "",
+    level: (initial?.level ?? "bidang") as PengurusLevel,
+    bio: initial?.bio ?? "",
+    kontakWa: initial?.kontakWa ?? "",
+    urutan: String(initial?.urutan ?? 0),
+  }));
+  const valid = form.nama.trim().length >= 2 && form.dapukan.trim().length >= 2;
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <strong className="modal-title">{initial ? "Edit Pengurus" : "Tambah Pengurus"}</strong>
+          <button className="btn-close" aria-label="Tutup" onClick={onClose}><IcoX /></button>
+        </div>
+        <div style={{ display: "grid", gap: 12 }}>
+          <div className="field"><label>Nama *</label><input value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} placeholder="Nama lengkap" /></div>
+          <div className="field"><label>Dapukan / Jabatan *</label><input value={form.dapukan} onChange={(e) => setForm({ ...form, dapukan: e.target.value })} placeholder="Ketua Umum, Sekretaris, dll" /></div>
+          <div className="field"><label>Level *</label>
+            <Select value={form.level} onChange={(v) => setForm({ ...form, level: v as PengurusLevel })} ariaLabel="Level" options={PENGURUS_LEVEL_OPTIONS.map((o) => ({ value: o.value, label: o.label }))} />
+          </div>
+          <div className="field"><label>Bio singkat (max 280)</label><textarea rows={2} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} placeholder="Tugas & tanggung jawab — 1 kalimat, maks 280 char" maxLength={280} /></div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="field"><label>Urutan (dalam level)</label><input type="number" min={0} max={999} value={form.urutan} onChange={(e) => setForm({ ...form, urutan: e.target.value })} /></div>
+            <div className="field"><label>Kontak WA (opsional)</label><input value={form.kontakWa} onChange={(e) => setForm({ ...form, kontakWa: e.target.value })} placeholder="62812..." /></div>
+          </div>
+          <div className="field"><label>Foto (URL atau upload R2 — preview)</label><input value={form.foto} onChange={(e) => setForm({ ...form, foto: e.target.value })} placeholder="https://..." /></div>
+          {form.foto && <img src={form.foto} alt="Preview" style={{ width: 96, height: 96, borderRadius: 12, objectFit: "cover", border: "1px solid var(--line)" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />}
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Batal</button>
+            <button
+              className="btn btn-primary" style={{ flex: 1 }} disabled={!valid}
+              onClick={() => onSave({ id: initial?.id ?? `tmp-${Date.now()}`, nama: form.nama.trim(), dapukan: form.dapukan.trim(), foto: form.foto.trim() || null, level: form.level, bio: form.bio.trim() || null, kontakWa: form.kontakWa.trim() || null, urutan: Math.max(0, Math.min(999, parseInt(form.urutan, 10) || 0)) })}
+            >
+              Simpan
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -782,6 +1047,9 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
   const [showFilter, setShowFilter] = useState(false);
   const [list, setList] = useState<Kegiatan[]>(DEMO_KEGIATAN);
   const [radiusM, setRadiusM] = useState("100");
+  const [gpsLat, setGpsLat] = useState("");
+  const [gpsLng, setGpsLng] = useState("");
+  const [showMap, setShowMap] = useState(false);
 
   const tpl = useMemo(() => (kategori === "sambung_rutin" ? sambungJudulTemplate(tingkat as Tingkat, tingkat === "daerah" ? "" : namaWilayah) : ""), [kategori, tingkat, namaWilayah]);
   const filtered = useMemo(() => {
@@ -959,9 +1227,18 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
                 <div className="field"><label>Jam</label><input type="time" id="jam" /></div>
                 <div className="field"><label>Lokasi</label><input id="lokasi" placeholder="Masjid / Aula" /></div>
               </div>
-              <div className="field"><label>GPS (lat,lng,radius)</label>
+              <div className="field">
+                <label>Lokasi GPS — tap untuk pilih di peta</label>
                 <div className="kegiatan-form-grid-gps">
-                  <input placeholder="lat -6.14" id="lat" /><input placeholder="lng 106.7" id="lng" />
+                  <button
+                    type="button"
+                    className={`gps-picker-trigger ${gpsLat && gpsLng ? "has-value" : ""}`}
+                    onClick={() => setShowMap(true)}
+                    aria-label="Pilih lokasi di peta"
+                  >
+                    <IcoMapPin size={14} />
+                    <span>{gpsLat && gpsLng ? `${Number(gpsLat).toFixed(6)}, ${Number(gpsLng).toFixed(6)}` : "Pilih lokasi di peta — tap untuk cari"}</span>
+                  </button>
                   <Select
                     value={radiusM}
                     onChange={setRadiusM}
@@ -973,6 +1250,14 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
                     ]}
                   />
                 </div>
+                {gpsLat && gpsLng ? (
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <span className="muted" style={{ fontSize: 11 }}>Radius absen {radiusM}m • geser pin atau cari ulang di peta</span>
+                    <button type="button" className="btn btn-ghost btn-sm" style={{ width: "auto", minHeight: 28, padding: "4px 10px", fontSize: 12 }} onClick={() => { setGpsLat(""); setGpsLng(""); }}>Hapus lokasi</button>
+                  </div>
+                ) : (
+                  <span className="muted" style={{ fontSize: 11 }}>Kosong = tanpa validasi GPS (opsional). Pasang pin untuk absen berbasis lokasi.</span>
+                )}
               </div>
               {!canCreate && <div className="pill pill-amber" style={{ justifyContent: "center" }}>Role kamu tidak boleh buat di tingkat {tingkat}</div>}
               <button
@@ -982,18 +1267,34 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
                   const judul = v("judul") || tpl || "Tanpa judul";
                   void v("deskripsi");
                   const tanggal = v("tanggal") || new Date().toISOString().slice(0, 10);
-                  const jam = v("jam") || ""; const lokasi = v("lokasi") || ""; const lat = parseFloat(v("lat")); const lng = parseFloat(v("lng"));
+                  const jam = v("jam") || ""; const lokasi = v("lokasi") || "";
+                  const lat = parseFloat(gpsLat); const lng = parseFloat(gpsLng);
                   const radius = parseInt(radiusM, 10);
                   const kategoriCustom = v("kategoriCustom") || undefined;
                   const tingkatVal = tingkat as Tingkat;
                   setList((prev) => [{ id: `k${Date.now()}`, judul, kategori: kategori as Kategori, kategoriCustom, tingkat: tingkatVal, desa: tingkatVal === "desa" || tingkatVal === "kelompok" ? (tingkatVal === "desa" ? namaWilayah : "Fajar") : undefined, kelompok: tingkatVal === "kelompok" ? namaWilayah : undefined, tanggal, jam, lokasi, lat: Number.isFinite(lat) ? lat : null, lng: Number.isFinite(lng) ? lng : null, radiusM: radius }, ...prev]);
-                  setShowForm(false);
+                  setGpsLat(""); setGpsLng(""); setShowForm(false);
                 }}
               >
                 Simpan Kegiatan
               </button>
             </div>
           </div>
+          <MapPickerModal
+            open={showMap}
+            initialLat={gpsLat ? parseFloat(gpsLat) : null}
+            initialLng={gpsLng ? parseFloat(gpsLng) : null}
+            radiusM={parseInt(radiusM, 10) || 100}
+            onClose={() => setShowMap(false)}
+            onPick={(lat, lng, displayName) => {
+              setGpsLat(String(lat));
+              setGpsLng(String(lng));
+              if (displayName) {
+                const el = document.getElementById("lokasi") as HTMLInputElement | null;
+                if (el && !el.value.trim()) el.value = displayName.split(",").slice(0, 2).join(",").trim();
+              }
+            }}
+          />
         </div>
       )}
     </div>
@@ -1197,6 +1498,9 @@ function WilayahPage() {
   ]);
   const [showAddDesa, setShowAddDesa] = useState(false);
   const [showAddKelompok, setShowAddKelompok] = useState<string | null>(null);
+  const [qrTarget, setQrTarget] = useState<QrTarget | null>(null);
+  const [qWilayah, setQWilayah] = useState("");
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
 
   const countDesa = desas.length;
   const countKelompok = kelompoks.length;
@@ -1208,6 +1512,11 @@ function WilayahPage() {
   function hapusDesa(id: string) {
     setDesas((prev) => prev.filter((d) => d.id !== id));
     setKelompoks((prev) => prev.filter((k) => k.desaId !== id));
+    setCollapsed((prev) => {
+      const n = new Set(prev);
+      n.delete(id);
+      return n;
+    });
   }
 
   function tambahDesa(nama: string) {
@@ -1217,8 +1526,57 @@ function WilayahPage() {
 
   function tambahKelompok(desaId: string, nama: string) {
     setKelompoks((prev) => [...prev, { id: `w${Date.now()}`, nama, desaId }]);
+    setCollapsed((prev) => {
+      const n = new Set(prev);
+      n.delete(desaId);
+      return n;
+    });
     setShowAddKelompok(null);
   }
+
+  const lowerQ = qWilayah.trim().toLowerCase();
+  const isSearching = lowerQ.length > 0;
+
+  const filteredDesas = useMemo(() => {
+    if (!isSearching) return desas.map((d) => ({ desa: d, matchDesa: false as boolean, kelompokMatchIds: new Set<string>() as Set<string> }));
+    return desas
+      .map((d) => {
+        const matchDesa = d.nama.toLowerCase().includes(lowerQ);
+        const kms = kelompoks.filter((k) => k.desaId === d.id);
+        const matchedKel = kms.filter((k) => k.nama.toLowerCase().includes(lowerQ));
+        const kelompokMatchIds = new Set(matchedKel.map((k) => k.id));
+        const keep = matchDesa || matchedKel.length > 0;
+        return { desa: d, matchDesa, kelompokMatchIds, keep, matchedKel, kms };
+      })
+      .filter((x: any) => x.keep)
+      .map((x: any) => ({ desa: x.desa, matchDesa: x.matchDesa, kelompokMatchIds: x.kelompokMatchIds }));
+  }, [desas, kelompoks, lowerQ, isSearching]);
+
+  function toggleDesa(id: string) {
+    setCollapsed((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+
+  const firstMatchKelompokId = useMemo(() => {
+    if (!isSearching) return null;
+    for (const { kelompokMatchIds } of filteredDesas) {
+      for (const id of kelompokMatchIds) return id;
+    }
+    return null;
+  }, [filteredDesas, isSearching]);
+
+  useEffect(() => {
+    if (!firstMatchKelompokId) return;
+    const t = setTimeout(() => {
+      const el = document.getElementById(`wilayah-kel-${firstMatchKelompokId}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+    return () => clearTimeout(t);
+  }, [firstMatchKelompokId, qWilayah]);
 
   return (
     <div>
@@ -1245,51 +1603,131 @@ function WilayahPage() {
             <span className="pill pill-emerald">Daerah</span>
           </div>
           <div className="muted" style={{ marginLeft: "auto" }}>Singleton &mdash; root tanpa tabel daerah</div>
-          <div className="wilayah-qr" title="QR Daerah Cengkareng"><IcoQr size={22} /></div>
+          <button className="btn btn-ghost btn-sm" style={{ width: "auto" }} onClick={() => setQrTarget({ level: "daerah", nama: "Daerah Cengkareng" })}>
+            <IcoQr size={14} /> QR Absen
+          </button>
         </div>
       </div>
 
-      <div style={{ display: "grid", gap: 16, marginTop: 16 }}>
-        {desas.map((desa) => {
-          const dus = kelompoks.filter((k) => k.desaId === desa.id);
+      <div className="admin-toolbar wilayah-toolbar" style={{ marginTop: 16, marginBottom: 12 }}>
+        <label className="search" style={{ maxWidth: 420 }}>
+          <IcoSearch size={14} />
+          <input
+            placeholder="Cari desa / kelompok..."
+            value={qWilayah}
+            onChange={(e) => setQWilayah(e.target.value)}
+            aria-label="Cari wilayah"
+          />
+          {qWilayah && (
+            <button
+              type="button"
+              className="btn-close"
+              style={{ width: 28, height: 28, minWidth: 28, minHeight: 28 }}
+              aria-label="Hapus pencarian"
+              onClick={() => setQWilayah("")}
+            >
+              <IcoX size={12} />
+            </button>
+          )}
+        </label>
+        {isSearching && <span className="pill pill-slate">{filteredDesas.length} desa cocok</span>}
+        {isSearching && firstMatchKelompokId && <span className="muted" style={{ fontSize: 12 }}>Kelompok cocok auto terbuka &amp; fokus</span>}
+        {!isSearching && desas.length > 0 && (() => {
+          const allCollapsed = desas.length > 0 && desas.every((d) => collapsed.has(d.id));
           return (
-            <div key={desa.id} className="card wilayah-desa">
+            <button
+              type="button"
+              className="wilayah-collapse-toggle"
+              aria-label={allCollapsed ? "Buka semua desa" : "Collapse semua desa"}
+              aria-pressed={allCollapsed}
+              title={allCollapsed ? "Buka semua" : "Collapse semua"}
+              onClick={() => setCollapsed(allCollapsed ? new Set() : new Set(desas.map((d) => d.id)))}
+            >
+              {allCollapsed ? <IcoUnfold size={16} /> : <IcoFold size={16} />}
+            </button>
+          );
+        })()}
+      </div>
+
+      <div style={{ display: "grid", gap: 16 }}>
+        {filteredDesas.map(({ desa, matchDesa, kelompokMatchIds }) => {
+          const allForDesa = kelompoks.filter((k) => k.desaId === desa.id);
+          const visibleKel = isSearching
+            ? (matchDesa ? allForDesa : allForDesa.filter((k) => kelompokMatchIds.has(k.id)))
+            : allForDesa;
+          const hasKelMatch = kelompokMatchIds.size > 0;
+          const forceOpen = isSearching && (matchDesa || hasKelMatch);
+          const isCollapsed = collapsed.has(desa.id) && !forceOpen;
+          const isOpen = !isCollapsed;
+          return (
+            <div key={desa.id} className={`card wilayah-desa ${matchDesa ? "wilayah-desa--match" : ""} ${isCollapsed ? "wilayah-desa--collapsed" : ""}`}>
               <div className="wilayah-desa-head">
+                <button
+                  type="button"
+                  className={`wilayah-toggle ${isOpen ? "open" : ""}`}
+                  aria-label={isOpen ? "Tutup desa" : "Buka desa"}
+                  aria-expanded={isOpen}
+                  onClick={() => toggleDesa(desa.id)}
+                >
+                  <IcoChevronDown size={14} />
+                </button>
                 <span className="kpi-icon kpi-icon--slate"><IcoMapPin size={18} /></span>
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 800 }}>{desa.nama}</div>
-                  <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
+                  <div style={{ display: "flex", gap: 6, marginTop: 2, flexWrap: "wrap" }}>
                     <span className="pill pill-slate">Desa</span>
-                    <span className="pill pill-emerald">{dus.length} kelompok</span>
+                    <span className="pill pill-emerald">{allForDesa.length} kelompok</span>
                     <span className="pill pill-slate">{anggotaDesa(desa.nama)} anggota</span>
+                    {isSearching && visibleKel.length !== allForDesa.length && (
+                      <span className="pill pill-amber">{visibleKel.length} cocok</span>
+                    )}
                   </div>
                 </div>
                 <div className="wilayah-actions">
+                  <span className="muted" style={{ fontSize: 12, marginRight: 2 }}>{visibleKel.length} kelompok{isCollapsed ? " • tertutup" : ""}</span>
                   <button className="btn btn-ghost btn-sm" onClick={() => setShowAddKelompok(desa.id)}>+ Kelompok</button>
                   <button className="btn btn-danger btn-sm" onClick={() => hapusDesa(desa.id)}>Hapus</button>
-                  <div className="wilayah-qr" title={`QR Desa ${desa.nama}`}><IcoQr size={20} /></div>
+                  <button className="btn btn-ghost btn-sm" style={{ width: "auto" }} onClick={() => setQrTarget({ level: "desa", nama: desa.nama })}>
+                    <IcoQr size={14} /> QR Absen
+                  </button>
                 </div>
               </div>
 
-              <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
-                {dus.map((kel) => (
-                  <div key={kel.id} className="wilayah-kelompok-row">
-                    <span className="wilayah-kelompok-dot" />
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 13 }}>{kel.nama}</div>
-                      <span className="pill pill-slate">{anggotaKelompok(kel.nama)} anggota</span>
-                    </div>
-                    <div className="wilayah-actions" style={{ marginLeft: "auto" }}>
-                      <button className="btn btn-danger btn-sm" onClick={() => setKelompoks((prev) => prev.filter((k) => k.id !== kel.id))}>Hapus</button>
-                      <div className="wilayah-qr wilayah-qr--sm" title={`QR Kelompok ${kel.nama}`}><IcoQr size={16} /></div>
-                    </div>
-                  </div>
-                ))}
-                {dus.length === 0 && <div className="muted">Belum ada kelompok di desa ini.</div>}
-              </div>
+              {isOpen && (
+                <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+                  {visibleKel.map((kel) => {
+                    const isKelMatch = isSearching && kelompokMatchIds.has(kel.id);
+                    return (
+                      <div
+                        key={kel.id}
+                        id={`wilayah-kel-${kel.id}`}
+                        className={`wilayah-kelompok-row ${isKelMatch ? "wilayah-kelompok-row--match" : ""}`}
+                      >
+                        <span className="wilayah-kelompok-dot" />
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 13 }}>{kel.nama}</div>
+                          <span className="pill pill-slate">{anggotaKelompok(kel.nama)} anggota</span>
+                        </div>
+                        <div className="wilayah-actions" style={{ marginLeft: "auto" }}>
+                          <button className="btn btn-danger btn-sm" onClick={() => setKelompoks((prev) => prev.filter((k) => k.id !== kel.id))}>Hapus</button>
+                          <button className="btn btn-ghost btn-sm" style={{ width: "auto" }} onClick={() => setQrTarget({ level: "kelompok", nama: kel.nama })}>
+                            <IcoQr size={14} /> QR Absen
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {visibleKel.length === 0 && (
+                    <div className="muted">{isSearching ? "Tidak ada kelompok yang cocok." : "Belum ada kelompok di desa ini."}</div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
+        {filteredDesas.length === 0 && (
+          <div className="lp-empty-card">Tidak ada desa / kelompok yang cocok untuk &ldquo;{qWilayah}&rdquo;.</div>
+        )}
       </div>
 
       {showAddDesa && (
@@ -1318,6 +1756,8 @@ function WilayahPage() {
           </div>
         </div>
       )}
+
+      {qrTarget && <QrModal target={qrTarget} onClose={() => setQrTarget(null)} />}
     </div>
   );
 }
@@ -1361,17 +1801,45 @@ function AddWilayahForm({
   );
 }
 
-export default function App() {
+import MemberShell from "./features/member/MemberShell";
+import type { MemberPageKey } from "./features/member/MemberShell";
+import MemberHomePage from "./features/member/MemberHomePage";
+import MemberAbsenPage from "./features/member/MemberAbsenPage";
+import MemberProfilePage from "./features/member/MemberProfilePage";
+import MemberStatPage from "./features/member/MemberStatPage";
+import { DEMO_SELF, DEMO_KEHADIRAN } from "./features/member/types";
+
+export default function App({ initialMode }: { initialMode?: "admin" | "member" } = {}) {
+  const [mode, setMode] = useState<"admin" | "member">(initialMode ?? "member");
   const [role] = useState<AdminRole>("admin_kelompok");
   const [page, setPage] = useState("anggota");
+  const [memberPage, setMemberPage] = useState<MemberPageKey>("beranda");
+  const [me, setMe] = useState(DEMO_SELF);
+
+  if (mode === "member") {
+    return (
+      <MemberShell page={memberPage} setPage={setMemberPage} me={me} onExit={() => setMode("admin")}>
+        {memberPage === "beranda" && <MemberHomePage me={me} go={setMemberPage} />}
+        {memberPage === "absen" && <MemberAbsenPage me={me} />}
+        {memberPage === "profil" && <MemberProfilePage me={me} onUpdate={setMe} />}
+        {memberPage === "statistik" && <MemberStatPage me={me} stat={DEMO_KEHADIRAN} />}
+      </MemberShell>
+    );
+  }
 
   return (
     <>
+      <div style={{ position: "fixed", right: 12, top: 12, zIndex: 50 }}>
+        <button type="button" className="btn btn-primary btn-sm" onClick={() => setMode("member")}>
+          Lihat Member
+        </button>
+      </div>
       <AdminShell page={page} setPage={setPage}>
         {page === "anggota" && <AnggotaPage role={role} />}
         {page === "kegiatan" && <KegiatanAdmin role={role} />}
         {page === "users" && <UsersManage role={role} />}
         {page === "wilayah" && <WilayahPage />}
+        {page === "pengurus" && <PengurusAdmin />}
         {page === "statistik" && <StatistikPage />}
       </AdminShell>
     </>

@@ -1,9 +1,9 @@
 name = "gencar-api"
-main = "worker/index.ts"
+main = "server/src/index.ts"
 compatibility_date = "2025-05-05"
 compatibility_flags = [ "nodejs_compat" ]
 
-# Next.js frontend (SPA) dibuild ke frontend/dist — Hono Worker serve via assets binding
+# SPA Vite — di-build ke frontend/dist, Worker serve via assets binding (SPA fallback)
 [assets]
 directory = "frontend/dist"
 binding = "ASSETS"
@@ -20,8 +20,13 @@ not_found_handling = "single-page-application"
 # binding = "KV"
 # id = "REPLACE_ME"
 
+# R2 untuk upload gambar (buat via `wrangler r2 bucket create gencar-uploads`)
+# [[r2_buckets]]
+# binding = "R2_BUCKET"
+# bucket_name = "gencar-uploads"
+
 [vars]
 DAERAH_NAMA = "Cengkareng"
 
 [build]
-command = "npm run build"
+command = "npm run build --prefix frontend"
