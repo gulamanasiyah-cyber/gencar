@@ -12,7 +12,7 @@ export default function PublicLayout() {
       <header className="pub-nav">
         <div className="pub-nav-inner">
           <Link to="/" className="pub-brand" aria-label="Gencar home">
-            <span className="pub-brand-mark">G</span>
+            <img src="/logos/gencar.png" alt="Gencar" className="pub-brand-logo" width={40} height={40} />
             <span>GENCAR</span>
             <small>Cengkareng</small>
           </Link>
@@ -20,6 +20,7 @@ export default function PublicLayout() {
           <nav className="pub-nav-links" aria-label="Primary">
             <NavLink to="/" className={({ isActive }) => (isActive ? "active" : "")}>Beranda</NavLink>
             <NavLink to="/kegiatan" className={({ isActive }) => (isActive ? "active" : "")}>Kegiatan</NavLink>
+            <NavLink to="/galeri" className={({ isActive }) => (isActive ? "active" : "")}>Galeri</NavLink>
             <NavLink to="/artikel" className={({ isActive }) => (isActive ? "active" : "")}>Artikel</NavLink>
             <NavLink to="/pengurus" className={({ isActive }) => (isActive ? "active" : "")}>Pengurus</NavLink>
             <NavLink to="/tentang" className={({ isActive }) => (isActive ? "active" : "")}>Tentang</NavLink>
@@ -30,29 +31,21 @@ export default function PublicLayout() {
           </Link>
 
           <button
-            className="pub-nav-burger btn-ghost"
+            className="pub-nav-burger btn-ghost pub-nav-burger--styled"
             aria-label={open ? "Tutup menu" : "Buka menu"}
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
-            style={{ borderRadius: 999, padding: 10, minHeight: 40 }}
           >
             {open ? <X size={18} /> : <Menu size={18} />}
           </button>
         </div>
 
         {open && (
-          <div
-            style={{
-              background: "#fff",
-              borderTop: "1px solid var(--pub-line)",
-              padding: "10px var(--pub-gutter) 14px",
-              display: "grid",
-              gap: 6,
-            }}
-          >
+          <div className="pub-mobile-drawer">
             {[
               ["/", "Beranda"],
               ["/kegiatan", "Kegiatan"],
+              ["/galeri", "Galeri"],
               ["/artikel", "Artikel"],
               ["/pengurus", "Pengurus"],
               ["/tentang", "Tentang"],
@@ -78,11 +71,11 @@ export default function PublicLayout() {
       </header>
 
       {!isHome && (
-        <div style={{ maxWidth: "var(--pub-max)", margin: "0 auto", padding: "12px var(--pub-gutter) 0" }}>
-          <nav aria-label="Breadcrumb" style={{ fontSize: 12, color: "var(--pub-muted)", display: "flex", gap: 6 }}>
-            <Link to="/" style={{ textDecoration: "underline", textUnderlineOffset: 3 }}>Beranda</Link>
+        <div className="pub-breadcrumb-wrap">
+          <nav className="pub-breadcrumb" aria-label="Breadcrumb">
+            <Link to="/">Beranda</Link>
             <span aria-hidden>›</span>
-            <span style={{ color: "var(--pub-ink)", fontWeight: 700, textTransform: "capitalize" }}>
+            <span className="pub-breadcrumb-current">
               {loc.pathname.split("/").filter(Boolean)[0] || "Beranda"}
             </span>
           </nav>
@@ -96,24 +89,24 @@ export default function PublicLayout() {
       <footer className="pub-footer">
         <div className="pub-footer-inner">
           <div>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
-              <span className="pub-brand-mark" style={{ background: "#fff", color: "#111118" }}>G</span>
-              <strong style={{ letterSpacing: "-0.03em" }}>GENCAR</strong>
-              <span style={{ fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", opacity: 0.6 }}>Cengkareng</span>
+            <div className="pub-footer-brand">
+              <img src="/logos/gencar.png" alt="Gencar" className="pub-brand-logo pub-brand-logo--footer" width={36} height={36} />
+              <strong>GENCAR</strong>
+              <span className="pub-footer-brand-sub">Cengkareng</span>
             </div>
             <p>
               Generasi Cahaya — wadah muda-mudi Cengkareng. Kegiatan publik dan artikel
               (tuntunan ibadah, info kesehatan, tafsir, kisah, berita) dikurasi pengurus.
               Konten internal tetap di sistem absensi.
             </p>
-            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              <a href="#" aria-label="Instagram" style={{ width: 36, height: 36, borderRadius: 999, background: "rgba(255,255,255,0.08)", display: "grid", placeItems: "center", border: "1px solid rgba(255,255,255,0.1)", fontSize: 11, fontWeight: 800 }}>IG</a>
-              <a href="#" aria-label="YouTube" style={{ width: 36, height: 36, borderRadius: 999, background: "rgba(255,255,255,0.08)", display: "grid", placeItems: "center", border: "1px solid rgba(255,255,255,0.1)", fontSize: 11, fontWeight: 800 }}>YT</a>
+            <div className="pub-footer-social">
+              <a href="https://instagram.com/gencar" aria-label="Instagram" target="_blank" rel="noopener noreferrer">IG</a>
+              <a href="https://youtube.com/@gencar" aria-label="YouTube" target="_blank" rel="noopener noreferrer">YT</a>
             </div>
           </div>
           <div>
             <h4>Jelajah</h4>
-            <div style={{ display: "grid", gap: 6 }}>
+            <div className="pub-footer-links">
               <Link to="/kegiatan">Kegiatan</Link>
               <Link to="/artikel">Artikel</Link>
               <Link to="/artikel?kategori=berita">Berita</Link>
@@ -123,27 +116,27 @@ export default function PublicLayout() {
           </div>
           <div>
             <h4>Kategori</h4>
-            <div style={{ display: "grid", gap: 6 }}>
-              <a href="/kegiatan?kategori=sambung_rutin">Sambung Rutin</a>
-              <a href="/kegiatan?kategori=keakraban">Keakraban</a>
-              <a href="/kegiatan?kategori=pemantapan">Pemantapan</a>
-              <a href="/kegiatan?kategori=lainnya">Lainnya</a>
+            <div className="pub-footer-links">
+              <Link to="/kegiatan?kategori=sambung_rutin">Sambung Rutin</Link>
+              <Link to="/kegiatan?kategori=keakraban">Keakraban</Link>
+              <Link to="/kegiatan?kategori=pemantapan">Pemantapan</Link>
+              <Link to="/kegiatan?kategori=lainnya">Lainnya</Link>
             </div>
           </div>
           <div>
             <h4>Kontak</h4>
-            <div style={{ display: "grid", gap: 8 }}>
-              <a href="#" style={{ display: "flex", gap: 8, alignItems: "center" }}><MapPin size={14} /> Cengkareng, Jakarta Barat</a>
-              <a href="mailto:halo@gencar.id" style={{ display: "flex", gap: 8, alignItems: "center" }}><Mail size={14} /> halo@gencar.id</a>
-              <a href="tel:+622100000000" style={{ display: "flex", gap: 8, alignItems: "center" }}><Phone size={14} /> +62 21 0000 0000</a>
+            <div className="pub-footer-contact">
+              <span className="pub-footer-contact-row"><MapPin size={14} /> Cengkareng, Jakarta Barat</span>
+              <a href="mailto:halo@gencar.id" className="pub-footer-contact-row"><Mail size={14} /> halo@gencar.id</a>
+              <a href="tel:+622100000000" className="pub-footer-contact-row"><Phone size={14} /> +62 21 0000 0000</a>
             </div>
           </div>
         </div>
         <div className="pub-footer-bottom">
           <span>© {new Date().getFullYear()} Gencar — Muda-Mudi Cengkareng. Dibuat dengan rapi, bukan template.</span>
-          <span style={{ display: "flex", gap: 12 }}>
+          <span className="pub-footer-legal">
             <a href="/sitemap.xml">Sitemap</a>
-            <a href="#">Kebijakan</a>
+            <a href="/tentang">Kebijakan</a>
           </span>
         </div>
       </footer>

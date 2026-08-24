@@ -29,4 +29,4 @@ not_found_handling = "single-page-application"
 DAERAH_NAMA = "Cengkareng"
 
 [build]
-command = "npm run build --prefix frontend"
+command = "npm run build --prefix ./frontend"

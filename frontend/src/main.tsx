@@ -9,6 +9,7 @@ import PublicHome from './routes/public/PublicHome.tsx'
 import { PublicKegiatanList, PublicKegiatanDetail } from './routes/public/PublicKegiatan.tsx'
 import { PublicArtikelList, PublicArtikelDetail, PublicBeritaList, PublicBeritaDetail } from './routes/public/PublicArtikel.tsx'
 import { PublicPengurus, PublicTentang } from './routes/public/PublicStatic.tsx'
+import { PublicGaleri } from './routes/public/PublicGaleri.tsx'
 
 const router = createBrowserRouter([
   {
@@ -17,6 +18,7 @@ const router = createBrowserRouter([
       { path: '/', element: <PublicHome /> },
       { path: '/kegiatan', element: <PublicKegiatanList /> },
       { path: '/kegiatan/:slug', element: <PublicKegiatanDetail /> },
+      { path: '/galeri', element: <PublicGaleri /> },
       { path: '/artikel', element: <PublicArtikelList /> },
       { path: '/artikel/:slug', element: <PublicArtikelDetail /> },
       { path: '/berita', element: <PublicBeritaList /> },

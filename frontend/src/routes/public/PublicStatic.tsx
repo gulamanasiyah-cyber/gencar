@@ -1,7 +1,40 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useInView, useReducedMotion } from "motion/react";
 import { ArrowRight, MapPin, Quote, Sparkles, Users, CalendarDays, MessageCircle, X } from "lucide-react";
 import { MOCK_PENGURUS, MOCK_STORIES, TENTANG_TIMELINE, TENTANG_NILAI, type PubPengurus, type PengurusLevel } from "./data";
+
+function CountUp({ target, prefix = "", suffix = "", decimals = 0 }: { target: number; prefix?: string; suffix?: string; decimals?: number }) {
+  const [val, setVal] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  const isInView = useInView(ref, { once: true, amount: 0.5 });
+  const reduce = useReducedMotion();
+
+  useEffect(() => {
+    if (reduce) {
+      setVal(target);
+      return;
+    }
+    if (!isInView) return;
+    const startTime = performance.now();
+    const duration = 1600;
+
+    const step = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const ease = 1 - Math.pow(1 - progress, 3);
+      setVal(target * ease);
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      }
+    };
+    requestAnimationFrame(step);
+  }, [isInView, target, reduce]);
+
+  const formatted = decimals > 0 ? val.toFixed(decimals) : Math.round(val).toLocaleString("id-ID");
+
+  return <span ref={ref}>{prefix}{formatted}{suffix}</span>;
+}
 
 function waLink(raw?: string | null) {
   if (!raw) return null;
@@ -291,10 +324,10 @@ export function PublicTentang() {
       </div>
       <div className="tentang-stats-ink">
         <div className="tentang-stats-row">
-          <div className="tentang-stat tentang-stat--ink"><strong>48</strong><span>Kegiatan publik — bukan postingan</span></div>
-          <div className="tentang-stat"><strong>1.2k</strong><span>Yang pernah ikut — bukan follower</span></div>
-          <div className="tentang-stat tentang-stat--lime"><strong>36</strong><span>Tulisan yang kepake</span></div>
-          <div className="tentang-stat"><strong>12</strong><span>Pengurus harian — bukan pajangan</span></div>
+          <div className="tentang-stat tentang-stat--ink"><strong><CountUp target={48} /></strong><span>Kegiatan publik — bukan postingan</span></div>
+          <div className="tentang-stat"><strong><CountUp target={1.2} decimals={1} suffix="k" /></strong><span>Yang pernah ikut — bukan follower</span></div>
+          <div className="tentang-stat tentang-stat--lime"><strong><CountUp target={36} /></strong><span>Tulisan yang kepake</span></div>
+          <div className="tentang-stat"><strong><CountUp target={12} /></strong><span>Pengurus harian — bukan pajangan</span></div>
         </div>
         <div style={{ textAlign: "center", marginTop: 12 }}>
           <Link to="/kegiatan" style={{ fontSize: 13, fontWeight: 700, display: "inline-flex", gap: 6, alignItems: "center", borderBottom: "1px solid var(--pub-ink)", paddingBottom: 2 }}>Lihat kegiatan yang bikin angka ini <ArrowRight size={14} /></Link>

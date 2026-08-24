@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
   CalendarDays,
   MapPin,
@@ -96,10 +96,51 @@ function formatTanggalIndo(iso: string): string {
 
 // ── LIST ────────────────────────────────────────────────────────────────
 export function PublicKegiatanList() {
-  const [q, setQ] = useState("");
-  const [cat, setCat] = useState("Semua");
-  const [page, setPage] = useState(1);
-  const cats = ["Semua", "Sambung Rutin", "Keakraban", "Pemantapan", "Lainnya"];
+  const [searchParams, setSearchParams] = useSearchParams();
+  const cats = ["Semua", "Sambung Rutin", "Keakraban", "Pemantapan", "Lainnya"] as const;
+  const urlCat = searchParams.get("kategori");
+  const urlPage = parseInt(searchParams.get("page") ?? "1", 10);
+  const urlQ = searchParams.get("q") ?? "";
+  const validCat = (cats as readonly string[]).includes(urlCat ?? "") ? (urlCat as typeof cats[number]) : "Semua";
+  const [q, setQ] = useState(urlQ);
+  const [cat, setCat] = useState<typeof cats[number]>(validCat);
+  const [page, setPage] = useState(Number.isFinite(urlPage) && urlPage >= 1 ? urlPage : 1);
+  const qDebounceRef = useRef<number | null>(null);
+
+  // hydrate from URL when searchParams change externally (back/forward, direct link)
+  useEffect(() => {
+    const uq = searchParams.get("q") ?? "";
+    const uc = searchParams.get("kategori");
+    const up = parseInt(searchParams.get("page") ?? "1", 10);
+    const vc = (cats as readonly string[]).includes(uc ?? "") ? (uc as typeof cats[number]) : "Semua";
+    if (uq !== q) setQ(uq);
+    if (vc !== cat) setCat(vc);
+    const np = Number.isFinite(up) && up >= 1 ? up : 1;
+    if (np !== page) setPage(np);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  // sync q/cat/page → URL (replace, debounce q)
+  const syncUrl = (nextQ: string, nextCat: string, nextPage: number) => {
+    const next = new URLSearchParams();
+    if (nextQ.trim()) next.set("q", nextQ.trim());
+    if (nextCat !== "Semua") next.set("kategori", nextCat);
+    if (nextPage > 1) next.set("page", String(nextPage));
+    setSearchParams(next, { replace: true });
+  };
+
+  const setQAndUrl = (v: string) => {
+    setQ(v);
+    setPage(1);
+    if (qDebounceRef.current) window.clearTimeout(qDebounceRef.current);
+    qDebounceRef.current = window.setTimeout(() => syncUrl(v, cat, 1), 180);
+  };
+  const setCatAndUrl = (v: typeof cats[number]) => {
+    setCat(v);
+    setPage(1);
+    if (qDebounceRef.current) window.clearTimeout(qDebounceRef.current);
+    syncUrl(q, v, 1);
+  };
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -110,13 +151,13 @@ export function PublicKegiatanList() {
     });
   }, [q, cat]);
 
-  useEffect(() => setPage(1), [q, cat]);
-
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const safePage = Math.min(page, totalPages);
   const slice = useMemo(() => filtered.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE), [filtered, safePage]);
   const goPage = (n: number) => {
-    setPage(Math.max(1, Math.min(totalPages, n)));
+    const np = Math.max(1, Math.min(totalPages, n));
+    setPage(np);
+    syncUrl(q, cat, np);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -200,19 +241,19 @@ export function PublicKegiatanList() {
         </Link>
       )}
 
-      {/* toolbar — search + kategori + meta (mirip Artikel) */}
+      {/* toolbar — search + kategori + meta — URL-synced */}
       <div className="pub-list-toolbar">
         <label className="pub-search">
           <Search size={14} />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari judul / lokasi..." aria-label="Cari kegiatan" />
+          <input value={q} onChange={(e) => setQAndUrl(e.target.value)} placeholder="Cari judul / lokasi..." aria-label="Cari kegiatan" />
           {q && (
-            <button type="button" className="pub-search-clear" onClick={() => setQ("")} aria-label="Hapus pencarian">
+            <button type="button" className="pub-search-clear" onClick={() => setQAndUrl("")} aria-label="Hapus pencarian">
               ×
             </button>
           )}
         </label>
         <span className="pub-toolbar-meta">
-          Hal {safePage} dari {totalPages} · {filtered.length} hasil
+          Hal {safePage} dari {totalPages} · {filtered.length} hasil · share URL simpan filter
         </span>
       </div>
       <div className="pub-kegiatan-catbar" role="tablist" aria-label="Filter kategori">
@@ -221,7 +262,7 @@ export function PublicKegiatanList() {
             key={c}
             role="tab"
             aria-selected={cat === c}
-            onClick={() => setCat(c)}
+            onClick={() => setCatAndUrl(c as typeof cats[number])}
             className={`pub-kegiatan-cat ${cat === c ? "is-active" : ""}`}
           >
             {c}
@@ -240,6 +281,8 @@ export function PublicKegiatanList() {
             onClick={() => {
               setQ("");
               setCat("Semua");
+              setPage(1);
+              syncUrl("", "Semua", 1);
             }}
           >
             Reset filter

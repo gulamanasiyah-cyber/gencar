@@ -1,219 +1,486 @@
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { motion, useReducedMotion } from "motion/react";
-import { ArrowRight, CalendarDays, MapPin, ArrowUpRight } from "lucide-react";
+import { motion, useInView, useReducedMotion, type Variants } from "motion/react";
+import { ArrowRight, CalendarDays, MapPin } from "lucide-react";
 import { MOCK_KEGIATAN, MOCK_ARTIKEL, MOCK_PENGURUS } from "./data";
+import { MOSQUE_PATH, MOSQUE_VIEWBOX } from "./mosquePath";
 
-const HERO_IMG = "https://picsum.photos/seed/gencar-hero/1100/1100";
-const ABOUT_IMG = "https://picsum.photos/seed/gencar-about/900/700";
+const HERO_THUMBS = MOCK_KEGIATAN.slice(0, 4);
+const ABOUT_IMG = "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=900&h=700&q=80";
+
+const SPRING_TRANSITION = { type: "spring", stiffness: 260, damping: 24 } as const;
+
+const STAGGER_CONTAINER: Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.05,
+    },
+  },
+};
+
+const FADE_UP_ITEM: Variants = {
+  hidden: { opacity: 0, y: 24 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] },
+  },
+};
 
 function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
   const reduce = useReducedMotion();
   if (reduce) return <>{children}</>;
   return (
     <motion.div
-      initial={{ opacity: 0, y: 14 }}
+      initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.2 }}
-      transition={{ duration: 0.55, delay, ease: [0.16, 1, 0.3, 1] }}
+      viewport={{ once: true, amount: 0.15 }}
+      transition={{ duration: 0.6, delay, ease: [0.16, 1, 0.3, 1] }}
     >
       {children}
     </motion.div>
   );
 }
 
+function CountUp({ target, prefix = "", suffix = "", decimals = 0 }: { target: number; prefix?: string; suffix?: string; decimals?: number }) {
+  const [val, setVal] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  const isInView = useInView(ref, { once: true, amount: 0.5 });
+  const reduce = useReducedMotion();
+
+  useEffect(() => {
+    if (reduce) {
+      setVal(target);
+      return;
+    }
+    if (!isInView) return;
+    const startTime = performance.now();
+    const duration = 1600; // ms
+
+    const step = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease out cubic
+      const ease = 1 - Math.pow(1 - progress, 3);
+      setVal(target * ease);
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      }
+    };
+    requestAnimationFrame(step);
+  }, [isInView, target, reduce]);
+
+  const formatted = decimals > 0 ? val.toFixed(decimals) : Math.round(val).toLocaleString("id-ID");
+
+  return <span ref={ref}>{prefix}{formatted}{suffix}</span>;
+}
+
+function parseMs(k: { tanggal: string; jam?: string }) {
+  const t = `${k.tanggal}T${(k.jam ?? "00:00").padStart(5, "0")}:00`;
+  const ms = Date.parse(t);
+  return Number.isNaN(ms) ? Date.parse(k.tanggal) : ms;
+}
+function useCountdown(targetMs: number | null) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (targetMs == null || targetMs <= Date.now()) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [targetMs]);
+  if (targetMs == null) return null;
+  const diff = targetMs - now;
+  if (diff <= 0) return { past: true as const, days: 0, hours: 0, mins: 0, secs: 0 };
+  return { past: false as const, days: Math.floor(diff / 86400000), hours: Math.floor((diff % 86400000) / 3600000), mins: Math.floor((diff % 3600000) / 60000), secs: Math.floor((diff % 60000) / 1000) };
+}
+
 export default function PublicHome() {
-  const featured = MOCK_KEGIATAN[0];
-  const side = MOCK_KEGIATAN.slice(1, 3);
-  const row2 = MOCK_KEGIATAN.slice(3, 5);
-  const leadArticle = MOCK_ARTIKEL[0];
+  const reduce = useReducedMotion();
+  const featured = MOCK_KEGIATAN[0] ?? null;
+  const side = MOCK_KEGIATAN.length >= 3 ? MOCK_KEGIATAN.slice(1, 3) : MOCK_KEGIATAN.slice(1);
+  const row2 = MOCK_KEGIATAN.length >= 5 ? MOCK_KEGIATAN.slice(3, 5) : MOCK_KEGIATAN.slice(3);
+  const leadArticle = MOCK_ARTIKEL[0] ?? null;
+  const upcoming = MOCK_KEGIATAN.map((k) => ({ k, ms: parseMs(k) })).filter((x) => x.ms > Date.now()).sort((a, b) => a.ms - b.ms)[0]?.k ?? featured;
+  const countdown = useCountdown(upcoming ? parseMs(upcoming) : null);
+  const live = countdown != null && !countdown.past;
+
+  const [heroImgIndex, setHeroImgIndex] = useState(0);
+
+  const changeImage = (newIndex: number) => {
+    setHeroImgIndex(newIndex);
+  };
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setHeroImgIndex((prev) => (prev + 1) % HERO_THUMBS.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
-    <>
-      {/* HERO — formal perkenalan awal, 5-detik jelas */}
-      <section className="pub-hero">
-        <div className="pub-hero-copy">
-          <span className="pub-eyebrow">Generasi Cahaya — Muda-Mudi Cengkareng</span>
-          <h1>
-            Wadah pembinaan generasi muda yang <em>tertata dan terbuka</em>
-          </h1>
-          <p className="pub-hero-sub">
-            Gencar menghimpun dan membina muda-mudi Cengkareng melalui kegiatan yang
-            terdokumentasi dengan baik — foto, jadwal, dan lokasi yang jelas. Siapa pun
-            dapat mengenal, mengikuti, atau mendukung secara transparan.
-          </p>
-          <div className="pub-hero-actions">
-            <Link to="/kegiatan" className="btn-lime">
-              Lihat Kegiatan <ArrowRight size={16} />
-            </Link>
-            <Link to="/tentang" className="btn-ghost-dark">
-              Tentang Gencar
-            </Link>
-          </div>
-        </div>
+    <div>
+      {/* HERO — duotone band (top paper-2 + topo, bottom ink) */}
+      <section className="pub-hero pub-hero--band">
+        <div className="pub-hero-band-bg" aria-hidden="true" />
 
-        <div className="pub-hero-visual">
-          <img src={HERO_IMG} alt="Kegiatan Gencar — suasana lapangan" loading="eager" />
-          <div className="pub-hero-float">
-            <span style={{ width: 36, height: 36, borderRadius: 12, background: "var(--pub-lime)", display: "grid", placeItems: "center", flexShrink: 0 }}>
-              <CalendarDays size={16} />
-            </span>
-            <div style={{ minWidth: 0 }}>
-              <strong>Agenda terdekat</strong>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 2 }}>
-                <span style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 12 }}><CalendarDays size={12} /> 15 Mar 2026</span>
-                <span style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 12 }}><MapPin size={12} /> Cengkareng Timur</span>
+        <div className="pub-hero-inner">
+          {/* LEFT — visual */}
+          <div className="pub-hero-media">
+            <span className="pub-hero-sun" aria-hidden="true" />
+            <div className="pub-hero-img-wrap">
+              {HERO_THUMBS.map((k, i) => (
+                <img
+                  key={k.slug}
+                  src={k.cover}
+                  alt={`Kegiatan Gencar — ${k.judul}`}
+                  loading="eager"
+                  className={`pub-hero-stack-img${i === heroImgIndex ? " is-active" : ""}`}
+                />
+              ))}
+              <div className="pub-hero-img-tag">
+                <span className="pub-hero-tag-dot" />
+                <span>Dokumentasi Kegiatan Real</span>
               </div>
             </div>
-            <Link to={`/kegiatan/${featured.slug}`} style={{ marginLeft: "auto", width: 36, height: 36, borderRadius: 999, background: "var(--pub-ink)", color: "#fff", display: "grid", placeItems: "center", flexShrink: 0 }} aria-label="Lihat kegiatan">
-              <ArrowUpRight size={16} />
-            </Link>
+            <div className="pub-hero-thumbs" role="list">
+              {HERO_THUMBS.map((k, i) => (
+                <button
+                  key={k.slug}
+                  type="button"
+                  role="listitem"
+                  className={`pub-hero-thumb${i === heroImgIndex ? " is-active" : ""}`}
+                  onClick={() => changeImage(i)}
+                  aria-label={k.judul}
+                  style={{ backgroundImage: `url(${k.cover})` }}
+                >
+                  {i === heroImgIndex && <span className="pub-hero-thumb-progress" key={heroImgIndex} />}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* RIGHT — copy */}
+          <div className="pub-hero-copy">
+            {/* Siluet masjid trace cbaef6305 — terikat langsung di kanan judul h1 */}
+            <div className="pub-hero-mosque" aria-hidden="true">
+              <svg
+                viewBox={MOSQUE_VIEWBOX}
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                role="presentation"
+              >
+                <path d={MOSQUE_PATH} fill="currentColor" />
+              </svg>
+            </div>
+            <h1>
+              Muda,<br /><em>Bertakwa,</em><br /><span style={{ color: "var(--pub-primary)" }}>Berkarya.</span>
+            </h1>
+            <span className="pub-hero-pill">CENGKARENG, JAKARTA BARAT</span>
+            <div className="pub-hero-card">
+              <div className="pub-hero-countdown-row">
+                <span className="pub-hero-countdown-label">
+                  <CalendarDays size={12} /> Agenda terdekat
+                  {live && <span className="pub-hero-live-badge">live</span>}
+                </span>
+                <div className="pub-hero-countdown-meta">
+                  <span><CalendarDays size={11} /> {upcoming?.tanggal ?? "—"}</span>
+                  <span><MapPin size={11} /> {upcoming?.lokasi ?? "—"}</span>
+                </div>
+                {live && countdown && (
+                  <div className="pub-hero-countdown-boxes">
+                    <span className="pub-hero-cd-box">{String(countdown.days).padStart(2, "0")}h</span>
+                    <span className="pub-hero-cd-box">{String(countdown.hours).padStart(2, "0")}j</span>
+                    <span className="pub-hero-cd-box pub-hero-cd-box--accent">{String(countdown.secs).padStart(2, "0")}d</span>
+                  </div>
+                )}
+              </div>
+              <div className="pub-hero-actions">
+                <Link to="/kegiatan" className="btn-lime">
+                  Lihat Kegiatan <ArrowRight size={16} />
+                </Link>
+                <Link to="/tentang" className="btn-ghost-dark">
+                  Tentang Gencar
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* BENTO — kegiatan terlaksana */}
       <section className="pub-section">
-        <div className="pub-section-head-row">
-          <div className="pub-section-head" style={{ marginBottom: 0 }}>
-            <h2>Kegiatan yang Terlaksana</h2>
-            <p>Dokumentasi kegiatan yang telah terlaksana — lengkap dengan foto, tanggal, dan lokasi.</p>
-          </div>
-          <Link to="/kegiatan" className="pub-link">Semua kegiatan <ArrowRight size={14} /></Link>
-        </div>
-
-        <div className="pub-bento" style={{ marginTop: 18 }}>
-          <Link to={`/kegiatan/${featured.slug}`} className="pub-bento-featured">
-            <img src={featured.cover} alt={featured.judul} loading="lazy" />
-            <div className="pub-bento-featured-content">
-              <span className="pub-tag">{featured.kategori}</span>
-              <h3>{featured.judul}</h3>
-              <div className="meta">
-                <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><CalendarDays size={12} /> {featured.tanggal}</span>
-                <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><MapPin size={12} /> {featured.lokasi}</span>
-              </div>
+        <Reveal>
+          <div className="pub-section-head-row">
+            <div className="pub-section-head" style={{ marginBottom: 0 }}>
+              <h2>Kegiatan yang Terlaksana</h2>
+              <p>Dokumentasi kegiatan yang telah terlaksana — lengkap dengan foto, tanggal, dan lokasi.</p>
             </div>
-          </Link>
-
-          <div className="pub-bento-side">
-            {side.map((k) => (
-              <Link key={k.slug} to={`/kegiatan/${k.slug}`} className="pub-mini-card">
-                <img src={k.cover} alt={k.judul} loading="lazy" />
-                <div>
-                  <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--pub-muted)" }}>{k.kategori}</span>
-                  <h4>{k.judul}</h4>
-                  <p style={{ display: "flex", gap: 6, alignItems: "center" }}><CalendarDays size={11} /> {k.tanggal} · {k.lokasi}</p>
-                </div>
-              </Link>
-            ))}
+            <Link to="/kegiatan" className="pub-link">Semua kegiatan <ArrowRight size={14} /></Link>
           </div>
 
-          <div className="pub-bento-row2">
-            {row2.map((k) => (
-              <Link key={k.slug} to={`/kegiatan/${k.slug}`} className="pub-wide-card">
-                <div className="pub-wide-card-body">
-                  <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--pub-muted)" }}>{k.kategori}</span>
-                  <h4>{k.judul}</h4>
-                  <p>{k.excerpt}</p>
-                  <span style={{ fontSize: 12, fontWeight: 700, display: "inline-flex", gap: 6, alignItems: "center", marginTop: 2 }}>{k.tanggal} · {k.lokasi} <ArrowRight size={12} /></span>
+          <div className="pub-bento" style={{ marginTop: 18 }}>
+            <Link to={`/kegiatan/${featured.slug}`} className="pub-bento-featured">
+              <img src={featured.cover} alt={featured.judul} loading="lazy" />
+              <div className="pub-bento-featured-content">
+                <span className="pub-tag">{featured.kategori}</span>
+                <h3>{featured.judul}</h3>
+                <div className="meta">
+                  <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><CalendarDays size={12} /> {featured.tanggal}</span>
+                  <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><MapPin size={12} /> {featured.lokasi}</span>
                 </div>
-                <img src={k.cover} alt={k.judul} loading="lazy" />
-              </Link>
-            ))}
+              </div>
+            </Link>
+
+            <div className="pub-bento-side">
+              {side.map((k) => (
+                <Link key={k.slug} to={`/kegiatan/${k.slug}`} className="pub-mini-card">
+                  <img src={k.cover} alt={k.judul} loading="lazy" />
+                  <div>
+                    <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--pub-muted)" }}>{k.kategori}</span>
+                    <h4>{k.judul}</h4>
+                    <p style={{ display: "flex", gap: 6, alignItems: "center" }}><CalendarDays size={11} /> {k.tanggal} · {k.lokasi}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            <div className="pub-bento-row2">
+              {row2.map((k) => (
+                <Link key={k.slug} to={`/kegiatan/${k.slug}`} className="pub-wide-card">
+                  <div className="pub-wide-card-body">
+                    <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--pub-muted)" }}>{k.kategori}</span>
+                    <h4>{k.judul}</h4>
+                    <p>{k.excerpt}</p>
+                    <span style={{ fontSize: 12, fontWeight: 700, display: "inline-flex", gap: 6, alignItems: "center", marginTop: 2 }}>{k.tanggal} · {k.lokasi} <ArrowRight size={12} /></span>
+                  </div>
+                  <img src={k.cover} alt={k.judul} loading="lazy" />
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
+        </Reveal>
       </section>
 
-      {/* PARTNER — mitra dan naungan — tanpa card, label segede h2 */}
-      <section className="pub-section pub-partners-section" style={{ paddingTop: 12, paddingBottom: 12 }}>
+      {/* PROOF — contained band + delta */}
+      <section className="pub-section pub-proof">
+        <Reveal>
+          <div className="pub-proof-contained">
+            <div className="pub-proof-inner">
+              <div className="pub-proof-locations">
+                <div className="pub-proof-kicker"><MapPin size={12} /> Titik Kegiatan</div>
+                <h3>Jejak kami di Cengkareng</h3>
+                <div className="pub-proof-loc-list">
+                  <div className="pub-proof-loc">
+                    <span className="pub-proof-dot pub-proof-dot--primary" />
+                    <div><strong>Musala Al-Falah</strong><span>Ngaji Rutin · Selasa 19:30</span></div>
+                  </div>
+                  <div className="pub-proof-loc">
+                    <span className="pub-proof-dot pub-proof-dot--accent" />
+                    <div><strong>Lapangan Cengkareng</strong><span>Festival &amp; Futsal · Akhir pekan</span></div>
+                  </div>
+                  <div className="pub-proof-loc">
+                    <span className="pub-proof-dot pub-proof-dot--deep" />
+                    <div><strong>Aula Kecamatan</strong><span>Pelatihan &amp; Sambung Akbar</span></div>
+                  </div>
+                </div>
+                <Link to="/kegiatan" className="pub-proof-link">Lihat semua kegiatan <ArrowRight size={12} /></Link>
+              </div>
+              <div className="pub-proof-stats-panel">
+                <div className="pub-proof-stat-item pub-proof-stat-item--primary">
+                  <div className="pub-proof-stat-head">
+                    <span className="pub-proof-stat-label">Kegiatan</span>
+                    <span className="pub-proof-stat-badge pub-proof-stat-badge--gold">
+                      +<CountUp target={3} /> bulan ini
+                    </span>
+                  </div>
+                  <div className="pub-proof-stat-num">
+                    <CountUp target={MOCK_KEGIATAN.length} />
+                  </div>
+                  <span className="pub-proof-stat-sub">Dokumentasi publik terverifikasi</span>
+                </div>
+
+                <div className="pub-proof-stat-item">
+                  <div className="pub-proof-stat-head">
+                    <span className="pub-proof-stat-label">Kehadiran</span>
+                    <span className="pub-proof-stat-badge pub-proof-stat-badge--green">
+                      +<CountUp target={18} suffix="%" /> vs bulan lalu
+                    </span>
+                  </div>
+                  <div className="pub-proof-stat-num">
+                    <CountUp target={1.2} decimals={1} suffix="k" />
+                  </div>
+                  <span className="pub-proof-stat-sub">Total partisipasi muda-mudi</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Reveal>
+      </section>
+
+      {/* PARTNER — overdrive static grid (tanpa marquee) */}
+      <section className="pub-partners-section pub-partners--overdrive">
+        <div className="pub-partners-ghost" aria-hidden>MITRA</div>
         <div className="pub-partners">
+          <span className="pub-partners-kicker">Kolaborasi</span>
           <h2 className="pub-partners-label">Mitra dan Naungan</h2>
-          <div className="pub-partners-logos">
-            <img src="/logos/ldii.png" alt="LDII" loading="lazy" width="120" height="40" />
-            <img src="/logos/senkom.png" alt="SENKOM Mitra Polri" loading="lazy" width="120" height="40" />
-            <img src="/logos/persinas.png" alt="PERSINAS ASAD" loading="lazy" width="120" height="40" />
-            <img src="/logos/forsgi.png" alt="FORSGI" loading="lazy" width="120" height="40" />
+          <div className="pub-partners-grid">
+            <div className="pub-partner-card"><img src="/logos/ldii.png" alt="LDII" loading="lazy" /><span>LDII</span></div>
+            <div className="pub-partner-card"><img src="/logos/senkom.png" alt="SENKOM Mitra Polri" loading="lazy" /><span>SENKOM</span></div>
+            <div className="pub-partner-card"><img src="/logos/persinas.png" alt="PERSINAS ASAD" loading="lazy" /><span>PERSINAS ASAD</span></div>
+            <div className="pub-partner-card"><img src="/logos/forsgi.png" alt="FORSGI" loading="lazy" /><span>FORSGI</span></div>
           </div>
         </div>
       </section>
 
       {/* EDITORIAL — tulisan pilihan */}
-      <section className="pub-section" style={{ paddingTop: 0 }}>
-        <div className="pub-section-head-row">
-          <div className="pub-section-head" style={{ marginBottom: 0 }}>
-            <h2>Tulisan Pilihan</h2>
-            <p>Rangkuman dan panduan praktis seputar pengelolaan kegiatan dan komunitas.</p>
-          </div>
-          <Link to="/artikel" className="pub-link">Semua artikel <ArrowRight size={14} /></Link>
-        </div>
-
-        <div className="pub-editorial" style={{ marginTop: 18 }}>
-          <Link to={`/artikel/${leadArticle.slug}`} className="pub-feature-article">
-            <img src={leadArticle.cover} alt={leadArticle.judul} loading="lazy" />
-            <div className="pub-feature-article-body">
-              <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--pub-muted)" }}>{leadArticle.author} · {leadArticle.tanggal}</span>
-              <h3>{leadArticle.judul}</h3>
-              <p>{leadArticle.excerpt}</p>
-              <span style={{ fontSize: 13, fontWeight: 700, display: "inline-flex", gap: 6, alignItems: "center" }}>Baca artikel <ArrowRight size={14} /></span>
-            </div>
-          </Link>
-
-          <div className="pub-side-list">
-            {MOCK_ARTIKEL.slice(1, 4).map((a) => (
-              <Link key={a.slug} to={`/artikel/${a.slug}`} className="pub-side-item">
-                <span style={{ fontSize: 11, color: "var(--pub-muted)", fontWeight: 700 }}>{a.tanggal} · {a.author}</span>
-                <h4>{a.judul}</h4>
-                <p>{a.excerpt}</p>
-              </Link>
-            ))}
-            <Link to="/artikel?kategori=berita" style={{ fontSize: 13, fontWeight: 700, display: "inline-flex", gap: 6, alignItems: "center", paddingTop: 2 }}>
-              Lihat berita juga <ArrowRight size={14} />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* PENGURUS — pengenalan pengurus */}
-      <section className="pub-section" style={{ paddingTop: 0 }}>
+      <section className="pub-section">
         <Reveal>
           <div className="pub-section-head-row">
+            <div className="pub-section-head" style={{ marginBottom: 0 }}>
+              <h2>Tulisan Pilihan</h2>
+              <p>Rangkuman dan panduan praktis seputar pengelolaan kegiatan dan komunitas.</p>
+            </div>
+            <Link to="/artikel" className="pub-link">Semua artikel <ArrowRight size={14} /></Link>
+          </div>
+
+          <div className="pub-editorial" style={{ marginTop: 18 }}>
+            {leadArticle && (
+              <motion.div whileHover={reduce ? undefined : { y: -4 }} transition={SPRING_TRANSITION}>
+                <Link to={`/artikel/${leadArticle.slug}`} className="pub-feature-article">
+                  <img src={leadArticle.cover} alt={leadArticle.judul} loading="lazy" />
+                  <div className="pub-feature-article-body">
+                    <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--pub-muted)" }}>{leadArticle.author} · {leadArticle.tanggal}</span>
+                    <h3>{leadArticle.judul}</h3>
+                    <p>{leadArticle.excerpt}</p>
+                    <span style={{ fontSize: 13, fontWeight: 700, display: "inline-flex", gap: 6, alignItems: "center" }}>Baca artikel <ArrowRight size={14} /></span>
+                  </div>
+                </Link>
+              </motion.div>
+            )}
+
+            <motion.div
+              className="pub-side-list"
+              initial={reduce ? false : "hidden"}
+              whileInView="show"
+              viewport={{ once: true }}
+              variants={STAGGER_CONTAINER}
+            >
+              {MOCK_ARTIKEL.slice(1, 4).map((a) => (
+                <motion.div key={a.slug} variants={FADE_UP_ITEM} whileHover={reduce ? undefined : { x: 4 }} transition={SPRING_TRANSITION}>
+                  <Link to={`/artikel/${a.slug}`} className="pub-side-item">
+                    <span style={{ fontSize: 11, color: "var(--pub-muted)", fontWeight: 700 }}>{a.tanggal} · {a.author}</span>
+                    <h4>{a.judul}</h4>
+                    <p>{a.excerpt}</p>
+                  </Link>
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
+        </Reveal>
+      </section>
+
+      {/* REEL — Lihat keseruan kami */}
+      <section className="pub-section pub-reels">
+        <div className="pub-section-head-row">
+          <div className="pub-section-head" style={{ marginBottom: 0 }}>
+            <h2>Lihat Keseruan Kami</h2>
+            <p>Scroll samping — kayak reel. Kegiatan terbaru dalam format portrait.</p>
+          </div>
+          <Link to="/kegiatan" className="pub-link">Semua kegiatan <ArrowRight size={14} /></Link>
+        </div>
+        <motion.div
+          className="pub-reels-track"
+          initial={reduce ? false : "hidden"}
+          whileInView="show"
+          viewport={{ once: true, amount: 0.15 }}
+          variants={STAGGER_CONTAINER}
+        >
+          {MOCK_KEGIATAN.slice(0, 6).map((k) => (
+            <motion.div
+              key={k.slug}
+              variants={FADE_UP_ITEM}
+              style={{ flex: "0 0 280px", display: "flex" }}
+            >
+              <Link to={`/kegiatan/${k.slug}`} className="pub-reel" style={{ width: "100%" }}>
+                <img src={k.cover} alt={k.judul} loading="lazy" />
+                <div className="pub-reel-overlay">
+                  <span className="pub-reel-play">▶</span>
+                  <strong>{k.judul}</strong>
+                  <span style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 11 }}><CalendarDays size={11} /> {k.tanggal}</span>
+                </div>
+              </Link>
+            </motion.div>
+          ))}
+        </motion.div>
+      </section>
+
+      {/* PENGURUS — marquee */}
+      <section className="pub-section">
+        <Reveal>
+          <div className="pub-section-head-row" style={{ marginBottom: 15 }}>
             <div className="pub-section-head" style={{ marginBottom: 0 }}>
               <h2>Pengurus Harian</h2>
               <p>Mengenal pengurus yang mengelola kegiatan dan pembinaan sehari-hari.</p>
             </div>
             <Link to="/pengurus" className="pub-link">Semua pengurus <ArrowRight size={14} /></Link>
           </div>
-          <div className="pub-people" style={{ marginTop: 18 }}>
-            {MOCK_PENGURUS.map((p) => (
-              <div key={p.nama} className="pub-person">
-                <img src={p.foto} alt={p.nama} loading="lazy" />
-                <div className="pub-person-body">
-                  <strong>{p.nama}</strong>
-                  <span>{p.role}</span>
-                </div>
+          <div className="pub-marquee">
+            <motion.div
+              className="pub-marquee-train-wrapper"
+              initial={reduce ? false : { x: "50vw", opacity: 0 }}
+              whileInView={{ x: 0, opacity: 1 }}
+              viewport={{ once: true, amount: 0.1 }}
+              transition={{ duration: 2.0, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <div className="pub-marquee-track">
+                {[...MOCK_PENGURUS, ...MOCK_PENGURUS].map((p, i) => (
+                  <div key={`${p.nama}-${i}`} className="pub-person" aria-hidden={i >= MOCK_PENGURUS.length ? true : undefined}>
+                    <img src={p.foto} alt={p.nama} loading="lazy" />
+                    <div className="pub-person-body">
+                      <strong>{p.nama}</strong>
+                      <span>{p.role}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </motion.div>
           </div>
         </Reveal>
       </section>
 
-      {/* TENTANG — ajakan formal */}
+      {/* TENTANG — ajakan formal overdrive */}
       <section className="pub-section" style={{ paddingTop: 0 }}>
-        <div className="pub-about">
-          <div>
-            <h3>Gencar adalah Rumah Bersama</h3>
-            <p>
-              Kami berkumpul untuk tumbuh bersama melalui kegiatan yang terbuka dan
-              terdokumentasi. Foto, lokasi, dan cerita tersedia secara transparan.
-              Bagi yang ingin mengikuti atau mendukung, pintu kami selalu terbuka.
-            </p>
-            <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
-              <Link to="/tentang" className="btn-lime">Tentang Gencar</Link>
-              <Link to="/kegiatan" className="btn-ghost-dark">Lihat Kegiatan</Link>
+        <Reveal>
+          <div className="pub-about pub-about--overdrive">
+            <div className="pub-about-content">
+              <span className="pub-about-kicker">Rumah Komunitas</span>
+              <h3>Gencar adalah Rumah Bersama</h3>
+              <p>
+                Kami berkumpul untuk tumbuh bersama melalui kegiatan yang terbuka dan
+                terdokumentasi. Foto, lokasi, dan cerita tersedia secara transparan.
+                Bagi yang ingin mengikuti atau mendukung, pintu kami selalu terbuka.
+              </p>
+              <div className="pub-about-actions">
+                <Link to="/tentang" className="btn-lime">
+                  Tentang Gencar <ArrowRight size={16} />
+                </Link>
+                <Link to="/kegiatan" className="btn-ghost-light">
+                  Lihat Kegiatan
+                </Link>
+              </div>
+            </div>
+            <div className="pub-about-visual">
+              <img src={ABOUT_IMG} alt="Suasana Gencar" loading="lazy" />
+              <div className="pub-about-badge">
+                <span className="pub-about-badge-dot" />
+                <span>100% Terbuka &amp; Transparan</span>
+              </div>
             </div>
           </div>
-          <img src={ABOUT_IMG} alt="Suasana Gencar" loading="lazy" />
-        </div>
+        </Reveal>
       </section>
-    </>
+    </div>
   );
 }
