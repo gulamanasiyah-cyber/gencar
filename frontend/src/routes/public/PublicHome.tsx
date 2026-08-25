@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { motion, useInView, useReducedMotion, type Variants } from "motion/react";
+import { motion, useAnimation, useInView, useReducedMotion, type Variants } from "motion/react";
 import { ArrowRight, CalendarDays, MapPin } from "lucide-react";
 import { MOCK_KEGIATAN, MOCK_ARTIKEL, MOCK_PENGURUS } from "./data";
 import { MOSQUE_PATH, MOSQUE_VIEWBOX } from "./mosquePath";
@@ -94,6 +94,70 @@ function useCountdown(targetMs: number | null) {
   const diff = targetMs - now;
   if (diff <= 0) return { past: true as const, days: 0, hours: 0, mins: 0, secs: 0 };
   return { past: false as const, days: Math.floor(diff / 86400000), hours: Math.floor((diff % 86400000) / 3600000), mins: Math.floor((diff % 3600000) / 60000), secs: Math.floor((diff % 60000) / 1000) };
+}
+
+function TrainMarquee({ items }: { items: typeof MOCK_PENGURUS }) {
+  const controls = useAnimation();
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true, amount: 0.15 });
+  const reduce = useReducedMotion();
+
+  useEffect(() => {
+    if (reduce) return;
+    let isCancelled = false;
+
+    if (isInView) {
+      const sequence = async () => {
+        // Step 1: Train Arrival Entrance (fast glide from right: 60vw to 0%)
+        await controls.start({
+          x: ["60vw", "0%"],
+          opacity: [0, 1],
+          transition: { duration: 1.8, ease: [0.16, 1, 0.3, 1] },
+        });
+
+        if (isCancelled) return;
+
+        // Step 2: Continuous Seamless Infinite Loop (0% to -50%)
+        controls.start({
+          x: ["0%", "-50%"],
+          transition: { duration: 32, ease: "linear", repeat: Infinity },
+        });
+      };
+      sequence();
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isInView, controls, reduce]);
+
+  return (
+    <div
+      className="pub-marquee"
+      ref={ref}
+      onMouseEnter={() => controls.stop()}
+      onMouseLeave={() => {
+        if (!reduce && isInView) {
+          controls.start({
+            x: ["0%", "-50%"],
+            transition: { duration: 32, ease: "linear", repeat: Infinity },
+          });
+        }
+      }}
+    >
+      <motion.div className="pub-marquee-motion-track" animate={controls}>
+        {[...items, ...items].map((p, i) => (
+          <div key={`${p.nama}-${i}`} className="pub-person" aria-hidden={i >= items.length ? true : undefined}>
+            <img src={p.foto} alt={p.nama} loading="lazy" />
+            <div className="pub-person-body">
+              <strong>{p.nama}</strong>
+              <span>{p.role}</span>
+            </div>
+          </div>
+        ))}
+      </motion.div>
+    </div>
+  );
 }
 
 export default function PublicHome() {
@@ -426,27 +490,7 @@ export default function PublicHome() {
             </div>
             <Link to="/pengurus" className="pub-link">Semua pengurus <ArrowRight size={14} /></Link>
           </div>
-          <div className="pub-marquee">
-            <motion.div
-              className="pub-marquee-train-wrapper"
-              initial={reduce ? false : { x: "50vw", opacity: 0 }}
-              whileInView={{ x: 0, opacity: 1 }}
-              viewport={{ once: true, amount: 0.1 }}
-              transition={{ duration: 2.0, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <div className="pub-marquee-track">
-                {[...MOCK_PENGURUS, ...MOCK_PENGURUS].map((p, i) => (
-                  <div key={`${p.nama}-${i}`} className="pub-person" aria-hidden={i >= MOCK_PENGURUS.length ? true : undefined}>
-                    <img src={p.foto} alt={p.nama} loading="lazy" />
-                    <div className="pub-person-body">
-                      <strong>{p.nama}</strong>
-                      <span>{p.role}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          </div>
+          <TrainMarquee items={MOCK_PENGURUS} />
         </Reveal>
       </section>
 

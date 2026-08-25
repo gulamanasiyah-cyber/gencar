@@ -1094,7 +1094,7 @@ a.pub-footer-contact-row:hover { color: var(--pub-accent); }
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
-/* ── Marquee (Seamless Hardware Accelerated Loop) ── */
+/* ── Marquee (Motion Controlled Train Arrival + Loop) ── */
 .pub-marquee + .pub-marquee { margin-top: 6px; }
 section:has(.pub-marquee) { max-width: none; margin-inline: 0; padding-inline: 0; overflow: hidden; }
 section:has(.pub-marquee) .pub-section-head-row { max-width: var(--pub-max); margin-inline: auto; padding-inline: var(--pub-gutter); }
@@ -1107,29 +1107,15 @@ section:has(.pub-marquee) .pub-section-head-row { max-width: var(--pub-max); mar
   mask-image: linear-gradient(90deg, transparent 0%, #000 8%, #000 92%, transparent 100%);
   -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 8%, #000 92%, transparent 100%);
 }
-.pub-marquee-train-wrapper {
-  width: max-content;
-  display: flex;
-  will-change: transform;
-}
-.pub-marquee-track {
+.pub-marquee-motion-track {
   display: flex;
   gap: 16px;
   width: max-content;
   will-change: transform;
-  animation: pub-marquee-seamless 32s linear infinite;
   backface-visibility: hidden;
 }
-.pub-marquee:hover .pub-marquee-track,
-.pub-marquee:focus-within .pub-marquee-track {
-  animation-play-state: paused;
-}
-@keyframes pub-marquee-seamless {
-  0% { transform: translate3d(0, 0, 0); }
-  100% { transform: translate3d(-50%, 0, 0); }
-}
 @media (prefers-reduced-motion: reduce) {
-  .pub-marquee-track { animation: none; }
+  .pub-marquee-motion-track { transform: none !important; }
   .pub-marquee { overflow-x: auto; mask-image: none; -webkit-mask-image: none; }
 }
 .pub-people {
