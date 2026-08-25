@@ -178,15 +178,24 @@ export default function PublicHome() {
   const countdown = useCountdown(upcoming ? parseMs(upcoming) : null);
   const live = countdown != null && !countdown.past;
 
-  const [heroImgIndex, setHeroImgIndex] = useState(0);
+  const [deck, setDeck] = useState([0, 1, 2, 3]);
+  const activeHeroIdx = deck[0];
 
-  const changeImage = (newIndex: number) => {
-    setHeroImgIndex(newIndex);
+  const swapNext = () => {
+    setDeck((prev) => [...prev.slice(1), prev[0]]);
+  };
+
+  const changeImage = (targetIndex: number) => {
+    setDeck((prev) => {
+      const pos = prev.indexOf(targetIndex);
+      if (pos <= 0) return prev;
+      return [...prev.slice(pos), ...prev.slice(0, pos)];
+    });
   };
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setHeroImgIndex((prev) => (prev + 1) % HERO_THUMBS.length);
+      swapNext();
     }, 5000);
     return () => clearInterval(timer);
   }, []);
@@ -234,33 +243,65 @@ export default function PublicHome() {
           {/* LEFT — visual */}
           <div className="pub-hero-media">
             <span className="pub-hero-sun" aria-hidden="true" />
-            <div className="pub-hero-img-wrap">
-              {HERO_THUMBS.map((k, i) => (
-                <img
-                  key={k.slug}
-                  src={k.cover}
-                  alt={`Kegiatan Gencar — ${k.judul}`}
-                  loading="eager"
-                  className={`pub-hero-stack-img${i === heroImgIndex ? " is-active" : ""}`}
-                />
-              ))}
-              <div className="pub-hero-img-tag">
-                <span className="pub-hero-tag-dot" />
-                <span>Dokumentasi Kegiatan Real</span>
-              </div>
-            </div>
+
+            <Link to="/galeri" className="pub-hero-polaroid-wrap" aria-label="Lihat galeri foto kegiatan">
+              {deck.map((itemIdx, pos) => {
+                const k = HERO_THUMBS[itemIdx];
+                if (!k) return null;
+                const isFront = pos === 0;
+
+                const yOffset = pos * 10;
+                const rotateDeg = pos === 0 ? 0 : pos === 1 ? -4 : pos === 2 ? 3.5 : -2.5;
+                const scaleVal = 1 - pos * 0.05;
+                const zIdx = 4 - pos;
+
+                return (
+                  <motion.div
+                    key={k.slug}
+                    className="pub-hero-polaroid-card"
+                    layout
+                    initial={false}
+                    animate={{
+                      y: yOffset,
+                      rotate: rotateDeg,
+                      scale: scaleVal,
+                      zIndex: zIdx,
+                      opacity: 1,
+                    }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 280,
+                      damping: 24,
+                    }}
+                    whileHover={isFront && !reduce ? { scale: 1.02, rotate: 1 } : undefined}
+                  >
+                    <div className="pub-hero-polaroid-img-box">
+                      <img src={k.cover} alt={`Kegiatan Gencar — ${k.judul}`} loading="eager" />
+                    </div>
+                    <div className="pub-hero-polaroid-footer">
+                      <span className="pub-hero-polaroid-title">{k.judul}</span>
+                      <span className="pub-hero-polaroid-date">{k.tanggal}</span>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </Link>
+
             <div className="pub-hero-thumbs" role="list">
               {HERO_THUMBS.map((k, i) => (
                 <button
                   key={k.slug}
                   type="button"
                   role="listitem"
-                  className={`pub-hero-thumb${i === heroImgIndex ? " is-active" : ""}`}
-                  onClick={() => changeImage(i)}
+                  className={`pub-hero-thumb${i === activeHeroIdx ? " is-active" : ""}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    changeImage(i);
+                  }}
                   aria-label={k.judul}
                   style={{ backgroundImage: `url(${k.cover})` }}
                 >
-                  {i === heroImgIndex && <span className="pub-hero-thumb-progress" key={heroImgIndex} />}
+                  {i === activeHeroIdx && <span className="pub-hero-thumb-progress" key={activeHeroIdx} />}
                 </button>
               ))}
             </div>

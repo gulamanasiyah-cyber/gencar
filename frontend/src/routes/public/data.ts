@@ -270,51 +270,51 @@ export const MOCK_ARTIKEL: PubArticle[] = [
 export type PengurusLevel = "pimpinan" | "sekretariat" | "bidang" | "koordinator"
 export type PubPengurus = { id?: string; nama: string; role: string; foto: string; level: PengurusLevel; bio?: string | null; kontakWa?: string | null; urutan?: number }
 export const MOCK_PENGURUS: PubPengurus[] = [
-  { id: "1", nama: "Fulan A", role: "Ketua Umum", foto: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop/400/400", level: "pimpinan", bio: "Penanggung jawab harian — putuskan arah, jaga ritme kegiatan.", kontakWa: "6281230001000", urutan: 0 },
-  { id: "2", nama: "Fulanah B", role: "Sekretaris", foto: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop/400/400", level: "sekretariat", bio: "Arsip, surat, dan jadwal — yang bikin semua kebagian info.", urutan: 1 },
-  { id: "3", nama: "Fulan C", role: "Bendahara", foto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop/400/400", level: "sekretariat", bio: "Kelola kas & laporan — transparan, tercatat.", urutan: 2 },
-  { id: "4", nama: "Fulan D", role: "Kaderisasi", foto: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop/400/400", level: "bidang", bio: "Rekrut, dampingi, dan rotasi panitia biar regenerasi jalan.", urutan: 0 },
-  { id: "5", nama: "Fulan E", role: "Humas", foto: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop/400/400", level: "bidang", bio: "Jembatan ke warga, kampus, dan media — ceritanya nyampe.", urutan: 1 },
-  { id: "6", nama: "Fulan F", role: "Kreatif", foto: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop/400/400", level: "bidang", bio: "Poster, foto, video — yang bikin kegiatan kelihatan, bukan cuma kedengeran.", urutan: 2 },
+  { id: "1", nama: "Fulan A", role: "Ketua Umum", foto: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop/400/400", level: "pimpinan", bio: "Penanggung jawab pembinaan muda-mudi — menjaga kelancaran program dan arah kegiatan.", kontakWa: "6281230001000", urutan: 0 },
+  { id: "2", nama: "Fulanah B", role: "Sekretaris", foto: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop/400/400", level: "sekretariat", bio: "Dokumentasi, arsip surat, dan koordinasi jadwal antar-desa se-Cengkareng.", urutan: 1 },
+  { id: "3", nama: "Fulan C", role: "Bendahara", foto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop/400/400", level: "sekretariat", bio: "Pengelolaan dana kegiatan & pelaporan transparan untuk tiap program.", urutan: 2 },
+  { id: "4", nama: "Fulan D", role: "Biro Kepemudaan", foto: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop/400/400", level: "bidang", bio: "Pendampingan kegiatan sambung, olahraga, dan penguatan kerukunan generus.", urutan: 0 },
+  { id: "5", nama: "Fulan E", role: "Humas & Syiar", foto: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop/400/400", level: "bidang", bio: "Jembatan komunikasi kegiatan sosial, kemasyarakatan, dan antar-lingkungan.", urutan: 1 },
+  { id: "6", nama: "Fulan F", role: "Publikasi & Media", foto: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop/400/400", level: "bidang", bio: "Dokumentasi visual, penulisan artikel, dan pengelolaan etalase kegiatan publik.", urutan: 2 },
 ];
 
 export type PubStory = { nama: string; peran: string; angkatan: string; foto: string; quote: string; konteks: string };
 export const MOCK_STORIES: PubStory[] = [
   {
-    nama: "Rafi — Peserta Sambung Rutin",
-    peran: "Mahasiswa, Cengkareng Barat",
-    angkatan: "Gabung 2024",
-    foto: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop?auto=format&fit=crop/400/400",
-    quote: "Awalnya cuma diajak teman. Eh, yang bikin betah bukan materinya aja — tapi habis kajian ngobrolnya nyambung.",
-    konteks: "Rafi sekarang jadi notulen tetap. Catatannya yang paling rapi — jadi arsip regenerasi.",
-  },
-  {
-    nama: "Bu Siti — Warga RW 04",
-    peran: "Ibu rumah tangga",
-    angkatan: "Dukung sejak 2022",
-    foto: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop/400/400",
-    quote: "Anak-anak Gencar itu kalau kerja bakti nggak setengah-setengah. Sampai selokan pun kinclong.",
-    konteks: "Warga yang awalnya nonton dari teras, sekarang sediain es teh tiap kerja bakti.",
-  },
-  {
-    nama: "Dimas — Koordinator Lapangan",
-    peran: "Pengurus harian",
-    angkatan: "Panitia sejak 2021",
+    nama: "Rafi — Generus Cengkareng Barat",
+    peran: "Peserta Sambung Rutin",
+    angkatan: "Muda-Mudi Cengkareng",
     foto: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop/400/400",
-    quote: "Sistem kecil yang jalan terus lebih penting dari acara besar yang sekali lalu hilang.",
-    konteks: "Dimas yang bikin checklist panitia 1 halaman — dipakai sampai sekarang.",
+    quote: "Sambung rutin bukan cuma nambah kepahaman agama, tapi juga tempat sharing ilmu praktis dan saling nguatin antar pemuda.",
+    konteks: "Aktif membantu pencatatan notulensi dan koordinasi keakraban di tingkat kelompok.",
+  },
+  {
+    nama: "Pak Bambang — Pembina Daerah",
+    peran: "Dewan Penasihat / Pembina",
+    angkatan: "Daerah Cengkareng",
+    foto: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop/400/400",
+    quote: "Generus yang berhasil adalah yang seimbang: paham agama, berakhlak mulia, dan punya keahlian mandiri untuk masa depannya.",
+    konteks: "Mendampingi regenerasi kepengurusan muda-mudi agar terus kompak dan berkesinambungan.",
+  },
+  {
+    nama: "Dimas — Koordinator Kegiatan",
+    peran: "Pengurus Harian",
+    angkatan: "Muda-Mudi Cengkareng Timur",
+    foto: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop/400/400",
+    quote: "Kunci kegiatan generus itu rukun dan kompak. Dari kepanitiaan kecil sampai acara akbar, yang penting kerja sama yang baik.",
+    konteks: "Mengkoordinasikan tim logistik dan teknis lapangan di setiap agenda daerah.",
   },
 ];
 
 export const TENTANG_TIMELINE = [
-  { year: "2019", title: "Ngumpul pertama", desc: "Berawal dari 12 orang di musala. Nggak ada nama, cuma niat: bikin wadah yang kepake." },
-  { year: "2021", title: "Kegiatan rutin jalan", desc: "Sambung mingguan + kerja bakti bulanan. Absensi masih manual, dokumentasi pakai HP pinjam." },
-  { year: "2024", title: "Etalase publik dibuka", desc: "Kegiatan yang layak publik mulai dikurasi. Foto jelas, cerita ditulis, bukan cuma di grup WA." },
-  { year: "Sekarang", title: "Rumah yang kebuka", desc: "Siapa mau ikut tinggal datang. Siapa mau bantu tinggal ngobrol. Sesimpel itu." },
+  { year: "Pembinaan", title: "Kajian & Sambung Rutin", desc: "Pengajian Al-Qur'an dan Al-Hadits berjenjang dari usia cabe rawit, pra-remaja, hingga muda-mudi di setiap kelompok." },
+  { year: "Karakter", title: "6 Karakter Luhur", desc: "Penanaman tabiat jujur, amanah, hemat, rukun, kompak, dan kerja sama yang baik dalam interaksi harian." },
+  { year: "Kemandirian", title: "Skill & Kemandirian", desc: "Pelatihan keterampilan wirausaha, teknologi, desain, hingga keputrian untuk mencetak generus mandiri." },
+  { year: "Etalase", title: "Dokumentasi & Syiar", desc: "Ruang publik untuk mengarsipkan karya, dinamika positif, dan kontribusi nyata generus di Cengkareng." },
 ];
 
 export const TENTANG_NILAI = [
-  { title: "Terlihat, bukan terlihat keren", body: "Foto apa adanya, tanggal jelas, lokasi presisi. Kalau kegiatan beneran jalan, nggak perlu filter.", proof: "Lihat 48 kegiatan publik →", href: "/kegiatan" },
-  { title: "Kecil yang jalan terus", body: "Checklist 1 halaman, rotasi panitia, arsip rapi. Sistem kecil > acara besar sekali lalu hilang.", proof: "Cara kita ngelola →", href: "/artikel" },
-  { title: "Yang ngerjain, yang cerita", body: "Yang turun ke lapangan yang nulis laporannya. Jadi ceritanya nggak mengarang — kebaca jujurnya.", proof: "Baca cerita mereka →", href: "#cerita" },
+  { title: "Alim & Faqih", body: "Paham Al-Qur'an dan Al-Hadits secara mendalam serta mengamalkannya dalam kehidupan sehari-hari.", proof: "Lihat kegiatan pembinaan →", href: "/kegiatan" },
+  { title: "Berakhlakul Karimah", body: "Mempraktikkan budi pekerti luhur, beradab, santun kepada yang lebih tua, dan menyayangi sesama.", proof: "Baca artikel literasi →", href: "/artikel" },
+  { title: "Mandiri & Berdaya", body: "Memiliki keahlian nyata, etos kerja tangguh, dan kesiapan menghadapi tantangan zaman.", proof: "Cerita generus →", href: "#cerita" },
 ];
