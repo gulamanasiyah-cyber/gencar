@@ -1,15 +1,22 @@
 import { useState } from "react";
 import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
 import { Menu, X, ArrowRight, MapPin, Mail, Phone } from "lucide-react";
+import { motion, useScroll, useSpring } from "motion/react";
 
 export default function PublicLayout() {
   const [open, setOpen] = useState(false);
   const loc = useLocation();
   const isHome = loc.pathname === "/";
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 400, damping: 30, restDelta: 0.001 });
 
   return (
     <div className="pub-root">
       <header className="pub-nav">
+        <motion.div
+          className="pub-nav-progress"
+          style={{ scaleX, transformOrigin: "0%" }}
+        />
         <div className="pub-nav-inner">
           <Link to="/" className="pub-brand" aria-label="Gencar home">
             <img src="/logos/gencar.png" alt="Gencar" className="pub-brand-logo" width={40} height={40} />

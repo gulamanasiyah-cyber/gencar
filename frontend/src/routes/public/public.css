@@ -65,6 +65,16 @@
   background: #fff;
   border-bottom: 1px solid var(--pub-line);
 }
+.pub-nav-progress {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--pub-primary);
+  z-index: 42;
+  pointer-events: none;
+}
 .pub-nav-inner {
   max-width: var(--pub-max);
   margin: 0 auto;
@@ -241,6 +251,53 @@ a.pub-footer-contact-row:hover { color: var(--pub-accent); }
 @media (prefers-reduced-motion: reduce) {
   .pub-hero-band-bg::before { animation: none; }
 }
+/* Ornamen Pohon Kurma (Date Palm Tree) c999 — berdiri di atas pita coklat hero */
+.pub-hero-tree {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  line-height: 0;
+  color: var(--pub-ink);
+  opacity: 1;
+  display: flex;
+  align-items: flex-end;
+  transform-origin: bottom center;
+}
+.pub-hero-tree svg {
+  width: clamp(75px, 7vw, 115px);
+  height: auto;
+  display: block;
+}
+.pub-hero-tree svg path {
+  stroke: none;
+}
+.pub-hero-tree--left {
+  left: max(12px, calc((100vw - var(--pub-max)) / 2 - 220px));
+  bottom: calc(34% - 8px);
+  transform-origin: bottom left;
+}
+.pub-hero-tree--left-2 {
+  left: max(95px, calc((100vw - var(--pub-max)) / 2 - 110px));
+  bottom: calc(34% - 8px);
+  transform: scale(0.8);
+  transform-origin: bottom left;
+}
+.pub-hero-tree--right {
+  right: max(12px, calc((100vw - var(--pub-max)) / 2 - 220px));
+  bottom: calc(34% - 8px);
+  transform: scaleX(-1);
+  transform-origin: bottom right;
+}
+.pub-hero-tree--right-2 {
+  right: max(95px, calc((100vw - var(--pub-max)) / 2 - 110px));
+  bottom: calc(34% - 8px);
+  transform: scaleX(-1) scale(0.8);
+  transform-origin: bottom right;
+}
+@media (max-width: 980px) {
+  .pub-hero-tree { display: none; }
+}
+
 /* siluet masjid trace cbaef6305 — di kanan h1, di atas pita coklat */
 .pub-hero-mosque {
   position: absolute;
@@ -321,11 +378,14 @@ a.pub-footer-contact-row:hover { color: var(--pub-accent); }
   .pub-hero-mosque svg { width: clamp(240px, 78vw, 360px); }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .pub-hero-mosque svg { animation: pub-mosque-in 900ms cubic-bezier(0.16,1,0.3,1) both; }
+  .pub-hero-mosque svg { animation: pub-mosque-in 900ms cubic-bezier(0.16,1,0.3,1) 300ms both; }
+  .pub-hero-tree svg { animation: pub-tree-in 900ms cubic-bezier(0.16,1,0.3,1) 600ms both; }
   @keyframes pub-mosque-in { from { opacity: 0; transform: translateY(14px) scale(0.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes pub-tree-in { from { opacity: 0; transform: translateY(14px) scale(0.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pub-hero-mosque svg { animation: none; }
+  .pub-hero-mosque svg,
+  .pub-hero-tree svg { animation: none; }
 }
 .pub-hero-inner {
   position: relative;
@@ -358,6 +418,18 @@ a.pub-footer-contact-row:hover { color: var(--pub-accent); }
   z-index: 0;
   pointer-events: none;
   opacity: 0.85;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .pub-hero-sun {
+    animation: pub-sun-in 900ms cubic-bezier(0.16, 1, 0.3, 1) 0ms both;
+  }
+  @keyframes pub-sun-in {
+    from { opacity: 0; transform: translateY(14px) scale(0.99); }
+    to { opacity: 0.85; transform: translateY(0) scale(1); }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pub-hero-sun { animation: none; }
 }
 .pub-hero-img-wrap {
   position: relative;
@@ -526,14 +598,29 @@ a.pub-footer-contact-row:hover { color: var(--pub-accent); }
   color: var(--pub-muted);
 }
 .pub-hero-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #16a34a;
   background: #dcfce7;
-  padding: 2px 6px;
+  padding: 2px 8px;
   border-radius: 999px;
+}
+.pub-hero-live-badge::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: #16a34a;
+  animation: pub-live-pulse 1.8s ease-in-out infinite;
+}
+@keyframes pub-live-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.4; }
 }
 .pub-hero-countdown-meta {
   display: flex;
@@ -849,7 +936,20 @@ a.pub-footer-contact-row:hover { color: var(--pub-accent); }
 .pub-proof-locations h3 { font-family: 'Space Grotesk', sans-serif; font-size: 28px; letter-spacing: -0.03em; line-height: 1.05; color: var(--pub-ink); }
 .pub-proof-loc-list { display: grid; gap: 10px; margin-top: 4px; }
 .pub-proof-loc { display: flex; gap: 10px; align-items: center; padding: 12px; border: 1px solid var(--pub-line); border-radius: 12px; background: #fff; }
-.pub-proof-dot { width: 10px; height: 10px; border-radius: 999px; flex-shrink: 0; }
+.pub-proof-dot { position: relative; width: 10px; height: 10px; border-radius: 999px; flex-shrink: 0; }
+.pub-proof-dot::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  opacity: 0;
+  animation: pub-dot-beacon 3s ease-out infinite;
+}
+@keyframes pub-dot-beacon {
+  0% { transform: scale(0.6); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
 .pub-proof-dot--primary { background: var(--pub-primary); }
 .pub-proof-dot--accent { background: var(--pub-accent); }
 .pub-proof-dot--deep { background: var(--pub-accent-deep); }
@@ -1005,6 +1105,31 @@ a.pub-footer-contact-row:hover { color: var(--pub-accent); }
 /* ── Reels Section ── */
 .pub-reels { overflow: visible; max-width: none; margin-inline: 0; padding-inline: 0; }
 .pub-reels .pub-section-head-row { max-width: var(--pub-max); margin-inline: auto; padding-inline: var(--pub-gutter); }
+.pub-reels-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pub-reels-arrow {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: var(--pub-paper-2);
+  border: 1px solid var(--pub-line);
+  color: var(--pub-ink);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.16s, border-color 0.16s, transform 0.16s;
+}
+.pub-reels-arrow:hover {
+  background: #fff;
+  border-color: var(--pub-ink);
+  transform: translateY(-1px);
+}
+@media (max-width: 640px) {
+  .pub-reels-arrow { display: none; }
+}
 .pub-reels { padding-bottom: 0; }
 .pub-reels-track {
   display: flex;

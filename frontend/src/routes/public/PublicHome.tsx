@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, useAnimation, useInView, useReducedMotion, type Variants } from "motion/react";
-import { ArrowRight, CalendarDays, MapPin } from "lucide-react";
+import { ArrowRight, CalendarDays, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 import { MOCK_KEGIATAN, MOCK_ARTIKEL, MOCK_PENGURUS } from "./data";
 import { MOSQUE_PATH, MOSQUE_VIEWBOX } from "./mosquePath";
+import { DATE_TREE_VIEWBOX, DATE_TREE_PATHS } from "./decorPath";
 
 const HERO_THUMBS = MOCK_KEGIATAN.slice(0, 4);
 const ABOUT_IMG = "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=900&h=700&q=80";
@@ -162,6 +163,13 @@ function TrainMarquee({ items }: { items: typeof MOCK_PENGURUS }) {
 
 export default function PublicHome() {
   const reduce = useReducedMotion();
+  const reelsTrackRef = useRef<HTMLDivElement>(null);
+
+  const scrollReels = (direction: "left" | "right") => {
+    if (!reelsTrackRef.current) return;
+    const amount = direction === "left" ? -320 : 320;
+    reelsTrackRef.current.scrollBy({ left: amount, behavior: "smooth" });
+  };
   const featured = MOCK_KEGIATAN[0] ?? null;
   const side = MOCK_KEGIATAN.length >= 3 ? MOCK_KEGIATAN.slice(1, 3) : MOCK_KEGIATAN.slice(1);
   const row2 = MOCK_KEGIATAN.length >= 5 ? MOCK_KEGIATAN.slice(3, 5) : MOCK_KEGIATAN.slice(3);
@@ -188,6 +196,39 @@ export default function PublicHome() {
       {/* HERO — duotone band (top paper-2 + topo, bottom ink) */}
       <section className="pub-hero pub-hero--band">
         <div className="pub-hero-band-bg" aria-hidden="true" />
+
+        {/* Siluet Pohon Kurma c999 — berdiri di area margin luar kiri & kanan di atas pita coklat hero */}
+        <div className="pub-hero-tree pub-hero-tree--left" aria-hidden="true">
+          <svg viewBox={DATE_TREE_VIEWBOX} preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" role="presentation">
+            {DATE_TREE_PATHS.map((d, idx) => (
+              <path key={idx} d={d} fill="currentColor" />
+            ))}
+          </svg>
+        </div>
+
+        <div className="pub-hero-tree pub-hero-tree--left-2" aria-hidden="true">
+          <svg viewBox={DATE_TREE_VIEWBOX} preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" role="presentation">
+            {DATE_TREE_PATHS.map((d, idx) => (
+              <path key={idx} d={d} fill="currentColor" />
+            ))}
+          </svg>
+        </div>
+
+        <div className="pub-hero-tree pub-hero-tree--right-2" aria-hidden="true">
+          <svg viewBox={DATE_TREE_VIEWBOX} preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" role="presentation">
+            {DATE_TREE_PATHS.map((d, idx) => (
+              <path key={idx} d={d} fill="currentColor" />
+            ))}
+          </svg>
+        </div>
+
+        <div className="pub-hero-tree pub-hero-tree--right" aria-hidden="true">
+          <svg viewBox={DATE_TREE_VIEWBOX} preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" role="presentation">
+            {DATE_TREE_PATHS.map((d, idx) => (
+              <path key={idx} d={d} fill="currentColor" />
+            ))}
+          </svg>
+        </div>
 
         <div className="pub-hero-inner">
           {/* LEFT — visual */}
@@ -452,9 +493,28 @@ export default function PublicHome() {
             <h2>Lihat Keseruan Kami</h2>
             <p>Scroll samping — kayak reel. Kegiatan terbaru dalam format portrait.</p>
           </div>
-          <Link to="/kegiatan" className="pub-link">Semua kegiatan <ArrowRight size={14} /></Link>
+          <div className="pub-reels-actions">
+            <button
+              type="button"
+              className="pub-reels-arrow"
+              onClick={() => scrollReels("left")}
+              aria-label="Scroll reels ke kiri"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              type="button"
+              className="pub-reels-arrow"
+              onClick={() => scrollReels("right")}
+              aria-label="Scroll reels ke kanan"
+            >
+              <ChevronRight size={16} />
+            </button>
+            <Link to="/kegiatan" className="pub-link">Semua kegiatan <ArrowRight size={14} /></Link>
+          </div>
         </div>
         <motion.div
+          ref={reelsTrackRef}
           className="pub-reels-track"
           initial={reduce ? false : "hidden"}
           whileInView="show"
