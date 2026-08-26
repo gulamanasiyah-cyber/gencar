@@ -200,41 +200,41 @@ function QrModal({ target, onClose }: { target: QrTarget; onClose: () => void })
         <div id="qr-template-card" style={{
           borderRadius: 18,
           overflow: "hidden",
-          border: "1px solid #e2e8f0",
+          border: "1px solid var(--line)",
           background: "#fff",
           maxWidth: 320,
           margin: "0 auto",
         }}>
           <div style={{
-            background: "#1a1a2e",
+            background: "var(--ink)",
             padding: "14px 16px",
             display: "flex", alignItems: "center", gap: 10,
           }}>
             <div style={{
               width: 34, height: 34, borderRadius: 10,
-              background: "#c5f54c", color: "#1a1a2e",
+              background: "var(--primary)", color: "#fff",
               display: "grid", placeItems: "center",
               fontWeight: 800, fontSize: 15,
             }}>G</div>
             <div>
               <div style={{ color: "#fff", fontWeight: 800, fontSize: 14, letterSpacing: "-0.01em" }}>GENCAR</div>
-              <div style={{ color: "#94a3b8", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>QR Absensi Kegiatan</div>
+              <div style={{ color: "rgba(255,255,255,0.62)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>QR Absensi Kegiatan</div>
             </div>
           </div>
 
           <div style={{ padding: "20px 16px 16px", display: "grid", justifyItems: "center", gap: 10, background: "#fff" }}>
             <span className="pill pill-slate">{target.level}</span>
-            <QRCodeCanvas value={value} size={196} level="M" includeMargin={false} bgColor="#ffffff" fgColor="#1a1a2e" />
+            <QRCodeCanvas value={value} size={196} level="M" includeMargin={false} bgColor="#ffffff" fgColor="#1b0f0a" />
             <div style={{ fontWeight: 800, fontSize: 15, textAlign: "center", lineHeight: 1.25 }}>{target.nama}</div>
           </div>
 
           <div style={{
-            borderTop: "1px dashed #e2e8f0",
-            background: "#f8fafc",
+            borderTop: "1px dashed var(--line)",
+            background: "var(--bg)",
             padding: "10px 16px",
             textAlign: "center",
             fontSize: 11,
-            color: "#64748b",
+            color: "var(--text-secondary)",
             fontWeight: 600,
           }}>
             Scan untuk absensi &bull; Daerah Cengkareng
@@ -585,7 +585,7 @@ function PengurusAdmin() {
         return (
           <div key={lvl} className="card" style={{ marginTop: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, paddingBottom: 10, borderBottom: "1px solid var(--line)" }}>
-              <span style={{ width: 8, height: 8, borderRadius: 999, background: lvl === "pimpinan" ? "var(--ink)" : lvl === "sekretariat" ? "var(--primary)" : "#86efac", display: "inline-block" }} />
+              <span style={{ width: 8, height: 8, borderRadius: 999, background: lvl === "pimpinan" ? "var(--ink)" : lvl === "sekretariat" ? "var(--primary)" : "var(--amber)", display: "inline-block" }} />
               <strong style={{ fontSize: 13, letterSpacing: "-0.01em" }}>{levelLabel(lvl)}</strong>
               <span className="pill pill-slate">{list.length}</span>
               {lvl === "pimpinan" && list.length > 2 && <span className="pill pill-amber">Ideal 1–2</span>}
@@ -598,7 +598,7 @@ function PengurusAdmin() {
                 {list.map((r) => (
                   <div key={r.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 12, border: "1px solid var(--line)", background: "#fff" }}>
                     <span className="pill pill-slate" style={{ minWidth: 28, justifyContent: "center" }}>{r.urutan}</span>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--primary)", color: "var(--ink)", display: "grid", placeItems: "center", fontWeight: 800, fontSize: 12, overflow: "hidden", flexShrink: 0 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--primary)", color: "#fff", display: "grid", placeItems: "center", fontWeight: 800, fontSize: 12, overflow: "hidden", flexShrink: 0 }}>
                       {r.foto ? <img src={r.foto} alt={r.nama} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : r.nama.split(" ").map((w) => w[0]).slice(0, 2).join("")}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -1006,7 +1006,7 @@ function AddMemberModal({ onClose, onSave }: { onClose: () => void; onSave: (m: 
 
         {s === 3 && (
           <div style={{ display: "grid", gap: 12 }}>
-            <div className="card" style={{ background: "#f8fafc" }}>
+            <div className="card" style={{ background: "var(--bg)" }}>
               <div style={{ fontWeight: 700 }}>{form.nama || "(nama)"} &bull; {form.pendidikan} &bull; {form.jenisKelamin}</div>
               <div className="muted">{form.tempatLahir} &bull; {form.tanggalLahir} &bull; {form.noTelp}</div>
               <div className="muted">{form.kategoriMudaMudi}{form.asalDaerah ? ` &bull; asal ${form.asalDaerah}` : ""} &bull; {form.desa}/{form.kelompok}</div>
@@ -1804,10 +1804,9 @@ function AddWilayahForm({
 import MemberShell from "./features/member/MemberShell";
 import type { MemberPageKey } from "./features/member/MemberShell";
 import MemberHomePage from "./features/member/MemberHomePage";
-import MemberAbsenPage from "./features/member/MemberAbsenPage";
 import MemberProfilePage from "./features/member/MemberProfilePage";
 import MemberStatPage from "./features/member/MemberStatPage";
-import { DEMO_SELF, DEMO_KEHADIRAN } from "./features/member/types";
+import { DEMO_SELF, DEMO_KEHADIRAN, DEMO_KEGIATAN_MEMBER } from "./features/member/types";
 
 export default function App({ initialMode }: { initialMode?: "admin" | "member" } = {}) {
   const [mode, setMode] = useState<"admin" | "member">(initialMode ?? "member");
@@ -1819,9 +1818,8 @@ export default function App({ initialMode }: { initialMode?: "admin" | "member" 
   if (mode === "member") {
     return (
       <MemberShell page={memberPage} setPage={setMemberPage} me={me} onExit={() => setMode("admin")}>
-        {memberPage === "beranda" && <MemberHomePage me={me} go={setMemberPage} />}
-        {memberPage === "absen" && <MemberAbsenPage me={me} />}
-        {memberPage === "profil" && <MemberProfilePage me={me} onUpdate={setMe} />}
+        {memberPage === "beranda" && <MemberHomePage me={me} />}
+        {memberPage === "profil" && <MemberProfilePage me={me} stat={DEMO_KEHADIRAN} kegiatan={DEMO_KEGIATAN_MEMBER} onUpdate={setMe} />}
         {memberPage === "statistik" && <MemberStatPage me={me} stat={DEMO_KEHADIRAN} />}
       </MemberShell>
     );

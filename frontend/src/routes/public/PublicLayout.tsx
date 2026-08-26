@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
-import { Menu, X, ArrowRight, MapPin, Mail, Phone } from "lucide-react";
+import { Menu, X, ArrowRight, MapPin, Mail, Phone, LogIn } from "lucide-react";
 import { motion, useScroll, useSpring } from "motion/react";
 
 export default function PublicLayout() {
@@ -32,6 +32,10 @@ export default function PublicLayout() {
             <NavLink to="/pengurus" className={({ isActive }) => (isActive ? "active" : "")}>Pengurus</NavLink>
             <NavLink to="/tentang" className={({ isActive }) => (isActive ? "active" : "")}>Tentang</NavLink>
           </nav>
+
+          <Link to="/member" className="pub-nav-ghost" aria-label="Masuk ke member">
+            <LogIn size={14} /> Masuk
+          </Link>
 
           <Link to="/kegiatan" className="pub-nav-cta">
             Lihat Kegiatan <ArrowRight size={14} />
@@ -73,6 +77,24 @@ export default function PublicLayout() {
                 {label}
               </Link>
             ))}
+            <div style={{ height: 1, background: "var(--pub-line)", margin: "4px 0" }} aria-hidden />
+            <Link
+              to="/member"
+              onClick={() => setOpen(false)}
+              style={{
+                padding: "12px 14px",
+                borderRadius: 12,
+                background: "var(--pub-ink)",
+                color: "#fff",
+                fontWeight: 800,
+                fontSize: 14,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <LogIn size={16} /> Masuk — Absensi
+            </Link>
           </div>
         )}
       </header>

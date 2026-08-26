@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { Users, CalendarCheck, User, BarChart3, LogOut, Home } from "lucide-react";
+import { Users, User, BarChart3, LogOut, Home } from "lucide-react";
 import type { MemberIdentity } from "./types";
 
-export type MemberPageKey = "beranda" | "absen" | "profil" | "statistik";
+export type MemberPageKey = "beranda" | "profil" | "statistik";
 
 const NAV: { key: MemberPageKey; label: string; icon: typeof Home }[] = [
   { key: "beranda", label: "Beranda", icon: Home },
-  { key: "absen", label: "Absen", icon: CalendarCheck },
   { key: "profil", label: "Profil", icon: User },
   { key: "statistik", label: "Statistik", icon: BarChart3 },
 ];
@@ -29,16 +28,14 @@ export default function MemberShell({
     <div className="member-shell">
       <header className="member-topbar">
         <div className="member-topbar-left">
-          <div className="brand-mark">G</div>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 14, lineHeight: 1 }}>GENCAR</div>
-            <div className="muted" style={{ fontSize: 11 }}>
-              {me.desa} · {me.kelompok} · {me.nomorUnik}
-            </div>
+          <img className="member-topbar-logo" src="/logos/gencar.png" alt="GENCAR" width={36} height={36} decoding="async" />
+          <div style={{ minWidth: 0 }}>
+            <div className="member-topbar-title">GENCAR</div>
+            <div className="member-topbar-sub">Cengkareng</div>
           </div>
         </div>
         <div className="member-topbar-right">
-          <span className="pill pill-slate" style={{ fontSize: 11 }}>
+          <span className="pill" style={{ fontSize: 11 }}>
             <Users size={12} /> {me.nama.split(" ")[0]}
           </span>
           <button className="btn btn-ghost btn-sm" onClick={onExit} title="Kembali ke admin/demo">
@@ -64,6 +61,7 @@ export default function MemberShell({
               onClick={() => {
                 setPage(n.key);
                 setOpen(false);
+                window.scrollTo({ top: 0, behavior: "smooth" });
               }}
             >
               <Icon size={18} />
@@ -83,7 +81,10 @@ export default function MemberShell({
               key={n.key}
               type="button"
               className={page === n.key ? "active" : ""}
-              onClick={() => setPage(n.key)}
+              onClick={() => {
+                setPage(n.key);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
             >
               <Icon size={18} />
               <span>{n.label}</span>

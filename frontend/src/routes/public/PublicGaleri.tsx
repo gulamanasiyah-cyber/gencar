@@ -280,126 +280,211 @@ function generateRandomTransforms(count: number, seed: number): PolaroidTransfor
 
 function PolaroidLightbox({ item, onClose }: { item: GaleriItem; onClose: () => void }) {
   const [flipped, setFlipped] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (flipped) setFlipped(false);
+        else onClose();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose, flipped]);
+  const aspectMap: Record<GaleriItem["aspectRatio"], string> = {
+    tall: "9 / 16",
+    portrait: "4 / 5",
+    landscape: "16 / 10",
+    square: "1 / 1",
+  };
   return (
     <motion.div
-      className="pub-lightbox-overlay"
+      className="modal-backdrop"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={item.judul}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      onClick={onClose}
+      transition={{ duration: 0.2 }}
+      style={{ overflowY: "auto", alignContent: "start", padding: "16px", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
     >
-      <div className="pub-lightbox-polaroid-wrap" onClick={(e) => e.stopPropagation()}>
-        <div className="pub-lightbox-polaroid-flip" style={{ perspective: 1200 }}>
-          <motion.div
-            className="pub-lightbox-polaroid-card3d"
-            animate={{ rotateY: flipped ? 180 : 0 }}
-            transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
-            style={{ transformStyle: "preserve-3d" as const }}
-            onClick={() => setFlipped((v) => !v)}
-            role="button"
-            tabIndex={0}
-            aria-label={flipped ? "Lihat foto" : "Balik untuk deskripsi"}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setFlipped((v) => !v);
-              }
-            }}
-          >
-            {/* FRONT — foto polaroid */}
-            <div className="pub-flip-face pub-flip-front">
-              <div className={`pub-lightbox-polaroid${item.type === "reel" ? " pub-lightbox-polaroid--reel" : ""}`}>
-                <button
-                  type="button"
-                  className="pub-lightbox-polaroid-close"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onClose();
-                  }}
-                  aria-label="Tutup"
+      <div
+        style={{
+          perspective: 1000,
+          width: "100%",
+          maxWidth: 440,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 14,
+          margin: "auto",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <motion.div
+          className="swiss-polaroid-flip"
+          animate={{ rotateY: flipped ? 180 : 0 }}
+          transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
+          style={{ transformStyle: "preserve-3d" as const, width: "100%", cursor: "pointer" }}
+          onClick={() => setFlipped((v) => !v)}
+          role="button"
+          tabIndex={0}
+          aria-label={flipped ? "Lihat foto" : "Balik untuk deskripsi"}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setFlipped((v) => !v);
+            }
+          }}
+        >
+          {/* FRONT — polaroid foto (style pengurus) */}
+          <div className="swiss-flip-face swiss-flip-front">
+            <div className="swiss-polaroid-card">
+              <button
+                type="button"
+                className="swiss-polaroid-close"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose();
+                }}
+                aria-label="Tutup"
+              >
+                <X size={14} />
+              </button>
+              {item.type !== "quote" ? (
+                <div className="swiss-polaroid-media">
+                  <img
+                    src={item.image}
+                    alt={item.judul}
+                    style={{ aspectRatio: aspectMap[item.aspectRatio] ?? "3 / 4" } as React.CSSProperties}
+                  />
+                  {item.type === "reel" && (
+                    <span className="pub-lightbox-polaroid-badge">
+                      <Play size={12} fill="currentColor" /> {item.durasi ?? "Reel"}
+                    </span>
+                  )}
+                  <span className="swiss-flip-hint">Tap untuk balik ↻</span>
+                </div>
+              ) : (
+                <div
+                  className="swiss-polaroid-media"
+                  style={{
+                    padding: "32px 20px",
+                    display: "grid",
+                    placeItems: "center",
+                    background: "var(--pub-paper-2)",
+                    aspectRatio: aspectMap[item.aspectRatio] ?? "1 / 1",
+                  } as React.CSSProperties}
                 >
-                  <X size={16} />
-                </button>
-                {item.type !== "quote" ? (
-                  <div className="pub-lightbox-polaroid-media">
-                    <img
-                      src={item.image}
-                      alt={item.judul}
-                      className={`pub-lightbox-polaroid-img pub-lightbox-polaroid-img--${item.aspectRatio}`}
-                    />
-                    {item.type === "reel" && (
-                      <span className="pub-lightbox-polaroid-badge">
-                        <Play size={12} fill="currentColor" /> {item.durasi ?? "Reel"}
-                      </span>
-                    )}
-                    <span className="pub-flip-hint">Tap untuk balik ↻</span>
+                  <div style={{ textAlign: "center", display: "grid", gap: 8 }}>
+                    <span style={{ fontSize: 28, lineHeight: 1, color: "var(--pub-faint)" }}>“</span>
+                    <blockquote
+                      style={{
+                        fontFamily: "'Space Grotesk', sans-serif",
+                        fontSize: 18,
+                        fontWeight: 700,
+                        lineHeight: 1.4,
+                        color: "var(--pub-ink)",
+                        margin: 0,
+                      }}
+                    >
+                      “{item.quote}”
+                    </blockquote>
+                    <cite style={{ fontSize: 12, color: "var(--pub-muted)", fontStyle: "normal" }}>— {item.author}</cite>
+                  </div>
+                </div>
+              )}
+              <div className="swiss-polaroid-caption">
+                <span>{item.kategori}</span>
+                <strong>{item.judul}</strong>
+              </div>
+            </div>
+          </div>
+          {/* BACK — deskripsi tulisan tangan */}
+          <div className="swiss-flip-face swiss-flip-back">
+            <div className="swiss-polaroid-card swiss-polaroid-card--back">
+              <button
+                type="button"
+                className="swiss-polaroid-close"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose();
+                }}
+                aria-label="Tutup"
+              >
+                <X size={14} />
+              </button>
+              <div className="swiss-flip-back-body">
+                <span className="swiss-flip-kicker">Cerita di balik foto</span>
+                {item.deskripsi ? (
+                  <div className="swiss-handwriting">
+                    {item.deskripsi.split("\n\n").map((para, i) => (
+                      <p key={i}>{para}</p>
+                    ))}
                   </div>
                 ) : (
-                  <div className="pub-lightbox-polaroid-quote">
-                    <blockquote>“{item.quote}”</blockquote>
-                    <cite>— {item.author}</cite>
-                  </div>
+                  <p className="swiss-handwriting swiss-handwriting--empty">
+                    Belum ada cerita tertulis untuk momen ini — tapi fotonya sudah bercerita banyak.
+                  </p>
                 )}
-                <div className="pub-lightbox-polaroid-caption">
-                  <span className="pub-lightbox-polaroid-kicker">{item.kategori}</span>
-                  <h3>{item.judul}</h3>
-                </div>
+                <span className="swiss-flip-hint">Tap untuk kembali ↩</span>
               </div>
             </div>
-            {/* BACK — deskripsi tulisan tangan, caption tetap di luar di bawah flip */}
-            <div className="pub-flip-face pub-flip-back">
-              <div className="pub-lightbox-polaroid pub-lightbox-polaroid--back">
-                <button
-                  type="button"
-                  className="pub-lightbox-polaroid-close"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onClose();
-                  }}
-                  aria-label="Tutup"
-                >
-                  <X size={16} />
-                </button>
-                <div className="pub-flip-back-body">
-                  <span className="pub-flip-back-kicker">Cerita di balik foto</span>
-                  {item.deskripsi ? (
-                    <div className="pub-flip-handwriting">
-                      {item.deskripsi.split("\n\n").map((para, i) => (
-                        <p key={i}>{para}</p>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="pub-flip-handwriting pub-flip-handwriting--empty">
-                      Belum ada cerita tertulis untuk momen ini — tapi fotonya sudah bercerita banyak.
-                    </p>
-                  )}
-                  <span className="pub-flip-hint">Tap untuk kembali ↩</span>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-        {/* EXTERNAL CAPTION — tetap di luar polaroid, tak ikut terbalik */}
-        <motion.div
-          className="pub-lightbox-external-caption"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-        >
-          <div className="pub-lightbox-external-meta">
-            <span>
-              <CalendarDays size={12} /> {item.tanggal}
-            </span>
-            <span>
-              <MapPin size={12} /> {item.lokasi}
-            </span>
-            <span className="pub-lightbox-external-type">
-              {item.type === "reel" ? "Video Reel" : item.type === "photo" ? "Foto" : "Kutipan"}
-            </span>
           </div>
+        </motion.div>
+
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", alignItems: "center" }}>
+          <span
+            style={{
+              display: "inline-flex",
+              gap: 6,
+              alignItems: "center",
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#fff",
+              background: "rgba(255,255,255,0.12)",
+              border: "1px solid rgba(255,255,255,0.16)",
+              padding: "7px 10px",
+              borderRadius: 999,
+            }}
+          >
+            <CalendarDays size={12} /> {item.tanggal}
+          </span>
+          <span
+            style={{
+              display: "inline-flex",
+              gap: 6,
+              alignItems: "center",
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#fff",
+              background: "rgba(255,255,255,0.12)",
+              border: "1px solid rgba(255,255,255,0.16)",
+              padding: "7px 10px",
+              borderRadius: 999,
+            }}
+          >
+            <MapPin size={12} /> {item.lokasi}
+          </span>
           <button
             type="button"
-            className="btn-lime pub-lightbox-external-share"
+            style={{
+              display: "inline-flex",
+              gap: 6,
+              alignItems: "center",
+              padding: "10px 16px",
+              background: "var(--pub-ink)",
+              color: "#fff",
+              fontWeight: 800,
+              fontSize: 13,
+              border: "1px solid rgba(255,255,255,0.14)",
+              borderRadius: 999,
+            }}
             onClick={() => {
               if (navigator.share) navigator.share({ title: item.judul, url: window.location.href });
               else {
@@ -410,7 +495,10 @@ function PolaroidLightbox({ item, onClose }: { item: GaleriItem; onClose: () => 
           >
             <Share2 size={14} /> Bagikan
           </button>
-        </motion.div>
+          <button type="button" className="btn-ghost-dark" onClick={onClose} style={{ padding: "10px 16px", fontSize: 13, background: "#fff", borderColor: "#fff" }}>
+            Tutup
+          </button>
+        </div>
       </div>
     </motion.div>
   );

@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@dicebear/collection": "^9.4.2",
+    "@dicebear/core": "^9.4.3",
     "html-to-image": "^1.11.13",
     "html5-qrcode": "^2.3.8",
     "leaflet": "^1.9.4",

@@ -23,8 +23,8 @@ function parseQrToken(raw: string): QrHit {
   return null;
 }
 
-export default function MemberAbsenPage({ me }: { me: MemberIdentity }) {
-  const today = DEMO[0];
+export default function MemberAbsenPage({ me: _me }: { me: MemberIdentity }) {
+  const today = DEMO[0]!;
   const [gps, setGps] = useState<GpsState>(null);
   const [gpsErr, setGpsErr] = useState<string | null>(null);
   const [gpsLoading, setGpsLoading] = useState(true);
@@ -32,11 +32,16 @@ export default function MemberAbsenPage({ me }: { me: MemberIdentity }) {
   const [qr, setQr] = useState<QrHit>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [riwayat, setRiwayat] = useState<AbsenRow[]>(DEMO_RIWAYAT);
-
+  const [now, setNow] = useState(new Date());
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannedRef = useRef(false);
 
-  // ── GPS murni — auto ambil saat mount ──
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const timeStr = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: true });
+
   function ambilGps() {
     setGpsLoading(true);
     setGpsErr(null);
@@ -64,12 +69,10 @@ export default function MemberAbsenPage({ me }: { me: MemberIdentity }) {
 
   useEffect(() => {
     ambilGps();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => () => void stopScan(), []); // cleanup kamera
+  useEffect(() => () => void stopScan(), []);
 
-  // ── Kamera QR ──
   async function startScan() {
     if (scannerRef.current) return;
     try {
@@ -92,7 +95,6 @@ export default function MemberAbsenPage({ me }: { me: MemberIdentity }) {
       await s.stop();
       s.clear();
     } catch {
-      /* ignore */
     }
     scannerRef.current = null;
     setScanning(false);
@@ -111,7 +113,6 @@ export default function MemberAbsenPage({ me }: { me: MemberIdentity }) {
     setMsg(null);
   }
 
-  // ── Validasi radius ──
   const dist = useMemo(() => {
     if (gps == null || today.lat == null || today.lng == null) return null;
     return Math.round(haversineM(gps.lat, gps.lng, today.lat, today.lng));
@@ -127,71 +128,75 @@ export default function MemberAbsenPage({ me }: { me: MemberIdentity }) {
       setMsg(`Di luar radius ${today.radiusM}m (jarak ${dist}m). Mendekat ke lokasi dulu.`);
       return;
     }
-    const now = new Date();
     const jam = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
     setRiwayat((prev) => [{ id: `a_${Date.now()}`, tanggal: today.tanggal, judul: today.judul, status: "hadir", jam }, ...prev]);
     setMsg(`Hadir tercatat pukul ${jam} (mock). Nanti POST /api/absensi dengan lat/lng + qrWilayahLevel.`);
   }
 
+  const canHadir = gps != null && (today.lat == null || inRadius);
+
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      <div className="card">
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <span className="kpi-icon kpi-icon--emerald"><ShieldCheck size={18} /></span>
-          <div style={{ minWidth: 0 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 800, lineHeight: 1.1 }}>Absen Kegiatan</h3>
-            <p className="muted" style={{ fontSize: 12 }}>Base: {me.kelompok} · Radius {today.radiusM}m</p>
-          </div>
+      {/* Hero clock — per HP kanan: Start Time 09:00 PM */}
+      <div className="member-hero-clock">
+        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--muted)" }}>Start Time</div>
+        <div className="member-hero-clock-time">{timeStr}</div>
+        <div className="member-hero-clock-sub">
+          <MapPin size={11} /> {today.lokasi} · Radius {today.radiusM}m
+        </div>
+      </div>
+
+      <div className="card" style={{ paddingLeft: 20, paddingRight: 20 }}>
+        <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: "-0.02em" }}>{today.judul}</div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 4, fontSize: 12, color: "var(--text-secondary)" }}>
+          <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><Clock3 size={12} /> {today.tanggal} · {today.jam}</span>
         </div>
 
-        <div style={{ marginTop: 12, padding: 12, borderRadius: 12, background: "#f8fafc", border: "1px solid var(--line)" }}>
-          <div style={{ fontWeight: 800 }}>{today.judul}</div>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 6, fontSize: 12, color: "#475569" }}>
-            <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-              <Clock3 size={12} /> {today.tanggal} · {today.jam}
+        {/* GPS pills */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 12 }}>
+          {gps == null ? (
+            <span className={`pill ${gpsLoading ? "pill-slate" : "pill-amber"}`}>
+              <LocateFixed size={12} /> {gpsLoading ? "Mencari GPS..." : "GPS belum aktif"}
             </span>
-            <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-              <MapPin size={12} /> {today.lokasi}
+          ) : (
+            <span className="pill pill-emerald">
+              <MapPin size={12} /> GPS ok ±{gps.acc ? Math.round(gps.acc) : "?"}m
             </span>
+          )}
+          {dist != null && (
+            <span className={`pill ${inRadius ? "pill-emerald" : "pill-amber"}`}>
+              {inRadius ? <ShieldCheck size={12} /> : <AlertTriangle size={12} />} jarak {dist}m
+            </span>
+          )}
+          <button type="button" className="btn btn-ghost btn-sm" onClick={ambilGps} disabled={gpsLoading}>
+            <LocateFixed size={12} /> Refresh GPS
+          </button>
+        </div>
+        {gpsErr && (
+          <div style={{ fontSize: 12, padding: "8px 10px", borderRadius: 10, background: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca", marginTop: 8 }}>
+            {gpsErr}
+          </div>
+        )}
+
+        {/* Peta mini — per HP kanan (iya) */}
+        <div className="member-map-wrap" style={{ marginTop: 14 }}>
+          <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #e0f2fe 0%, #fef3c7 45%, #f0dfc8 100%)", display: "grid", placeItems: "center", position: "relative" }}>
+            <div style={{ width: 44, height: 44, borderRadius: 999, background: "rgba(208,56,4,0.14)", display: "grid", placeItems: "center", border: "2px solid var(--primary)" }}>
+              <MapPin size={20} color="var(--primary)" />
+            </div>
+            <div style={{ position: "absolute", bottom: 8, left: 8, right: 8, background: "rgba(255,255,255,0.92)", border: "1px solid var(--line)", borderRadius: 10, padding: "6px 10px", fontSize: 11, color: "var(--text-secondary)", textAlign: "center" }}>
+              {gps ? `${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)}` : today.lokasi} · ±{today.radiusM}m
+            </div>
           </div>
         </div>
+        <p className="muted" style={{ fontSize: 11, textAlign: "center", marginTop: 6 }}>Lokasi acara — pastikan GPS dalam radius</p>
 
-        {/* Status GPS */}
-        <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            {gps == null ? (
-              <span className={`pill ${gpsLoading ? "pill-slate" : "pill-amber"}`}>
-                <LocateFixed size={12} /> {gpsLoading ? "Mencari GPS..." : "GPS belum aktif"}
-              </span>
-            ) : (
-              <span className="pill pill-emerald">
-                <MapPin size={12} /> GPS ok ±{gps.acc ? Math.round(gps.acc) : "?"}m
-              </span>
-            )}
-            {dist != null && (
-              <span className={`pill ${inRadius ? "pill-emerald" : "pill-amber"}`}>
-                {inRadius ? <ShieldCheck size={12} /> : <AlertTriangle size={12} />} jarak {dist}m
-              </span>
-            )}
-            <button type="button" className="btn btn-ghost btn-sm" onClick={ambilGps} disabled={gpsLoading}>
-              <LocateFixed size={12} /> Refresh GPS
-            </button>
+        {/* Scanner polaroid */}
+        <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+          <div className="member-polaroid-frame">
+            <div id="qr-reader" style={{ borderRadius: 2, overflow: "hidden", border: scanning ? "2px solid var(--primary)" : "2px dashed var(--line)", background: "#0f172a", minHeight: scanning ? 220 : 0 }} />
+            {!scanning && !qr && <div style={{ textAlign: "center", fontSize: 11, color: "var(--muted)", marginTop: 8, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>Arahkan ke QR wilayah</div>}
           </div>
-          {gps && (
-            <div className="muted" style={{ fontSize: 11 }}>
-              Koordinat: {gps.lat.toFixed(6)}, {gps.lng.toFixed(6)} (dari perangkat)
-            </div>
-          )}
-          {gpsErr && (
-            <div style={{ fontSize: 12, padding: "8px 10px", borderRadius: 10, background: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca" }}>
-              {gpsErr}
-            </div>
-          )}
-        </div>
-
-        {/* Scanner QR */}
-        <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
-          <div id="qr-reader" style={{ borderRadius: 12, overflow: "hidden", border: scanning ? "2px solid var(--primary)" : "2px dashed var(--line)", background: "#0f172a", minHeight: scanning ? 240 : 0 }} />
           {!scanning && !qr && (
             <button type="button" className="btn btn-primary" onClick={startScan} style={{ width: "100%" }}>
               <Camera size={16} /> Mulai Scan QR Wilayah
@@ -207,9 +212,6 @@ export default function MemberAbsenPage({ me }: { me: MemberIdentity }) {
               <QrCode size={12} /> QR ok — {qr.level}: {qr.nama}
             </span>
           )}
-          <p className="muted" style={{ fontSize: 11, textAlign: "center", margin: 0 }}>
-            Format token: gencar-absen|level|nama (sama dengan QR Absen di menu Wilayah admin).
-          </p>
         </div>
 
         {msg && (
@@ -218,16 +220,14 @@ export default function MemberAbsenPage({ me }: { me: MemberIdentity }) {
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-          <button
-            type="button"
-            className="btn btn-primary"
-            style={{ flex: 1 }}
-            disabled={gps == null || (today.lat != null && !inRadius)}
-            onClick={absenHadir}
-            title={gps == null ? "Menunggu GPS terkunci" : inRadius ? "Siap absen" : `Jarak ${dist}m > radius ${today.radiusM}m`}
-          >
-            <ShieldCheck size={16} /> Hadir
+        {/* FAB bulat — per request: bulat */}
+        <div style={{ display: "grid", placeItems: "center", marginTop: 16, gap: 8 }}>
+          {!canHadir && <span className="pill pill-amber" style={{ fontSize: 11 }}>Aktifkan GPS & scan QR dulu</span>}
+          <button type="button" className="member-fab" disabled={!canHadir} onClick={absenHadir} aria-label="Hadir">
+            <span style={{ display: "grid", gap: 2, justifyItems: "center" }}>
+              <ShieldCheck size={22} />
+              <span>Check In</span>
+            </span>
           </button>
         </div>
       </div>
