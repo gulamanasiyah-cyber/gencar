@@ -170,6 +170,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: "avatar_legend",  name: "Kolektor Avatar",   desc: "Ganti avatar 5×",                        icon: "mdi:face-man-profile",     category: "profil",     rarity: "uncommon" },
   { id: "qr_download",    name: "QR Master",         desc: "Download QR identity card",              icon: "mdi:qrcode",               category: "profil",     rarity: "common" },
   { id: "domisili_match", name: "Setia Kampung",     desc: "Domisili anak = domisili ortu",          icon: "mdi:home-heart",           category: "profil",     rarity: "common" },
+  { id: "penjelajah",     name: "Penjelajah",        desc: "Merantau jauh dari kampung halaman",    icon: "mdi:sail-boat",            category: "profil",     rarity: "common" },
   { id: "alpha_0",        name: "Tanpa Lupa",        desc: "0 alpha tercatat",                       icon: "mdi:brain",                category: "profil",     rarity: "uncommon" },
   { id: "legenda_profil", name: "Legenda GENCAR",    desc: "Capai 5 achievement epik atau lebih",    icon: "mdi:trophy",               category: "profil",     rarity: "legendary" },
 ];
@@ -265,6 +266,7 @@ export function computeAchievements(input: AchievementInput): AchievementState[]
       case "avatar_legend":  return eval_(def, input.avatarChanges ?? 0, 5);
       case "qr_download":    return eval_(def, input.qrDownloaded ? 1 : 0, 1);
       case "domisili_match": return eval_(def, domisiliMatch ? 1 : 0, 1);
+      case "penjelajah":     return eval_(def, !domisiliMatch && me.kategoriMudaMudi === "perantauan" ? 1 : 0, 1);
       case "alpha_0":        return eval_(def, k.alpha === 0 && k.hadir >= 10 ? 1 : 0, 1);
       case "legenda_profil": {
         const epics = ACHIEVEMENTS.filter((a) => ["epic", "legendary", "mythic"].includes(a.rarity));

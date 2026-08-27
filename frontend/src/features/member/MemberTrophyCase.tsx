@@ -5,12 +5,47 @@ import { RARITY_META, CATEGORY_META } from "./types";
 
 type Props = { achievements: AchievementState[] };
 
-function trophySvgUrl(id: string): string {
+const PNG_MAP: Record<string, string> = {
+  pertama_kali: "kehadiran_1",
+  hadir_5: "kehadiran_5",
+  hadir_10: "kehadiran_10",
+  hadir_25: "kehadiran_25",
+  hadir_50: "kehadiran_50",
+  hadir_100: "kehadiran_100",
+  hadir_150: "kehadiran_150",
+  hadir_200: "kehadiran_200",
+  streak_5: "streak_5",
+  streak_10: "streak_10",
+  streak_20: "streak_20",
+  streak_40: "streak_40",
+  streak_75: "streak_75",
+  streak_100: "streak_100",
+  streak_reset: "streak_reset",
+  streak_salvage: "streak_salvage",
+  penjelajah: "penjelajah",
+  domisili_match: "domisili_match",
+  zero_telat: "zero_telat",
+  zero_telat_25: "zero_telat_25",
+  zero_telat_50: "zero_telat_50",
+  zero_telat_100: "zero_telat_100",
+  first_late: "first_late",
+  telat_5: "telat_5",
+  telat_10: "telat_10",
+  overcome_late: "overcome_late",
+};
+
+function trophyUrl(id: string): string {
+  const png = PNG_MAP[id];
+  if (png) return `/achievements/${png}.png`;
   return `/achievements/${id}.svg`;
 }
+function isPngAchievement(id: string): boolean {
+  return id in PNG_MAP;
+}
 
-function trophyStyle(color: string, unlocked: boolean): React.CSSProperties {
+function trophyStyle(color: string, unlocked: boolean, isPng: boolean): React.CSSProperties {
   if (!unlocked) return { filter: "grayscale(1) opacity(0.45)" };
+  if (isPng) return {};
   const c = color.replace("#", "");
   const r = parseInt(c.substring(0, 2), 16) / 255;
   const g = parseInt(c.substring(2, 4), 16) / 255;
@@ -91,14 +126,35 @@ export default function MemberTrophyCase({ achievements }: Props) {
         })}
       </div>
 
-      {/* Trophy Grid */}
+      {/* Trophy Grid — PNG = ilustrasi polos (tanpa card), SVG = card */}
       <div className="trophy-grid">
         {filtered.map((a) => {
           const rm = RARITY_META[a.rarity];
+          const isPng = isPngAchievement(a.id);
+          if (isPng) {
+            return (
+              <button key={a.id} type="button" className={`trophy-item trophy-item--illust ${a.unlocked ? "unlocked" : "locked"}`} onClick={() => setDetail(a)} style={{ background: "transparent", border: "none", boxShadow: "none", padding: "6px 4px 8px" }}>
+                <div style={{ position: "relative", display: "grid", placeItems: "center" }}>
+                  <img src={trophyUrl(a.id)} alt={a.name} width={72} height={72} loading="eager" style={{ display: "block", width: 72, height: 72, objectFit: "contain", ...trophyStyle(rm.color, a.unlocked, true) }} />
+                  {!a.unlocked && <span style={{ position: "absolute", bottom: 2, right: 2, background: "#fff", borderRadius: 999, padding: 3, lineHeight: 0, boxShadow: "0 1px 6px rgba(0,0,0,0.12)", border: "1px solid #e2e8f0" }}><Lock size={11} color="#94a3b8" /></span>}
+                </div>
+                <span className="trophy-name" style={a.unlocked ? { color: "var(--ink)" } : { color: "#94a3b8" }}>{a.name}</span>
+                <span style={{ fontSize: 9, fontWeight: 600, color: a.unlocked ? "var(--muted)" : "#cbd5e1", textAlign: "center", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{a.desc}</span>
+                {!a.unlocked && a.target > 1 && (
+                  <div className="trophy-progress-wrap" style={{ marginTop: 2 }}>
+                    <div style={{ height: 3, borderRadius: 999, background: "#e2e8f0", overflow: "hidden" }}>
+                      <div style={{ width: `${a.progress * 100}%`, height: "100%", background: rm.color, borderRadius: 999 }} />
+                    </div>
+                    <span className="trophy-progress-label">{a.current}/{a.target}</span>
+                  </div>
+                )}
+              </button>
+            );
+          }
           return (
             <button key={a.id} type="button" className={`trophy-item ${a.unlocked ? "unlocked" : "locked"}`} style={a.unlocked ? { borderColor: rm.border, background: rm.bg, boxShadow: `0 2px 10px ${rm.glow}` } : undefined} onClick={() => setDetail(a)}>
               <div className="trophy-icon-wrap" style={a.unlocked ? { borderColor: rm.border, background: "#fff" } : { borderColor: "#e2e8f0", background: "#f8fafc" }}>
-                <img src={trophySvgUrl(a.id)} alt="" width={22} height={22} loading="eager" style={{ display: "block", ...trophyStyle(rm.color, a.unlocked) }} />
+                <img src={trophyUrl(a.id)} alt="" width={22} height={22} loading="eager" style={{ display: "block", ...trophyStyle(rm.color, a.unlocked, false) }} />
                 {!a.unlocked && <Lock size={10} color="#94a3b8" style={{ position: "absolute", bottom: -1, right: -1, background: "#fff", borderRadius: 999, padding: 2 }} />}
               </div>
               <span className="trophy-name" style={a.unlocked ? { color: rm.color } : { color: "#94a3b8" }}>{a.name}</span>
@@ -120,9 +176,13 @@ export default function MemberTrophyCase({ achievements }: Props) {
         <div className="trophy-modal-overlay" onClick={() => setDetail(null)}>
           <div className="trophy-modal" onClick={(e) => e.stopPropagation()}>
             <button type="button" className="trophy-modal-close" onClick={() => setDetail(null)}><X size={18} /></button>
-            <div className="trophy-modal-icon" style={{ borderColor: RARITY_META[detail.rarity].border, background: RARITY_META[detail.rarity].bg }}>
-              <img src={trophySvgUrl(detail.id)} alt="" width={32} height={32} loading="eager" style={{ display: "block", ...trophyStyle(RARITY_META[detail.rarity].color, detail.unlocked) }} />
-            </div>
+            {isPngAchievement(detail.id) ? (
+              <img src={trophyUrl(detail.id)} alt={detail.name} width={220} height={220} loading="eager" style={{ display: "block", width: 220, height: 220, objectFit: "contain", ...trophyStyle(RARITY_META[detail.rarity].color, detail.unlocked, true) }} />
+            ) : (
+              <div className="trophy-modal-icon" style={{ borderColor: RARITY_META[detail.rarity].border, background: RARITY_META[detail.rarity].bg }}>
+                <img src={trophyUrl(detail.id)} alt="" width={32} height={32} loading="eager" style={{ display: "block", ...trophyStyle(RARITY_META[detail.rarity].color, detail.unlocked, false) }} />
+              </div>
+            )}
             <div className="trophy-modal-name" style={{ color: RARITY_META[detail.rarity].color }}>{detail.name}</div>
             <div className="trophy-modal-rarity" style={{ color: RARITY_META[detail.rarity].color, background: RARITY_META[detail.rarity].bg, border: `1px solid ${RARITY_META[detail.rarity].border}` }}>{RARITY_META[detail.rarity].label}</div>
             <div className="trophy-modal-desc">{detail.desc}</div>
