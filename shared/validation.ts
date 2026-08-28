@@ -8,6 +8,9 @@ export const pendidikanEnum = ["SD", "SMP", "SMA", "Sedang menempuh perguruan ti
 
 export const kategoriMudaMudiEnum = ["perantauan", "pribumi"] as const;
 export const kategoriAcaraEnum = ["sambung_rutin", "keakraban", "pemantapan", "lainnya"] as const;
+export const hobiEnum = ["olahraga", "traveling", "seni", "musik", "kuliner", "teknologi", "literasi", "gaming", "lainnya"] as const;
+export type HobiKey = (typeof hobiEnum)[number];
+
 export const shiftModeEnum = ["tetap", "fleksibel"] as const;
 
 export const shiftPekerjaanSchema = z.union([
@@ -37,6 +40,9 @@ export const generusAdminCreateSchema = z
     shiftPekerjaan: z.string().nullable().optional(), // JSON string P1 hidden
     statusOrtuJamaah: z.enum(["sudah", "belum"]).nullable().optional(), // P1
     foto: z.string().url().nullable().optional(),
+    hobi: z.array(z.enum(hobiEnum)).max(8).nullable().optional(),
+    hobiCustom: z.string().max(40).nullable().optional(),
+    hobiDetail: z.string().max(2000).nullable().optional(),
   })
   .superRefine((v, ctx) => {
     if (v.kategoriMudaMudi === "perantauan" && !v.asalDaerah?.trim()) {

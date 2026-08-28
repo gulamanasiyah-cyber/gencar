@@ -11,12 +11,22 @@ export type MemberIdentity = {
   domisiliOrtu: string | null;
   isOrtuSama: boolean;
   foto?: string | null;
-  /** DiceBear avatar style key when user picks from the picker (no upload). */
+  /** Static avatar id e.g. genta-astro / caya-base (replaces DiceBear) */
+  avatarId?: string | null;
+  /** Avatar gender for picker filter */
+  jenisKelamin?: "cowok" | "cewek" | null;
+  /** @deprecated DiceBear avatar style key */
   avatarStyle?: string | null;
-  /** Seed for DiceBear when avatarStyle is set. */
+  /** @deprecated Seed for DiceBear */
   avatarSeed?: string | null;
   nomorUnik?: string;
   status: "aktif" | "pending";
+  /** Hobi — JSON array stringified or comma-separated list of HobbyKey */
+  hobi?: string | null;
+  /** Custom text when hobi includes "lainnya" */
+  hobiCustom?: string | null;
+  /** Detail per-hobi — JSON stringified Record<HobbyKey, string> */
+  hobiDetail?: string | null;
 };
 
 export type MemberKehadiran = {
@@ -46,6 +56,9 @@ export const DEMO_SELF: MemberIdentity = {
   foto: null,
   nomorUnik: "JB2-2026-0042",
   status: "aktif",
+  hobi: '["olahraga","traveling"]',
+  hobiCustom: null,
+  hobiDetail: null,
 };
 
 export const DEMO_KEHADIRAN: MemberKehadiran = {
@@ -90,6 +103,79 @@ export const DEMO_KEHADIRAN: MemberKehadiran = {
   ],
 };
 
+/* ─── Hobi taxonomy ────────────────────────────────────────────────── */
+export const HOBBY_KEYS = ["olahraga", "traveling", "seni", "musik", "kuliner", "teknologi", "literasi", "gaming", "lainnya"] as const;
+export type HobbyKey = (typeof HOBBY_KEYS)[number];
+
+export const HOBBY_META: Record<HobbyKey, { label: string; color: string; bg: string; icon: string }> = {
+  olahraga:  { label: "Olahraga",           color: "#16a34a", bg: "#f0fdf4", icon: "mdi:volleyball" },
+  traveling: { label: "Traveling",          color: "#0ea5e9", bg: "#f0f9ff", icon: "mdi:airplane" },
+  seni:      { label: "Seni & Kreativitas", color: "#9333ea", bg: "#faf5ff", icon: "mdi:palette" },
+  musik:     { label: "Musik",              color: "#db2777", bg: "#fdf2f8", icon: "mdi:music" },
+  kuliner:   { label: "Kuliner",            color: "#ea580c", bg: "#fff7ed", icon: "mdi:chef-hat" },
+  teknologi: { label: "Teknologi",          color: "#2563eb", bg: "#eff6ff", icon: "mdi:laptop" },
+  literasi:  { label: "Literasi",           color: "#d97706", bg: "#fffbeb", icon: "mdi:book-open-page-variant" },
+  gaming:    { label: "Gaming",             color: "#64748b", bg: "#f8fafc", icon: "mdi:gamepad-variant" },
+  lainnya:   { label: "Lainnya",            color: "#94a3b8", bg: "#f8fafc", icon: "mdi:sparkles" },
+};
+
+export const HOBBY_DETAIL_PLACEHOLDER: Record<HobbyKey, string> = {
+  olahraga: "Contoh: Futsal, Badminton, Lari…",
+  traveling: "Contoh: Camping, Healing, Jalan-jalan…",
+  seni: "Contoh: Lukis, Desain, Fotografi…",
+  musik: "Contoh: Hadroh, Gitar, Vokal…",
+  kuliner: "Contoh: Masak, Jajan, Kopi…",
+  teknologi: "Contoh: Coding, Robotik, AI…",
+  literasi: "Contoh: Baca novel, Menulis, Diskusi buku…",
+  gaming: "Contoh: Mobile Legends, Valorant…",
+  lainnya: "Tulis hobi lainnya…",
+};
+
+export function parseHobi(hobi: string | null | undefined): Set<HobbyKey> {
+  if (!hobi) return new Set();
+  const raw = hobi.trim();
+  if (!raw) return new Set();
+  let arr: string[] = [];
+  if (raw.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) arr = parsed.map(String);
+      else arr = raw.split(/[,;|]/);
+    } catch {
+      arr = raw.split(/[,;|]/);
+    }
+  } else {
+    arr = raw.split(/[,;|]/);
+  }
+  const set = new Set<HobbyKey>();
+  for (const s of arr) {
+    const k = s.trim().toLowerCase() as HobbyKey;
+    if ((HOBBY_KEYS as readonly string[]).includes(k)) set.add(k);
+  }
+  return set;
+}
+
+export function serializeHobi(keys: HobbyKey[]): string {
+  return JSON.stringify(keys);
+}
+
+export function parseHobiDetail(raw: string | null | undefined): Record<string, string> {
+  if (!raw) return {};
+  const s = raw.trim();
+  if (!s) return {};
+  try {
+    const o = JSON.parse(s);
+    if (o && typeof o === "object" && !Array.isArray(o)) return o as Record<string, string>;
+  } catch {}
+  return {};
+}
+
+export function serializeHobiDetail(detail: Record<string, string>): string | null {
+  const entries = Object.entries(detail).filter(([, v]) => v?.trim());
+  if (entries.length === 0) return null;
+  return JSON.stringify(Object.fromEntries(entries));
+}
+
 /* ─── Achievement System ─────────────────────────────────────────────── */
 
 export type AchievementRarity = "common" | "uncommon" | "rare" | "epic" | "legendary" | "mythic";
@@ -123,7 +209,7 @@ export const RARITY_META: Record<AchievementRarity, { label: string; color: stri
 };
 
 export const ACHIEVEMENTS: AchievementDef[] = [
-  // ── Kehadiran ──
+  // ── Kehadiran (8) ──
   { id: "pertama_kali",   name: "Langkah Pertama",  desc: "Absen pertama kali",                     icon: "mdi:foot-print",            category: "kehadiran",  rarity: "common" },
   { id: "hadir_5",        name: "Rajin",            desc: "Hadir 5× total",                         icon: "mdi:account-check",         category: "kehadiran",  rarity: "common" },
   { id: "hadir_10",       name: "Penuh Semangat",   desc: "Hadir 10× total",                        icon: "mdi:account-group",         category: "kehadiran",  rarity: "common" },
@@ -133,7 +219,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: "hadir_150",      name: "Majestic",         desc: "Hadir 150× total",                       icon: "mdi:crown",                category: "kehadiran",  rarity: "legendary" },
   { id: "hadir_200",      name: "Abadi",            desc: "Hadir 200× total",                       icon: "mdi:infinity",             category: "kehadiran",  rarity: "legendary" },
 
-  // ── Streak ──
+  // ── Streak (8) ──
   { id: "streak_5",       name: "Menyala",          desc: "Streak beruntun 5×",                     icon: "mdi:fire",                 category: "streak",     rarity: "common" },
   { id: "streak_10",      name: "Konsisten",        desc: "Streak beruntun 10×",                    icon: "mdi:fire",                 category: "streak",     rarity: "uncommon" },
   { id: "streak_20",      name: "On Fire",          desc: "Streak beruntun 20×",                    icon: "mdi:fire",                 category: "streak",     rarity: "rare" },
@@ -143,7 +229,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: "streak_reset",   name: "Bangkit dari Abu", desc: "Streak reset lalu capai 5× lagi",        icon: "mdi:phoenix",              category: "streak",     rarity: "uncommon" },
   { id: "streak_salvage", name: "Penyelamat",       desc: "Streak 4× lalu hadir tepat waktu",        icon: "mdi:lifebuoy",             category: "streak",     rarity: "rare" },
 
-  // ── Ketepatan Waktu ──
+  // ── Ketepatan Waktu (8) ──
   { id: "zero_telat",     name: "Tepat Waktu",      desc: "0 keterlambatan tercatat",               icon: "mdi:clock-check",          category: "ketepatan",  rarity: "common" },
   { id: "zero_telat_25",  name: "Presisi",          desc: "25× hadir tanpa telat",                  icon: "mdi:clock-check",          category: "ketepatan",  rarity: "uncommon" },
   { id: "zero_telat_50",  name: "Jam",              desc: "50× hadir tanpa telat",                  icon: "mdi:clock-check",          category: "ketepatan",  rarity: "rare" },
@@ -153,26 +239,38 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: "telat_10",       name: "Chronic",          desc: "10× keterlambatan",                      icon: "mdi:clock-alert",          category: "ketepatan",  rarity: "rare" },
   { id: "overcome_late",  name: "Maafkan Diri",     desc: "Setelah ≥3 telat, hadir 10× tanpa telat",icon: "mdi:heart-pulse",          category: "ketepatan",  rarity: "epic" },
 
-  // ── Kegiatan ──
-  { id: "kategori_3",     name: "Serba Bisa",       desc: "Hadir di 3 kategori kegiatan berbeda",   icon: "mdi:shape",                category: "kegiatan",   rarity: "common" },
-  { id: "kategori_5",     name: "Multitalenta",     desc: "Hadir di 5 kategori kegiatan berbeda",   icon: "mdi:shape-plus",           category: "kegiatan",   rarity: "uncommon" },
-  { id: "kategori_all",   name: "Master Kegiatan",  desc: "Hadir di semua kategori yang tersedia",   icon: "mdi:star-shooting",        category: "kegiatan",   rarity: "epic" },
+  // ── Kegiatan (12) ──
+  { id: "double_duty",    name: "Double Duty",      desc: "Hadir 2× di hari yang sama",             icon: "mdi:calendar-check",       category: "kegiatan",   rarity: "common" },
+  { id: "siang_malam",    name: "Siang-Malam",      desc: "Absen siang + malam di hari yang sama",  icon: "mdi:weather-sunset",       category: "kegiatan",   rarity: "uncommon" },
+  { id: "jelajah_lokasi", name: "Jelajah Lokasi",   desc: "Hadir di 5 lokasi berbeda",              icon: "mdi:map-marker-distance",  category: "kegiatan",   rarity: "epic" },
+  { id: "tingkat_kelompok", name: "Kelompok",       desc: "Hadir di kegiatan tingkat kelompok",      icon: "mdi:home-group",           category: "kegiatan",   rarity: "common" },
+  { id: "tingkat_desa",   name: "Desa",             desc: "Hadir di kegiatan tingkat desa",          icon: "mdi:home-city",            category: "kegiatan",   rarity: "common" },
   { id: "tingkat_daerah", name: "Daerah",           desc: "Hadir di kegiatan tingkat daerah",        icon: "mdi:map-marker-radius",    category: "kegiatan",   rarity: "common" },
   { id: "izin_pertama",   name: "Izin Resmi",       desc: "Pertama kali mengajukan izin",           icon: "mdi:clipboard-check",      category: "kegiatan",   rarity: "common" },
   { id: "pagi_early",     name: "Pagi Hari",        desc: "Absen sebelum jam 07:00",                icon: "mdi:weather-sunset-up",    category: "kegiatan",   rarity: "common" },
   { id: "absen_weekend",  name: "Akhir Pekan",      desc: "Hadir di kegiatan weekend",              icon: "mdi:calendar-weekend",     category: "kegiatan",   rarity: "uncommon" },
   { id: "consec_3",       name: "3 Hari Berturut",  desc: "Hadir 3 hari berturut-turut",            icon: "mdi:calendar-check",       category: "kegiatan",   rarity: "common" },
   { id: "consec_7",       name: "Seminggu Penuh",   desc: "Hadir 7 hari berturut-turut",            icon: "mdi:calendar-week",        category: "kegiatan",   rarity: "uncommon" },
+  { id: "legenda_waktu",  name: "Legenda Waktu",    desc: "Lengkapi 4 slot: Pagi/Siang/Sore/Malam", icon: "mdi:clock-time-four",      category: "kegiatan",   rarity: "legendary" },
 
-  // ── Profil ──
-  { id: "profile_lengkap", name: "Profil Sempurna",  desc: "Semua field profil terisi",              icon: "mdi:account-details",      category: "profil",     rarity: "common" },
+  // ── Profil (8 + 8 hobby specific Duo) ──
+  { id: "hobi_isi",       name: "Punya Hobi",       desc: "Isi minimal 1 hobi di profil",           icon: "mdi:heart",                category: "profil",     rarity: "common" },
   { id: "avatar_custom",  name: "Tampil Beda",       desc: "Ganti avatar dari default",              icon: "mdi:face-man",             category: "profil",     rarity: "common" },
   { id: "avatar_legend",  name: "Kolektor Avatar",   desc: "Ganti avatar 5×",                        icon: "mdi:face-man-profile",     category: "profil",     rarity: "uncommon" },
   { id: "qr_download",    name: "QR Master",         desc: "Download QR identity card",              icon: "mdi:qrcode",               category: "profil",     rarity: "common" },
   { id: "domisili_match", name: "Setia Kampung",     desc: "Domisili anak = domisili ortu",          icon: "mdi:home-heart",           category: "profil",     rarity: "common" },
   { id: "penjelajah",     name: "Penjelajah",        desc: "Merantau jauh dari kampung halaman",    icon: "mdi:sail-boat",            category: "profil",     rarity: "common" },
-  { id: "alpha_0",        name: "Tanpa Lupa",        desc: "0 alpha tercatat",                       icon: "mdi:brain",                category: "profil",     rarity: "uncommon" },
-  { id: "legenda_profil", name: "Legenda GENCAR",    desc: "Capai 5 achievement epik atau lebih",    icon: "mdi:trophy",               category: "profil",     rarity: "legendary" },
+  { id: "hobi_kolektor",  name: "Kolektor Hobi",     desc: "Koleksi 3 tipe hobi berbeda",            icon: "mdi:palette",              category: "profil",     rarity: "uncommon" },
+  { id: "tampil_kece",    name: "Tampil Kece",       desc: "Upload foto profil custom",              icon: "mdi:camera",               category: "profil",     rarity: "common" },
+  // ── Hobi Specific — semua Duo ──
+  { id: "hobi_olahraga",  name: "Atlet GENCAR",     desc: "Hobi Olahraga",                          icon: "mdi:volleyball",           category: "profil",     rarity: "common" },
+  { id: "hobi_traveling", name: "Petualang",        desc: "Hobi Traveling",                         icon: "mdi:airplane",             category: "profil",     rarity: "common" },
+  { id: "hobi_seni",      name: "Seniman",          desc: "Hobi Seni & Kreativitas",                icon: "mdi:palette",              category: "profil",     rarity: "common" },
+  { id: "hobi_musik",     name: "Musisi",           desc: "Hobi Musik",                             icon: "mdi:music",                category: "profil",     rarity: "common" },
+  { id: "hobi_kuliner",   name: "Foodie",           desc: "Hobi Kuliner",                           icon: "mdi:chef-hat",             category: "profil",     rarity: "common" },
+  { id: "hobi_teknologi", name: "Tekno",            desc: "Hobi Teknologi",                         icon: "mdi:laptop",               category: "profil",     rarity: "common" },
+  { id: "hobi_literasi",  name: "Kutu Buku",        desc: "Hobi Literasi",                          icon: "mdi:book-open-page-variant", category: "profil",   rarity: "common" },
+  { id: "hobi_gaming",    name: "Gamer",            desc: "Hobi Gaming",                            icon: "mdi:gamepad-variant",      category: "profil",     rarity: "common" },
 ];
 
 export const CATEGORY_META: Record<AchievementCategory, { label: string; icon: string; color: string }> = {
@@ -204,10 +302,11 @@ export function computeAchievements(input: AchievementInput): AchievementState[]
   const { kehadiran: k, identity: me, kegiatan: kg = [] } = input;
   const streak = computeStreak(k);
   const zeroLateCount = Math.max(0, k.hadir - (k.telat ?? 0));
-  const kategoriSet = new Set(kg.filter((g) => g.statusAbsen === "hadir" && g.kategori).map((g) => g.kategori));
+  const hasKelompok = kg.some((g) => g.statusAbsen === "hadir" && g.tingkat === "kelompok");
+  const hasDesa = kg.some((g) => g.statusAbsen === "hadir" && g.tingkat === "desa");
   const hasDaerah = kg.some((g) => g.statusAbsen === "hadir" && g.tingkat === "daerah");
-  const profileComplete = Boolean(me.nama && me.desa && me.kelompok && me.pendidikan && me.noTelp && me.domisiliAnak && me.kategoriMudaMudi);
   const domisiliMatch = me.isOrtuSama || (Boolean(me.domisiliOrtu) && me.domisiliOrtu === me.domisiliAnak);
+  const hobiSet = parseHobi(me.hobi);
 
   const eval_ = (def: AchievementDef, current: number, target: number): AchievementState => ({
     ...def,
@@ -216,6 +315,39 @@ export function computeAchievements(input: AchievementInput): AchievementState[]
     current,
     target,
   });
+
+  // Precompute kegiatan time-based achievements
+  const hadirKg = kg.filter((g) => g.statusAbsen === "hadir");
+  // double_duty: 2 hadir same tanggal
+  const tanggalCount = new Map<string, number>();
+  for (const g of hadirKg) tanggalCount.set(g.tanggal, (tanggalCount.get(g.tanggal) ?? 0) + 1);
+  void [...tanggalCount.values()].some((c) => c >= 2);
+  const maxDoubleDuty = Math.max(0, ...[...tanggalCount.values()], 0);
+
+  // siang_malam: same tanggal has siang (10-14:59) and malam (18-03:59)
+  const tanggalSlots = new Map<string, Set<string>>();
+  for (const g of hadirKg) {
+    if (!g.jam) continue;
+    const slot = getTimeSlot(g.jam);
+    if (!slot) continue;
+    // categorize as siang vs malam for this achievement
+    const cat = slot === "siang" ? "siang" : slot === "malam" ? "malam" : null;
+    if (!cat) continue;
+    if (!tanggalSlots.has(g.tanggal)) tanggalSlots.set(g.tanggal, new Set());
+    tanggalSlots.get(g.tanggal)!.add(cat);
+  }
+  const hasSiangMalam = [...tanggalSlots.values()].some((s) => s.has("siang") && s.has("malam"));
+
+  // jelajah_lokasi: distinct lokasi
+  const lokasiSet = new Set(hadirKg.filter((g) => g.lokasi?.trim()).map((g) => g.lokasi!.toLowerCase().trim()));
+
+  // legenda_waktu: 4 slots
+  const allSlots = new Set<string>();
+  for (const g of hadirKg) {
+    if (!g.jam) continue;
+    const slot = getTimeSlot(g.jam);
+    if (slot) allSlots.add(slot);
+  }
 
   return ACHIEVEMENTS.map((def) => {
     switch (def.id) {
@@ -250,44 +382,37 @@ export function computeAchievements(input: AchievementInput): AchievementState[]
       case "overcome_late":  return eval_(def, (k.telat ?? 0) >= 3 && zeroLateCount >= 10 ? 1 : 0, 1);
 
       // Kegiatan
-      case "kategori_3":     return eval_(def, kategoriSet.size, 3);
-      case "kategori_5":     return eval_(def, kategoriSet.size, 5);
-      case "kategori_all":   return eval_(def, kategoriSet.size, 8);
+      case "double_duty":    return eval_(def, maxDoubleDuty, 2);
+      case "siang_malam":    return eval_(def, hasSiangMalam ? 1 : 0, 1);
+      case "jelajah_lokasi": return eval_(def, lokasiSet.size, 5);
+      case "tingkat_kelompok": return eval_(def, hasKelompok ? 1 : 0, 1);
+      case "tingkat_desa":   return eval_(def, hasDesa ? 1 : 0, 1);
       case "tingkat_daerah": return eval_(def, hasDaerah ? 1 : 0, 1);
       case "izin_pertama":   return eval_(def, k.izin, 1);
       case "pagi_early":     return eval_(def, kg.filter((g) => g.statusAbsen === "hadir" && g.jam && g.jam < "07:00").length, 1);
       case "absen_weekend":  return eval_(def, kg.filter((g) => g.statusAbsen === "hadir" && isWeekend(g.tanggal)).length, 1);
       case "consec_3":       return eval_(def, computeConsecDays(k), 3);
       case "consec_7":       return eval_(def, computeConsecDays(k), 7);
+      case "legenda_waktu":  return eval_(def, allSlots.size, 4);
 
       // Profil
-      case "profile_lengkap": return eval_(def, profileComplete ? 1 : 0, 1);
+      case "hobi_isi":       return eval_(def, hobiSet.size, 1);
       case "avatar_custom":  return eval_(def, (me.avatarStyle && me.avatarStyle !== "initials") ? 1 : 0, 1);
       case "avatar_legend":  return eval_(def, input.avatarChanges ?? 0, 5);
       case "qr_download":    return eval_(def, input.qrDownloaded ? 1 : 0, 1);
       case "domisili_match": return eval_(def, domisiliMatch ? 1 : 0, 1);
       case "penjelajah":     return eval_(def, !domisiliMatch && me.kategoriMudaMudi === "perantauan" ? 1 : 0, 1);
-      case "alpha_0":        return eval_(def, k.alpha === 0 && k.hadir >= 10 ? 1 : 0, 1);
-      case "legenda_profil": {
-        const epics = ACHIEVEMENTS.filter((a) => ["epic", "legendary", "mythic"].includes(a.rarity));
-        const unlockedEpics = epics.filter((ep) => {
-          switch (ep.id) {
-            case "hadir_100":      return k.hadir >= 100;
-            case "hadir_150":      return k.hadir >= 150;
-            case "hadir_200":      return k.hadir >= 200;
-            case "streak_20":      return streak >= 20;
-            case "streak_40":      return streak >= 40;
-            case "streak_75":      return streak >= 75;
-            case "streak_100":     return streak >= 100;
-            case "zero_telat_100": return zeroLateCount >= 100;
-            case "overcome_late":  return (k.telat ?? 0) >= 3 && zeroLateCount >= 10;
-            case "kategori_all":   return kategoriSet.size >= 8;
-            case "legenda_profil": return false;
-            default: return false;
-          }
-        });
-        return eval_(def, unlockedEpics.length, 5);
-      }
+      case "hobi_kolektor":  return eval_(def, hobiSet.size, 3);
+      case "tampil_kece":    return eval_(def, me.foto && String(me.foto).trim() !== "" ? 1 : 0, 1);
+      // Hobi specific — Duo (per tipe)
+      case "hobi_olahraga":  return eval_(def, hobiSet.has("olahraga") ? 1 : 0, 1);
+      case "hobi_traveling": return eval_(def, hobiSet.has("traveling") ? 1 : 0, 1);
+      case "hobi_seni":      return eval_(def, hobiSet.has("seni") ? 1 : 0, 1);
+      case "hobi_musik":     return eval_(def, hobiSet.has("musik") ? 1 : 0, 1);
+      case "hobi_kuliner":   return eval_(def, hobiSet.has("kuliner") ? 1 : 0, 1);
+      case "hobi_teknologi": return eval_(def, hobiSet.has("teknologi") ? 1 : 0, 1);
+      case "hobi_literasi":  return eval_(def, hobiSet.has("literasi") ? 1 : 0, 1);
+      case "hobi_gaming":    return eval_(def, hobiSet.has("gaming") ? 1 : 0, 1);
       default: return eval_(def, 0, 1);
     }
   });
@@ -317,6 +442,16 @@ function computeConsecDays(k: MemberKehadiran): number {
 function isWeekend(dateStr: string): boolean {
   const d = new Date(dateStr);
   return d.getDay() === 0 || d.getDay() === 6;
+}
+
+function getTimeSlot(jam: string): "pagi" | "siang" | "sore" | "malam" | null {
+  if (!jam || !jam.includes(":")) return null;
+  const h = parseInt(jam.split(":")[0]!, 10);
+  if (isNaN(h)) return null;
+  if (h >= 4 && h < 10) return "pagi";
+  if (h >= 10 && h < 15) return "siang";
+  if (h >= 15 && h < 18) return "sore";
+  return "malam"; // 18-03:59
 }
 
 export type MemberKegiatan = {
