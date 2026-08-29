@@ -2181,19 +2181,27 @@ table.admin-table tr:hover td {
   scroll-padding-bottom: 100px; 
 }
 .member-qr-card { margin-bottom: 24px; }
-.member-profile-hero { display: grid; gap: 0; padding: 0 !important; border-radius: 20px; overflow: hidden; }
-.member-profile-hero-top { display: flex; gap: 16px; align-items: center; padding: 18px 20px 16px; background: linear-gradient(135deg, #fff7ed 0%, #ffffff 55%, #fff7ed 100%); }
-.member-profile-avatarWrap { width: 64px; height: 64px; border-radius: 999px; padding: 2px; background: #fff; box-shadow: 0 4px 20px rgba(27,15,10,0.10); flex-shrink: 0; display: grid; place-items: center; overflow: hidden; }
+.member-profile-hero { display: grid; gap: 0; padding: 0 !important; border-radius: 16px; overflow: hidden; }
+.member-profile-hero-top { display: flex; gap: 14px; align-items: center; padding: 16px; background: #fff; }
+.member-profile-avatarWrap { position: relative; width: 64px; height: 64px; border-radius: 999px; padding: 2px; background: #fff; box-shadow: 0 4px 20px rgba(27,15,10,0.10); flex-shrink: 0; display: grid; place-items: center; overflow: visible; cursor: pointer; transition: transform 0.16s cubic-bezier(0.16,1,0.3,1); }
+.member-profile-avatarWrap:hover { transform: scale(1.02); }
+.member-profile-avatarWrap:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.member-profile-avatarEdit { position: absolute; right: -1px; bottom: -1px; width: 22px; height: 22px; border-radius: 999px; background: var(--primary); border: 2px solid #fff; display: grid; place-items: center; color: #fff; box-shadow: 0 2px 8px rgba(208,56,4,0.22); }
 .member-profile-hero-main { min-width: 0; flex: 1; display: grid; gap: 4px; }
-.member-profile-name { font-family: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 18px; line-height: 1.15; letter-spacing: -0.035em; color: var(--ink); overflow-wrap: break-word; word-break: break-word; }
-.member-profile-metaLine { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.member-profile-nomor { font-size: 11px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); overflow-wrap: anywhere; }
+.member-profile-name { font-family: var(--font-sans); font-weight: 800; font-size: 17px; line-height: 1.15; letter-spacing: -0.02em; color: var(--ink); overflow-wrap: break-word; word-break: break-word; }
+.member-profile-byline { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-top: 2px; }
+.member-profile-nomor { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); overflow-wrap: anywhere; }
 .member-profile-status { font-size: 10px; padding: 3px 8px; flex-shrink: 0; font-weight: 800; }
-.member-profile-editBtn { flex-shrink: 0; border-radius: 999px; padding: 7px 14px; border: 1px solid var(--line); background: #fff; box-shadow: 0 1px 6px rgba(27,15,10,0.06); align-self: center; }
-.member-profile-divider { height: 1px; background: var(--line); opacity: 0.7; }
-.member-profile-pills { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 18px 14px; background: #fff; }
-.member-profile-pills .pill { gap: 6px; font-size: 12px; padding: 5px 10px; background: #fff7ed; border-color: #f0dfc8; }
+.member-profile-dot { width: 3px; height: 3px; border-radius: 999px; background: var(--line); flex-shrink: 0; }
+.member-profile-genderLabel { text-transform: capitalize; font-weight: 700; }
+.member-profile-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.member-profile-pills .pill { gap: 5px; font-size: 11px; padding: 4px 8px; background: #fff7ed; border-color: #f0dfc8; }
 .member-profile-cap { text-transform: capitalize; }
+.member-profile-genderBar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 16px; background: var(--bg); border-top: 1px dashed var(--line); }
+.member-profile-genderBarLabel { font-size: 11px; font-weight: 800; color: var(--text-secondary); letter-spacing: 0.04em; text-transform: uppercase; }
+.member-profile-genderPick { padding: 7px 12px; border-radius: 999px; border: 1.5px solid var(--line); background: #fff; font-size: 12px; font-weight: 800; color: var(--text); cursor: pointer; transition: border-color 0.16s, background 0.16s, color 0.16s; }
+.member-profile-genderPick:hover { border-color: var(--primary); background: #fff1e6; }
+.member-profile-genderPick--cewek:hover { border-color: #db2777; background: #fdf2f8; }
 .member-bottom {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
   display: none; grid-template-columns: repeat(3, 1fr); gap: 6px;
@@ -2214,13 +2222,13 @@ table.admin-table tr:hover td {
   .member-topbar-right .btn { display: none; }
   .member-main { padding: 16px 16px 160px; }
   .member-profile-hero { border-radius: 16px; }
-  .member-profile-hero-top { padding: 14px; gap: 12px; align-items: flex-start; display: grid; grid-template-columns: 56px 1fr; }
-  .member-profile-hero-top .member-profile-avatarWrap { width: 56px; height: 56px; grid-row: 1 / 3; align-self: start; }
+  .member-profile-hero-top { padding: 14px; gap: 12px; align-items: center; }
+  .member-profile-hero-top .member-profile-avatarWrap { width: 56px; height: 56px; }
   .member-profile-hero-main { min-width: 0; }
-  .member-profile-hero-top .member-profile-editBtn { grid-column: 1 / -1; justify-self: start; margin-top: 2px; }
   .member-profile-name { font-size: 16px; }
-  .member-profile-pills { padding: 10px 14px 12px; gap: 6px; }
+  .member-profile-pills { gap: 6px; }
   .member-profile-nomor { font-size: 10px; overflow-wrap: anywhere; word-break: break-all; }
+  .member-profile-genderBar { padding: 10px 14px; }
 }
 
 /* Member canopy — ink, like tentang-ink but compact */

@@ -1,5 +1,5 @@
 import { useRef, useMemo, useState } from "react";
-import { MapPin, Phone, GraduationCap, Home, Download, Heart, X, Check } from "lucide-react";
+import { MapPin, Phone, GraduationCap, Home, Download, Heart, X, Check, Pencil } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { toPng } from "html-to-image";
 import type { MemberIdentity, MemberKehadiran, MemberKegiatan } from "./types";
@@ -43,32 +43,52 @@ export default function MemberProfilePage({ me, stat, kegiatan, onUpdate }: Prop
     <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 16, width: "100%", minWidth: 0 }}>
       <div className="card member-profile-hero">
         <div className="member-profile-hero-top">
-          <button type="button" className="member-profile-avatarWrap" onClick={() => setAvatarOpen(true)} style={{ border: "none", cursor: "pointer", padding: 2 }} aria-label="Ganti avatar">
-            <MemberAvatar me={me} size={60} />
+          <button
+            type="button"
+            className="member-profile-avatarWrap"
+            onClick={() => setAvatarOpen(true)}
+            aria-label={`Ganti avatar — ${me.nama}`}
+            style={{ border: "none", cursor: "pointer", padding: 2 }}
+          >
+            <MemberAvatar me={me} size={64} />
+            <span className="member-profile-avatarEdit" aria-hidden>
+              <Pencil size={11} />
+            </span>
           </button>
           <div className="member-profile-hero-main">
             <div className="member-profile-name">{me.nama}</div>
-            <div className="member-profile-metaLine">
+            <div className="member-profile-byline">
               <span className="member-profile-nomor">{me.nomorUnik}</span>
+              <span className="member-profile-dot" aria-hidden />
               <span className={`pill ${me.status === "aktif" ? "pill-emerald" : "pill-amber"} member-profile-status`}>{me.status}</span>
+              <span className="member-profile-dot" aria-hidden />
+              <span className="member-profile-genderLabel">{me.jenisKelamin ?? "—"}</span>
+              <span className="member-profile-dot" aria-hidden />
+              <span className="member-profile-cap">{me.kategoriMudaMudi}</span>
             </div>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAvatarOpen(true)} style={{ fontSize: 11, fontWeight: 800, marginTop: 6, padding: "6px 10px" }}>
-              Ganti Avatar
-            </button>
+            <div className="member-profile-pills">
+              <span className="pill pill-slate"><Home size={10} /> {me.kelompok}</span>
+              <span className="pill pill-slate"><MapPin size={10} /> Desa {me.desa}</span>
+            </div>
           </div>
         </div>
-        <div className="member-profile-divider" aria-hidden />
-        <div className="member-profile-pills">
-          <span className="pill pill-slate"><Home size={12} /> {me.kelompok}</span>
-          <span className="pill pill-slate"><MapPin size={12} /> Desa {me.desa}</span>
-          <span className="pill pill-slate member-profile-cap">{me.kategoriMudaMudi}</span>
-          {me.jenisKelamin && <span className="pill pill-slate" style={{ textTransform: "capitalize" }}>{me.jenisKelamin}</span>}
-        </div>
         {!me.jenisKelamin && (
-          <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted)", alignSelf: "center" }}>Jenis kelamin:</span>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => (onUpdate as any)?.({ ...me, jenisKelamin: "cowok", avatarId: me.avatarId ?? defaultAvatarFor("cowok") })} style={{ fontSize: 11, fontWeight: 800 }}>Cowok — Genta</button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => (onUpdate as any)?.({ ...me, jenisKelamin: "cewek", avatarId: me.avatarId ?? defaultAvatarFor("cewek") })} style={{ fontSize: 11, fontWeight: 800 }}>Cewek — Cahya</button>
+          <div className="member-profile-genderBar">
+            <span className="member-profile-genderBarLabel">Lengkapi profil</span>
+            <button
+              type="button"
+              className="member-profile-genderPick"
+              onClick={() => (onUpdate as any)?.({ ...me, jenisKelamin: "cowok", avatarId: me.avatarId ?? defaultAvatarFor("cowok") })}
+            >
+              Cowok — Genta
+            </button>
+            <button
+              type="button"
+              className="member-profile-genderPick member-profile-genderPick--cewek"
+              onClick={() => (onUpdate as any)?.({ ...me, jenisKelamin: "cewek", avatarId: me.avatarId ?? defaultAvatarFor("cewek") })}
+            >
+              Cewek — Cahya
+            </button>
           </div>
         )}
       </div>
