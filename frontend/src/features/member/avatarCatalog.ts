@@ -14,8 +14,7 @@ export type AvatarDef = {
   desc: string;
 };
 
-// 27 PNG in frontend/public/avatars (C:\Users\user\Downloads\gencar_avatar)
-// 13 caya + 14 genta (genta-robot extra). Pair unlock condition identical per theme.
+// 52 PNG in frontend/public/avatars (C:\Users\user\Downloads\gencar_avatar — 26 caya + 26 genta)
 export const AVATARS: AvatarDef[] = [
   // ── DEFAULT (free) ──
   { id: "genta-base", label: "Genta Base", gender: "cowok", file: "genta-base.png", need: null, needLabel: "Gratis", desc: "Peci hitam koko cream" },
@@ -60,8 +59,56 @@ export const AVATARS: AvatarDef[] = [
   { id: "genta-astro", label: "Astronot", gender: "cowok", file: "genta-astro.png", need: "streak_20", needLabel: "On Fire 20×", desc: "Helm astronaut kaca" },
   { id: "caya-astro", label: "Astronot", gender: "cewek", file: "caya-astro.png", need: "streak_20", needLabel: "On Fire 20×", desc: "Hijab astronaut" },
 
-  // ── Epic — extra (only genta has file now) ──
+  // ── Epic / Legendary — batch 2 ──
   { id: "genta-robot", label: "Robot", gender: "cowok", file: "genta-robot.png", need: "streak_40", needLabel: "Legenda 40×", desc: "Robot silver visor" },
+  { id: "caya-robot", label: "Robot", gender: "cewek", file: "caya-robot.png", need: "streak_40", needLabel: "Legenda 40×", desc: "Robot pink visor" },
+
+  // ── Firaun / Cleopatra ──
+  { id: "genta-firaun", label: "Firaun", gender: "cowok", file: "genta-firaun.png", need: "streak_75", needLabel: "Tak Terbendung 75×", desc: "Nemes emas + jenggot palsu" },
+  { id: "caya-cleopatra", label: "Cleopatra", gender: "cewek", file: "caya-cleopatra.png", need: "streak_75", needLabel: "Tak Terbendung 75×", desc: "Mahkota cleopatra + eyeliner" },
+
+  // ── Raja / Ratu ──
+  { id: "genta-raja", label: "Raja", gender: "cowok", file: "genta-raja.png", need: "streak_100", needLabel: "Dewa Streak 100×", desc: "Jubah emas + mahkota + scepter" },
+  { id: "caya-ratu", label: "Ratu", gender: "cewek", file: "caya-ratu.png", need: "streak_100", needLabel: "Dewa Streak 100×", desc: "Ratu mahkota + jubah" },
+
+  // ── Haji ──
+  { id: "genta-haji", label: "Haji", gender: "cowok", file: "genta-haji.png", need: "hadir_150", needLabel: "Majestic 150×", desc: "Ihram + peci haji" },
+  { id: "caya-haji", label: "Haji", gender: "cewek", file: "caya-haji.png", need: "hadir_150", needLabel: "Majestic 150×", desc: "Mukena haji putih" },
+
+  // ── Pramuka ──
+  { id: "genta-pramuka", label: "Pramuka", gender: "cowok", file: "genta-pramuka.png", need: "tingkat_kelompok", needLabel: "Kelompok", desc: "Seragam pramuka + hasduk" },
+  { id: "caya-pramuka", label: "Pramuka", gender: "cewek", file: "caya-pramuka.png", need: "tingkat_kelompok", needLabel: "Kelompok", desc: "Hijab pramuka + hasduk" },
+
+  // ── Dokter ──
+  { id: "genta-dokter", label: "Dokter", gender: "cowok", file: "genta-dokter.png", need: "overcome_late", needLabel: "Maafkan Diri", desc: "Jas dokter + stetoskop" },
+  { id: "caya-dokter", label: "Dokter", gender: "cewek", file: "caya-dokter.png", need: "overcome_late", needLabel: "Maafkan Diri", desc: "Hijab dokter + stetoskop" },
+
+  // ── Gamer ──
+  { id: "genta-gamer", label: "Gamer", gender: "cowok", file: "genta-gamer.png", need: "hobi_gaming", needLabel: "Hobi Gaming", desc: "Headset gamer + controller" },
+  { id: "caya-gamer", label: "Gamer", gender: "cewek", file: "caya-gamer.png", need: "hobi_gaming", needLabel: "Hobi Gaming", desc: "Headset gamer hijab" },
+
+  // ── Pahlawan ──
+  { id: "genta-pahlawan", label: "Pahlawan", gender: "cowok", file: "genta-pahlawan.png", need: "tingkat_daerah", needLabel: "Daerah", desc: "Pejuang 45 + bambu runcing" },
+  { id: "caya-pahlawan", label: "Pahlawan", gender: "cewek", file: "caya-pahlawan.png", need: "tingkat_daerah", needLabel: "Daerah", desc: "Kebaya merah + selendang" },
+
+  // ── Pengembala ──
+  { id: "genta-pengembala", label: "Pengembala", gender: "cowok", file: "genta-pengembala.png", need: "penjelajah", needLabel: "Penjelajah", desc: "Jubah gembala + tongkat + domba" },
+  { id: "caya-pengembala", label: "Pengembala", gender: "cewek", file: "caya-pengembala.png", need: "penjelajah", needLabel: "Penjelajah", desc: "Hijab gembala + domba" },
+
+  // ── Wayang: Gatotkaca / Srikandi ──
+  { id: "genta-gatotkaca", label: "Gatotkaca", gender: "cowok", file: "genta-gatotkaca.png", need: "legenda_waktu", needLabel: "Legenda Waktu", desc: "Vest Gatotkaca + sayap" },
+  { id: "caya-srikandi", label: "Srikandi", gender: "cewek", file: "caya-srikandi.png", need: "legenda_waktu", needLabel: "Legenda Waktu", desc: "Kebaya Srikandi + busur" },
+
+  // ── Pilot ──
+  { id: "genta-pilot", label: "Pilot", gender: "cowok", file: "genta-pilot.png", need: "zero_telat_100", needLabel: "Sempurna 100×", desc: "Seragam pilot + wing pin" },
+  { id: "caya-pilot", label: "Pilot", gender: "cewek", file: "caya-pilot.png", need: "zero_telat_100", needLabel: "Sempurna 100×", desc: "Hijab pilot + wing pin" },
+
+  // ── Teknisi / Traveler (hobi) ──
+  { id: "genta-teknisi", label: "Teknisi", gender: "cowok", file: "genta-teknisi.png", need: "hobi_teknologi", needLabel: "Hobi Teknologi", desc: "Hoodie teknisi + laptop" },
+  { id: "caya-teknisi", label: "Teknisi", gender: "cewek", file: "caya-teknisi.png", need: "hobi_teknologi", needLabel: "Hobi Teknologi", desc: "Hoodie teknisi + laptop" },
+
+  { id: "genta-traveler", label: "Traveler", gender: "cowok", file: "genta-traveler.png", need: "hobi_traveling", needLabel: "Hobi Traveling", desc: "Ransel + kamera" },
+  { id: "caya-traveler", label: "Traveler", gender: "cewek", file: "caya-traveler.png", need: "hobi_traveling", needLabel: "Hobi Traveling", desc: "Ransel + kamera hijab" },
 ];
 
 export function isAvatarUnlocked(
@@ -118,6 +165,9 @@ export function hobiForAvatar(avatarId: string): string | null {
     "genta-reading": "literasi", "caya-reading": "literasi",
     "genta-chef": "kuliner", "caya-chef": "kuliner",
     "genta-magician": "seni", "caya-magician": "seni",
+    "genta-gamer": "gaming", "caya-gamer": "gaming",
+    "genta-traveler": "traveling", "caya-traveler": "traveling",
+    "genta-teknisi": "teknologi", "caya-teknisi": "teknologi",
   };
   return map[avatarId] ?? null;
 }
