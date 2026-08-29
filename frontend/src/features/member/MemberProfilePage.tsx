@@ -276,6 +276,7 @@ function HobiEditor({ initial, initialCustom, initialDetail, onClose, onSave }: 
           {HOBBY_KEYS.map((k) => {
             const m = HOBBY_META[k];
             const active = sel.has(k);
+            const Icon = ({ olahraga: Volleyball, traveling: Plane, seni: Palette, musik: Music, kuliner: ChefHat, teknologi: Laptop, literasi: BookOpen, gaming: Gamepad2, lainnya: Sparkles } as Record<string, typeof Volleyball>)[k] ?? Sparkles;
             return (
               <button
                 key={k}
@@ -291,8 +292,8 @@ function HobiEditor({ initial, initialCustom, initialDetail, onClose, onSave }: 
                   position: "relative",
                 }}
               >
-                <span style={{ width: 28, height: 28, borderRadius: 9, background: active ? m.color : "#f1f5f9", display: "grid", placeItems: "center", flexShrink: 0, color: active ? "#fff" : "var(--muted)", fontSize: 13 }}>
-                  {active ? <Check size={14} /> : "•"}
+                <span style={{ width: 28, height: 28, borderRadius: 9, background: active ? m.color : `${m.color}14`, display: "grid", placeItems: "center", flexShrink: 0, color: active ? "#fff" : m.color }}>
+                  {active ? <Check size={14} /> : <Icon size={14} />}
                 </span>
                 <span style={{ flex: 1 }}>{m.label}</span>
               </button>
