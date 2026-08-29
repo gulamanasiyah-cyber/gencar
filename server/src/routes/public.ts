@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, and, sql, like, or } from "drizzle-orm";
+import { eq, and, sql, like, or, desc } from "drizzle-orm";
 import { absensi, kegiatan, generus, desa, kelompok, saranMasukan, mandiri, mandiriDesa, mandiriDaerah, mandiriKelompok, mandiriKegiatan, timGambuh, settings } from "../../../shared/schema";
 import { getDb } from "../utils/db";
 import { optionalAuth } from "../middleware/auth";
@@ -33,6 +33,69 @@ r.get("/saran", async (c) => {
   const db = getDb(c.env);
   const data = await db.select().from(saranMasukan).limit(50);
   return c.json(data);
+});
+
+r.get("/kegiatan-publik", async (c) => {
+  const db = getDb(c.env);
+  const { kegiatanPublik } = await import("../../../shared/schema");
+  const q = (c.req.query("q") || "").trim().toLowerCase();
+  const kategori = c.req.query("kategoriAcara") || c.req.query("kategori") || "";
+  const page = Math.max(1, Number(c.req.query("page") || "1"));
+  const limit = Math.min(24, Math.max(1, Number(c.req.query("limit") || "12")));
+  const offset = (page - 1) * limit;
+  const conds: any[] = [eq(kegiatanPublik.status, "published")];
+  if (q) conds.push(or(like(kegiatanPublik.judul, `%${q}%`), like(kegiatanPublik.excerpt, `%${q}%`)));
+  if (kategori) conds.push(eq(kegiatanPublik.kategoriAcara, kategori as any));
+  const where = and(...conds);
+  const rows: any[] = await db.select().from(kegiatanPublik).where(where).orderBy(desc(kegiatanPublik.tanggal)).limit(limit).offset(offset);
+  const cnt: any = await db.select({ count: sql<number>`count(*)` }).from(kegiatanPublik).where(where);
+  c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=120");
+  return c.json({ data: rows, total: Number(cnt[0]?.count || 0), page, limit });
+});
+
+r.get("/kegiatan-publik/:slug", async (c) => {
+  const slug = c.req.param("slug");
+  const db = getDb(c.env);
+  const { kegiatanPublik } = await import("../../../shared/schema");
+  let row: any = await db.query.kegiatanPublik.findFirst({ where: and(eq(kegiatanPublik.slug, slug), eq(kegiatanPublik.status, "published")) });
+  if (!row) row = await db.query.kegiatanPublik.findFirst({ where: and(eq(kegiatanPublik.id, slug), eq(kegiatanPublik.status, "published")) });
+  if (!row) return c.json({ error: "Tidak ditemukan" }, 404);
+  c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=120");
+  return c.json(row);
+});
+
+r.get("/galeri", async (c) => {
+  const db = getDb(c.env);
+  const { galeri } = await import("../../../shared/schema");
+  const items: any[] = await db.select().from(galeri).where(eq(galeri.status, "published")).orderBy(desc(galeri.createdAt));
+  c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=120");
+  return c.json(items);
+});
+
+r.get("/galeri/:id", async (c) => {
+  const id = c.req.param("id");
+  const db = getDb(c.env);
+  const { galeri } = await import("../../../shared/schema");
+  const item: any = await db.query.galeri.findFirst({ where: and(eq(galeri.id, id), eq(galeri.status, "published")) });
+  if (!item) return c.json({ error: "Tidak ditemukan" }, 404);
+  c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=120");
+  return c.json(item);
+});
+
+r.get("/tentang", async (c) => {
+  const db = getDb(c.env);
+  const [rowHtml, rowJson] = await Promise.all([
+    db.query.settings.findFirst({ where: eq(settings.key, "tentang_html") }),
+    db.query.settings.findFirst({ where: eq(settings.key, "tentang_json") }),
+  ]);
+  let parsedJson = null;
+  if (rowJson?.value) {
+    try {
+      parsedJson = JSON.parse(rowJson.value);
+    } catch {}
+  }
+  c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=120");
+  return c.json({ html: rowHtml?.value || "", json: parsedJson });
 });
 
 // public/pengurus — anon, grouped by level, ordered by level priority then urutan

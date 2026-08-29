@@ -18,7 +18,7 @@ r.get("/", optionalAuth(), async (c) => {
   else if (session && ["admin", "pengurus_daerah", "kmm_daerah"].includes(session.role)) whereClause = and(isStatusMatch, isTypeMatch);
   else if (session) whereClause = and(eq(artikel.authorId, session.userId), isTypeMatch);
   else whereClause = and(eq(artikel.status, "published"), isTypeMatch);
-  const data = await db.select({ id: artikel.id, judul: artikel.judul, ringkasan: artikel.ringkasan, tipe: artikel.tipe, status: artikel.status, authorId: artikel.authorId, authorName: users.name, publishedAt: artikel.publishedAt, createdAt: artikel.createdAt }).from(artikel).leftJoin(users, eq(artikel.authorId, users.id)).where(whereClause).orderBy(sql`${artikel.createdAt} DESC`);
+  const data = await db.select({ id: artikel.id, judul: artikel.judul, ringkasan: artikel.ringkasan, kategori: artikel.kategori, tipe: artikel.tipe, status: artikel.status, authorId: artikel.authorId, authorName: users.name, coverImage: artikel.coverImage, publishedAt: artikel.publishedAt, createdAt: artikel.createdAt }).from(artikel).leftJoin(users, eq(artikel.authorId, users.id)).where(whereClause).orderBy(sql`${artikel.createdAt} DESC`);
   return c.json(data);
 });
 
@@ -26,11 +26,11 @@ r.post("/", requireAuth(), async (c) => {
   const session = c.get("user" as any) as any;
   if (!["admin", "pengurus_daerah", "kmm_daerah", "creator", "desa", "kelompok"].includes(session.role)) return c.json({ error: "Role tidak diizinkan" }, 403);
   const body: any = await c.req.json().catch(() => ({}));
-  const { judul, konten, ringkasan, coverImage } = body;
+  const { judul, konten, ringkasan, coverImage, kategori } = body;
   if (!judul || !konten) return c.json({ error: "Judul dan konten wajib diisi" }, 400);
   const id = crypto.randomUUID();
   const db = getDb(c.env);
-  await db.insert(artikel).values({ id, judul, konten, ringkasan, coverImage, tipe: "berita", status: "pending", authorId: session.userId } as any);
+  await db.insert(artikel).values({ id, judul, konten, ringkasan, coverImage, kategori: kategori || "Berita", tipe: "berita", status: "pending", authorId: session.userId } as any);
   return c.json({ success: true, id });
 });
 
@@ -54,13 +54,14 @@ r.put("/:id", requireAuth(), async (c) => {
   if (!existing) return c.json({ error: "Tidak ditemukan" }, 404);
   if (existing.authorId !== session.userId && !["admin", "pengurus_daerah", "kmm_daerah"].includes(session.role)) return c.json({ error: "Tidak diizinkan" }, 403);
   const body: any = await c.req.json().catch(() => ({}));
-  const { judul, konten, ringkasan, status, coverImage } = body;
+  const { judul, konten, ringkasan, status, coverImage, kategori } = body;
   if (status && !["admin", "pengurus_daerah", "kmm_daerah"].includes(session.role)) return c.json({ error: "Tidak diizinkan ubah status" }, 403);
   const updateData: any = { updatedAt: new Date().toISOString() };
   if (judul !== undefined) updateData.judul = judul;
   if (konten !== undefined) updateData.konten = konten;
   if (ringkasan !== undefined) updateData.ringkasan = ringkasan;
   if (coverImage !== undefined) updateData.coverImage = coverImage;
+  if (kategori !== undefined) updateData.kategori = kategori;
   if (session.role === "creator") updateData.status = "pending";
   if (status !== undefined && ["admin", "pengurus_daerah", "kmm_daerah"].includes(session.role)) {
     updateData.status = status;

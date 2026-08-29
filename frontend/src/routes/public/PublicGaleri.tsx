@@ -629,7 +629,19 @@ export function PublicGaleri() {
   const [seed, setSeed] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
   const [topCardId, setTopCardId] = useState<string | null>(null);
+  const [items, setItems] = useState<GaleriItem[]>(MOCK_GALERI);
   const canvasRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch("/api/public/galeri")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (Array.isArray(j) && j.length > 0) {
+          setItems(j);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 640);
@@ -689,7 +701,7 @@ export function PublicGaleri() {
     };
   }, [shuffleCanvas]);
 
-  const filteredBase = MOCK_GALERI.filter((item) => {
+  const filteredBase = items.filter((item) => {
     if (activeTab === "Semua") return true;
     if (activeTab === "Reels") return item.type === "reel";
     if (activeTab === "Foto Kegiatan") return item.type === "photo";

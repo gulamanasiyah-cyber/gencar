@@ -20,8 +20,19 @@ import {
   BarChart3 as IcoBarChart,
   FoldVertical as IcoFold,
   UnfoldVertical as IcoUnfold,
+  FileText as IcoFileText,
+  SlidersHorizontal as IcoFilter,
+  Eye as IcoEye,
+  Power as IcoPower,
+  List as IcoList,
+  LayoutGrid as IcoGrid,
+  Trash2 as IcoTrash,
 } from "lucide-react";
 import MapPickerModal from "./components/MapPickerModal";
+import AdminModal from "./components/admin/Modal";
+import KpiCard from "./components/admin/KpiCard";
+import PageHeader from "./components/admin/PageHeader";
+import SearchInput from "./components/admin/SearchInput";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -48,8 +59,18 @@ function Select({
   ariaLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerId = useRef(`select-${Math.random().toString(36).slice(2, 8)}`);
+  const listboxId = `${triggerId.current}-listbox`;
   const current = options.find((o) => o.value === value);
+
+  useEffect(() => {
+    if (open) {
+      const idx = options.findIndex((o) => o.value === value);
+      setActiveIndex(idx >= 0 ? idx : 0);
+    }
+  }, [open, value, options]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -66,24 +87,54 @@ function Select({
     };
   }, []);
 
+  const onTriggerKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!open) setOpen(true);
+      else setActiveIndex((prev) => {
+        const n = options.length;
+        if (n === 0) return -1;
+        if (e.key === "ArrowDown") return prev < n - 1 ? prev + 1 : 0;
+        return prev > 0 ? prev - 1 : n - 1;
+      });
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      if (open) setActiveIndex(0);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      if (open) setActiveIndex(options.length - 1);
+    } else if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      if (open && activeIndex >= 0) {
+        onChange(options[activeIndex]!.value);
+        setOpen(false);
+      } else setOpen((o) => !o);
+    }
+  };
+
   return (
     <div className={`select ${className ?? ""}`} data-open={open} ref={ref}>
       <button
         type="button"
+        id={triggerId.current}
         className="select-trigger"
         onClick={() => setOpen((o) => !o)}
+        onKeyDown={onTriggerKeyDown}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-controls={listboxId}
+        aria-activedescendant={open && activeIndex >= 0 ? `${listboxId}-opt-${activeIndex}` : undefined}
         aria-label={ariaLabel}
       >
         <span>{current?.label ?? "Pilih"}</span>
         <IcoChevronDown size={14} />
       </button>
       {open && (
-        <div className="select-menu" role="listbox">
-          {options.map((o) => (
+        <div className="select-menu" role="listbox" id={listboxId} aria-labelledby={triggerId.current}>
+          {options.map((o, idx) => (
             <button
               key={o.value}
+              id={`${listboxId}-opt-${idx}`}
               type="button"
               role="option"
               aria-selected={o.value === value}
@@ -190,12 +241,8 @@ function QrModal({ target, onClose }: { target: QrTarget; onClose: () => void })
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal qr-modal" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <strong className="modal-title">QR Absensi</strong>
-          <button className="btn-close" aria-label="Tutup" onClick={onClose}><IcoX /></button>
-        </div>
+    <AdminModal title="QR Absensi" onClose={onClose} className="qr-modal">
+      <div>
 
         <div id="qr-template-card" style={{
           borderRadius: 18,
@@ -252,7 +299,7 @@ function QrModal({ target, onClose }: { target: QrTarget; onClose: () => void })
           </button>
         </div>
       </div>
-    </div>
+    </AdminModal>
   );
 }
 
@@ -299,7 +346,7 @@ const STAT_MOCK = {
   ],
 };
 
-void ["#16a34a", "#f59e0b", "#ef4444", "#3b82f6", "#ec4899", "#8b5cf6", "#06b6d4"];
+void ["#16a34a", "#f59e0b", "#ef4444", "#3b82f6", "#ec4899", "#8b5cf6", "#06b6d4"] as unknown as void;
 
 function StatistikPage() {
   const [f, setF] = useState<StatFilter>({ waktu: "bulanan", wilayah: "semua", kategori: "semua", kategoriMudaMudi: "semua", jenisKelamin: "semua" });
@@ -342,10 +389,10 @@ function StatistikPage() {
       </div>
 
       <div className="kpi" style={{ marginBottom: 16 }}>
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--slate"><IcoCalendar size={18} /></span><div><div className="muted">Hadir Rate</div><strong>{STAT_MOCK.kpi.hadirRate}%</strong></div></div>
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span><div><div className="muted">Total Absensi</div><strong>159</strong></div></div>
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--amber"><IcoBarChart size={18} /></span><div><div className="muted">Total Kegiatan</div><strong>{STAT_MOCK.kpi.totalKegiatan}</strong></div></div>
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--peach"><IcoMapPin size={18} /></span><div><div className="muted">Rata-rata / Kegiatan</div><strong>{STAT_MOCK.kpi.avgPerKegiatan}</strong></div></div>
+        <KpiCard icon={<span className="kpi-icon kpi-icon--slate"><IcoCalendar size={18} /></span>} label="Hadir Rate" value={`${STAT_MOCK.kpi.hadirRate}%`} />
+        <KpiCard icon={<span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span>} label="Total Absensi" value={159} />
+        <KpiCard icon={<span className="kpi-icon kpi-icon--amber"><IcoBarChart size={18} /></span>} label="Total Kegiatan" value={STAT_MOCK.kpi.totalKegiatan} />
+        <KpiCard icon={<span className="kpi-icon kpi-icon--peach"><IcoMapPin size={18} /></span>} label="Rata-rata / Kegiatan" value={STAT_MOCK.kpi.avgPerKegiatan} />
       </div>
 
       {/* Tren + Komposisi — single col on mobile */}
@@ -398,10 +445,10 @@ function StatistikPage() {
       </div>
 
       <div className="kpi" style={{ marginBottom: 16 }}>
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span><div><div className="muted">Total Anggota</div><strong>{STAT_MOCK.kpi.totalAnggota}</strong></div></div>
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--peach"><IcoUsers size={18} /></span><div><div className="muted">Pribumi</div><strong>{STAT_MOCK.byMudaMudi[0].value}</strong></div></div>
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--slate"><IcoMapPin size={18} /></span><div><div className="muted">Perantauan</div><strong>{STAT_MOCK.byMudaMudi[1].value}</strong></div></div>
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--amber"><IcoMapPin size={18} /></span><div><div className="muted">Jumlah Desa</div><strong>{STAT_MOCK.byDesa.length}</strong></div></div>
+        <KpiCard icon={<span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span>} label="Total Anggota" value={STAT_MOCK.kpi.totalAnggota} />
+        <KpiCard icon={<span className="kpi-icon kpi-icon--peach"><IcoUsers size={18} /></span>} label="Pribumi" value={STAT_MOCK.byMudaMudi[0].value} />
+        <KpiCard icon={<span className="kpi-icon kpi-icon--slate"><IcoMapPin size={18} /></span>} label="Perantauan" value={STAT_MOCK.byMudaMudi[1].value} />
+        <KpiCard icon={<span className="kpi-icon kpi-icon--amber"><IcoMapPin size={18} /></span>} label="Jumlah Desa" value={STAT_MOCK.byDesa.length} />
       </div>
 
       {/* Sebaran — 1 col on mobile, 2 on tablet, 3 on desktop */}
@@ -481,6 +528,14 @@ function AdminShell({
 }: {
   page: string; setPage: (p: string) => void; children: React.ReactNode;
 }) {
+  const navItems: { key: string; label: string; icon: React.ReactNode }[] = [
+    { key: "anggota", label: "Anggota", icon: <IcoUsers /> },
+    { key: "kegiatan", label: "Kegiatan", icon: <IcoCalendar /> },
+    { key: "users", label: "User", icon: <IcoShield /> },
+    { key: "wilayah", label: "Wilayah", icon: <IcoMapPin /> },
+    { key: "cms", label: "CMS", icon: <IcoFileText /> },
+    { key: "statistik", label: "Statistik", icon: <IcoBarChart /> },
+  ];
   return (
     <div className="admin-shell">
       <nav className="admin-sidebar" aria-label="Admin navigation">
@@ -489,199 +544,78 @@ function AdminShell({
           <span className="sidebar-brand-text">Gencar</span>
         </div>
         <div className="sidebar-divider" />
-        <button aria-label="Anggota" className={page === "anggota" ? "active" : ""} onClick={() => setPage("anggota")}><IcoUsers /> <span>Anggota</span></button>
-        <button aria-label="Kegiatan" className={page === "kegiatan" ? "active" : ""} onClick={() => setPage("kegiatan")}><IcoCalendar /> <span>Kegiatan</span></button>
-        <button aria-label="Kelola user" className={page === "users" ? "active" : ""} onClick={() => setPage("users")}><IcoShield /> <span>User</span></button>
-        <button aria-label="Manajemen wilayah" className={page === "wilayah" ? "active" : ""} onClick={() => setPage("wilayah")}><IcoMapPin /> <span>Wilayah</span></button>
-        <button aria-label="Pengurus" className={page === "pengurus" ? "active" : ""} onClick={() => setPage("pengurus")}><IcoUsers /> <span>Pengurus</span></button>
-        <button aria-label="Statistik" className={page === "statistik" ? "active" : ""} onClick={() => setPage("statistik")}><IcoBarChart /> <span>Statistik</span></button>
+        {navItems.map((it) => (
+          <button
+            key={it.key}
+            aria-label={it.label}
+            aria-current={page === it.key ? "page" : undefined}
+            className={page === it.key ? "active" : ""}
+            onClick={() => setPage(it.key)}
+          >
+            {it.icon} <span>{it.label}</span>
+          </button>
+        ))}
       </nav>
       <main className="admin-main">{children}</main>
     </div>
   );
 }
 
-type PengurusLevel = "pimpinan" | "sekretariat" | "bidang" | "koordinator";
-type PengurusRow = { id: string; nama: string; dapukan: string; foto: string | null; level: PengurusLevel; bio: string | null; kontakWa: string | null; urutan: number; createdAt?: string };
-const PENGURUS_LEVEL_OPTIONS: { value: PengurusLevel; label: string }[] = [
-  { value: "pimpinan", label: "Pimpinan Inti" },
-  { value: "sekretariat", label: "Sekretariat" },
-  { value: "bidang", label: "Bidang" },
-  { value: "koordinator", label: "Koordinator Wilayah" },
-];
 
-function PengurusAdmin() {
-  const [rows, setRows] = useState<PengurusRow[]>(() => [
-    { id: "1", nama: "Fulan A", dapukan: "Ketua Umum", foto: null, level: "pimpinan", bio: "Penanggung jawab harian.", kontakWa: null, urutan: 0 },
-    { id: "2", nama: "Fulanah B", dapukan: "Sekretaris", foto: null, level: "sekretariat", bio: "Arsip & jadwal.", kontakWa: null, urutan: 1 },
-    { id: "3", nama: "Fulan C", dapukan: "Bendahara", foto: null, level: "sekretariat", bio: "Kelola kas.", kontakWa: null, urutan: 2 },
-  ]);
-  const [editing, setEditing] = useState<PengurusRow | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [q, setQ] = useState("");
-
-  useEffect(() => {
-    fetch("/api/admin/pengurus")
-      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-      .then((j) => { if (Array.isArray(j) && j.length) setRows(j.map((x: any) => ({ id: x.id, nama: x.nama, dapukan: x.dapukan, foto: x.foto ?? null, level: (x.level as PengurusLevel) || "bidang", bio: x.bio ?? null, kontakWa: x.kontakWa ?? x.kontak_wa ?? null, urutan: Number(x.urutan ?? 0), createdAt: x.createdAt ?? x.created_at })))} )
-      .catch(() => {});
-  }, []);
-
-  const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    if (!s) return rows;
-    return rows.filter((r) => `${r.nama} ${r.dapukan} ${r.level} ${r.bio ?? ""}`.toLowerCase().includes(s));
-  }, [rows, q]);
-
-  const grouped = useMemo(() => {
-    const g: Record<PengurusLevel, PengurusRow[]> = { pimpinan: [], sekretariat: [], bidang: [], koordinator: [] };
-    for (const r of filtered) {
-      const lvl = (r.level as PengurusLevel) || "bidang";
-      (g[lvl] ? g[lvl].push(r) : g.bidang.push(r));
-    }
-    for (const k of Object.keys(g) as PengurusLevel[]) g[k].sort((a, b) => (a.urutan ?? 0) - (b.urutan ?? 0));
-    return g;
-  }, [filtered]);
-
-  const openCreate = () => { setEditing(null); setShowForm(true); };
-  const openEdit = (r: PengurusRow) => { setEditing(r); setShowForm(true); };
-
-  const handleDelete = (id: string) => {
-    if (!confirm("Hapus pengurus ini?")) return;
-    setRows((prev) => prev.filter((x) => x.id !== id));
-    void fetch(`/api/admin/pengurus?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
-  };
-
-  const levelLabel = (lvl: PengurusLevel) => PENGURUS_LEVEL_OPTIONS.find((o) => o.value === lvl)?.label ?? lvl;
-
+function AnggotaFilterModal({
+  open,
+  onClose,
+  statusFilter, setStatusFilter,
+  kategoriFilter, setKategoriFilter,
+  desaFilter, setDesaFilter,
+  kelompokFilter, setKelompokFilter,
+  desaOptions, kelompokOptions,
+}: {
+  open: boolean;
+  onClose: () => void;
+  statusFilter: string; setStatusFilter: (v: string) => void;
+  kategoriFilter: string; setKategoriFilter: (v: string) => void;
+  desaFilter: string; setDesaFilter: (v: string) => void;
+  kelompokFilter: string; setKelompokFilter: (v: string) => void;
+  desaOptions: string[];
+  kelompokOptions: string[];
+}) {
+  if (!open) return null;
+  const hasActive = statusFilter !== "semua" || kategoriFilter !== "semua" || desaFilter !== "Semua" || kelompokFilter !== "semua";
+  const reset = () => { setStatusFilter("semua"); setKategoriFilter("semua"); setDesaFilter("Semua"); setKelompokFilter("semua"); };
   return (
-    <div>
-      <div className="page-header">
-        <div>
-          <h1>Pengurus</h1>
-          <div className="page-header-sub">Kelola hierarki pengurus — level + urutan + bio + WA. Tampil di halaman publik /pengurus.</div>
-        </div>
-        <button className="btn btn-primary" style={{ width: "auto" }} onClick={openCreate}>+ Tambah Pengurus</button>
-      </div>
-
-      <div className="kpi" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span><div><div className="muted">Pimpinan</div><strong>{grouped.pimpinan.length}</strong></div></div>
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--amber"><IcoShield size={18} /></span><div><div className="muted">Sekretariat</div><strong>{grouped.sekretariat.length}</strong></div></div>
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--peach"><IcoCalendar size={18} /></span><div><div className="muted">Bidang</div><strong>{grouped.bidang.length}</strong></div></div>
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--slate"><IcoMapPin size={18} /></span><div><div className="muted">Total</div><strong>{rows.length}</strong></div></div>
-      </div>
-
-      <div className="admin-toolbar" style={{ marginTop: 16 }}>
-        <label className="search">
-          <IcoSearch size={14} />
-          <input placeholder="Cari nama / dapukan / level..." value={q} onChange={(e) => setQ(e.target.value)} />
-        </label>
-        <a href="/pengurus" target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm" style={{ width: "auto" }}>Lihat publik →</a>
-      </div>
-
-      {(["pimpinan", "sekretariat", "bidang", "koordinator"] as PengurusLevel[]).map((lvl) => {
-        const list = grouped[lvl];
-        if (!list.length && q.trim()) return null;
-        return (
-          <div key={lvl} className="card" style={{ marginTop: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, paddingBottom: 10, borderBottom: "1px solid var(--line)" }}>
-              <span style={{ width: 8, height: 8, borderRadius: 999, background: lvl === "pimpinan" ? "var(--ink)" : lvl === "sekretariat" ? "var(--primary)" : "var(--amber)", display: "inline-block" }} />
-              <strong style={{ fontSize: 13, letterSpacing: "-0.01em" }}>{levelLabel(lvl)}</strong>
-              <span className="pill pill-slate">{list.length}</span>
-              {lvl === "pimpinan" && list.length > 2 && <span className="pill pill-amber">Ideal 1–2</span>}
-            </div>
-
-            {list.length === 0 ? (
-              <div className="muted" style={{ padding: 8 }}>Belum ada — tambah pengurus di level ini.</div>
-            ) : (
-              <div style={{ display: "grid", gap: 8 }}>
-                {list.map((r) => (
-                  <div key={r.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 12, border: "1px solid var(--line)", background: "#fff" }}>
-                    <span className="pill pill-slate" style={{ minWidth: 28, justifyContent: "center" }}>{r.urutan}</span>
-                    <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--primary)", color: "#fff", display: "grid", placeItems: "center", fontWeight: 800, fontSize: 12, overflow: "hidden", flexShrink: 0 }}>
-                      {r.foto ? <img src={r.foto} alt={r.nama} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : r.nama.split(" ").map((w) => w[0]).slice(0, 2).join("")}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.nama} <span className="muted">· {r.dapukan}</span></div>
-                      {r.bio ? <div className="muted" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.bio}</div> : <div className="muted" style={{ fontSize: 11 }}>— tanpa bio</div>}
-                    </div>
-                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => openEdit(r)}>Edit</button>
-                      <button className="btn btn-danger btn-sm" onClick={() => handleDelete(r.id)}>Hapus</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
-
-      {showForm && (
-        <PengurusFormModal
-          initial={editing}
-          onClose={() => setShowForm(false)}
-          onSave={(saved) => {
-            if (editing) {
-              setRows((prev) => prev.map((x) => (x.id === saved.id ? saved : x)));
-              void fetch("/api/admin/pengurus", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: saved.id, nama: saved.nama, dapukan: saved.dapukan, foto: saved.foto, level: saved.level, bio: saved.bio, kontakWa: saved.kontakWa, urutan: saved.urutan }) }).catch(() => {});
-            } else {
-              setRows((prev) => [saved, ...prev]);
-              void fetch("/api/admin/pengurus", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nama: saved.nama, dapukan: saved.dapukan, foto: saved.foto, level: saved.level, bio: saved.bio, kontakWa: saved.kontakWa, urutan: saved.urutan }) }).then((r) => r.json()).then((j) => { if (j?.id) setRows((prev) => prev.map((x) => (x.id === saved.id ? { ...x, id: j.id } : x))); }).catch(() => {});
-            }
-            setShowForm(false);
-            setEditing(null);
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-function PengurusFormModal({ initial, onClose, onSave }: { initial: PengurusRow | null; onClose: () => void; onSave: (r: PengurusRow) => void }) {
-  const [form, setForm] = useState(() => ({
-    nama: initial?.nama ?? "",
-    dapukan: initial?.dapukan ?? "",
-    foto: initial?.foto ?? "",
-    level: (initial?.level ?? "bidang") as PengurusLevel,
-    bio: initial?.bio ?? "",
-    kontakWa: initial?.kontakWa ?? "",
-    urutan: String(initial?.urutan ?? 0),
-  }));
-  const valid = form.nama.trim().length >= 2 && form.dapukan.trim().length >= 2;
-
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <strong className="modal-title">{initial ? "Edit Pengurus" : "Tambah Pengurus"}</strong>
-          <button className="btn-close" aria-label="Tutup" onClick={onClose}><IcoX /></button>
-        </div>
-        <div style={{ display: "grid", gap: 12 }}>
-          <div className="field"><label>Nama *</label><input value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} placeholder="Nama lengkap" /></div>
-          <div className="field"><label>Dapukan / Jabatan *</label><input value={form.dapukan} onChange={(e) => setForm({ ...form, dapukan: e.target.value })} placeholder="Ketua Umum, Sekretaris, dll" /></div>
-          <div className="field"><label>Level *</label>
-            <Select value={form.level} onChange={(v) => setForm({ ...form, level: v as PengurusLevel })} ariaLabel="Level" options={PENGURUS_LEVEL_OPTIONS.map((o) => ({ value: o.value, label: o.label }))} />
-          </div>
-          <div className="field"><label>Bio singkat (max 280)</label><textarea rows={2} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} placeholder="Tugas & tanggung jawab — 1 kalimat, maks 280 char" maxLength={280} /></div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div className="field"><label>Urutan (dalam level)</label><input type="number" min={0} max={999} value={form.urutan} onChange={(e) => setForm({ ...form, urutan: e.target.value })} /></div>
-            <div className="field"><label>Kontak WA (opsional)</label><input value={form.kontakWa} onChange={(e) => setForm({ ...form, kontakWa: e.target.value })} placeholder="62812..." /></div>
-          </div>
-          <div className="field"><label>Foto (URL atau upload R2 — preview)</label><input value={form.foto} onChange={(e) => setForm({ ...form, foto: e.target.value })} placeholder="https://..." /></div>
-          {form.foto && <img src={form.foto} alt="Preview" style={{ width: 96, height: 96, borderRadius: 12, objectFit: "cover", border: "1px solid var(--line)" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />}
-          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-            <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Batal</button>
-            <button
-              className="btn btn-primary" style={{ flex: 1 }} disabled={!valid}
-              onClick={() => onSave({ id: initial?.id ?? `tmp-${Date.now()}`, nama: form.nama.trim(), dapukan: form.dapukan.trim(), foto: form.foto.trim() || null, level: form.level, bio: form.bio.trim() || null, kontakWa: form.kontakWa.trim() || null, urutan: Math.max(0, Math.min(999, parseInt(form.urutan, 10) || 0)) })}
-            >
-              Simpan
-            </button>
+    <AdminModal title="Filter Anggota" onClose={onClose} className="filter-modal">
+      <div className="filter-groups">
+        <div className="filter-group">
+          <span className="filter-label">Status</span>
+          <div className="filter-chips">
+            {(["semua", "aktif", "pending"] as const).map((v) => (
+              <button key={v} type="button" className={`chip ${statusFilter === v ? "active" : ""}`} onClick={() => setStatusFilter(v)}>{v === "semua" ? "Semua" : v}</button>
+            ))}
           </div>
         </div>
+        <div className="filter-group">
+          <span className="filter-label">Kategori</span>
+          <div className="filter-chips">
+            {(["semua", "pribumi", "perantauan"] as const).map((v) => (
+              <button key={v} type="button" className={`chip ${kategoriFilter === v ? "active" : ""}`} onClick={() => setKategoriFilter(v)}>{v === "semua" ? "Semua" : v}</button>
+            ))}
+          </div>
+        </div>
+        <div className="filter-group">
+          <span className="filter-label">Desa</span>
+          <Select value={desaFilter} onChange={setDesaFilter} ariaLabel="Desa" options={[{ value: "Semua", label: "Semua desa" }, ...desaOptions.map((d) => ({ value: d, label: d }))]} />
+        </div>
+        <div className="filter-group">
+          <span className="filter-label">Kelompok</span>
+          <Select value={kelompokFilter} onChange={setKelompokFilter} ariaLabel="Kelompok" options={[{ value: "semua", label: "Semua kelompok" }, ...kelompokOptions.map((k) => ({ value: k, label: k }))]} />
+        </div>
       </div>
-    </div>
+      <div className="filter-actions">
+        <button type="button" className="btn btn-ghost btn-sm" disabled={!hasActive} onClick={reset}>Reset</button>
+        <button type="button" className="btn btn-primary btn-sm" onClick={onClose}>Terapkan</button>
+      </div>
+    </AdminModal>
   );
 }
 
@@ -715,48 +649,60 @@ function AnggotaPage({ role }: { role: AdminRole }) {
   }, [members, role, statusFilter, kategoriFilter, desaFilter, kelompokFilter, q]);
 
   const adaFilterAktif = statusFilter !== "semua" || kategoriFilter !== "semua" || desaFilter !== "Semua" || kelompokFilter !== "semua";
-
-  void (() => {
-    void setStatusFilter; void setKategoriFilter; void setDesaFilter; void setKelompokFilter;
-  });
+  const desaOptions = useMemo(() => [...new Set(members.map((m) => m.desa))].sort(), [members]);
+  const kelompokOptions = useMemo(() => [...new Set(members.map((m) => m.kelompok))].sort(), [members]);
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1>Anggota</h1>
-          <div className="page-header-sub">Kelola data anggota muda-mudi</div>
-        </div>
-        <button className="btn btn-primary" style={{ width: "auto" }} onClick={() => setShowAdd(true)}>+ Tambah Anggota</button>
-      </div>
+      <PageHeader title="Anggota" sub="Kelola data anggota muda-mudi" action={<button className="btn btn-primary btn-auto" onClick={() => setShowAdd(true)}>+ Tambah Anggota</button>} />
       <div className="kpi">
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span><div><div className="muted">Total anggota (scope)</div><strong>{filtered.length}</strong></div></div>
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--slate"><IcoShield size={18} /></span><div><div className="muted">Aktif</div><strong>{filtered.filter((m) => m.status === "aktif").length}</strong></div></div>
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--amber"><IcoCalendar size={18} /></span><div><div className="muted">Pending</div><strong>{filtered.filter((m) => m.status === "pending").length}</strong></div></div>
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--peach"><IcoUsers size={18} /></span><div><div className="muted">Perantauan</div><strong>{filtered.filter((m) => m.kategoriMudaMudi === "perantauan").length}</strong></div></div>
+        <KpiCard icon={<span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span>} label="Total anggota (scope)" value={filtered.length} />
+        <KpiCard icon={<span className="kpi-icon kpi-icon--slate"><IcoShield size={18} /></span>} label="Aktif" value={filtered.filter((m) => m.status === "aktif").length} />
+        <KpiCard icon={<span className="kpi-icon kpi-icon--amber"><IcoCalendar size={18} /></span>} label="Pending" value={filtered.filter((m) => m.status === "pending").length} />
+        <KpiCard icon={<span className="kpi-icon kpi-icon--peach"><IcoUsers size={18} /></span>} label="Perantauan" value={filtered.filter((m) => m.kategoriMudaMudi === "perantauan").length} />
       </div>
 
       <div className="admin-toolbar">
-        <label className="search">
-          <IcoSearch size={14} />
-          <input placeholder="Cari nama / no telp / kelompok..." value={q} onChange={(e) => setQ(e.target.value)} />
-        </label>
-        <button className={`btn ${showFilter ? "btn-primary" : "btn-ghost"} btn-sm`} onClick={() => setShowFilter((s) => !s)} style={{ width: "auto" }}>
-          Filter {adaFilterAktif && <span className="filter-count">{(statusFilter !== "semua" ? 1 : 0) + (kategoriFilter !== "semua" ? 1 : 0) + (desaFilter !== "Semua" ? 1 : 0) + (kelompokFilter !== "semua" ? 1 : 0)}</span>}
+        <SearchInput value={q} onChange={setQ} placeholder="Cari nama / no telp / kelompok..." />
+        <button
+          type="button"
+          className={`btn ${showFilter ? "btn-primary has-active" : "btn-ghost"} toolbar-icon-btn`}
+          aria-expanded={showFilter}
+          aria-haspopup="dialog"
+          aria-label="Filter anggota"
+          onClick={() => setShowFilter((s) => !s)}
+        >
+          <IcoFilter size={18} />
+          {adaFilterAktif && <span className="filter-count">{(statusFilter !== "semua" ? 1 : 0) + (kategoriFilter !== "semua" ? 1 : 0) + (desaFilter !== "Semua" ? 1 : 0) + (kelompokFilter !== "semua" ? 1 : 0)}</span>}
         </button>
         {!isMobile && (
           <div className="view-toggle" role="group" aria-label="View mode">
-            <button className={view === "list" ? "on" : ""} onClick={() => setView("list")}>List</button>
-            <button className={view === "card" ? "on" : ""} onClick={() => setView("card")}>Card</button>
+            <button className={view === "list" ? "on" : ""} onClick={() => setView("list")} aria-label="Tampilan list" title="List">
+              <IcoList size={16} />
+            </button>
+            <button className={view === "card" ? "on" : ""} onClick={() => setView("card")} aria-label="Tampilan card" title="Card">
+              <IcoGrid size={16} />
+            </button>
           </div>
         )}
       </div>
+      <AnggotaFilterModal
+        open={showFilter}
+        onClose={() => setShowFilter(false)}
+        statusFilter={statusFilter} setStatusFilter={setStatusFilter}
+        kategoriFilter={kategoriFilter} setKategoriFilter={setKategoriFilter}
+        desaFilter={desaFilter} setDesaFilter={setDesaFilter}
+        kelompokFilter={kelompokFilter} setKelompokFilter={setKelompokFilter}
+        desaOptions={desaOptions}
+        kelompokOptions={kelompokOptions}
+      />
 
       {effectiveView === "list" ? (
         <div className="table-wrap">
           <table className="admin-table">
+            <caption className="sr-only">Daftar anggota — nama, wilayah, pendidikan, domisili, nomor telepon, status, dan aksi</caption>
             <thead>
-              <tr><th>Nama</th><th>Wilayah</th><th>Pendidikan</th><th>Domisili</th><th>No Telp</th><th>Status</th><th>Aksi</th></tr>
+              <tr><th scope="col">Nama</th><th scope="col">Wilayah</th><th scope="col">Pendidikan</th><th scope="col">Domisili</th><th scope="col">No Telp</th><th scope="col">Status</th><th scope="col">Aksi</th></tr>
             </thead>
             <tbody>
               {filtered.map((m) => (
@@ -774,11 +720,9 @@ function AnggotaPage({ role }: { role: AdminRole }) {
                   <td><span className={`pill ${m.status === "aktif" ? "pill-emerald" : "pill-amber"}`}>{m.status}</span></td>
                   <td>
                     <div style={{ display: "flex", gap: 6 }}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setDetailMember(m)}>Detail</button>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setMembers((prev) => prev.map((x) => x.id === m.id ? { ...x, status: x.status === "aktif" ? "pending" : "aktif" } : x))}>
-                        {m.status === "aktif" ? "Nonaktifkan" : "Aktifkan"}
-                      </button>
-                      <button className="btn btn-ghost btn-sm">Buat QR</button>
+                      <button className="btn btn-ghost row-icon-btn" aria-label="Lihat detail" title="Detail" onClick={() => setDetailMember(m)}><IcoEye size={16} /></button>
+                      <button className="btn btn-ghost row-icon-btn" aria-label={m.status === "aktif" ? "Nonaktifkan" : "Aktifkan"} title={m.status === "aktif" ? "Nonaktifkan" : "Aktifkan"} onClick={() => setMembers((prev) => prev.map((x) => x.id === m.id ? { ...x, status: x.status === "aktif" ? "pending" : "aktif" } : x))}><IcoPower size={16} /></button>
+                      <button className="btn btn-ghost row-icon-btn" aria-label="Buat QR" title="Buat QR"><IcoQr size={16} /></button>
                     </div>
                   </td>
                 </tr>
@@ -817,8 +761,8 @@ function AnggotaPage({ role }: { role: AdminRole }) {
               </div>
 
               <div className="member-card-actions" onClick={(e) => e.stopPropagation()}>
-                <button className="btn btn-ghost btn-sm" onClick={() => setDetailMember(m)}>Detail</button>
-                <button className="btn btn-primary btn-sm">Buat QR</button>
+                <button className="btn btn-ghost row-icon-btn" aria-label="Lihat detail" title="Detail" onClick={() => setDetailMember(m)}><IcoEye size={16} /></button>
+                <button className="btn btn-primary row-icon-btn" aria-label="Buat QR" title="Buat QR" style={{ background: "var(--primary)", borderColor: "var(--primary)", color: "#fff" }}><IcoQr size={16} /></button>
               </div>
             </div>
           ))}
@@ -853,38 +797,32 @@ function MemberDetailModal({ member, onClose, onToggleStatus }: { member: Member
   ];
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <strong className="modal-title">Detail Anggota</strong>
-          <button className="btn-close" aria-label="Tutup" onClick={onClose}><IcoX /></button>
-        </div>
-        <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16 }}>
-          <div className="avatar" style={{ width: 48, height: 48, fontSize: 15 }}>{member.nama.split(" ").map((w) => w[0]).slice(0, 2).join("")}</div>
-          <div>
-            <div style={{ fontWeight: 800 }}>{member.nama}</div>
-            <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-              <span className={`pill ${member.status === "aktif" ? "pill-emerald" : "pill-amber"}`}>{member.status}</span>
-              <span className="pill pill-slate">{member.kategoriMudaMudi}</span>
-            </div>
+    <AdminModal title="Detail Anggota" onClose={onClose}>
+      <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16 }}>
+        <div className="avatar" style={{ width: 48, height: 48, fontSize: 15 }}>{member.nama.split(" ").map((w) => w[0]).slice(0, 2).join("")}</div>
+        <div>
+          <div style={{ fontWeight: 800 }}>{member.nama}</div>
+          <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+            <span className={`pill ${member.status === "aktif" ? "pill-emerald" : "pill-amber"}`}>{member.status}</span>
+            <span className="pill pill-slate">{member.kategoriMudaMudi}</span>
           </div>
         </div>
-        <div className="detail-rows">
-          {rows.map((r) => (
-            <div key={r.label} className="detail-row">
-              <span className="detail-label">{r.label}</span>
-              <span className="detail-value">{r.value}</span>
-            </div>
-          ))}
-        </div>
-        <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onToggleStatus}>
-            {member.status === "aktif" ? "Nonaktifkan" : "Aktifkan"}
-          </button>
-          <button className="btn btn-primary" style={{ flex: 1 }}>Buat QR</button>
-        </div>
       </div>
-    </div>
+      <div className="detail-rows">
+        {rows.map((r) => (
+          <div key={r.label} className="detail-row">
+            <span className="detail-label">{r.label}</span>
+            <span className="detail-value">{r.value}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+        <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onToggleStatus}>
+          {member.status === "aktif" ? "Nonaktifkan" : "Aktifkan"}
+        </button>
+        <button className="btn btn-primary" style={{ flex: 1 }}>Buat QR</button>
+      </div>
+    </AdminModal>
   );
 }
 
@@ -901,23 +839,18 @@ function AddMemberModal({ onClose, onSave }: { onClose: () => void; onSave: (m: 
   const needAsal = form.kategoriMudaMudi === "perantauan" && !form.asalDaerah.trim();
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <strong className="modal-title">Tambah Anggota (oleh Admin)</strong>
-          <button className="btn-close" aria-label="Tutup" onClick={onClose}><IcoX /></button>
-        </div>
+    <AdminModal title="Tambah Anggota (oleh Admin)" onClose={onClose}>
         <div className="stepper" style={{ marginBottom: 12 }}>{[1, 2, 3].map((n) => <div key={n} className={`step-dot ${s >= n ? "on" : ""}`} />)}</div>
         <div className="muted" style={{ marginBottom: 16 }}>Langkah {s}/3 &bull; Wajib: nama, pendidikan, tanggal lahir, no telp, tempat lahir, domisili anak.</div>
 
         {s === 1 && (
           <div style={{ display: "grid", gap: 12 }}>
             <div className="field"><label>Nama *</label><input value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} placeholder="Nama lengkap" /></div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="form-grid-2">
               <div className="field"><label>Tempat Lahir *</label><input value={form.tempatLahir} onChange={(e) => setForm({ ...form, tempatLahir: e.target.value })} /></div>
               <div className="field"><label>Tanggal Lahir *</label><input type="date" value={form.tanggalLahir} onChange={(e) => setForm({ ...form, tanggalLahir: e.target.value })} /></div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="form-grid-2">
               <div className="field"><label>No Telp *</label><input value={form.noTelp} onChange={(e) => setForm({ ...form, noTelp: e.target.value })} placeholder="0812..." /></div>
               <div className="field"><label>Pendidikan *</label>
                 <Select
@@ -934,7 +867,7 @@ function AddMemberModal({ onClose, onSave }: { onClose: () => void; onSave: (m: 
                 />
               </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="form-grid-2">
               <div className="field"><label>Jenis Kelamin *</label>
                 <Select
                   value={form.jenisKelamin}
@@ -960,7 +893,7 @@ function AddMemberModal({ onClose, onSave }: { onClose: () => void; onSave: (m: 
             </div>
             {form.kategoriMudaMudi === "perantauan" && <div className="field"><label>Asal Daerah *</label><input value={form.asalDaerah} onChange={(e) => setForm({ ...form, asalDaerah: e.target.value })} placeholder="Kabupaten / kota asal" /></div>}
             {needAsal && <div className="pill pill-amber">Asal daerah wajib jika perantauan</div>}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="form-grid-2">
               <div className="field"><label>Desa</label>
                 <Select
                   value={form.desa}
@@ -1028,8 +961,7 @@ function AddMemberModal({ onClose, onSave }: { onClose: () => void; onSave: (m: 
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </AdminModal>
   );
 }
 
@@ -1089,68 +1021,53 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1>Kegiatan</h1>
-          <div className="page-header-sub">Kelola agenda dan kegiatan</div>
-        </div>
-        <button className="btn btn-primary" style={{ width: "auto" }} onClick={() => setShowForm(true)}>+ Buat Kegiatan</button>
-      </div>
+      <PageHeader title="Kegiatan" sub="Kelola agenda dan kegiatan" action={<button className="btn btn-primary btn-auto" onClick={() => setShowForm(true)}>+ Buat Kegiatan</button>} />
       <div className="admin-toolbar" style={{ marginBottom: 16 }}>
-        <label className="search">
-          <IcoSearch size={14} />
-          <input placeholder="Cari judul / lokasi..." value={q} onChange={(e) => setQ(e.target.value)} />
-        </label>
-        <button className={`btn ${showFilter ? "btn-primary" : "btn-ghost"} btn-sm`} onClick={() => setShowFilter((s) => !s)} style={{ width: "auto" }}>
+        <SearchInput value={q} onChange={setQ} placeholder="Cari judul / lokasi..." />
+        <button className={`btn ${showFilter ? "btn-primary" : "btn-ghost"} btn-sm btn-auto`} aria-expanded={showFilter} aria-haspopup="dialog" onClick={() => setShowFilter((s) => !s)}>
           Filter {adaFilterAktif && <span className="filter-count">{(dateFrom ? 1 : 0) + (dateTo ? 1 : 0) + (waktuFilter !== "semua" ? 1 : 0) + (wilayahFilter !== "semua" ? 1 : 0) + (kategoriFilter !== "semua" ? 1 : 0)}</span>}
         </button>
       </div>
 
       {showFilter && (
-        <div className="modal-backdrop" onClick={() => setShowFilter(false)}>
-          <div className="modal filter-modal" onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <strong className="modal-title">Filter Kegiatan</strong>
-              <button className="btn-close" aria-label="Tutup" onClick={() => setShowFilter(false)}><IcoX /></button>
+        <AdminModal title="Filter Kegiatan" onClose={() => setShowFilter(false)} className="filter-modal">
+          <div className="filter-groups">
+            <div className="filter-group">
+              <span className="filter-label">Tanggal</span>
+              <input type="date" className="filter-input" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} aria-label="Dari tanggal" />
+              <span className="filter-sep">s/d</span>
+              <input type="date" className="filter-input" value={dateTo} onChange={(e) => setDateTo(e.target.value)} aria-label="Sampai tanggal" />
             </div>
-            <div className="filter-groups">
-              <div className="filter-group">
-                <span className="filter-label">Tanggal</span>
-                <input type="date" className="filter-input" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} aria-label="Dari tanggal" />
-                <span className="filter-sep">s/d</span>
-                <input type="date" className="filter-input" value={dateTo} onChange={(e) => setDateTo(e.target.value)} aria-label="Sampai tanggal" />
-              </div>
-              <div className="filter-group">
-                <span className="filter-label">Waktu</span>
-                <div className="filter-chips">
-                  {(["semua", "pagi", "siang", "sore", "malam"] as const).map((w) => (
-                    <button key={w} className={`chip ${waktuFilter === w ? "active" : ""}`} onClick={() => setWaktuFilter(w)}>{w === "semua" ? "Semua" : w}</button>
-                  ))}
-                </div>
-              </div>
-              <div className="filter-group">
-                <span className="filter-label">Wilayah</span>
-                <div className="filter-chips">
-                  {(["semua", "daerah", "desa", "kelompok"] as const).map((f) => (
-                    <button key={f} className={`chip ${wilayahFilter === f ? "active" : ""}`} onClick={() => setWilayahFilter(f)}>{f === "semua" ? "Semua" : f}</button>
-                  ))}
-                </div>
-              </div>
-              <div className="filter-group">
-                <span className="filter-label">Jenis Kegiatan</span>
-                <div className="filter-chips">
-                  {(["semua", "sambung_rutin", "keakraban", "pemantapan", "lainnya"] as const).map((f) => (
-                    <button key={f} className={`chip ${kategoriFilter === f ? "active" : ""}`} onClick={() => setKategoriFilter(f)}>{f === "semua" ? "Semua" : f === "sambung_rutin" ? "Sambung Rutin" : f}</button>
-                  ))}
-                </div>
+            <div className="filter-group">
+              <span className="filter-label">Waktu</span>
+              <div className="filter-chips">
+                {(["semua", "pagi", "siang", "sore", "malam"] as const).map((w) => (
+                  <button key={w} className={`chip ${waktuFilter === w ? "active" : ""}`} onClick={() => setWaktuFilter(w)}>{w === "semua" ? "Semua" : w}</button>
+                ))}
               </div>
             </div>
-            <div className="filter-actions">
-              <button className="btn btn-ghost btn-sm" onClick={() => { resetFilter(); setShowFilter(false); }}>Reset</button>
-              <button className="btn btn-primary btn-sm" onClick={() => setShowFilter(false)}>Terapkan</button>
+            <div className="filter-group">
+              <span className="filter-label">Wilayah</span>
+              <div className="filter-chips">
+                {(["semua", "daerah", "desa", "kelompok"] as const).map((f) => (
+                  <button key={f} className={`chip ${wilayahFilter === f ? "active" : ""}`} onClick={() => setWilayahFilter(f)}>{f === "semua" ? "Semua" : f}</button>
+                ))}
+              </div>
+            </div>
+            <div className="filter-group">
+              <span className="filter-label">Jenis Kegiatan</span>
+              <div className="filter-chips">
+                {(["semua", "sambung_rutin", "keakraban", "pemantapan", "lainnya"] as const).map((f) => (
+                  <button key={f} className={`chip ${kategoriFilter === f ? "active" : ""}`} onClick={() => setKategoriFilter(f)}>{f === "semua" ? "Semua" : f === "sambung_rutin" ? "Sambung Rutin" : f}</button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+          <div className="filter-actions">
+            <button className="btn btn-ghost btn-sm" onClick={() => { resetFilter(); setShowFilter(false); }}>Reset</button>
+            <button className="btn btn-primary btn-sm" onClick={() => setShowFilter(false)}>Terapkan</button>
+          </div>
+        </AdminModal>
       )}
 
       <div className="kegiatan-grid">
@@ -1181,13 +1098,8 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
       </div>
 
       {showForm && (
-        <div className="modal-backdrop" onClick={() => setShowForm(false)}>
-          <div className="modal modal--kegiatan" onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 12 }}>
-              <strong className="modal-title">Buat Kegiatan</strong>
-              <button className="btn-close" aria-label="Tutup" onClick={() => setShowForm(false)}><IcoX /></button>
-            </div>
-            <div style={{ display: "grid", gap: 12 }}>
+        <AdminModal title="Buat Kegiatan" onClose={() => setShowForm(false)} className="modal--kegiatan">
+          <div style={{ display: "grid", gap: 12 }}>
               <div className="field"><label>Kategori Acara</label>
                 <Select
                   value={kategori}
@@ -1278,7 +1190,6 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
               >
                 Simpan Kegiatan
               </button>
-            </div>
           </div>
           <MapPickerModal
             open={showMap}
@@ -1295,7 +1206,7 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
               }
             }}
           />
-        </div>
+        </AdminModal>
       )}
     </div>
   );
@@ -1337,13 +1248,7 @@ function UsersManage({ role }: { role: AdminRole }) {
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1>Kelola User</h1>
-          <div className="page-header-sub">Kelola akun admin di bawah kamu</div>
-        </div>
-        <button className="btn btn-primary" style={{ width: "auto" }} disabled={role === "admin_kelompok"} onClick={() => setShowAdd(true)}>+ Tambah Admin</button>
-      </div>
+      <PageHeader title="Kelola User" sub="Kelola akun admin di bawah kamu" action={<button className="btn btn-primary btn-auto" disabled={role === "admin_kelompok"} onClick={() => setShowAdd(true)}>+ Tambah Admin</button>} />
       <div className="info-banner">
         <span className="info-banner-icon"><IcoShield size={18} /></span>
         <div className="info-banner-body">
@@ -1352,10 +1257,7 @@ function UsersManage({ role }: { role: AdminRole }) {
         </div>
       </div>
       <div className="admin-toolbar" style={{ marginBottom: 16 }}>
-        <label className="search">
-          <IcoSearch size={14} />
-          <input placeholder="Cari nama / wilayah / role..." value={q} onChange={(e) => setQ(e.target.value)} />
-        </label>
+        <SearchInput value={q} onChange={setQ} placeholder="Cari nama / wilayah / role..." />
       </div>
       {isMobile ? (
         <div className="cards-grid">
@@ -1378,10 +1280,8 @@ function UsersManage({ role }: { role: AdminRole }) {
               </div>
 
               <div className="member-card-actions">
-                <button className="btn btn-ghost btn-sm" disabled={!canManage(u.role)} onClick={() => setUsers((prev) => prev.map((x) => x.id === u.id ? { ...x, status: x.status === "aktif" ? "pending" : "aktif" } : x))}>
-                  {u.status === "aktif" ? "Nonaktifkan" : "Aktifkan"}
-                </button>
-                <button className="btn btn-danger btn-sm" disabled={!canManage(u.role)}>Hapus</button>
+                <button className="btn btn-ghost row-icon-btn" aria-label={u.status === "aktif" ? "Nonaktifkan" : "Aktifkan"} title={u.status === "aktif" ? "Nonaktifkan" : "Aktifkan"} disabled={!canManage(u.role)} onClick={() => setUsers((prev) => prev.map((x) => x.id === u.id ? { ...x, status: x.status === "aktif" ? "pending" : "aktif" } : x))}><IcoPower size={16} /></button>
+                <button className="btn btn-danger row-icon-btn" aria-label="Hapus" title="Hapus" disabled={!canManage(u.role)}><IcoTrash size={16} /></button>
               </div>
             </div>
           ))}
@@ -1390,7 +1290,8 @@ function UsersManage({ role }: { role: AdminRole }) {
       ) : (
         <div className="table-wrap">
           <table className="admin-table">
-            <thead><tr><th>Nama</th><th>Role</th><th>Wilayah</th><th>Status</th><th>Aksi</th></tr></thead>
+            <caption className="sr-only">Daftar admin — nama, role, wilayah, status, dan aksi</caption>
+            <thead><tr><th scope="col">Nama</th><th scope="col">Role</th><th scope="col">Wilayah</th><th scope="col">Status</th><th scope="col">Aksi</th></tr></thead>
             <tbody>
               {filteredUsers.map((u) => (
                 <tr key={u.id}>
@@ -1400,10 +1301,8 @@ function UsersManage({ role }: { role: AdminRole }) {
                   <td><span className={`pill ${u.status === "aktif" ? "pill-emerald" : "pill-amber"}`}>{u.status}</span></td>
                   <td>
                     <div style={{ display: "flex", gap: 6 }}>
-                      <button className="btn btn-ghost btn-sm" disabled={!canManage(u.role)} onClick={() => setUsers((prev) => prev.map((x) => x.id === u.id ? { ...x, status: x.status === "aktif" ? "pending" : "aktif" } : x))}>
-                        {u.status === "aktif" ? "Nonaktifkan" : "Aktifkan"}
-                      </button>
-                      <button className="btn btn-danger btn-sm" disabled={!canManage(u.role)}>Hapus</button>
+                      <button className="btn btn-ghost row-icon-btn" aria-label={u.status === "aktif" ? "Nonaktifkan" : "Aktifkan"} title={u.status === "aktif" ? "Nonaktifkan" : "Aktifkan"} disabled={!canManage(u.role)} onClick={() => setUsers((prev) => prev.map((x) => x.id === u.id ? { ...x, status: x.status === "aktif" ? "pending" : "aktif" } : x))}><IcoPower size={16} /></button>
+                      <button className="btn btn-danger row-icon-btn" aria-label="Hapus" title="Hapus" disabled={!canManage(u.role)}><IcoTrash size={16} /></button>
                     </div>
                   </td>
                 </tr>
@@ -1440,49 +1339,43 @@ function AddAdminModal({
   const valid = nama.trim().length >= 3;
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <strong className="modal-title">Tambah Admin</strong>
-          <button className="btn-close" aria-label="Tutup" onClick={onClose}><IcoX /></button>
+    <AdminModal title="Tambah Admin" onClose={onClose}>
+      <div style={{ display: "grid", gap: 12 }}>
+        <div className="field">
+          <label>Nama *</label>
+          <input value={nama} onChange={(e) => setNama(e.target.value)} placeholder="Nama admin" />
         </div>
-        <div style={{ display: "grid", gap: 12 }}>
-          <div className="field">
-            <label>Nama *</label>
-            <input value={nama} onChange={(e) => setNama(e.target.value)} placeholder="Nama admin" />
-          </div>
-          <div className="field">
-            <label>Role *</label>
-            <Select
-              value={roleBaru}
-              onChange={(v) => setRoleBaru(v as AdminRole)}
-              ariaLabel="Role admin"
-              options={roleOptions.map((o) => ({ value: o.value, label: o.label }))}
-            />
-          </div>
-          <div className="field">
-            <label>Wilayah *</label>
-            <Select
-              value={wilayah}
-              onChange={setWilayah}
-              ariaLabel="Wilayah admin"
-              options={wilayahOptions.map((w) => ({ value: w, label: w }))}
-            />
-          </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-            <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Batal</button>
-            <button
-              className="btn btn-primary"
-              style={{ flex: 1 }}
-              disabled={!valid}
-              onClick={() => onSave(nama.trim(), roleBaru, wilayah)}
-            >
-              Simpan Admin
-            </button>
-          </div>
+        <div className="field">
+          <label>Role *</label>
+          <Select
+            value={roleBaru}
+            onChange={(v) => setRoleBaru(v as AdminRole)}
+            ariaLabel="Role admin"
+            options={roleOptions.map((o) => ({ value: o.value, label: o.label }))}
+          />
+        </div>
+        <div className="field">
+          <label>Wilayah *</label>
+          <Select
+            value={wilayah}
+            onChange={setWilayah}
+            ariaLabel="Wilayah admin"
+            options={wilayahOptions.map((w) => ({ value: w, label: w }))}
+          />
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Batal</button>
+          <button
+            className="btn btn-primary"
+            style={{ flex: 1 }}
+            disabled={!valid}
+            onClick={() => onSave(nama.trim(), roleBaru, wilayah)}
+          >
+            Simpan Admin
+          </button>
         </div>
       </div>
-    </div>
+    </AdminModal>
   );
 }
 
@@ -1580,19 +1473,13 @@ function WilayahPage() {
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1>Manajemen Wilayah</h1>
-          <div className="page-header-sub">Kelola desa dan kelompok di bawah Daerah Cengkareng</div>
-        </div>
-        <button className="btn btn-primary" style={{ width: "auto" }} onClick={() => setShowAddDesa(true)}>+ Tambah Desa</button>
-      </div>
+      <PageHeader title="Manajemen Wilayah" sub="Kelola desa dan kelompok di bawah Daerah Cengkareng" action={<button className="btn btn-primary btn-auto" onClick={() => setShowAddDesa(true)}>+ Tambah Desa</button>} />
 
       <div className="kpi">
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--emerald"><IcoMapPin size={18} /></span><div><div className="muted">Desa</div><strong>{countDesa}</strong></div></div>
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--slate"><IcoUsers size={18} /></span><div><div className="muted">Kelompok</div><strong>{countKelompok}</strong></div></div>
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--amber"><IcoCalendar size={18} /></span><div><div className="muted">Total anggota</div><strong>{countAnggota}</strong></div></div>
-        <div className="kpi-card" style={{ display: "flex", gap: 12, alignItems: "center" }}><span className="kpi-icon kpi-icon--peach"><IcoQr size={18} /></span><div><div className="muted">Rata-rata / desa</div><strong>{desas.length ? (countKelompok / desas.length).toFixed(1) : 0}</strong></div></div>
+        <KpiCard icon={<span className="kpi-icon kpi-icon--emerald"><IcoMapPin size={18} /></span>} label="Desa" value={countDesa} />
+        <KpiCard icon={<span className="kpi-icon kpi-icon--slate"><IcoUsers size={18} /></span>} label="Kelompok" value={countKelompok} />
+        <KpiCard icon={<span className="kpi-icon kpi-icon--amber"><IcoCalendar size={18} /></span>} label="Total anggota" value={countAnggota} />
+        <KpiCard icon={<span className="kpi-icon kpi-icon--peach"><IcoQr size={18} /></span>} label="Rata-rata / desa" value={desas.length ? (countKelompok / desas.length).toFixed(1) : 0} />
       </div>
 
       <div className="wilayah-tree card">
@@ -1603,8 +1490,8 @@ function WilayahPage() {
             <span className="pill pill-emerald">Daerah</span>
           </div>
           <div className="muted" style={{ marginLeft: "auto" }}>Singleton &mdash; root tanpa tabel daerah</div>
-          <button className="btn btn-ghost btn-sm" style={{ width: "auto" }} onClick={() => setQrTarget({ level: "daerah", nama: "Daerah Cengkareng" })}>
-            <IcoQr size={14} /> QR Absen
+          <button className="btn btn-ghost row-icon-btn" aria-label="QR Absen" title="QR Absen" onClick={() => setQrTarget({ level: "daerah", nama: "Daerah Cengkareng" })}>
+            <IcoQr size={16} />
           </button>
         </div>
       </div>
@@ -1685,10 +1572,14 @@ function WilayahPage() {
                 </div>
                 <div className="wilayah-actions">
                   <span className="muted" style={{ fontSize: 12, marginRight: 2 }}>{visibleKel.length} kelompok{isCollapsed ? " • tertutup" : ""}</span>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setShowAddKelompok(desa.id)}>+ Kelompok</button>
-                  <button className="btn btn-danger btn-sm" onClick={() => hapusDesa(desa.id)}>Hapus</button>
-                  <button className="btn btn-ghost btn-sm" style={{ width: "auto" }} onClick={() => setQrTarget({ level: "desa", nama: desa.nama })}>
-                    <IcoQr size={14} /> QR Absen
+                  <button className="btn btn-ghost row-icon-btn" aria-label="Tambah kelompok" title="Tambah kelompok" onClick={() => setShowAddKelompok(desa.id)}>
+                    <span aria-hidden="true" style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}>+</span>
+                  </button>
+                  <button className="btn btn-danger row-icon-btn" aria-label="Hapus desa" title="Hapus desa" onClick={() => hapusDesa(desa.id)}>
+                    <IcoTrash size={16} />
+                  </button>
+                  <button className="btn btn-ghost row-icon-btn" aria-label="QR Absen" title="QR Absen" onClick={() => setQrTarget({ level: "desa", nama: desa.nama })}>
+                    <IcoQr size={16} />
                   </button>
                 </div>
               </div>
@@ -1704,15 +1595,19 @@ function WilayahPage() {
                         className={`wilayah-kelompok-row ${isKelMatch ? "wilayah-kelompok-row--match" : ""}`}
                       >
                         <span className="wilayah-kelompok-dot" />
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: 13 }}>{kel.nama}</div>
-                          <span className="pill pill-slate">{anggotaKelompok(kel.nama)} anggota</span>
-                        </div>
-                        <div className="wilayah-actions" style={{ marginLeft: "auto" }}>
-                          <button className="btn btn-danger btn-sm" onClick={() => setKelompoks((prev) => prev.filter((k) => k.id !== kel.id))}>Hapus</button>
-                          <button className="btn btn-ghost btn-sm" style={{ width: "auto" }} onClick={() => setQrTarget({ level: "kelompok", nama: kel.nama })}>
-                            <IcoQr size={14} /> QR Absen
-                          </button>
+                        <div className="wilayah-kelompok-main">
+                          <div className="wilayah-kelompok-info">
+                            <span className="wilayah-kelompok-name">{kel.nama}</span>
+                            <span className="pill pill-slate">{anggotaKelompok(kel.nama)} anggota</span>
+                          </div>
+                          <div className="wilayah-kelompok-actions">
+                            <button className="btn btn-danger row-icon-btn" aria-label="Hapus kelompok" title="Hapus kelompok" onClick={() => setKelompoks((prev) => prev.filter((k) => k.id !== kel.id))}>
+                              <IcoTrash size={15} />
+                            </button>
+                            <button className="btn btn-ghost row-icon-btn" aria-label="QR Absen" title="QR Absen" onClick={() => setQrTarget({ level: "kelompok", nama: kel.nama })}>
+                              <IcoQr size={15} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -1741,20 +1636,14 @@ function WilayahPage() {
       )}
 
       {showAddKelompok && (
-        <div className="modal-backdrop" onClick={() => setShowAddKelompok(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <strong className="modal-title">Tambah Kelompok</strong>
-              <button className="btn-close" aria-label="Tutup" onClick={() => setShowAddKelompok(null)}><IcoX /></button>
-            </div>
-            <AddWilayahForm
-              label="Nama Kelompok"
-              placeholder="Mis. Fajar D"
-              onCancel={() => setShowAddKelompok(null)}
-              onSave={(nama) => tambahKelompok(showAddKelompok, nama)}
-            />
-          </div>
-        </div>
+        <AdminModal title="Tambah Kelompok" onClose={() => setShowAddKelompok(null)}>
+          <AddWilayahForm
+            label="Nama Kelompok"
+            placeholder="Mis. Fajar D"
+            onCancel={() => setShowAddKelompok(null)}
+            onSave={(nama) => tambahKelompok(showAddKelompok, nama)}
+          />
+        </AdminModal>
       )}
 
       {qrTarget && <QrModal target={qrTarget} onClose={() => setQrTarget(null)} />}
@@ -1768,15 +1657,9 @@ function AddWilayahModal({
   title: string; label: string; placeholder: string; onClose: () => void; onSave: (nama: string) => void;
 }) {
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <strong className="modal-title">{title}</strong>
-          <button className="btn-close" aria-label="Tutup" onClick={onClose}><IcoX /></button>
-        </div>
-        <AddWilayahForm label={label} placeholder={placeholder} onCancel={onClose} onSave={onSave} />
-      </div>
-    </div>
+    <AdminModal title={title} onClose={onClose}>
+      <AddWilayahForm label={label} placeholder={placeholder} onCancel={onClose} onSave={onSave} />
+    </AdminModal>
   );
 }
 
@@ -1801,6 +1684,7 @@ function AddWilayahForm({
   );
 }
 
+import CmsPage from "./features/cms/CmsPage";
 import MemberShell from "./features/member/MemberShell";
 import type { MemberPageKey } from "./features/member/MemberShell";
 import MemberHomePage from "./features/member/MemberHomePage";
@@ -1825,20 +1709,16 @@ export default function App({ initialMode }: { initialMode?: "admin" | "member" 
     );
   }
 
+  const effectivePage = page === "pengurus" ? "cms" : page;
   return (
     <>
-      <div style={{ position: "fixed", right: 12, top: 12, zIndex: 50 }}>
-        <button type="button" className="btn btn-primary btn-sm" onClick={() => setMode("member")}>
-          Lihat Member
-        </button>
-      </div>
-      <AdminShell page={page} setPage={setPage}>
-        {page === "anggota" && <AnggotaPage role={role} />}
-        {page === "kegiatan" && <KegiatanAdmin role={role} />}
-        {page === "users" && <UsersManage role={role} />}
-        {page === "wilayah" && <WilayahPage />}
-        {page === "pengurus" && <PengurusAdmin />}
-        {page === "statistik" && <StatistikPage />}
+      <AdminShell page={effectivePage} setPage={setPage}>
+        {effectivePage === "anggota" && <AnggotaPage role={role} />}
+        {effectivePage === "kegiatan" && <KegiatanAdmin role={role} />}
+        {effectivePage === "users" && <UsersManage role={role} />}
+        {effectivePage === "wilayah" && <WilayahPage />}
+        {effectivePage === "cms" && <CmsPage />}
+        {effectivePage === "statistik" && <StatistikPage />}
       </AdminShell>
     </>
   );

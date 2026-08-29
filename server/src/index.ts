@@ -16,6 +16,7 @@ import rundownRoutes from "./routes/rundown";
 import miscRoutes from "./routes/misc";
 import publicRoutes from "./routes/public";
 import mandiriRoutes from "./routes/mandiri";
+import cmsRoutes from "./routes/cms";
 import { uaBlock, rateLimitAuth, bodyLimit } from "./middleware/security";
 
 type Env = { DB: D1Database; KV?: KVNamespace; R2_BUCKET?: R2Bucket; JWT_SECRET: string; DAERAH_NAMA?: string } & Record<string, unknown>;
@@ -46,6 +47,7 @@ app.route("/api/rab", rabRoutes);
 app.route("/api/rundown", rundownRoutes);
 app.route("/api/public", publicRoutes);
 app.route("/api/mandiri", mandiriRoutes);
+app.route("/api/cms", cmsRoutes);
 // misc hosts /api/scanner, /api/sholat, /api/upload, /api/download, /api/images, /api/dashboard/stats, /api/settings, /api/profile, /api/fcm, /api/webhook
 app.route("/api", miscRoutes);
 

@@ -206,6 +206,7 @@ export const artikel = sqliteTable("artikel", {
   judul: text("judul").notNull(),
   konten: text("konten").notNull(),
   ringkasan: text("ringkasan"),
+  kategori: text("kategori").default("Tuntunan Ibadah"),
   coverImage: text("cover_image"),
   status: text("status", { enum: ["pending", "published", "approved", "rejected"] })
     .notNull()
@@ -519,6 +520,8 @@ export type Rundown = typeof rundown.$inferSelect;
 export type RundownApproval = typeof rundownApproval.$inferSelect;
 export type MandiriRoom = typeof mandiriRooms.$inferSelect;
 export type MandiriKunjungan = typeof mandiriKunjungan.$inferSelect;
+export type KegiatanPublik = typeof kegiatanPublik.$inferSelect;
+export type Galeri = typeof galeri.$inferSelect;
 export type IdCardBuilderData = typeof idCardBuilderData.$inferSelect;
 export type FormPanitiaDanPengurus = typeof formPanitiaDanPengurus.$inferSelect;
 export type MandiriKomentar = typeof mandiriKomentar.$inferSelect;
@@ -539,6 +542,54 @@ export const organisasiPengurus = sqliteTable("organisasi_pengurus", {
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 });
+
+export const kegiatanPublik = sqliteTable("kegiatan_publik", {
+  id: text("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  judul: text("judul").notNull(),
+  excerpt: text("excerpt"),
+  konten: text("konten"),
+  coverImage: text("cover_image"),
+  kategori: text("kategori").default("Sambung Rutin"),
+  kategoriAcara: text("kategori_acara", { enum: ["sambung_rutin", "keakraban", "pemantapan", "lainnya"] }).default("lainnya"),
+  kategoriCustom: text("kategori_custom"),
+  tanggal: text("tanggal").notNull(),
+  jam: text("jam"),
+  lokasi: text("lokasi"),
+  lat: real("lat"),
+  lng: real("lng"),
+  status: text("status", { enum: ["draft", "pending_review", "published", "rejected"] }).notNull().default("draft"),
+  authorId: text("author_id").references(() => users.id),
+  publishedAt: text("published_at"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+}, (t) => ({
+  slugIdx: index("kegiatan_publik_slug_idx").on(t.slug),
+  statusIdx: index("kegiatan_publik_status_idx").on(t.status),
+  tanggalIdx: index("kegiatan_publik_tanggal_idx").on(t.tanggal),
+}));
+
+export const galeri = sqliteTable("galeri", {
+  id: text("id").primaryKey(),
+  judul: text("judul").notNull(),
+  image: text("image").notNull(),
+  kategori: text("kategori").default("Kegiatan"),
+  type: text("type", { enum: ["photo", "reel", "quote"] }).default("photo"),
+  aspectRatio: text("aspect_ratio", { enum: ["portrait", "landscape", "square", "tall"] }).default("portrait"),
+  deskripsi: text("deskripsi"),
+  quote: text("quote"),
+  author: text("author"),
+  durasi: text("durasi"),
+  tanggal: text("tanggal"),
+  lokasi: text("lokasi"),
+  status: text("status", { enum: ["draft", "published"] }).notNull().default("published"),
+  authorId: text("author_id").references(() => users.id),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+}, (t) => ({
+  statusIdx: index("galeri_status_idx").on(t.status),
+  kategoriIdx: index("galeri_kategori_idx").on(t.kategori),
+}));
 
 export const saranMasukan = sqliteTable("saran_masukan", {
   id: text("id").primaryKey(),
@@ -592,6 +643,8 @@ export type NewRundown = typeof rundown.$inferInsert;
 export type NewRundownApproval = typeof rundownApproval.$inferInsert;
 export type NewMandiriRoom = typeof mandiriRooms.$inferInsert;
 export type NewMandiriKunjungan = typeof mandiriKunjungan.$inferInsert;
+export type NewKegiatanPublik = typeof kegiatanPublik.$inferInsert;
+export type NewGaleri = typeof galeri.$inferInsert;
 export type NewIdCardBuilderData = typeof idCardBuilderData.$inferInsert;
 export type NewFormPanitiaDanPengurus = typeof formPanitiaDanPengurus.$inferInsert;
 export type NewMandiriKomentar = typeof mandiriKomentar.$inferInsert;

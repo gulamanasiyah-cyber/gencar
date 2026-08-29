@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { motion, AnimatePresence, useInView, useReducedMotion } from "motion/react";
 import { ArrowRight, MapPin, Quote, Sparkles, Users, CalendarDays, MessageCircle, X } from "lucide-react";
 import { MOCK_PENGURUS, MOCK_STORIES, TENTANG_TIMELINE, TENTANG_NILAI, type PubPengurus, type PengurusLevel } from "./data";
+import type { TentangJson } from "../../../../shared/validation";
 
 function CountUp({ target, prefix = "", suffix = "", decimals = 0 }: { target: number; prefix?: string; suffix?: string; decimals?: number }) {
   const [val, setVal] = useState(0);
@@ -261,34 +262,78 @@ function orderedIndex(p: PubPengurus): number {
   }).findIndex((x) => x.nama === p.nama && x.role === p.role) + 1;
 }
 
-export function PublicTentang() {
-  const lead = MOCK_STORIES[0];
-  const side = MOCK_STORIES.slice(1);
+export function PublicTentang({ data: propData }: { data?: TentangJson | null } = {}) {
+  const [dyn, setDyn] = useState<TentangJson | null>(propData ?? null);
+
+  useEffect(() => {
+    if (propData !== undefined) {
+      setDyn(propData);
+      return;
+    }
+    fetch("/api/public/tentang")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (j?.json) setDyn(j.json);
+      })
+      .catch(() => {});
+  }, [propData]);
+
+  const hero = dyn?.hero;
+  const letter = dyn?.letter;
+  const manifesto = dyn?.manifesto;
+  const chronicle = dyn?.chronicle;
+  const voices = dyn?.voices;
+  const stats = dyn?.stats;
+  const cta = dyn?.cta;
+
+  const lead = voices?.stories?.[0] ?? MOCK_STORIES[0];
+  const side = voices?.stories?.slice(1) ?? MOCK_STORIES.slice(1);
+
   return (
     <div style={{ display: "grid", gap: 0 }}>
       <div className="tentang-ink-hero">
         <div className="tentang-ink-inner">
           <div className="tentang-ink-copy">
-            <span className="tentang-kicker">Etalase Muda-Mudi Cengkareng</span>
-            <h1>Wadah kebersamaan &amp; <em>pembinaan generus</em> di Cengkareng.</h1>
-            <p className="lead">Ruang dokumentasi resmi kegiatan, syiar nilai budi pekerti, dan etalase karya generasi muda LDII Daerah Cengkareng — dari tingkat kelompok hingga daerah.</p>
+            <span className="tentang-kicker">{hero?.kicker ?? "Etalase Muda-Mudi Cengkareng"}</span>
+            <h1>
+              {hero?.title ?? "Wadah kebersamaan &"} <em>{hero?.titleEm ?? "pembinaan generus"}</em> {hero?.titleEnd ?? "di Cengkareng."}
+            </h1>
+            <p className="lead">
+              {hero?.lead ?? "Ruang dokumentasi resmi kegiatan, syiar nilai budi pekerti, dan etalase karya generasi muda LDII Daerah Cengkareng — dari tingkat kelompok hingga daerah."}
+            </p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", paddingTop: 4 }}>
-              <Link to="/kegiatan" className="btn-lime">Arsip kegiatan <ArrowRight size={16} /></Link>
-              <Link to="/pengurus" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 18px", borderRadius: 999, background: "rgba(255,255,255,0.1)", color: "#fff", fontWeight: 700, fontSize: 14, border: "1px solid rgba(255,255,255,0.16)" }}>Struktur Pengurus</Link>
+              <Link to={hero?.ctaPrimary?.href ?? "/kegiatan"} className="btn-lime">
+                {hero?.ctaPrimary?.label ?? "Arsip kegiatan"} <ArrowRight size={16} />
+              </Link>
+              <Link
+                to={hero?.ctaSecondary?.href ?? "/pengurus"}
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 18px", borderRadius: 999, background: "rgba(255,255,255,0.1)", color: "#fff", fontWeight: 700, fontSize: 14, border: "1px solid rgba(255,255,255,0.16)" }}
+              >
+                {hero?.ctaSecondary?.label ?? "Struktur Pengurus"}
+              </Link>
             </div>
             <div className="tentang-ink-meta">
-              <span><Sparkles size={14} /> Etalase Dokumentasi</span>
-              <span><Users size={14} /> Daerah Cengkareng</span>
-              <span><CalendarDays size={14} /> Pembinaan Berkelanjutan</span>
+              {(hero?.meta ?? [
+                { icon: "sparkles", text: "Etalase Dokumentasi" },
+                { icon: "users", text: "Daerah Cengkareng" },
+                { icon: "calendar", text: "Pembinaan Berkelanjutan" },
+              ]).map((m, i) => (
+                <span key={i}>
+                  {m.icon === "sparkles" && <Sparkles size={14} />}
+                  {m.icon === "users" && <Users size={14} />}
+                  {m.icon === "calendar" && <CalendarDays size={14} />}
+                  {" "}{m.text}
+                </span>
+              ))}
             </div>
-            <div className="tentang-ghost-num" aria-hidden>LDII</div>
+            <div className="tentang-ghost-num" aria-hidden>{hero?.ghostText ?? "LDII"}</div>
           </div>
           <div className="tentang-ink-visual">
-            <img src="https://picsum.photos/seed/gencar-tentang-hero/900/900" alt="Kebersamaan Muda-Mudi Cengkareng" loading="eager" />
+            <img src={hero?.image ?? "https://picsum.photos/seed/gencar-tentang-hero/900/900"} alt="Kebersamaan Muda-Mudi Cengkareng" loading="eager" />
             <div className="tentang-ink-float">
               <span style={{ width: 32, height: 32, borderRadius: 10, background: "var(--pub-lime)", display: "grid", placeItems: "center", flexShrink: 0 }}><Quote size={14} /></span>
-              <span>“Rukun, kompak, dan kerja sama yang baik.”</span>
-              <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--pub-muted)", whiteSpace: "nowrap" }}>— Karakter Luhur</span>
+              <span>{hero?.floatQuote ?? "“Rukun, kompak, dan kerja sama yang baik.”"}</span>
+              <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--pub-muted)", whiteSpace: "nowrap" }}>{hero?.floatAttribution ?? "— Karakter Luhur"}</span>
             </div>
           </div>
         </div>
@@ -296,50 +341,57 @@ export function PublicTentang() {
 
       <div className="tentang-letter">
         <figure className="tentang-letter-illus">
-          <img src="https://picsum.photos/seed/gencar-origin/700/800" alt="Pembinaan Generasi Muda" loading="lazy" />
-          <figcaption>Dokumentasi pembinaan berjenjang: dari kelompok, desa, hingga tingkat daerah Cengkareng.</figcaption>
+          <img src={letter?.image ?? "https://picsum.photos/seed/gencar-origin/700/800"} alt="Pembinaan Generasi Muda" loading="lazy" />
+          <figcaption>{letter?.caption ?? "Dokumentasi pembinaan berjenjang: dari kelompok, desa, hingga tingkat daerah Cengkareng."}</figcaption>
         </figure>
         <div className="tentang-letter-body">
-          <h2>Dinamika Pembinaan &amp; Sinergi Generus</h2>
-          <p className="dropcap">Pembinaan generasi muda di Cengkareng berakar dari pengajian rutin kelompok hingga kegiatan terpadu tingkat daerah. Setiap jenjang usia dirangkul melalui materi Al-Qur'an dan Al-Hadits yang aplikatif serta pembiasaan akhlak mulia.</p>
-          <p>Tujuan utama kami adalah mencetak generasi penerus yang memiliki Tri Sukses: alim dan faqih dalam ilmu agama, berakhlakul karimah dalam pergaulan, serta mandiri dalam mengarungi kehidupan bermasyarakat.</p>
-          <p>Laman web ini dihadirkan sebagai etalase publik yang transparan dan rapi. Seluruh dokumentasi kegiatan, artikel kepemudaan, dan karya warga tersaji agar menjadi inspirasi positif bagi sesama dan masyarakat luas.</p>
-          <div className="pub-quote">“Membina generus bukan sekadar program tahunan, melainkan ikhtiar berkesinambungan mencetak insan yang bermanfaat bagi agama, nusa, dan bangsa.”<cite>— Pembina Muda-Mudi Cengkareng</cite></div>
+          <h2>{letter?.heading ?? "Dinamika Pembinaan & Sinergi Generus"}</h2>
+          <p className="dropcap">
+            {letter?.dropcapText ?? "Pembinaan generasi muda di Cengkareng berakar dari pengajian rutin kelompok hingga kegiatan terpadu tingkat daerah. Setiap jenjang usia dirangkul melalui materi Al-Qur'an dan Al-Hadits yang aplikatif serta pembiasaan akhlak mulia."}
+          </p>
+          <p>
+            {letter?.paragraph2 ?? "Tujuan utama kami adalah mencetak generasi penerus yang memiliki Tri Sukses: alim dan faqih dalam ilmu agama, berakhlakul karimah dalam pergaulan, serta mandiri dalam mengarungi kehidupan bermasyarakat."}
+          </p>
+          <p>
+            {letter?.paragraph3 ?? "Laman web ini dihadirkan sebagai etalase publik yang transparan dan rapi. Seluruh dokumentasi kegiatan, artikel kepemudaan, dan karya warga tersaji agar menjadi inspirasi positif bagi sesama dan masyarakat luas."}
+          </p>
+          <div className="pub-quote">
+            {letter?.quote ?? "“Membina generus bukan sekadar program tahunan, melainkan ikhtiar berkesinambungan mencetak insan yang bermanfaat bagi agama, nusa, dan bangsa.”"}
+            <cite>{letter?.quoteCite ?? "— Pembina Muda-Mudi Cengkareng"}</cite>
+          </div>
         </div>
       </div>
 
       <div className="tentang-manifesto">
-        <h2 style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 24, letterSpacing: "-0.03em" }}>Pondasi Pembinaan: Tri Sukses Generus</h2>
-        <p style={{ fontSize: 13, color: "var(--pub-muted)", marginTop: 6 }}>Tiga target utama yang senantiasa ditanamkan dalam setiap kegiatan muda-mudi.</p>
+        <h2 style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 24, letterSpacing: "-0.03em" }}>{manifesto?.heading ?? "Pondasi Pembinaan: Tri Sukses Generus"}</h2>
+        <p style={{ fontSize: 13, color: "var(--pub-muted)", marginTop: 6 }}>{manifesto?.subheading ?? "Tiga target utama yang senantiasa ditanamkan dalam setiap kegiatan muda-mudi."}</p>
         <div className="tentang-manifesto-grid">
-          <div className="tentang-mani-card tentang-mani-card--ink">
-            <span className="tentang-mani-num">01</span>
-            <h3>{TENTANG_NILAI[0].title}</h3>
-            <p>{TENTANG_NILAI[0].body}</p>
-            <Link to={TENTANG_NILAI[0].href}>{TENTANG_NILAI[0].proof} <ArrowRight size={14} /></Link>
-          </div>
-          <div className="tentang-mani-card">
-            <span className="tentang-mani-num">02</span>
-            <h3>{TENTANG_NILAI[1].title}</h3>
-            <p>{TENTANG_NILAI[1].body}</p>
-            <Link to={TENTANG_NILAI[1].href}>{TENTANG_NILAI[1].proof} <ArrowRight size={14} /></Link>
-          </div>
-          <div className="tentang-mani-card">
-            <span className="tentang-mani-num">03</span>
-            <h3>{TENTANG_NILAI[2].title}</h3>
-            <p>{TENTANG_NILAI[2].body}</p>
-            <a href={TENTANG_NILAI[2].href}>{TENTANG_NILAI[2].proof} <ArrowRight size={14} /></a>
-          </div>
+          {(manifesto?.cards ?? (TENTANG_NILAI as any)).map((c: any, i: number) => {
+            const isInk = c.isInk ?? i === 0;
+            const isHash = c.href?.startsWith("#");
+            return (
+              <div key={i} className={`tentang-mani-card ${isInk ? "tentang-mani-card--ink" : ""}`}>
+                <span className="tentang-mani-num">{c.num ?? String(i + 1).padStart(2, "0")}</span>
+                <h3>{c.title}</h3>
+                <p>{c.body}</p>
+                {isHash ? (
+                  <a href={c.href}>{c.proof} <ArrowRight size={14} /></a>
+                ) : (
+                  <Link to={c.href}>{c.proof} <ArrowRight size={14} /></Link>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
       <div className="tentang-chronicle">
-        <h2 style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 24, letterSpacing: "-0.03em" }}>Pilar &amp; Dimensi Pembinaan</h2>
-        <p style={{ fontSize: 13, color: "var(--pub-muted)", marginTop: 6 }}>Fokus pengembangan potensi generasi muda se-Daerah Cengkareng.</p>
+        <h2 style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 24, letterSpacing: "-0.03em" }}>{chronicle?.heading ?? "Pilar & Dimensi Pembinaan"}</h2>
+        <p style={{ fontSize: 13, color: "var(--pub-muted)", marginTop: 6 }}>{chronicle?.subheading ?? "Fokus pengembangan potensi generasi muda se-Daerah Cengkareng."}</p>
         <div className="tentang-chrono-grid">
-          {TENTANG_TIMELINE.map((t, i) => (
-            <div key={t.year} className="tentang-chrono-card">
-              <img src={`https://picsum.photos/seed/gencar-chrono-${i}/300/300`} alt="" loading="lazy" />
+          {(chronicle?.items ?? TENTANG_TIMELINE).map((t, i) => (
+            <div key={i} className="tentang-chrono-card">
+              <img src={(t as any).image || `https://picsum.photos/seed/gencar-chrono-${i}/300/300`} alt="" loading="lazy" />
               <div className="tentang-chrono-body">
                 <strong>{t.year}</strong>
                 <h4>{t.title}</h4>
@@ -351,19 +403,21 @@ export function PublicTentang() {
       </div>
 
       <div id="cerita" className="tentang-voices">
-        <h2 style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 24, letterSpacing: "-0.03em" }}>Cerita dari Lapangan</h2>
-        <p style={{ fontSize: 13, color: "var(--pub-muted)", marginTop: 6 }}>Refleksi nyata dari muda-mudi, pembina, dan penggerak kegiatan di Cengkareng.</p>
+        <h2 style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 24, letterSpacing: "-0.03em" }}>{voices?.heading ?? "Cerita dari Lapangan"}</h2>
+        <p style={{ fontSize: 13, color: "var(--pub-muted)", marginTop: 6 }}>{voices?.subheading ?? "Refleksi nyata dari muda-mudi, pembina, dan penggerak kegiatan di Cengkareng."}</p>
         <div className="tentang-voices-grid">
-          <div className="tentang-voice-feature">
-            <img src={lead.foto} alt={lead.nama} loading="lazy" />
-            <div className="tentang-voice-feature-content">
-              <blockquote>“{lead.quote}”</blockquote>
-              <cite>{lead.nama} · {lead.peran} · {lead.angkatan}</cite>
+          {lead && (
+            <div className="tentang-voice-feature">
+              <img src={lead.foto} alt={lead.nama} loading="lazy" />
+              <div className="tentang-voice-feature-content">
+                <blockquote>“{lead.quote}”</blockquote>
+                <cite>{lead.nama} · {lead.peran} · {lead.angkatan}</cite>
+              </div>
             </div>
-          </div>
+          )}
           <div className="tentang-voices-side">
-            {side.map((s) => (
-              <div key={s.nama} className="tentang-voice-card">
+            {side.map((s, i) => (
+              <div key={i} className="tentang-voice-card">
                 <blockquote>“{s.quote}”</blockquote>
                 <cite>{s.nama} · {s.peran} · {s.angkatan}</cite>
                 <p>{s.konteks}</p>
@@ -371,32 +425,46 @@ export function PublicTentang() {
             ))}
           </div>
         </div>
-        <p style={{ fontSize: 12, color: "var(--pub-muted)", marginTop: 8, lineHeight: 1.5 }}>{lead.konteks}</p>
+        {lead?.konteks && <p style={{ fontSize: 12, color: "var(--pub-muted)", marginTop: 8, lineHeight: 1.5 }}>{lead.konteks}</p>}
       </div>
 
       <div className="tentang-stats-ink">
         <div className="tentang-stats-row">
-          <div className="tentang-stat tentang-stat--ink"><strong><CountUp target={48} /></strong><span>Kegiatan Terdokumentasi</span></div>
-          <div className="tentang-stat"><strong><CountUp target={1.2} decimals={1} suffix="k" /></strong><span>Muda-Mudi Terbina</span></div>
-          <div className="tentang-stat tentang-stat--lime"><strong><CountUp target={36} /></strong><span>Artikel &amp; Risalah</span></div>
-          <div className="tentang-stat"><strong><CountUp target={12} /></strong><span>Pengurus &amp; Koordinator</span></div>
+          {(stats?.items ?? [
+            { target: 48, label: "Kegiatan Terdokumentasi", variant: "ink" },
+            { target: 1.2, decimals: 1, suffix: "k", label: "Muda-Mudi Terbina", variant: "default" },
+            { target: 36, label: "Artikel & Risalah", variant: "lime" },
+            { target: 12, label: "Pengurus & Koordinator", variant: "default" },
+          ]).map((st: any, i: number) => {
+            const cls = st.variant === "ink" ? "tentang-stat--ink" : st.variant === "lime" ? "tentang-stat--lime" : "";
+            return (
+              <div key={i} className={`tentang-stat ${cls}`}>
+                <strong>
+                  <CountUp target={st.target} decimals={st.decimals ?? 0} suffix={st.suffix ?? ""} prefix={st.prefix ?? ""} />
+                </strong>
+                <span>{st.label}</span>
+              </div>
+            );
+          })}
         </div>
         <div style={{ textAlign: "center", marginTop: 12 }}>
-          <Link to="/kegiatan" style={{ fontSize: 13, fontWeight: 700, display: "inline-flex", gap: 6, alignItems: "center", borderBottom: "1px solid var(--pub-ink)", paddingBottom: 2 }}>Jelajahi arsip kegiatan terlaksana <ArrowRight size={14} /></Link>
+          <Link to={stats?.ctaHref ?? "/kegiatan"} style={{ fontSize: 13, fontWeight: 700, display: "inline-flex", gap: 6, alignItems: "center", borderBottom: "1px solid var(--pub-ink)", paddingBottom: 2 }}>
+            {stats?.ctaText ?? "Jelajahi arsip kegiatan terlaksana"} <ArrowRight size={14} />
+          </Link>
         </div>
       </div>
 
       <div className="pub-section">
         <div className="pub-about">
           <div>
-            <h3>Etalase &amp; Informasi Kepengurusan</h3>
-            <p>Untuk koordinasi internal, informasi jadwal kegiatan tingkat daerah, atau pertanyaan seputar dokumentasi publik generus Cengkareng, silakan hubungi perwakilan pengurus.</p>
+            <h3>{cta?.heading ?? "Etalase & Informasi Kepengurusan"}</h3>
+            <p>{cta?.body ?? "Untuk koordinasi internal, informasi jadwal kegiatan tingkat daerah, atau pertanyaan seputar dokumentasi publik generus Cengkareng, silakan hubungi perwakilan pengurus."}</p>
             <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
-              <Link to="/kegiatan" className="btn-lime">Dokumentasi Kegiatan</Link>
-              <Link to="/pengurus" className="btn-ghost-dark"><Users size={14} /> Pengurus Daerah</Link>
+              <Link to={cta?.primaryHref ?? "/kegiatan"} className="btn-lime">{cta?.primaryLabel ?? "Dokumentasi Kegiatan"}</Link>
+              <Link to={cta?.secondaryHref ?? "/pengurus"} className="btn-ghost-dark"><Users size={14} /> {cta?.secondaryLabel ?? "Pengurus Daerah"}</Link>
             </div>
           </div>
-          <img src="https://picsum.photos/seed/gencar-cta/700/500" alt="Generus Cengkareng" loading="lazy" />
+          <img src={cta?.image ?? "https://picsum.photos/seed/gencar-cta/700/500"} alt="Generus Cengkareng" loading="lazy" />
         </div>
       </div>
     </div>
