@@ -1,5 +1,5 @@
 import { useRef, useMemo, useState } from "react";
-import { MapPin, Phone, GraduationCap, Home, Download, Heart, X, Check, Pencil } from "lucide-react";
+import { MapPin, Phone, GraduationCap, Home, Download, Heart, X, Check, Pencil, Volleyball, Plane, Palette, Music, ChefHat, Laptop, BookOpen, Gamepad2, Sparkles } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { toPng } from "html-to-image";
 import type { MemberIdentity, MemberKehadiran, MemberKegiatan } from "./types";
@@ -150,40 +150,47 @@ export default function MemberProfilePage({ me, stat, kegiatan, onUpdate }: Prop
       </div>
 
       {/* Hobi & Badge — per-type badges */}
-      <div className="card" style={{ padding: 18, display: "grid", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 800, margin: 0, display: "inline-flex", gap: 7, alignItems: "center" }}>
-            <Heart size={15} color="#db2777" /> Hobi & Badge
-          </h3>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setHobiOpen(true)} style={{ fontSize: 11, fontWeight: 800 }}>
+      <div className="card hobi-card">
+        <div className="hobi-head">
+          <h3 className="hobi-title"><Heart size={15} color="#db2777" /> Hobi & Badge</h3>
+          <button type="button" className="btn btn-ghost hobi-edit" onClick={() => setHobiOpen(true)}>
             {hobbySet.size > 0 ? "Ubah" : "Tambah hobi"}
           </button>
         </div>
 
         {hobbySet.size === 0 ? (
-          <div style={{ padding: "18px 14px", borderRadius: 14, border: "1.5px dashed var(--line)", background: "var(--bg)", display: "grid", placeItems: "center", gap: 8, textAlign: "center" }}>
+          <div className="hobi-empty">
             <div style={{ fontSize: 22 }}>🎨</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)" }}>Belum ada hobi — tambah hobi biar badge kamu muncul!</div>
+            <div className="hobi-emptyText">Belum ada hobi — tambah hobi biar badge kamu muncul!</div>
             <button type="button" className="btn btn-primary btn-sm" onClick={() => setHobiOpen(true)}>Pilih hobi</button>
           </div>
         ) : (
-          <div style={{ display: "grid", gap: 8 }}>
+          <div className="hobi-list">
             {[...hobbySet].map((k) => {
               const m = HOBBY_META[k];
               const detail = k === "lainnya" ? me.hobiCustom : hobiDetail[k];
+              const Icon = ({ olahraga: Volleyball, traveling: Plane, seni: Palette, musik: Music, kuliner: ChefHat, teknologi: Laptop, literasi: BookOpen, gaming: Gamepad2, lainnya: Sparkles } as Record<string, typeof Volleyball>)[k] ?? Sparkles;
+              const hasDetail = Boolean(detail);
               return (
-                <div key={k} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 12, background: m.bg, border: `1.5px solid ${m.color}22` }}>
-                  <span style={{ width: 30, height: 30, borderRadius: 9, background: m.color, display: "grid", placeItems: "center", flexShrink: 0, color: "#fff", fontSize: 12, fontWeight: 900 }}>{m.label[0]}</span>
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: m.color, lineHeight: 1.1 }}>{m.label}</div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: detail ? "var(--ink)" : "var(--muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{detail || HOBBY_DETAIL_PLACEHOLDER[k]}</div>
+                <div key={k} className="hobi-row">
+                  <span className="hobi-icon" style={{ background: m.color }}><Icon size={15} color="#fff" /></span>
+                  <div className="hobi-main">
+                    <div className="hobi-label" style={{ color: m.color }}>{m.label}</div>
+                    <div className={hasDetail ? "hobi-detail" : "hobi-placeholder"}>{detail || HOBBY_DETAIL_PLACEHOLDER[k]}</div>
                   </div>
                 </div>
               );
             })}
           </div>
         )}
-        <div style={{ fontSize: 11, color: "var(--muted)", fontWeight: 600 }}>{hobbySet.size} / {HOBBY_KEYS.length - 1} tipe hobi</div>
+        <div className="hobi-foot">
+          <span className="hobi-progress" aria-hidden>
+            {Array.from({ length: 8 }, (_, i) => (
+              <i key={i} className={i < hobbySet.size ? "on" : ""} />
+            ))}
+          </span>
+          <span className="hobi-count">{hobbySet.size} dari 8 tipe</span>
+        </div>
       </div>
 
       {hobiOpen && (
