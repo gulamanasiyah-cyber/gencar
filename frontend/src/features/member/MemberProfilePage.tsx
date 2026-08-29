@@ -266,8 +266,8 @@ function HobiEditor({ initial, initialCustom, initialDetail, onClose, onSave }: 
   }
 
   return (
-    <div className="trophy-modal-overlay" onClick={onClose} style={{ zIndex: 60 }}>
-      <div className="trophy-modal" onClick={(e) => e.stopPropagation()} style={{ width: "min(420px, 96vw)", maxHeight: "85vh", overflow: "auto" }}>
+    <div className="trophy-modal-overlay hobi-editor-overlay" onClick={onClose} style={{ zIndex: 60 }}>
+      <div className="trophy-modal hobi-editor-modal" onClick={(e) => e.stopPropagation()}>
         <button type="button" className="trophy-modal-close" onClick={onClose}><X size={18} /></button>
         <div style={{ fontSize: 15, fontWeight: 900, color: "var(--ink)" }}>Pilih Hobi</div>
         <div style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)" }}>Pilih sampai 8 tipe — tiap tipe dapat badge warna-warni di profil.</div>
