@@ -2186,7 +2186,7 @@ table.admin-table tr:hover td {
 .member-profile-avatarWrap { position: relative; width: 64px; height: 64px; border-radius: 999px; padding: 2px; background: #fff; box-shadow: 0 4px 20px rgba(27,15,10,0.10); flex-shrink: 0; display: grid; place-items: center; overflow: visible; cursor: pointer; transition: transform 0.16s cubic-bezier(0.16,1,0.3,1); }
 .member-profile-avatarWrap:hover { transform: scale(1.02); }
 .member-profile-avatarWrap:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.member-profile-avatarEdit { position: absolute; right: -1px; bottom: -1px; width: 22px; height: 22px; border-radius: 999px; background: var(--primary); border: 2px solid #fff; display: grid; place-items: center; color: #fff; box-shadow: 0 2px 8px rgba(208,56,4,0.22); }
+.member-profile-avatarEdit { position: absolute; right: -3px; bottom: -3px; width: 20px; height: 20px; border-radius: 999px; background: var(--primary); border: 2px solid #fff; display: grid; place-items: center; color: #fff; box-shadow: 0 2px 8px rgba(208,56,4,0.22); }
 .member-profile-hero-main { min-width: 0; flex: 1; display: grid; gap: 4px; }
 .member-profile-name { font-family: var(--font-sans); font-weight: 800; font-size: 17px; line-height: 1.15; letter-spacing: -0.02em; color: var(--ink); overflow-wrap: break-word; word-break: break-word; }
 .member-profile-byline { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-top: 2px; }
