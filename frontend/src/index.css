@@ -2281,10 +2281,10 @@ table.admin-table tr:hover td {
 .hobi-card { padding: 18px; display: grid; gap: 12px; }
 .hobi-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .hobi-title { font-size: 14px; font-weight: 800; display: inline-flex; gap: 7px; align-items: center; margin: 0; }
-.hobi-edit { font-size: 11px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--ink); background: var(--ink); color: #fff; box-shadow: 0 2px 8px rgba(27,15,10,0.12); }
-.hobi-edit:hover { background: var(--ink-light); border-color: var(--ink-light); }
-.hobi-edit:active { transform: scale(0.98); }
-.hobi-edit:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.hobi-edit-icon { width: 30px; height: 30px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--text-secondary); display: grid; place-items: center; cursor: pointer; flex-shrink: 0; transition: border-color 0.16s, background 0.16s, color 0.16s; }
+.hobi-edit-icon:hover { border-color: var(--ink); background: var(--ink); color: #fff; }
+.hobi-edit-icon:active { transform: scale(0.96); }
+.hobi-edit-icon:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .hobi-empty { padding: 18px 14px; border-radius: 14px; border: 1.5px dashed var(--line); background: var(--bg); display: grid; place-items: center; gap: 8px; text-align: center; }
 .hobi-emptyText { font-size: 12px; font-weight: 700; color: var(--muted); }
 .hobi-list { display: grid; gap: 8px; }

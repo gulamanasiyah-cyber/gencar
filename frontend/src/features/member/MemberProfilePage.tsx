@@ -153,8 +153,8 @@ export default function MemberProfilePage({ me, stat, kegiatan, onUpdate }: Prop
       <div className="card hobi-card">
         <div className="hobi-head">
           <h3 className="hobi-title"><Heart size={15} color="#db2777" /> Hobi & Badge</h3>
-          <button type="button" className="btn btn-ghost hobi-edit" onClick={() => setHobiOpen(true)}>
-            {hobbySet.size > 0 ? "Ubah" : "Tambah hobi"}
+          <button type="button" className="hobi-edit-icon" onClick={() => setHobiOpen(true)} aria-label={hobbySet.size > 0 ? "Ubah hobi" : "Tambah hobi"}>
+            <Pencil size={13} />
           </button>
         </div>
 
