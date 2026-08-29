@@ -304,7 +304,24 @@ function AjukanPerubahan({
     { key: "identitas", label: "Identitas", desc: "Nama, tempat/tgl lahir, suku" },
   ];
 
-  const fieldDefs: Record<string, { key: string; label: string; placeholder: string; max?: number }[]> = {
+  const [wilayahOpts, setWilayahOpts] = useState<{ desa: { id: number; nama: string }[]; kelompok: { id: number; nama: string; desaId: number }[] } | null>(null);
+
+  useEffect(() => {
+    if (section !== "wilayah" || wilayahOpts) return;
+    void fetch("/api/generus/filters", { headers: { Authorization: `Bearer ${localStorage.getItem("token") ?? ""}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: any) => {
+        if (j?.desa && Array.isArray(j.desa)) {
+          // kelompok may be in kelompok or grouped by desa; normalize
+          const desa = j.desa as any[];
+          const kelompok = (j.kelompok as any[]) ?? [];
+          setWilayahOpts({ desa, kelompok });
+        }
+      })
+      .catch(() => {});
+  }, [section, wilayahOpts]);
+
+  const fieldDefs: Record<string, { key: string; label: string; placeholder: string; max?: number; type?: string }[]> = {
     kontak: [
       { key: "noTelp", label: "No. HP", placeholder: me.noTelp || "08...", max: 15 },
       { key: "pendidikan", label: "Pendidikan", placeholder: me.pendidikan || "SMA" },
@@ -312,9 +329,10 @@ function AjukanPerubahan({
     wilayah: [
       { key: "domisiliAnak", label: "Alamat Tinggal (Anak)", placeholder: me.domisiliAnak || "" },
       { key: "domisiliOrtu", label: "Alamat Ortu", placeholder: me.domisiliOrtu || "" },
-      { key: "isDomisiliOrtuSama", label: "Ortu sama dengan anak? (ya/tidak)", placeholder: me.isOrtuSama ? "ya" : "tidak" },
+      { key: "isDomisiliOrtuSama", label: "Ortu sama dengan anak?", placeholder: "", type: "checkbox" },
       { key: "asalDaerah", label: "Asal Daerah (jika perantau)", placeholder: me.asalDaerah || "" },
-      { key: "alamat", label: "Alamat lengkap", placeholder: (me.domisiliAnak as string) || "" },
+      { key: "desaId", label: "Desa", placeholder: me.desa || "", type: "select-desa" },
+      { key: "kelompokId", label: "Kelompok", placeholder: me.kelompok || "", type: "select-kelompok" },
     ],
     identitas: [
       { key: "nama", label: "Nama Lengkap", placeholder: me.nama },
@@ -327,8 +345,10 @@ function AjukanPerubahan({
   async function submit() {
     const payload: Record<string, string> = {};
     for (const [k, v] of Object.entries(fields)) {
-      const t = String(v ?? "").trim();
-      if (t) payload[k] = t;
+      const raw = String(v ?? "").trim();
+      if (!raw) continue;
+      if (k === "isDomisiliOrtuSama") payload[k] = raw === "ya" || raw === "true" ? "1" : "0";
+      else payload[k] = raw;
     }
     if (Object.keys(payload).length === 0) {
       setErr("Isi minimal 1 field yang ingin diubah");
@@ -396,18 +416,70 @@ function AjukanPerubahan({
         </div>
 
         <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
-          {(fieldDefs[section] ?? []).map((f) => (
-            <label key={f.key} style={{ display: "grid", gap: 4, textAlign: "left" }}>
-              <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{f.label}</span>
-              <input
-                value={fields[f.key] ?? ""}
-                onChange={(e) => setFields((prev) => ({ ...prev, [f.key]: e.target.value }))}
-                placeholder={f.placeholder}
-                maxLength={f.max}
-                style={{ width: "100%", padding: "9px 11px", borderRadius: 10, border: "1.5px solid var(--line)", fontSize: 13 }}
-              />
-            </label>
-          ))}
+          {(fieldDefs[section] ?? []).map((f) => {
+            if ((f as any).type === "checkbox") {
+              const checked = fields[f.key] !== undefined ? fields[f.key] === "ya" || fields[f.key] === "true" : Boolean(me.isOrtuSama);
+              return (
+                <label key={f.key} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => setFields((prev) => ({ ...prev, [f.key]: e.target.checked ? "ya" : "tidak" }))}
+                    style={{ width: 16, height: 16 }}
+                  />
+                  <span>{f.label}</span>
+                </label>
+              );
+            }
+            if ((f as any).type === "select-desa") {
+              return (
+                <label key={f.key} style={{ display: "grid", gap: 4, textAlign: "left" }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{f.label}</span>
+                  <select
+                    value={fields[f.key] ?? ""}
+                    onChange={(e) => setFields((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                    style={{ width: "100%", padding: "9px 11px", borderRadius: 10, border: "1.5px solid var(--line)", fontSize: 13, background: "#fff" }}
+                  >
+                    <option value="">{f.placeholder || "Pilih desa"} — kosong = tidak ubah</option>
+                    {(wilayahOpts?.desa ?? []).map((d) => (
+                      <option key={d.id} value={String(d.id)}>{d.nama}</option>
+                    ))}
+                  </select>
+                </label>
+              );
+            }
+            if ((f as any).type === "select-kelompok") {
+              const desaIdSel = fields["desaId"] ? Number(fields["desaId"]) : null;
+              const opts = (wilayahOpts?.kelompok ?? []).filter((k) => (desaIdSel ? k.desaId === desaIdSel : true));
+              return (
+                <label key={f.key} style={{ display: "grid", gap: 4, textAlign: "left" }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{f.label}</span>
+                  <select
+                    value={fields[f.key] ?? ""}
+                    onChange={(e) => setFields((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                    style={{ width: "100%", padding: "9px 11px", borderRadius: 10, border: "1.5px solid var(--line)", fontSize: 13, background: "#fff" }}
+                  >
+                    <option value="">{f.placeholder || "Pilih kelompok"} — kosong = tidak ubah</option>
+                    {opts.map((k) => (
+                      <option key={k.id} value={String(k.id)}>{k.nama}</option>
+                    ))}
+                  </select>
+                </label>
+              );
+            }
+            return (
+              <label key={f.key} style={{ display: "grid", gap: 4, textAlign: "left" }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{f.label}</span>
+                <input
+                  value={fields[f.key] ?? ""}
+                  onChange={(e) => setFields((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                  placeholder={f.placeholder}
+                  maxLength={(f as any).max}
+                  style={{ width: "100%", padding: "9px 11px", borderRadius: 10, border: "1.5px solid var(--line)", fontSize: 13 }}
+                />
+              </label>
+            );
+          })}
         </div>
 
         <label style={{ display: "grid", gap: 4, marginTop: 10, textAlign: "left" }}>
