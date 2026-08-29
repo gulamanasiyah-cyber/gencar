@@ -68,20 +68,22 @@ export default function AvatarPicker({ me, achievements, onClose, onPick }: Prop
                 className={`avatar-picker-cell ${unlocked ? "unlocked" : "locked"} ${isActive ? "active" : ""}`}
                 title={unlocked ? a.label : `Terkunci: ${a.needLabel}`}
               >
-                <span className={`avatar-picker-thumb ${isActive ? "active" : ""}`}>
-                  <img
-                    src={`/avatars/${a.file}`}
-                    alt={a.label}
-                    width={64}
-                    height={64}
-                    className={unlocked ? "" : "locked"}
-                    loading="lazy"
-                  />
-                  {!unlocked && (
-                    <span className="avatar-picker-lockOverlay">
-                      <span className="avatar-picker-lockBadge"><Lock size={12} color="#94a3b8" /></span>
-                    </span>
-                  )}
+                <span className="avatar-picker-thumbWrap">
+                  <span className={`avatar-picker-thumb ${isActive ? "active" : ""}`}>
+                    <img
+                      src={`/avatars/${a.file}`}
+                      alt={a.label}
+                      width={64}
+                      height={64}
+                      className={unlocked ? "" : "locked"}
+                      loading="lazy"
+                    />
+                    {!unlocked && (
+                      <span className="avatar-picker-lockOverlay">
+                        <span className="avatar-picker-lockBadge"><Lock size={12} color="#94a3b8" /></span>
+                      </span>
+                    )}
+                  </span>
                   {isActive && unlocked && (
                     <span className="avatar-picker-check"><Check size={10} color="#fff" /></span>
                   )}
