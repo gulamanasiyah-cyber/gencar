@@ -550,7 +550,23 @@ export const saranMasukan = sqliteTable("saran_masukan", {
   createdAt: text("created_at").default(sql`(datetime('now'))`),
 });
 
-export type SaranMasukan = typeof saranMasukan.$inferSelect;
+export const profileChangeRequests = sqliteTable("profile_change_requests", {
+  id: text("id").primaryKey(),
+  generusId: text("generus_id").notNull().references(() => generus.id, { onDelete: "cascade" }),
+  section: text("section", { enum: ["kontak", "wilayah", "identitas"] }).notNull(),
+  payload: text("payload").notNull(),
+  reason: text("reason").notNull(),
+  attachmentUrl: text("attachment_url"),
+  status: text("status", { enum: ["pending", "approved", "rejected"] }).notNull().default("pending"),
+  reviewedBy: text("reviewed_by"),
+  reviewedAt: text("reviewed_at"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+}, (table) => ({
+  generusIdIdx: index("profile_change_requests_generus_id_idx").on(table.generusId),
+  statusIdx: index("profile_change_requests_status_idx").on(table.status),
+}));
+
+export type ProfileChangeRequest = typeof profileChangeRequests.$inferSelect;
 
 export type NewDesa = typeof desa.$inferInsert;
 export type NewKelompok = typeof kelompok.$inferInsert;
@@ -581,6 +597,7 @@ export type NewFormPanitiaDanPengurus = typeof formPanitiaDanPengurus.$inferInse
 export type NewMandiriKomentar = typeof mandiriKomentar.$inferInsert;
 export type NewOrganisasiPengurus = typeof organisasiPengurus.$inferInsert;
 export type NewSaranMasukan = typeof saranMasukan.$inferInsert;
+export type NewProfileChangeRequest = typeof profileChangeRequests.$inferInsert;
 export type NewMagicToken = typeof magicTokens.$inferInsert;
 export type NewWilayahQr = typeof wilayahQr.$inferInsert;
 

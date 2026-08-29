@@ -2202,6 +2202,10 @@ table.admin-table tr:hover td {
 .member-profile-genderPick { padding: 7px 12px; border-radius: 999px; border: 1.5px solid var(--line); background: #fff; font-size: 12px; font-weight: 800; color: var(--text); cursor: pointer; transition: border-color 0.16s, background 0.16s, color 0.16s; }
 .member-profile-genderPick:hover { border-color: var(--primary); background: #fff1e6; }
 .member-profile-genderPick--cewek:hover { border-color: #db2777; background: #fdf2f8; }
+.member-ajukanBar { display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap; padding: 12px 16px; background: #fff; border-top: 1px dashed var(--line); }
+.member-ajukanCta { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--ink); background: #fff; color: var(--ink); font-size: 11px; font-weight: 800; cursor: pointer; transition: all 0.16s; }
+.member-ajukanCta:hover { background: var(--ink); color: #fff; }
+.member-ajukanPending { font-size: 10px; }
 .member-bottom {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
   display: none; grid-template-columns: repeat(3, 1fr); gap: 6px;

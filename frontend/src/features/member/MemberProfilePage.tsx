@@ -1,5 +1,5 @@
-import { useRef, useMemo, useState } from "react";
-import { MapPin, Phone, GraduationCap, Home, Download, Heart, X, Check, Pencil, Volleyball, Plane, Palette, Music, ChefHat, Laptop, BookOpen, Gamepad2, Sparkles } from "lucide-react";
+import { useRef, useMemo, useState, useEffect } from "react";
+import { MapPin, Phone, GraduationCap, Home, Download, Heart, X, Check, Pencil, Volleyball, Plane, Palette, Music, ChefHat, Laptop, BookOpen, Gamepad2, Sparkles, Send, Clock3, AlertCircle } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { toPng } from "html-to-image";
 import type { MemberIdentity, MemberKehadiran, MemberKegiatan } from "./types";
@@ -21,6 +21,8 @@ export default function MemberProfilePage({ me, stat, kegiatan, onUpdate }: Prop
   const cardRef = useRef<HTMLDivElement>(null);
   const [hobiOpen, setHobiOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const [ajukanOpen, setAjukanOpen] = useState(false);
+  const [pendingReq, setPendingReq] = useState<{ section: string; status: string }[] | null>(null);
   const hobbySet = useMemo(() => parseHobi(me.hobi), [me.hobi]);
   const hobiDetail = useMemo(() => parseHobiDetail(me.hobiDetail), [me.hobiDetail]);
 
@@ -28,6 +30,19 @@ export default function MemberProfilePage({ me, stat, kegiatan, onUpdate }: Prop
     () => computeAchievements({ kehadiran: stat ?? { total: 0, hadir: 0, izin: 0, alpha: 0, hadirRate: 0, tren: [] }, identity: me, kegiatan }),
     [stat, me, kegiatan],
   );
+
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      void fetch("/api/profile/requests", { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => (r.ok ? r.json() : []))
+        .then((rows: any[]) => {
+          if (Array.isArray(rows)) setPendingReq(rows.filter((r: any) => r.status === "pending").map((r: any) => ({ section: r.section, status: r.status })));
+        })
+        .catch(() => {});
+    } catch {}
+  }, []);
 
   async function downloadQrCard() {
     const el = cardRef.current;
@@ -91,6 +106,16 @@ export default function MemberProfilePage({ me, stat, kegiatan, onUpdate }: Prop
             </button>
           </div>
         )}
+        <div className="member-ajukanBar">
+          {pendingReq && pendingReq.length > 0 && (
+            <span className="pill pill-amber member-ajukanPending">
+              <Clock3 size={10} /> Menunggu: {pendingReq.map((p) => p.section).join(", ")}
+            </span>
+          )}
+          <button type="button" className="member-ajukanCta" onClick={() => setAjukanOpen(true)}>
+            <Send size={12} /> Ajukan Perubahan Data
+          </button>
+        </div>
       </div>
 
       {/* Informasi Domisili & Wilayah */}
@@ -244,6 +269,175 @@ export default function MemberProfilePage({ me, stat, kegiatan, onUpdate }: Prop
           }}
         />
       )}
+      {ajukanOpen && (
+        <AjukanPerubahan
+          me={me}
+          onClose={() => setAjukanOpen(false)}
+          onSuccess={(section: string) => {
+            setPendingReq((prev) => [...(prev ?? []), { section, status: "pending" }]);
+            setAjukanOpen(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function AjukanPerubahan({
+  me,
+  onClose,
+  onSuccess,
+}: {
+  me: MemberIdentity;
+  onClose: () => void;
+  onSuccess: (section: string) => void;
+}) {
+  const [section, setSection] = useState<"kontak" | "wilayah" | "identitas">("kontak");
+  const [fields, setFields] = useState<Record<string, string>>({});
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const sections: { key: "kontak" | "wilayah" | "identitas"; label: string; desc: string }[] = [
+    { key: "kontak", label: "Kontak & Pendidikan", desc: "No HP, pendidikan" },
+    { key: "wilayah", label: "Wilayah & Domisili", desc: "Alamat, desa/kelompok, domisili" },
+    { key: "identitas", label: "Identitas", desc: "Nama, tempat/tgl lahir, suku" },
+  ];
+
+  const fieldDefs: Record<string, { key: string; label: string; placeholder: string; max?: number }[]> = {
+    kontak: [
+      { key: "noTelp", label: "No. HP", placeholder: me.noTelp || "08...", max: 15 },
+      { key: "pendidikan", label: "Pendidikan", placeholder: me.pendidikan || "SMA" },
+    ],
+    wilayah: [
+      { key: "domisiliAnak", label: "Alamat Tinggal (Anak)", placeholder: me.domisiliAnak || "" },
+      { key: "domisiliOrtu", label: "Alamat Ortu", placeholder: me.domisiliOrtu || "" },
+      { key: "isDomisiliOrtuSama", label: "Ortu sama dengan anak? (ya/tidak)", placeholder: me.isOrtuSama ? "ya" : "tidak" },
+      { key: "asalDaerah", label: "Asal Daerah (jika perantau)", placeholder: me.asalDaerah || "" },
+      { key: "alamat", label: "Alamat lengkap", placeholder: (me.domisiliAnak as string) || "" },
+    ],
+    identitas: [
+      { key: "nama", label: "Nama Lengkap", placeholder: me.nama },
+      { key: "tempatLahir", label: "Tempat Lahir", placeholder: "—" },
+      { key: "tanggalLahir", label: "Tanggal Lahir (YYYY-MM-DD)", placeholder: "—" },
+      { key: "suku", label: "Suku", placeholder: "—" },
+    ],
+  };
+
+  async function submit() {
+    const payload: Record<string, string> = {};
+    for (const [k, v] of Object.entries(fields)) {
+      const t = String(v ?? "").trim();
+      if (t) payload[k] = t;
+    }
+    if (Object.keys(payload).length === 0) {
+      setErr("Isi minimal 1 field yang ingin diubah");
+      return;
+    }
+    if (reason.trim().length < 10) {
+      setErr("Alasan minimal 10 karakter");
+      return;
+    }
+    setSaving(true);
+    setErr(null);
+    try {
+      const token = localStorage.getItem("token") ?? "";
+      const res = await fetch("/api/profile/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ section, payload, reason: reason.trim() }),
+      });
+      const data: any = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Gagal mengirim pengajuan");
+      onSuccess(section);
+    } catch (e: any) {
+      setErr(e.message || "Gagal mengirim");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="trophy-modal-overlay hobi-editor-overlay" onClick={onClose} style={{ zIndex: 65 }}>
+      <div className="trophy-modal hobi-editor-modal" onClick={(e) => e.stopPropagation()}>
+        <button type="button" className="trophy-modal-close" onClick={onClose}>
+          <X size={18} />
+        </button>
+        <div style={{ fontSize: 15, fontWeight: 900, color: "var(--ink)", textAlign: "left", width: "100%" }}>Ajukan Perubahan Data</div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)", textAlign: "left", width: "100%", marginTop: 2 }}>
+          Pilih bagian yang ingin diubah — admin akan verifikasi
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 12 }}>
+          {sections.map((s) => (
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => {
+                setSection(s.key);
+                setFields({});
+                setErr(null);
+              }}
+              style={{
+                padding: "10px 8px",
+                borderRadius: 12,
+                border: `1.5px solid ${section === s.key ? "var(--primary)" : "var(--line)"}`,
+                background: section === s.key ? "#fff1e6" : "#fff",
+                color: section === s.key ? "var(--primary)" : "var(--ink)",
+                fontWeight: 800,
+                fontSize: 12,
+                cursor: "pointer",
+              }}
+            >
+              <div>{s.label}</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--muted)" }}>{s.desc}</div>
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+          {(fieldDefs[section] ?? []).map((f) => (
+            <label key={f.key} style={{ display: "grid", gap: 4, textAlign: "left" }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{f.label}</span>
+              <input
+                value={fields[f.key] ?? ""}
+                onChange={(e) => setFields((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                placeholder={f.placeholder}
+                maxLength={f.max}
+                style={{ width: "100%", padding: "9px 11px", borderRadius: 10, border: "1.5px solid var(--line)", fontSize: 13 }}
+              />
+            </label>
+          ))}
+        </div>
+
+        <label style={{ display: "grid", gap: 4, marginTop: 10, textAlign: "left" }}>
+          <span style={{ fontSize: 11, fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Alasan perubahan *</span>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Contoh: Pindah kos / salah input admin..."
+            rows={3}
+            maxLength={500}
+            style={{ width: "100%", padding: "9px 11px", borderRadius: 10, border: "1.5px solid var(--line)", fontSize: 13, resize: "vertical" }}
+          />
+          <span style={{ fontSize: 10, color: "var(--muted)" }}>{reason.length}/500</span>
+        </label>
+
+        {err && (
+          <div style={{ display: "flex", gap: 6, alignItems: "center", color: "#b91c1c", fontSize: 11, fontWeight: 700, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "8px 10px" }}>
+            <AlertCircle size={13} /> {err}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+          <button type="button" className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }} disabled={saving}>
+            Batal
+          </button>
+          <button type="button" className="btn btn-primary" onClick={submit} disabled={saving} style={{ flex: 1, fontWeight: 800 }}>
+            {saving ? "Mengirim..." : "Kirim Pengajuan"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

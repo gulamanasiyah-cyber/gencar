@@ -93,6 +93,14 @@ export const pengurusCreateSchema = z.object({
   urutan: z.number().int().min(0).max(999).default(0),
 });
 
+export const profileRequestSectionEnum = ["kontak", "wilayah", "identitas"] as const;
+export const profileChangeRequestSchema = z.object({
+  section: z.enum(profileRequestSectionEnum),
+  payload: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()]).nullable()).refine((o) => Object.keys(o).length > 0, { message: "Payload minimal 1 field berubah" }),
+  reason: z.string().min(10, "Alasan minimal 10 karakter").max(500),
+  attachmentUrl: z.string().url().nullable().optional().or(z.literal("")),
+});
+
 export function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;

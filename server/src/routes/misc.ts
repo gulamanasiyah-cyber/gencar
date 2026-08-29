@@ -109,6 +109,81 @@ r.put("/settings", requireAuth(), async (c) => {
   return c.json({ success: true });
 });
 
+// profile change requests (member) — opsi B: satu pintu Ajukan Perubahan Data
+r.get("/profile/requests", requireAuth(), async (c) => {
+  const session = c.get("user" as any) as any;
+  const db = getDb(c.env);
+  const user: any = await db.query.users.findFirst({ where: eq(users.id, session.userId) });
+  if (!user?.generusId) return c.json([]);
+  const { profileChangeRequests } = await import("../../../shared/schema");
+  const rows: any = await db.select().from(profileChangeRequests).where(eq(profileChangeRequests.generusId, user.generusId)).orderBy(sql`${profileChangeRequests.createdAt} DESC`);
+  return c.json(rows);
+});
+r.post("/profile/request", requireAuth(), async (c) => {
+  const session = c.get("user" as any) as any;
+  const db = getDb(c.env);
+  const user: any = await db.query.users.findFirst({ where: eq(users.id, session.userId) });
+  if (!user?.generusId) return c.json({ error: "Akun belum taut generus" }, 400);
+  const body: any = await c.req.json().catch(() => ({}));
+  const { profileChangeRequestSchema } = await import("../../../shared/validation");
+  const parsed = profileChangeRequestSchema.safeParse(body);
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message || "Validasi gagal", details: parsed.error.flatten() }, 400);
+  const { section, payload, reason, attachmentUrl } = parsed.data as any;
+  const { profileChangeRequests } = await import("../../../shared/schema");
+  const pending: any = await db.select().from(profileChangeRequests).where(and(eq(profileChangeRequests.generusId, user.generusId), eq(profileChangeRequests.section, section as any), eq(profileChangeRequests.status, "pending"))).limit(1);
+  if (pending.length > 0) return c.json({ error: `Sudah ada pengajuan ${section} pending` }, 409);
+  const id = crypto.randomUUID();
+  await db.insert(profileChangeRequests).values({ id, generusId: user.generusId, section, payload: JSON.stringify(payload), reason, attachmentUrl: attachmentUrl || null, status: "pending" } as any);
+  return c.json({ success: true, id });
+});
+
+// admin review for profile requests
+r.get("/admin/profile-requests", requireAuth(), async (c) => {
+  const session = c.get("user" as any) as any;
+  if (!["admin", "pengurus_daerah", "kmm_daerah", "admin_daerah"].includes(session.role)) return c.json({ error: "Unauthorized" }, 401);
+  const db = getDb(c.env);
+  const { profileChangeRequests } = await import("../../../shared/schema");
+  const status = c.req.query("status") || "pending";
+  let q: any = db.select().from(profileChangeRequests);
+  if (status !== "all") q = q.where(eq(profileChangeRequests.status, status as any));
+  const rows: any = await q.orderBy(sql`${profileChangeRequests.createdAt} DESC`).limit(100);
+  return c.json(rows);
+});
+r.post("/admin/profile-requests/:id/approve", requireAuth(), async (c) => {
+  const session = c.get("user" as any) as any;
+  if (!["admin", "pengurus_daerah", "kmm_daerah", "admin_daerah"].includes(session.role)) return c.json({ error: "Unauthorized" }, 401);
+  const id = c.req.param("id");
+  const db = getDb(c.env);
+  const { profileChangeRequests } = await import("../../../shared/schema");
+  const row: any = await db.query.profileChangeRequests.findFirst({ where: eq(profileChangeRequests.id, id) });
+  if (!row) return c.json({ error: "Tidak ditemukan" }, 404);
+  if (row.status !== "pending") return c.json({ error: "Sudah diproses" }, 400);
+  const payload = JSON.parse(row.payload);
+  const allowed: Record<string, string[]> = {
+    kontak: ["noTelp", "pendidikan"],
+    wilayah: ["domisiliAnak", "domisiliOrtu", "isDomisiliOrtuSama", "asalDaerah", "kategoriMudaMudi", "alamat", "desaId", "kelompokId"],
+    identitas: ["nama", "tempatLahir", "tanggalLahir", "suku", "foto"],
+  };
+  const keys = allowed[row.section] || [];
+  const update: any = { updatedAt: new Date().toISOString() };
+  for (const k of keys) if (payload[k] !== undefined) update[k] = payload[k];
+  if (Object.keys(update).length > 1) await db.update(generus).set(update).where(eq(generus.id, row.generusId));
+  await db.update(profileChangeRequests).set({ status: "approved", reviewedBy: session.userId, reviewedAt: new Date().toISOString() } as any).where(eq(profileChangeRequests.id, id));
+  return c.json({ success: true });
+});
+r.post("/admin/profile-requests/:id/reject", requireAuth(), async (c) => {
+  const session = c.get("user" as any) as any;
+  if (!["admin", "pengurus_daerah", "kmm_daerah", "admin_daerah"].includes(session.role)) return c.json({ error: "Unauthorized" }, 401);
+  const id = c.req.param("id");
+  const db = getDb(c.env);
+  const { profileChangeRequests } = await import("../../../shared/schema");
+  const row: any = await db.query.profileChangeRequests.findFirst({ where: eq(profileChangeRequests.id, id) });
+  if (!row) return c.json({ error: "Tidak ditemukan" }, 404);
+  if (row.status !== "pending") return c.json({ error: "Sudah diproses" }, 400);
+  await db.update(profileChangeRequests).set({ status: "rejected", reviewedBy: session.userId, reviewedAt: new Date().toISOString() } as any).where(eq(profileChangeRequests.id, id));
+  return c.json({ success: true });
+});
+
 // profile
 r.get("/profile", requireAuth(), async (c) => {
   const session = c.get("user" as any) as any;
