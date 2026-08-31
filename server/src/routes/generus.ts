@@ -35,6 +35,8 @@ function buildWhereClause(session: any, search?: string, _ignoreRoleRestriction?
     else conditions.push(or(like(generus.nama, `%${t}%`), like(generus.nomorUnik, `%${t}%`), like(desa.nama, `%${t}%`), like(kelompok.nama, `%${t}%`), like(generus.alamat, `%${t}%`)));
   }
   if (jenisKelamin && (jenisKelamin === "L" || jenisKelamin === "P")) conditions.push(eq(generus.jenisKelamin, jenisKelamin as any));
+  // Exclude admin accounts — they are not real anggota
+  conditions.push(or(isNull(users.role), notInArray(users.role, ["admin_daerah", "admin_desa", "admin_kelompok"])));
   return (conditions.length > 0 ? and(...conditions) : undefined) as any;
 }
 
@@ -92,8 +94,7 @@ r.get("/", async (c) => {
   }
 
   let dataQuery: any = db.select(commonSelect).from(generus).leftJoin(desa, eq(generus.desaId, desa.id)).leftJoin(kelompok, eq(generus.kelompokId, kelompok.id)).leftJoin(users, eq(generus.id, users.generusId));
-  let countQuery: any = db.select({ count: sql<number>`count(*)` }).from(generus);
-  if (status !== "all" || search || filterIsGenerus) countQuery = countQuery.leftJoin(users, eq(generus.id, users.generusId));
+  let countQuery: any = db.select({ count: sql<number>`count(*)` }).from(generus).leftJoin(users, eq(generus.id, users.generusId));
   if (search) { countQuery = countQuery.leftJoin(desa, eq(generus.desaId, desa.id)).leftJoin(kelompok, eq(generus.kelompokId, kelompok.id)); }
 
   const [dataRaw, countResult] = await Promise.all([dataQuery.where(whereClause).orderBy(...orderByClause).limit(limit).offset(offset), countQuery.where(whereClause)]);
