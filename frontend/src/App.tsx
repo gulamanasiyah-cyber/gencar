@@ -1111,6 +1111,7 @@ function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; o
   } | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
   const [activeModalTab, setActiveModalTab] = useState<"kehadiran" | "streak" | "trophy" | "telat" | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     let cancel = false;
@@ -1205,6 +1206,7 @@ function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; o
   ];
 
   return (
+    <>
     <AdminModal title="Detail Anggota" onClose={onClose}>
       <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16 }}>
         <div className="avatar" style={{ width: 52, height: 52, fontSize: 16 }}>{member.nama.split(" ").map((w) => w[0]).slice(0, 2).join("")}</div>
@@ -1343,18 +1345,7 @@ function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; o
         <button
           className="btn btn-danger row-icon-btn"
           style={{ width: "100%", justifyContent: "center" }}
-          onClick={async () => {
-            if (!window.confirm(`Hapus permanen anggota "${member.nama}"? Data generus & user login akan terhapus.`)) return;
-            try {
-              await apiFetch(`/api/generus/${encodeURIComponent(member.id)}`, { method: "DELETE" });
-              onClose();
-              // parent will refetch; signal via window event
-              try { window.dispatchEvent(new Event("anggota:refresh")); } catch {}
-            } catch (e: unknown) {
-              // eslint-disable-next-line no-alert
-              alert(e instanceof Error ? e.message : String(e));
-            }
-          }}
+          onClick={() => setShowDeleteConfirm(true)}
         >
           <IcoTrash size={14} /> Hapus Anggota
         </button>
@@ -1557,6 +1548,77 @@ function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; o
           </div>
         </div>
       )}
+    </AdminModal>
+
+      {showDeleteConfirm && (
+        <DeleteAnggotaConfirmModal
+          nama={member.nama}
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={async () => {
+            await apiFetch(`/api/generus/${encodeURIComponent(member.id)}`, { method: "DELETE" });
+            onClose();
+            try { window.dispatchEvent(new Event("anggota:refresh")); } catch {}
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function DeleteAnggotaConfirmModal({
+  nama,
+  onClose,
+  onConfirm,
+}: {
+  nama: string;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const isMatch = typed.trim().toLowerCase() === "hapus";
+
+  async function handleConfirm() {
+    if (!isMatch || busy) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await onConfirm();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setErr(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <AdminModal title="Hapus Anggota?" onClose={onClose}>
+      <div style={{ display: "grid", gap: 14 }}>
+        <div style={{ padding: "12px 14px", borderRadius: 12, background: "#fffbeb", border: "1px solid #fde68a", color: "#78350f", fontSize: 13, lineHeight: 1.5 }}>
+          <strong>{nama}</strong> akan dihapus permanen. Data <strong>generus</strong> dan <strong>akun login</strong> akan terhapus.
+        </div>
+        <div style={{ fontSize: 13, lineHeight: 1.5 }}>
+          Ketik <strong style={{ fontFamily: "monospace", background: "#f1f5f9", padding: "2px 6px", borderRadius: 6 }}>hapus</strong> untuk melanjutkan.
+        </div>
+        <div className="field">
+          <label>Konfirmasi *</label>
+          <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="hapus" disabled={busy} autoComplete="off" autoFocus />
+        </div>
+        {err && (
+          <div style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontSize: 13, display: "flex", gap: 8 }}>
+            <span style={{ flex: 1, wordBreak: "break-word" }}>{err}</span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setErr(null)}>Tutup</button>
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn btn-ghost" style={{ flex: 1 }} disabled={busy} onClick={onClose}>Batal</button>
+          <button className="btn btn-danger" style={{ flex: 1 }} disabled={!isMatch || busy} aria-busy={busy} onClick={() => void handleConfirm()}>
+            {busy ? "Menghapus…" : "Hapus Anggota"}
+          </button>
+        </div>
+      </div>
     </AdminModal>
   );
 }
