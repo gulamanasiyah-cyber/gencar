@@ -174,6 +174,7 @@ r.get("/users", async (c) => {
   const conditions: any[] = [];
   if (search) conditions.push(or(like(users.name, `%${search}%`), like(users.email, `%${search}%`)));
   if (roleParam) conditions.push(eq(users.role, roleParam as any));
+  else conditions.push(ne(users.role, "generus"));
   const desaIdParam = c.req.query("desaId");
   if (desaIdParam) conditions.push(eq(users.desaId, Number(desaIdParam)));
   const kelompokIdParam = c.req.query("kelompokId");
