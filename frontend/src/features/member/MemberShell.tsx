@@ -15,12 +15,14 @@ export default function MemberShell({
   setPage,
   me,
   onExit,
+  onLogout,
   children,
 }: {
   page: MemberPageKey;
   setPage: (k: MemberPageKey) => void;
   me: MemberIdentity;
   onExit: () => void;
+  onLogout?: () => void;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -38,7 +40,7 @@ export default function MemberShell({
           <span className="pill" style={{ fontSize: 11 }}>
             <Users size={12} /> {me.nama.split(" ")[0]}
           </span>
-          <button className="btn btn-ghost btn-sm" onClick={onExit} title="Kembali ke admin/demo">
+          <button className="btn btn-ghost btn-sm" onClick={() => (onLogout ?? onExit)()} title="Keluar — hapus sesi">
             <LogOut size={14} /> Keluar
           </button>
           <button className="member-burger" aria-label="Menu" onClick={() => setOpen((v) => !v)}>

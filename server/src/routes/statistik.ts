@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { eq, and, or, sql, isNull, notInArray } from "drizzle-orm";
-import { generus, kegiatan, absensi, desa, kelompok, users, mandiriDaerah, mandiriDesa, mandiriKelompok } from "../../../shared/schema";
+import { generus, kegiatan, absensi, desa, kelompok, users } from "../../../shared/schema";
 import { getDb } from "../utils/db";
 import { requireAuth } from "../middleware/auth";
 
@@ -17,9 +17,9 @@ r.get("/", async (c) => {
   const kategoriAcara = c.req.query("kategoriAcara") || "all";
   const qDesaId = toInt(c.req.query("desaId"));
   const qKelompokId = toInt(c.req.query("kelompokId"));
-  const qDaerahId = toInt(c.req.query("daerahId"));
-  const qMandiriDesaId = toInt(c.req.query("mandiriDesaId"));
-  const qMandiriKelompokId = toInt(c.req.query("mandiriKelompokId"));
+  const _qDaerahId = toInt(c.req.query("daerahId"));
+  const _qMandiriDesaId = toInt(c.req.query("mandiriDesaId"));
+  const _qMandiriKelompokId = toInt(c.req.query("mandiriKelompokId"));
   const kategoriMudaMudi = c.req.query("kategoriMudaMudi") || "all";
   const jenisKelamin = c.req.query("jenisKelamin") || "all";
   const kategoriUsia = c.req.query("kategoriUsia") || "all";
@@ -36,9 +36,7 @@ r.get("/", async (c) => {
   generusConds.push(or(isNull(users.role), notInArray(users.role, ["tim_pnkb", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "creator", "admin", "admin_romantic_room", "admin_keuangan", "admin_kegiatan"] as any)));
   if (effectiveDesaId != null) generusConds.push(eq(generus.desaId, effectiveDesaId));
   if (effectiveKelompokId != null) generusConds.push(eq(generus.kelompokId, effectiveKelompokId));
-  if (qDaerahId != null) generusConds.push(eq(mandiriDesa.mandiriDaerahId, qDaerahId));
-  if (qMandiriDesaId != null) generusConds.push(eq(generus.mandiriDesaId, qMandiriDesaId));
-  if (qMandiriKelompokId != null) generusConds.push(eq(generus.mandiriKelompokId, qMandiriKelompokId));
+  // legacy mandiri filters removed (pruned)
   if (kategoriMudaMudi !== "all") generusConds.push(eq(generus.kategoriMudaMudi, kategoriMudaMudi as any));
   if (jenisKelamin === "L" || jenisKelamin === "P") generusConds.push(eq(generus.jenisKelamin, jenisKelamin as any));
   if (kategoriUsia !== "all") generusConds.push(eq(generus.kategoriUsia, kategoriUsia as any));
@@ -51,16 +49,15 @@ r.get("/", async (c) => {
   if (from) kegiatanConds.push(sql`${kegiatan.tanggal} >= ${from}`);
   if (to) kegiatanConds.push(sql`${kegiatan.tanggal} <= ${to}`);
   const kegiatanWhere = kegiatanConds.length ? and(...kegiatanConds) : undefined;
-  const needsMandiriDesaJoin = qDaerahId != null;
   const db = getDb(c.env);
 
-  const totalGenerusQ = needsMandiriDesaJoin ? db.select({ count: sql<number>`count(DISTINCT ${generus.id})` }).from(generus).leftJoin(users, eq(generus.id, users.generusId)).leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id)).where(generusWhere) : db.select({ count: sql<number>`count(DISTINCT ${generus.id})` }).from(generus).leftJoin(users, eq(generus.id, users.generusId)).where(generusWhere);
-  const byGenderQ = needsMandiriDesaJoin ? db.select({ name: generus.jenisKelamin, value: sql<number>`count(*)` }).from(generus).leftJoin(users, eq(generus.id, users.generusId)).leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id)).where(generusWhere).groupBy(generus.jenisKelamin) : db.select({ name: generus.jenisKelamin, value: sql<number>`count(*)` }).from(generus).leftJoin(users, eq(generus.id, users.generusId)).where(generusWhere).groupBy(generus.jenisKelamin);
-  const byUsiaQ = needsMandiriDesaJoin ? db.select({ name: generus.kategoriUsia, value: sql<number>`count(*)` }).from(generus).leftJoin(users, eq(generus.id, users.generusId)).leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id)).where(generusWhere).groupBy(generus.kategoriUsia) : db.select({ name: generus.kategoriUsia, value: sql<number>`count(*)` }).from(generus).leftJoin(users, eq(generus.id, users.generusId)).where(generusWhere).groupBy(generus.kategoriUsia);
-  const byMudaMudiQ = needsMandiriDesaJoin ? db.select({ name: sql<string>`COALESCE(${generus.kategoriMudaMudi}, 'belum_diisi')`, value: sql<number>`count(*)` }).from(generus).leftJoin(users, eq(generus.id, users.generusId)).leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id)).where(generusWhere).groupBy(generus.kategoriMudaMudi) : db.select({ name: sql<string>`COALESCE(${generus.kategoriMudaMudi}, 'belum_diisi')`, value: sql<number>`count(*)` }).from(generus).leftJoin(users, eq(generus.id, users.generusId)).where(generusWhere).groupBy(generus.kategoriMudaMudi);
-  const byDesaQ = db.select({ name: sql<string>`COALESCE(${desa.nama}, 'Tanpa Desa')`, value: sql<number>`count(*)` }).from(generus).leftJoin(desa, eq(generus.desaId, desa.id)).leftJoin(users, eq(generus.id, users.generusId)).leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id)).where(generusWhere).groupBy(desa.nama).orderBy(sql`count(*) DESC`);
-  const byDaerahQ = db.select({ name: sql<string>`COALESCE(${mandiriDaerah.nama}, 'Tanpa Daerah')`, value: sql<number>`count(*)` }).from(generus).leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id)).leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id)).leftJoin(users, eq(generus.id, users.generusId)).where(generusWhere).groupBy(mandiriDaerah.nama).orderBy(sql`count(*) DESC`);
-  const byPendidikanQ = db.select({ name: sql<string>`COALESCE(${generus.pendidikan}, 'Belum diisi')`, value: sql<number>`count(*)` }).from(generus).leftJoin(users, eq(generus.id, users.generusId)).leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id)).where(generusWhere).groupBy(generus.pendidikan).orderBy(sql`count(*) DESC`).limit(10);
+  const totalGenerusQ = db.select({ count: sql<number>`count(DISTINCT ${generus.id})` }).from(generus).leftJoin(users, eq(generus.id, users.generusId)).where(generusWhere);
+  const byGenderQ = db.select({ name: generus.jenisKelamin, value: sql<number>`count(*)` }).from(generus).leftJoin(users, eq(generus.id, users.generusId)).where(generusWhere).groupBy(generus.jenisKelamin);
+  const byUsiaQ = db.select({ name: generus.kategoriUsia, value: sql<number>`count(*)` }).from(generus).leftJoin(users, eq(generus.id, users.generusId)).where(generusWhere).groupBy(generus.kategoriUsia);
+  const byMudaMudiQ = db.select({ name: sql<string>`COALESCE(${generus.kategoriMudaMudi}, 'belum_diisi')`, value: sql<number>`count(*)` }).from(generus).leftJoin(users, eq(generus.id, users.generusId)).where(generusWhere).groupBy(generus.kategoriMudaMudi);
+  const byDesaQ = db.select({ name: sql<string>`COALESCE(${desa.nama}, 'Tanpa Desa')`, value: sql<number>`count(*)` }).from(generus).leftJoin(desa, eq(generus.desaId, desa.id)).leftJoin(users, eq(generus.id, users.generusId)).where(generusWhere).groupBy(desa.nama).orderBy(sql`count(*) DESC`);
+  const byDaerahQ = db.select({ name: sql<string>`'Cengkareng'`, value: sql<number>`count(*)` }).from(generus).leftJoin(users, eq(generus.id, users.generusId)).where(generusWhere);
+  const byPendidikanQ = db.select({ name: sql<string>`COALESCE(${generus.pendidikan}, 'Belum diisi')`, value: sql<number>`count(*)` }).from(generus).leftJoin(users, eq(generus.id, users.generusId)).where(generusWhere).groupBy(generus.pendidikan).orderBy(sql`count(*) DESC`).limit(10);
   const totalKegiatanQ = db.select({ count: sql<number>`count(*)` }).from(kegiatan).where(kegiatanWhere);
   const kegiatanByKategoriQ = db.select({ name: sql<string>`COALESCE(${kegiatan.kategoriAcara}, 'lainnya')`, value: sql<number>`count(*)` }).from(kegiatan).where(kegiatanWhere).groupBy(kegiatan.kategoriAcara);
   const kegiatanMonthlyQ = db.select({ name: sql<string>`substr(${kegiatan.tanggal},1,7)`, value: sql<number>`count(*)` }).from(kegiatan).where(kegiatanWhere).groupBy(sql`substr(${kegiatan.tanggal},1,7)`).orderBy(sql`substr(${kegiatan.tanggal},1,7) ASC`);
@@ -71,22 +68,20 @@ r.get("/", async (c) => {
   if (kategoriAcara !== "all") absensiBaseConds.push(eq(kegiatan.kategoriAcara, kategoriAcara as any));
   if (effectiveDesaId != null) absensiBaseConds.push(eq(generus.desaId, effectiveDesaId));
   if (effectiveKelompokId != null) absensiBaseConds.push(eq(generus.kelompokId, effectiveKelompokId));
-  if (qDaerahId != null) absensiBaseConds.push(eq(mandiriDesa.mandiriDaerahId, qDaerahId));
-  if (qMandiriDesaId != null) absensiBaseConds.push(eq(generus.mandiriDesaId, qMandiriDesaId));
-  if (qMandiriKelompokId != null) absensiBaseConds.push(eq(generus.mandiriKelompokId, qMandiriKelompokId));
+  // legacy mandiri absensi filters removed
   if (kategoriMudaMudi !== "all") absensiBaseConds.push(eq(generus.kategoriMudaMudi, kategoriMudaMudi as any));
   if (jenisKelamin === "L" || jenisKelamin === "P") absensiBaseConds.push(eq(generus.jenisKelamin, jenisKelamin as any));
   if (kategoriUsia !== "all") absensiBaseConds.push(eq(generus.kategoriUsia, kategoriUsia as any));
   const absensiWhere = absensiBaseConds.length ? and(...absensiBaseConds) : undefined;
 
-  const totalAbsensiQ = db.select({ count: sql<number>`count(*)` }).from(absensi).innerJoin(generus, eq(absensi.generusId, generus.id)).innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id)).leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id)).where(absensiWhere);
-  const byKeteranganQ = db.select({ name: absensi.keterangan, value: sql<number>`count(*)` }).from(absensi).innerJoin(generus, eq(absensi.generusId, generus.id)).innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id)).leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id)).where(absensiWhere).groupBy(absensi.keterangan);
-  const absensiByGenderQ = db.select({ name: generus.jenisKelamin, value: sql<number>`count(*)` }).from(absensi).innerJoin(generus, eq(absensi.generusId, generus.id)).innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id)).leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id)).where(absensiWhere).groupBy(generus.jenisKelamin);
-  const absensiByUsiaQ = db.select({ name: generus.kategoriUsia, value: sql<number>`count(*)` }).from(absensi).innerJoin(generus, eq(absensi.generusId, generus.id)).innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id)).leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id)).where(absensiWhere).groupBy(generus.kategoriUsia).orderBy(sql`count(*) DESC`);
-  const absensiByMudaMudiQ = db.select({ name: sql<string>`COALESCE(${generus.kategoriMudaMudi}, 'belum_diisi')`, value: sql<number>`count(*)` }).from(absensi).innerJoin(generus, eq(absensi.generusId, generus.id)).innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id)).leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id)).where(absensiWhere).groupBy(generus.kategoriMudaMudi);
-  const absensiByKategoriAcaraQ = db.select({ name: sql<string>`COALESCE(${kegiatan.kategoriAcara}, 'lainnya')`, value: sql<number>`count(*)` }).from(absensi).innerJoin(generus, eq(absensi.generusId, generus.id)).innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id)).leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id)).where(absensiWhere).groupBy(kegiatan.kategoriAcara);
-  const absensiTimeSeriesQ = db.select({ date: kegiatan.tanggal, hadir: sql<number>`SUM(CASE WHEN ${absensi.keterangan}='hadir' THEN 1 ELSE 0 END)`, izin: sql<number>`SUM(CASE WHEN ${absensi.keterangan}='izin' THEN 1 ELSE 0 END)`, alpha: sql<number>`SUM(CASE WHEN ${absensi.keterangan}='alpha' THEN 1 ELSE 0 END)`, total: sql<number>`count(*)` }).from(absensi).innerJoin(generus, eq(absensi.generusId, generus.id)).innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id)).leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id)).where(absensiWhere).groupBy(kegiatan.tanggal).orderBy(kegiatan.tanggal);
-  const absensiByDesaQ = db.select({ name: sql<string>`COALESCE(${desa.nama}, 'Tanpa Desa')`, value: sql<number>`count(*)` }).from(absensi).innerJoin(generus, eq(absensi.generusId, generus.id)).innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id)).leftJoin(desa, eq(generus.desaId, desa.id)).leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id)).where(absensiWhere).groupBy(desa.nama).orderBy(sql`count(*) DESC`).limit(10);
+  const totalAbsensiQ = db.select({ count: sql<number>`count(*)` }).from(absensi).innerJoin(generus, eq(absensi.generusId, generus.id)).innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id)).where(absensiWhere);
+  const byKeteranganQ = db.select({ name: absensi.keterangan, value: sql<number>`count(*)` }).from(absensi).innerJoin(generus, eq(absensi.generusId, generus.id)).innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id)).where(absensiWhere).groupBy(absensi.keterangan);
+  const absensiByGenderQ = db.select({ name: generus.jenisKelamin, value: sql<number>`count(*)` }).from(absensi).innerJoin(generus, eq(absensi.generusId, generus.id)).innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id)).where(absensiWhere).groupBy(generus.jenisKelamin);
+  const absensiByUsiaQ = db.select({ name: generus.kategoriUsia, value: sql<number>`count(*)` }).from(absensi).innerJoin(generus, eq(absensi.generusId, generus.id)).innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id)).where(absensiWhere).groupBy(generus.kategoriUsia).orderBy(sql`count(*) DESC`);
+  const absensiByMudaMudiQ = db.select({ name: sql<string>`COALESCE(${generus.kategoriMudaMudi}, 'belum_diisi')`, value: sql<number>`count(*)` }).from(absensi).innerJoin(generus, eq(absensi.generusId, generus.id)).innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id)).where(absensiWhere).groupBy(generus.kategoriMudaMudi);
+  const absensiByKategoriAcaraQ = db.select({ name: sql<string>`COALESCE(${kegiatan.kategoriAcara}, 'lainnya')`, value: sql<number>`count(*)` }).from(absensi).innerJoin(generus, eq(absensi.generusId, generus.id)).innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id)).where(absensiWhere).groupBy(kegiatan.kategoriAcara);
+  const absensiTimeSeriesQ = db.select({ date: kegiatan.tanggal, hadir: sql<number>`SUM(CASE WHEN ${absensi.keterangan}='hadir' THEN 1 ELSE 0 END)`, izin: sql<number>`SUM(CASE WHEN ${absensi.keterangan}='izin' THEN 1 ELSE 0 END)`, alpha: sql<number>`SUM(CASE WHEN ${absensi.keterangan}='alpha' THEN 1 ELSE 0 END)`, total: sql<number>`count(*)` }).from(absensi).innerJoin(generus, eq(absensi.generusId, generus.id)).innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id)).where(absensiWhere).groupBy(kegiatan.tanggal).orderBy(kegiatan.tanggal);
+  const absensiByDesaQ = db.select({ name: sql<string>`COALESCE(${desa.nama}, 'Tanpa Desa')`, value: sql<number>`count(*)` }).from(absensi).innerJoin(generus, eq(absensi.generusId, generus.id)).innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id)).leftJoin(desa, eq(generus.desaId, desa.id)).where(absensiWhere).groupBy(desa.nama).orderBy(sql`count(*) DESC`).limit(10);
 
   const [totalGenerusRes, byGenderRes, byUsiaRes, byMudaMudiRes, byDesaRes, byDaerahRes, byPendidikanRes, totalKegiatanRes, kegiatanByKategoriRes, kegiatanMonthlyRes, totalAbsensiRes, byKeteranganRes, absensiByGenderRes, absensiByUsiaRes, absensiByMudaMudiRes, absensiByKategoriAcaraRes, timeSeriesRes, absensiByDesaRes] = await Promise.all([totalGenerusQ, byGenderQ, byUsiaQ, byMudaMudiQ, byDesaQ, byDaerahQ, byPendidikanQ, totalKegiatanQ, kegiatanByKategoriQ, kegiatanMonthlyQ, totalAbsensiQ, byKeteranganQ, absensiByGenderQ, absensiByUsiaQ, absensiByMudaMudiQ, absensiByKategoriAcaraQ, absensiTimeSeriesQ, absensiByDesaQ]);
   const totalGenerus = Number((totalGenerusRes as any)[0]?.count || 0);
@@ -97,13 +92,13 @@ r.get("/", async (c) => {
   const izin = Number((byKeteranganRes as any[]).find((r: any) => r.name === "izin")?.value || 0);
   const alpha = Number((byKeteranganRes as any[]).find((r: any) => r.name === "alpha")?.value || 0);
   const hadirRate = totalAbsensi > 0 ? Math.round((hadir / totalAbsensi) * 100) : 0;
-  return c.json({ summary: { totalGenerus, totalKegiatan, totalAbsensi, hadir, izin, alpha, hadirRate }, member: { byGender: norm(byGenderRes as any), byUsia: norm(byUsiaRes as any), byMudaMudi: norm(byMudaMudiRes as any), byDesa: norm(byDesaRes as any), byDaerah: norm(byDaerahRes as any), byPendidikan: norm(byPendidikanRes as any) }, kegiatan: { total: totalKegiatan, byKategori: norm(kegiatanByKategoriRes as any), monthly: (kegiatanMonthlyRes as any[]).map((r: any) => ({ name: r.name, value: Number(r.value) })) }, absensi: { total: totalAbsensi, byKeterangan: norm(byKeteranganRes as any), byGender: norm(absensiByGenderRes as any), byUsia: norm(absensiByUsiaRes as any), byMudaMudi: norm(absensiByMudaMudiRes as any), byKategoriAcara: norm(absensiByKategoriAcaraRes as any), byDesa: norm(absensiByDesaRes as any), timeSeries: (timeSeriesRes as any[]).map((r: any) => ({ date: r.date, hadir: Number(r.hadir || 0), izin: Number(r.izin || 0), alpha: Number(r.alpha || 0), total: Number(r.total || 0) })) }, filtersApplied: { from: from || null, to: to || null, kategoriAcara, desaId: effectiveDesaId, kelompokId: effectiveKelompokId, daerahId: qDaerahId, mandiriDesaId: qMandiriDesaId, mandiriKelompokId: qMandiriKelompokId, kategoriMudaMudi, jenisKelamin, kategoriUsia } });
+  return c.json({ summary: { totalGenerus, totalKegiatan, totalAbsensi, hadir, izin, alpha, hadirRate }, member: { byGender: norm(byGenderRes as any), byUsia: norm(byUsiaRes as any), byMudaMudi: norm(byMudaMudiRes as any), byDesa: norm(byDesaRes as any), byDaerah: norm(byDaerahRes as any), byPendidikan: norm(byPendidikanRes as any) }, kegiatan: { total: totalKegiatan, byKategori: norm(kegiatanByKategoriRes as any), monthly: (kegiatanMonthlyRes as any[]).map((r: any) => ({ name: r.name, value: Number(r.value) })) }, absensi: { total: totalAbsensi, byKeterangan: norm(byKeteranganRes as any), byGender: norm(absensiByGenderRes as any), byUsia: norm(absensiByUsiaRes as any), byMudaMudi: norm(absensiByMudaMudiRes as any), byKategoriAcara: norm(absensiByKategoriAcaraRes as any), byDesa: norm(absensiByDesaRes as any), timeSeries: (timeSeriesRes as any[]).map((r: any) => ({ date: r.date, hadir: Number(r.hadir || 0), izin: Number(r.izin || 0), alpha: Number(r.alpha || 0), total: Number(r.total || 0) })) }, filtersApplied: { from: from || null, to: to || null, kategoriAcara, desaId: effectiveDesaId, kelompokId: effectiveKelompokId, daerahId: _qDaerahId, mandiriDesaId: _qMandiriDesaId, mandiriKelompokId: _qMandiriKelompokId, kategoriMudaMudi, jenisKelamin, kategoriUsia } });
 });
 
 r.get("/options", async (c) => {
   const db = getDb(c.env);
-  const [desaRows, kelompokRows, daerahRows] = await Promise.all([db.select().from(desa), db.select().from(kelompok), db.select().from(mandiriDaerah)]);
-  return c.json({ desa: desaRows, kelompok: kelompokRows, daerah: daerahRows });
+  const [desaRows, kelompokRows] = await Promise.all([db.select().from(desa), db.select().from(kelompok)]);
+  return c.json({ desa: desaRows, kelompok: kelompokRows, daerah: [] });
 });
 
 export default r;

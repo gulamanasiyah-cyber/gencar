@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { eq, and, sql } from "drizzle-orm";
-import { settings, generus, kegiatan, absensi, users, fcmTokens, desa, kelompok, mandiriDaerah, mandiriDesa, mandiriKelompok, mandiriKegiatan } from "../../../shared/schema";
+import { settings, generus, kegiatan, absensi, users, fcmTokens, desa, kelompok } from "../../../shared/schema";
 import { getDb } from "../utils/db";
 import { requireAuth, optionalAuth } from "../middleware/auth";
 
@@ -86,7 +86,7 @@ r.get("/settings", optionalAuth(), async (c) => {
 });
 r.post("/settings", requireAuth(), async (c) => {
   const session = c.get("user" as any) as any;
-  if (!["admin", "pengurus_daerah", "kmm_daerah"].includes(session.role)) return c.json({ error: "Unauthorized" }, 401);
+  if (!["admin_daerah", "admin_desa", "admin_kelompok"].includes(session.role)) return c.json({ error: "Unauthorized" }, 401);
   const body: any = await c.req.json().catch(() => ({}));
   const db = getDb(c.env);
   for (const [key, value] of Object.entries(body)) {
@@ -98,7 +98,7 @@ r.post("/settings", requireAuth(), async (c) => {
 });
 r.put("/settings", requireAuth(), async (c) => {
   const session = c.get("user" as any) as any;
-  if (!["admin", "pengurus_daerah", "kmm_daerah"].includes(session.role)) return c.json({ error: "Unauthorized" }, 401);
+  if (!["admin_daerah", "admin_desa", "admin_kelompok"].includes(session.role)) return c.json({ error: "Unauthorized" }, 401);
   const body: any = await c.req.json().catch(() => ({}));
   const db = getDb(c.env);
   for (const [key, value] of Object.entries(body)) {
@@ -140,7 +140,7 @@ r.post("/profile/request", requireAuth(), async (c) => {
 // admin review for profile requests
 r.get("/admin/profile-requests", requireAuth(), async (c) => {
   const session = c.get("user" as any) as any;
-  if (!["admin", "pengurus_daerah", "kmm_daerah", "admin_daerah"].includes(session.role)) return c.json({ error: "Unauthorized" }, 401);
+  if (!["admin_daerah", "admin_desa", "admin_kelompok"].includes(session.role)) return c.json({ error: "Unauthorized" }, 401);
   const db = getDb(c.env);
   const { profileChangeRequests } = await import("../../../shared/schema");
   const status = c.req.query("status") || "pending";
@@ -151,7 +151,7 @@ r.get("/admin/profile-requests", requireAuth(), async (c) => {
 });
 r.post("/admin/profile-requests/:id/approve", requireAuth(), async (c) => {
   const session = c.get("user" as any) as any;
-  if (!["admin", "pengurus_daerah", "kmm_daerah", "admin_daerah"].includes(session.role)) return c.json({ error: "Unauthorized" }, 401);
+  if (!["admin_daerah", "admin_desa", "admin_kelompok"].includes(session.role)) return c.json({ error: "Unauthorized" }, 401);
   const id = c.req.param("id");
   const db = getDb(c.env);
   const { profileChangeRequests } = await import("../../../shared/schema");
@@ -162,18 +162,19 @@ r.post("/admin/profile-requests/:id/approve", requireAuth(), async (c) => {
   const allowed: Record<string, string[]> = {
     kontak: ["noTelp", "pendidikan"],
     wilayah: ["domisiliAnak", "domisiliOrtu", "isDomisiliOrtuSama", "asalDaerah", "kategoriMudaMudi", "alamat", "desaId", "kelompokId"],
-    identitas: ["nama", "tempatLahir", "tanggalLahir", "suku", "foto"],
+    identitas: ["nama", "tempatLahir", "tanggalLahir", "suku", "foto", "avatarId"],
   };
   const keys = allowed[row.section] || [];
   const update: any = { updatedAt: new Date().toISOString() };
   for (const k of keys) if (payload[k] !== undefined) update[k] = payload[k];
   if (Object.keys(update).length > 1) await db.update(generus).set(update).where(eq(generus.id, row.generusId));
   await db.update(profileChangeRequests).set({ status: "approved", reviewedBy: session.userId, reviewedAt: new Date().toISOString() } as any).where(eq(profileChangeRequests.id, id));
+  try { const { logAuditActivity } = await import("../utils/audit"); await logAuditActivity(c.env as any, { action: "profile_request_approve", userId: session.userId, targetId: id, details: { generusId: row.generusId, section: row.section } }); } catch {}
   return c.json({ success: true });
 });
 r.post("/admin/profile-requests/:id/reject", requireAuth(), async (c) => {
   const session = c.get("user" as any) as any;
-  if (!["admin", "pengurus_daerah", "kmm_daerah", "admin_daerah"].includes(session.role)) return c.json({ error: "Unauthorized" }, 401);
+  if (!["admin_daerah", "admin_desa", "admin_kelompok"].includes(session.role)) return c.json({ error: "Unauthorized" }, 401);
   const id = c.req.param("id");
   const db = getDb(c.env);
   const { profileChangeRequests } = await import("../../../shared/schema");
@@ -181,6 +182,7 @@ r.post("/admin/profile-requests/:id/reject", requireAuth(), async (c) => {
   if (!row) return c.json({ error: "Tidak ditemukan" }, 404);
   if (row.status !== "pending") return c.json({ error: "Sudah diproses" }, 400);
   await db.update(profileChangeRequests).set({ status: "rejected", reviewedBy: session.userId, reviewedAt: new Date().toISOString() } as any).where(eq(profileChangeRequests.id, id));
+  try { const { logAuditActivity } = await import("../utils/audit"); await logAuditActivity(c.env as any, { action: "profile_request_reject", userId: session.userId, targetId: id, details: { generusId: row.generusId, section: row.section } }); } catch {}
   return c.json({ success: true });
 });
 

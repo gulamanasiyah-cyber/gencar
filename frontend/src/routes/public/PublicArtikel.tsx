@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams, Navigate } from "react-router-dom";
 import { ArrowLeft, Search, ChevronLeft, ChevronRight, CalendarDays, User2, Share2, ArrowRight, Sparkles } from "lucide-react";
-import { MOCK_ARTIKEL, ARTIKEL_KATEGORI_LABEL, type ArtikelKategori } from "./data";
+import { ARTIKEL_KATEGORI_LABEL, type ArtikelKategori, type PubArticle } from "./data";
+import { apiFetch, unwrapList } from "../../lib/api";
 
 const PER_PAGE_ARTIKEL = 6;
 
@@ -12,7 +13,6 @@ function getPages(current: number, total: number): (number | "…")[] {
   for (let p = Math.max(2, current - 1); p <= Math.min(total - 1, current + 1); p++) out.push(p);
   if (current < total - 2) out.push("…");
   out.push(total);
-  // dedupe ellipsis neighbours
   return out.filter((v, i, a) => !(v === "…" && a[i - 1] === "…"));
 }
 
@@ -72,7 +72,6 @@ function Pagination({
   );
 }
 
-// ── ARTIKEL LIST ── berita digabung ke artikel dengan kategori ──
 const ARTIKEL_KATEGORI_OPTS: { value: ArtikelKategori | "semua"; label: string }[] = [
   { value: "semua", label: "Semua" },
   { value: "tuntunan_ibadah", label: "Tuntunan Ibadah" },
@@ -82,6 +81,16 @@ const ARTIKEL_KATEGORI_OPTS: { value: ArtikelKategori | "semua"; label: string }
   { value: "berita", label: "Berita" },
 ];
 
+function normalizeKategori(raw?: string | null): ArtikelKategori {
+  if (!raw) return "tuntunan_ibadah";
+  const s = raw.toLowerCase().trim();
+  if (s.includes("kesehatan")) return "info_kesehatan";
+  if (s.includes("tafsir")) return "tafsir";
+  if (s.includes("kisah")) return "kisah";
+  if (s.includes("berita")) return "berita";
+  return "tuntunan_ibadah";
+}
+
 export function PublicArtikelList() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialKat = (searchParams.get("kategori") as ArtikelKategori | null) ?? "semua";
@@ -89,12 +98,56 @@ export function PublicArtikelList() {
   const [q, setQ] = useState("");
   const [kategori, setKategori] = useState<ArtikelKategori | "semua">(validKat);
   const [page, setPage] = useState(1);
+  const [articles, setArticles] = useState<PubArticle[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const urlKat = (searchParams.get("kategori") as ArtikelKategori | null) ?? "semua";
     if (ARTIKEL_KATEGORI_OPTS.some((o) => o.value === urlKat) && urlKat !== kategori) setKategori(urlKat as ArtikelKategori | "semua");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  useEffect(() => {
+    let cancel = false;
+    setLoading(true);
+    apiFetch<unknown>("/api/artikel?status=published")
+      .then((raw) => {
+        if (cancel) return;
+        const unwrapped = unwrapList<{
+          id?: string;
+          slug?: string;
+          judul: string;
+          ringkasan?: string;
+          coverImage?: string;
+          cover_image?: string;
+          kategori?: string;
+          publishedAt?: string;
+          createdAt?: string;
+          authorName?: string;
+        }>(raw);
+
+        const list: PubArticle[] = unwrapped.data.map((r) => ({
+          slug: r.slug ?? r.id ?? "",
+          judul: r.judul,
+          excerpt: r.ringkasan ?? "",
+          cover: r.coverImage ?? r.cover_image ?? "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=700&h=480&q=80",
+          tanggal: (r.publishedAt ?? r.createdAt ?? "").slice(0, 10),
+          author: r.authorName ?? "Pengurus",
+          kategori: normalizeKategori(r.kategori),
+        }));
+
+        setArticles(list);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancel) {
+          setArticles([]);
+          setLoading(false);
+        }
+      });
+
+    return () => { cancel = true; };
+  }, []);
 
   const setKategoriAndUrl = (v: ArtikelKategori | "semua") => {
     setKategori(v);
@@ -105,12 +158,12 @@ export function PublicArtikelList() {
   };
 
   const filtered = useMemo(() => {
-    let list = MOCK_ARTIKEL;
+    let list = articles;
     if (kategori !== "semua") list = list.filter((a) => a.kategori === kategori);
     const s = q.trim().toLowerCase();
     if (s) list = list.filter((a) => `${a.judul} ${a.excerpt} ${a.author} ${ARTIKEL_KATEGORI_LABEL[a.kategori]}`.toLowerCase().includes(s));
     return list;
-  }, [q, kategori]);
+  }, [articles, q, kategori]);
 
   useEffect(() => {
     setPage(1);
@@ -128,16 +181,15 @@ export function PublicArtikelList() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // header besar: artikel terbaru (MOCK_ARTIKEL[0] = terbaru), independen dari filter kayak Kegiatan
-  const featured = MOCK_ARTIKEL[0] ?? null;
+  const featured = articles[0] ?? null;
 
   return (
     <div className="pub-section">
       <div className="pub-section-head-row" style={{ marginBottom: 18 }}>
         <div className="pub-section-head" style={{ marginBottom: 0 }}>
           <span className="pub-eyebrow">Tulisan Praktis</span>
-          <h2>Artikel</h2>
-          <p>Tulisan praktis untuk panitia dan pengurus — bisa langsung dipake. {filtered.length} tulisan.</p>
+          <h2>Artikel &amp; Risalah</h2>
+          <p>Tulisan seputar ibadah, akhlak, kesehatan, dan panduan kegiatan muda-mudi Cengkareng.</p>
         </div>
         <span className="pub-trust-pill" style={{ alignSelf: "end" }}>
           {filtered.length} artikel
@@ -199,10 +251,12 @@ export function PublicArtikelList() {
         </span>
       </div>
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="lp-empty-card" style={{ marginTop: 20 }}>Memuat artikel…</div>
+      ) : filtered.length === 0 ? (
         <div className="pub-empty">
           <p style={{ fontWeight: 800 }}>Nggak ketemu.</p>
-          <p style={{ fontSize: 13, color: "var(--pub-muted)", marginTop: 6 }}>Coba kata kunci lain — misal “panitia”, “poster”, atau “laporan”.</p>
+          <p style={{ fontSize: 13, color: "var(--pub-muted)", marginTop: 6 }}>Coba kata kunci lain atau pilih kategori Semua.</p>
           <button type="button" className="btn-ghost-dark" style={{ marginTop: 14 }} onClick={() => setQ("")}>
             Reset pencarian
           </button>
@@ -233,103 +287,156 @@ export function PublicArtikelList() {
   );
 }
 
-// ── ARTIKEL DETAIL ──────────────────────────────────────────────────────
 export function PublicArtikelDetail() {
-  const { slug } = useParams();
-  const a = MOCK_ARTIKEL.find((x) => x.slug === slug);
-  if (!a)
+  const { slug } = useParams<{ slug: string }>();
+  const [item, setItem] = useState<{ judul: string; ringkasan?: string; konten: string; coverImage?: string; cover_image?: string; publishedAt?: string; createdAt?: string; authorName?: string; kategori?: string } | null>(null);
+  const [related, setRelated] = useState<PubArticle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!slug) return;
+    let cancel = false;
+    setLoading(true);
+
+    apiFetch<any>(`/api/artikel/${encodeURIComponent(slug)}`)
+      .then((raw) => {
+        if (cancel || !raw) return;
+        setItem(raw);
+        setLoading(false);
+
+        apiFetch<unknown>("/api/artikel?status=published")
+          .then((relRaw) => {
+            if (cancel) return;
+            const unwrapped = unwrapList<{ slug?: string; id?: string; judul: string; ringkasan?: string; coverImage?: string; cover_image?: string; publishedAt?: string; createdAt?: string; authorName?: string; kategori?: string }>(relRaw);
+            const relList = unwrapped.data
+              .filter((x) => (x.slug ?? x.id) !== slug)
+              .slice(0, 3)
+              .map((x) => ({
+                slug: x.slug ?? x.id ?? "",
+                judul: x.judul,
+                excerpt: x.ringkasan ?? "",
+                cover: x.coverImage ?? x.cover_image ?? "",
+                tanggal: (x.publishedAt ?? x.createdAt ?? "").slice(0, 10),
+                author: x.authorName ?? "Pengurus",
+                kategori: normalizeKategori(x.kategori),
+              }));
+            setRelated(relList);
+          })
+          .catch(() => {});
+      })
+      .catch(() => {
+        if (!cancel) {
+          setItem(null);
+          setLoading(false);
+        }
+      });
+
+    return () => { cancel = true; };
+  }, [slug]);
+
+  const onShare = async () => {
+    if (navigator.share && item) {
+      try {
+        await navigator.share({ title: item.judul, text: item.ringkasan, url: window.location.href });
+        return;
+      } catch {}
+    }
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
+
+  if (loading) {
     return (
-      <div className="pub-section">
+      <div className="pub-section" style={{ paddingTop: 32 }}>
+        <div className="lp-empty-card">Memuat artikel…</div>
+      </div>
+    );
+  }
+
+  if (!item) {
+    return (
+      <div className="pub-section" style={{ paddingTop: 32 }}>
         <div className="pub-empty">
-          <p style={{ fontWeight: 800 }}>Artikel tidak ditemukan</p>
-          <p style={{ fontSize: 13, color: "var(--pub-muted)", marginTop: 6 }}>
-            Slug <code>{slug}</code> belum tayang.
-          </p>
-          <Link to="/artikel" className="btn-lime" style={{ marginTop: 14 }}>
-            <ArrowLeft size={14} /> Kembali ke artikel
+          <h2>Artikel tidak ditemukan</h2>
+          <p>Mungkin tautan sudah berganti atau artikel telah diarsipkan.</p>
+          <Link to="/artikel" className="btn-lime">
+            <ArrowLeft size={14} /> Kembali ke Indeks Artikel
           </Link>
         </div>
       </div>
     );
-  const related = MOCK_ARTIKEL.filter((x) => x.slug !== a.slug).slice(0, 3);
+  }
+
+  const cover = item.coverImage ?? item.cover_image ?? "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=900&h=600&q=80";
+  const dateStr = (item.publishedAt ?? item.createdAt ?? "").slice(0, 10);
+  const author = item.authorName ?? "Pengurus";
+  const kat = normalizeKategori(item.kategori);
+
   return (
-    <div className="pub-section pub-detail">
-      <Link
-        to="/artikel"
-        style={{ fontSize: 13, fontWeight: 700, display: "inline-flex", gap: 6, alignItems: "center", width: "fit-content" }}
-      >
-        <ArrowLeft size={14} /> Semua artikel
-      </Link>
-      <div className="pub-detail-hero">
-        <img src={a.cover} alt={a.judul} />
+    <article className="pub-section" style={{ paddingTop: 24 }}>
+      <div className="pub-detail-back">
+        <Link to="/artikel" className="pub-link" style={{ borderBottom: "none" }}>
+          <ArrowLeft size={14} /> Semua Artikel
+        </Link>
       </div>
-      <div className="pub-detail-meta">
-        <span>
-          <CalendarDays size={12} /> {a.tanggal}
+
+      <header className="pub-detail-head">
+        <span className="pub-tag" style={{ width: "fit-content", marginBottom: 12 }}>
+          {ARTIKEL_KATEGORI_LABEL[kat]}
         </span>
-        <span>
-          <User2 size={12} /> {a.author}
-        </span>
-        <span className="pill pill-slate">{ARTIKEL_KATEGORI_LABEL[a.kategori]}</span>
+        <h1 className="pub-detail-title">{item.judul}</h1>
+        {item.ringkasan && <p className="pub-detail-lead">{item.ringkasan}</p>}
+        <div className="pub-detail-meta-bar">
+          <div className="pub-detail-meta-item"><CalendarDays size={15} /><strong>{dateStr}</strong></div>
+          <div className="pub-detail-meta-item"><User2 size={15} /><strong>{author}</strong></div>
+          <button type="button" className="pub-detail-share" onClick={onShare} aria-label="Bagikan artikel">
+            <Share2 size={14} /> {copied ? "Tersalin!" : "Bagikan"}
+          </button>
+        </div>
+      </header>
+
+      <div className="pub-detail-media">
+        <img src={cover} alt={item.judul} loading="eager" />
       </div>
-      <h1 className="pub-detail-title">{a.judul}</h1>
-      <p className="pub-detail-excerpt">{a.excerpt}</p>
-      <div className="pub-prose">
-        <p>{a.excerpt}</p>
-        <p>
-          Konten lengkap via CMS (TipTap). Placeholder prose untuk preview layout — nanti diganti HTML rich-text dari API{" "}
-          <code>/api/artikel/:slug</code>. Struktur heading, list, dan blockquote sudah di-style di <code>.pub-prose</code>.
-        </p>
-        <h2>Kenapa tulisan ini kepake</h2>
-        <p>
-          Tujuannya bukan teori panjang. Panitia butuh langkah yang bisa langsung dicoba besok — makanya tiap artikel
-          ditutup checklist 3 poin dan template yang bisa di-copy.
-        </p>
-        <blockquote>
-          Yang bikin tulisan kepake itu bukan panjangnya — tapi habis baca, orang tau mau ngapain besok pagi.
-        </blockquote>
+
+      <div className="pub-detail-content">
+        <div className="pub-prose" dangerouslySetInnerHTML={{ __html: item.konten }} />
       </div>
-      <div className="pub-detail-actions">
-        <a
-          href={`https://wa.me/?text=${encodeURIComponent(a.judul + " — " + (typeof window !== "undefined" ? window.location.href : ""))}`}
-          target="_blank"
-          rel="noreferrer"
-          className="btn-lime"
-        >
-          <Share2 size={14} /> Share ke WhatsApp
-        </a>
-        <button type="button" className="btn-ghost-dark" onClick={() => navigator.clipboard.writeText(window.location.href)}>
-          Copy link
-        </button>
-      </div>
+
       {related.length > 0 && (
-        <div className="pub-related">
-          <h3>Artikel lain</h3>
-          <div className="pub-related-grid">
+        <section className="pub-detail-related">
+          <h2>Artikel Terkait Lainnya</h2>
+          <div className="pub-artikel-grid">
             {related.map((r) => (
-              <Link key={r.slug} to={`/artikel/${r.slug}`} className="pub-related-card">
-                <img src={r.cover} alt={r.judul} loading="lazy" />
-                <div>
-                  <strong>{r.judul}</strong>
-                  <span>{r.tanggal} · {r.author}</span>
+              <Link key={r.slug} to={`/artikel/${r.slug}`} className="pub-artikel-card">
+                <div className="pub-artikel-thumb">
+                  <img src={r.cover} alt={r.judul} loading="lazy" />
+                </div>
+                <div className="pub-artikel-body">
+                  <span className="pub-artikel-meta">
+                    <CalendarDays size={11} /> {r.tanggal} · <User2 size={11} /> {r.author}
+                  </span>
+                  <strong className="pub-artikel-title">{r.judul}</strong>
+                  <p className="pub-artikel-excerpt">{r.excerpt}</p>
                 </div>
               </Link>
             ))}
           </div>
-        </div>
+        </section>
       )}
-    </div>
+    </article>
   );
 }
 
-// ── BERITA LIST — digabung ke Artikel (kategori berita) ──
 export function PublicBeritaList() {
   return <Navigate to="/artikel?kategori=berita" replace />;
 }
 
-// ── BERITA DETAIL — redirect ke artikel detail ──
 export function PublicBeritaDetail() {
   const { slug } = useParams();
-  if (!slug) return <Navigate to="/artikel?kategori=berita" replace />;
-  return <Navigate to={`/artikel/${slug}`} replace />;
+  return <Navigate to={`/artikel/${slug ?? ""}`} replace />;
 }

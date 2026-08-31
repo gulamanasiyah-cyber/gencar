@@ -10,10 +10,10 @@ const r = new Hono<{ Bindings: Env }>();
 r.use("/*", requireAuth());
 
 function isPublisher(role: string) {
-  return ["admin", "admin_daerah", "pengurus_daerah", "kmm_daerah"].includes(role);
+  return ["admin_daerah", "admin_desa", "admin_kelompok"].includes(role);
 }
 function canCreate(role: string) {
-  return ["admin", "admin_daerah", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "creator", "admin_desa", "admin_kelompok", "generus", "peserta"].includes(role);
+  return ["admin_daerah", "admin_desa", "admin_kelompok", "generus"].includes(role);
 }
 
 async function uniqueSlug(db: any, table: any, base: string, excludeId?: string) {

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { Play, Sparkles, X, MapPin, CalendarDays, Share2, Tag, Layers, Shuffle, ChevronLeft, ChevronRight } from "lucide-react";
+import { apiFetch } from "../../lib/api";
 
 export type GaleriItem = {
   id: string;
@@ -16,223 +17,6 @@ export type GaleriItem = {
   durasi?: string;
   deskripsi?: string;
 };
-
-export const MOCK_GALERI: GaleriItem[] = [
-  {
-    id: "g1",
-    type: "reel",
-    judul: "Keseruan Futsal & Silaturahmi Pemuda Cengkareng",
-    image: "https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&w=600&h=1000&q=80",
-    kategori: "Olahraga",
-    tanggal: "2026-09-18",
-    lokasi: "Lapangan Futsal Cengkareng",
-    aspectRatio: "tall",
-    durasi: "0:45",
-    deskripsi:
-      "Sore itu lapangan futsal penuh tawa dan sorak. Dari pemanasan canggung sampai gol-gol yang dirayakan berlebihan, semua jadi alasan untuk saling sapa. Yang kalah tetap foto bareng, yang menang traktir es teh. Di Gencar, olahraga bukan soal skor — tapi soal silaturahmi yang dijaga lewat keringat bareng.",
-  },
-  {
-    id: "g2",
-    type: "photo",
-    judul: "Suasana Ngaji Rutin Selasa Malam di Musala Al-Falah",
-    image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&h=700&q=80",
-    kategori: "Sambung Rutin",
-    tanggal: "2026-09-02",
-    lokasi: "Musala Al-Falah",
-    aspectRatio: "landscape",
-    deskripsi:
-      "Setiap Selasa malam, Musala Al-Falah terisi penuh. Bukan sekadar mengaji — ada tanya jawab yang jujur, ada cerita yang dibagi pelan-pelan. Kitab dibuka, hati ikut dibuka. Setelah doa, obrolan berlanjut di teras sampai malam makin larut. Di sinilah banyak dari kami belajar arti istiqomah yang sederhana.",
-  },
-  {
-    id: "g3",
-    type: "photo",
-    judul: "Panggung Kreasi Festival Anak Cengkareng",
-    image: "https://images.unsplash.com/photo-1531058020387-3be344556be6?auto=format&fit=crop&w=800&h=1000&q=80",
-    kategori: "Festival",
-    tanggal: "2026-09-15",
-    lokasi: "Lapangan Cengkareng",
-    aspectRatio: "portrait",
-  },
-  {
-    id: "g4",
-    type: "quote",
-    judul: "Rumah Bersama",
-    image: "",
-    kategori: "Sambung Rutin",
-    tanggal: "2026-09-01",
-    lokasi: "Cengkareng",
-    aspectRatio: "square",
-    quote: "Sistem kecil yang jalan terus lebih penting dari acara besar yang sekali lalu hilang.",
-    author: "Panitia Gencar",
-  },
-  {
-    id: "g5",
-    type: "reel",
-    judul: "Highlights Pelatihan Kepemimpinan Muda 2026",
-    image: "https://images.unsplash.com/photo-1515187029135-18ee286d815b?auto=format&fit=crop&w=600&h=1000&q=80",
-    kategori: "Foto Kegiatan",
-    tanggal: "2026-09-20",
-    lokasi: "Aula Kecamatan",
-    aspectRatio: "tall",
-    durasi: "0:58",
-  },
-  {
-    id: "g6",
-    type: "photo",
-    judul: "Jalan Sehat Keluarga Gencar — Start Masjid Al-Ikhlas",
-    image: "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1000&h=700&q=80",
-    kategori: "Foto Kegiatan",
-    tanggal: "2026-10-04",
-    lokasi: "Masjid Al-Ikhlas",
-    aspectRatio: "landscape",
-  },
-  {
-    id: "g7",
-    type: "photo",
-    judul: "Workshop Konten Kreatif #2 — Bikin Visual Rapi",
-    image: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&h=1000&q=80",
-    kategori: "Foto Kegiatan",
-    tanggal: "2026-10-12",
-    lokasi: "Basecamp Gencar",
-    aspectRatio: "portrait",
-  },
-  {
-    id: "g8",
-    type: "reel",
-    judul: "Bazaar & Kuliner UMKM Pemda Cengkareng",
-    image: "https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=600&h=1000&q=80",
-    kategori: "Festival",
-    tanggal: "2026-09-16",
-    lokasi: "Alun-alun Cengkareng",
-    aspectRatio: "tall",
-    durasi: "0:35",
-  },
-  {
-    id: "g9",
-    type: "photo",
-    judul: "Kerja Bakti & Resik Musala Sebelum Ramadan",
-    image: "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=900&h=700&q=80",
-    kategori: "Foto Kegiatan",
-    tanggal: "2026-08-25",
-    lokasi: "Musala RW 04",
-    aspectRatio: "landscape",
-  },
-  {
-    id: "g10",
-    type: "reel",
-    judul: "Behind the Scenes — Tim Kreatif Siapkan Poster & Deck",
-    image: "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=600&h=1000&q=80",
-    kategori: "Foto Kegiatan",
-    tanggal: "2026-10-10",
-    lokasi: "Studio Gencar",
-    aspectRatio: "tall",
-    durasi: "0:42",
-  },
-  {
-    id: "g11",
-    type: "photo",
-    judul: "Foto Bersama Pengurus & Pembina Gencar Cengkareng",
-    image: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=900&h=700&q=80",
-    kategori: "Foto Kegiatan",
-    tanggal: "2026-07-14",
-    lokasi: "Basecamp Gencar",
-    aspectRatio: "landscape",
-  },
-  {
-    id: "g12",
-    type: "photo",
-    judul: "Senyum Kebersamaan Selepas Kajian Rutin",
-    image: "https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&w=800&h=1000&q=80",
-    kategori: "Sambung Rutin",
-    tanggal: "2026-06-22",
-    lokasi: "Musala Al-Falah",
-    aspectRatio: "portrait",
-  },
-  {
-    id: "g13",
-    type: "reel",
-    judul: "Turnamen Futsal Pemuda — Gol Penentu Kemenangan",
-    image: "https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?auto=format&fit=crop&w=600&h=1000&q=80",
-    kategori: "Olahraga",
-    tanggal: "2026-05-18",
-    lokasi: "GOR Cengkareng",
-    aspectRatio: "tall",
-    durasi: "0:52",
-  },
-  {
-    id: "g14",
-    type: "photo",
-    judul: "Penyaluran Paket Sembako & Berbagi Takjil",
-    image: "https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=900&h=700&q=80",
-    kategori: "Foto Kegiatan",
-    tanggal: "2026-04-10",
-    lokasi: "Cengkareng Barat",
-    aspectRatio: "landscape",
-  },
-  {
-    id: "g15",
-    type: "photo",
-    judul: "Panggung Seni & Pentas Musik Islami Muda-Mudi",
-    image: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=800&h=1000&q=80",
-    kategori: "Festival",
-    tanggal: "2026-03-30",
-    lokasi: "Taman Cengkareng",
-    aspectRatio: "portrait",
-  },
-  {
-    id: "g16",
-    type: "quote",
-    judul: "Gotong Royong",
-    image: "",
-    kategori: "Foto Kegiatan",
-    tanggal: "2026-03-01",
-    lokasi: "Cengkareng Timur",
-    aspectRatio: "square",
-    quote: "Gotong royong itu bukan nostalgia, tapi sistem operasi kehidupan bermasyarakat.",
-    author: "Humas Gencar",
-  },
-  {
-    id: "g17",
-    type: "photo",
-    judul: "Kunjungan & Silaturahmi Tokoh Masyarakat",
-    image: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=900&h=700&q=80",
-    kategori: "Sambung Rutin",
-    tanggal: "2026-02-14",
-    lokasi: "Aula Kecamatan",
-    aspectRatio: "landscape",
-  },
-  {
-    id: "g18",
-    type: "reel",
-    judul: "Reel Dokumentasi Kemah Pemuda Cengkareng",
-    image: "https://images.unsplash.com/photo-1526772662000-3f88f10405ff?auto=format&fit=crop&w=600&h=1000&q=80",
-    kategori: "Foto Kegiatan",
-    tanggal: "2026-01-25",
-    lokasi: "Bumi Perkemahan",
-    aspectRatio: "tall",
-    durasi: "1:10",
-  },
-  {
-    id: "g19",
-    type: "photo",
-    judul: "Diskusi Lintas Generasi & Rapat Anggaran",
-    image: "https://images.unsplash.com/photo-1542744173-8e7e53415bb4?auto=format&fit=crop&w=800&h=1000&q=80",
-    kategori: "Foto Kegiatan",
-    tanggal: "2026-01-10",
-    lokasi: "Ruang Rapat Gencar",
-    aspectRatio: "portrait",
-  },
-  {
-    id: "g20",
-    type: "photo",
-    judul: "Foto Bersama Panitia Sehabis Event Festival",
-    image: "https://images.unsplash.com/photo-1527529482837-4698179dc6ce?auto=format&fit=crop&w=900&h=700&q=80",
-    kategori: "Festival",
-    tanggal: "2025-12-28",
-    lokasi: "Cengkareng",
-    aspectRatio: "landscape",
-  },
-];
 
 const CATEGORIES = ["Semua", "Reels", "Foto Kegiatan", "Sambung Rutin", "Festival", "Olahraga"];
 
@@ -629,18 +413,27 @@ export function PublicGaleri() {
   const [seed, setSeed] = useState(1);
   const [isMobile, setIsMobile] = useState(false);
   const [topCardId, setTopCardId] = useState<string | null>(null);
-  const [items, setItems] = useState<GaleriItem[]>(MOCK_GALERI);
+  const [items, setItems] = useState<GaleriItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/api/public/galeri")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => {
-        if (Array.isArray(j) && j.length > 0) {
-          setItems(j);
-        }
+    let cancel = false;
+    setLoading(true);
+    apiFetch<unknown>("/api/public/galeri")
+      .then((raw) => {
+        if (cancel) return;
+        const list = Array.isArray(raw) ? (raw as GaleriItem[]) : [];
+        setItems(list);
+        setLoading(false);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancel) {
+          setItems([]);
+          setLoading(false);
+        }
+      });
+    return () => { cancel = true; };
   }, []);
 
   useEffect(() => {
@@ -761,7 +554,11 @@ export function PublicGaleri() {
         </div>
 
         {/* DESKTOP: scattered draggable canvas — Mobile: single stacked deck with swipe */}
-        {!isMobile ? (
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "4rem 1rem", color: "var(--pub-ink-muted, #64748b)" }}>
+            Memuat galeri kegiatan...
+          </div>
+        ) : !isMobile ? (
           <div className="pub-galeri-canvas-wrap" ref={canvasRef}>
             <div className="pub-galeri-bento pub-galeri-scatter">
               {filtered.map((item, idx) => {

@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom'
 import './index.css'
 import './routes/public/public.css'
 import App from './App.tsx'
@@ -10,6 +10,10 @@ import { PublicKegiatanList, PublicKegiatanDetail } from './routes/public/Public
 import { PublicArtikelList, PublicArtikelDetail, PublicBeritaList, PublicBeritaDetail } from './routes/public/PublicArtikel.tsx'
 import { PublicPengurus, PublicTentang } from './routes/public/PublicStatic.tsx'
 import { PublicGaleri } from './routes/public/PublicGaleri.tsx'
+import LoginPage from './routes/auth/LoginPage.tsx'
+import AktivasiPage from './routes/auth/AktivasiPage.tsx'
+import { AuthProvider } from './lib/auth.tsx'
+import { RequireAuth } from './lib/RequireAuth.tsx'
 
 const router = createBrowserRouter([
   {
@@ -27,13 +31,19 @@ const router = createBrowserRouter([
       { path: '/tentang', element: <PublicTentang /> },
     ],
   },
-  { path: '/admin/*', element: <App initialMode="admin" /> },
-  { path: '/member/*', element: <App initialMode="member" /> },
-  // fallback: /admin or /member without trailing slash handled by App; keep / direct mount for backward compat in dev
+  { path: '/login', element: <LoginPage /> },
+  { path: '/aktivasi', element: <AktivasiPage /> },
+  { path: '/admin', element: <RequireAuth allow="admin"><App initialMode="admin" /></RequireAuth> },
+  { path: '/member', element: <RequireAuth allow="member"><App initialMode="member" /></RequireAuth> },
+  { path: '/admin/*', element: <RequireAuth allow="admin"><App initialMode="admin" /></RequireAuth> },
+  { path: '/member/*', element: <RequireAuth allow="member"><App initialMode="member" /></RequireAuth> },
+  { path: '*', element: <Navigate to="/" replace /> },
 ])
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
   </StrictMode>,
 )

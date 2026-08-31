@@ -1,8 +1,11 @@
 import { z } from "zod";
 
-// ── Admin 3 tingkat — daerah singleton implisit (tanpa pilih Daerah) ──
+// ── Role 4 tingkat sederhana ──
 export const adminRoles = ["admin_daerah", "admin_desa", "admin_kelompok"] as const;
 export type AdminRole = (typeof adminRoles)[number];
+
+export const userRoles = ["admin_daerah", "admin_desa", "admin_kelompok", "generus"] as const;
+export type UserRole = (typeof userRoles)[number];
 
 export const pendidikanEnum = ["SD", "SMP", "SMA", "Sedang menempuh perguruan tinggi", "Sarjana"] as const;
 
@@ -40,8 +43,8 @@ export const generusAdminCreateSchema = z
     shiftPekerjaan: z.string().nullable().optional(), // JSON string P1 hidden
     statusOrtuJamaah: z.enum(["sudah", "belum"]).nullable().optional(), // P1
     foto: z.string().url().nullable().optional(),
+    avatarId: z.string().max(40).nullable().optional(),
     hobi: z.array(z.enum(hobiEnum)).max(8).nullable().optional(),
-    hobiCustom: z.string().max(40).nullable().optional(),
     hobiDetail: z.string().max(2000).nullable().optional(),
   })
   .superRefine((v, ctx) => {
@@ -264,6 +267,17 @@ export const pengurusCreateSchema = z.object({
   urutan: z.number().int().min(0).max(999).default(0),
 });
 
+export const artikelCreateSchema = z.object({
+  slug: z.string().regex(/^[a-z0-9-]+$/).max(80).nullable().optional(),
+  judul: z.string().min(2).max(200).trim(),
+  konten: z.string().min(1),
+  ringkasan: z.string().max(2000).nullable().optional(),
+  kategori: z.string().max(100).default("Tuntunan Ibadah"),
+  coverImage: z.string().url().nullable().optional().or(z.literal("")),
+  status: z.enum(["pending", "published", "approved", "rejected"]).default("pending"),
+  tipe: z.enum(["berita", "artikel"]).default("artikel"),
+});
+
 export const profileRequestSectionEnum = ["kontak", "wilayah", "identitas"] as const;
 export const profileChangeRequestSchema = z.object({
   section: z.enum(profileRequestSectionEnum),
@@ -271,6 +285,20 @@ export const profileChangeRequestSchema = z.object({
   reason: z.string().min(10, "Alasan minimal 10 karakter").max(500),
   attachmentUrl: z.string().url().nullable().optional().or(z.literal("")),
 });
+
+// cowok/cewek → L/P mapping for avatar flow (FE sends cowok/cewek, DB stores L/P)
+export function mapJenisKelaminToDb(v: string | null | undefined): "L" | "P" | null {
+  if (v === "L" || v === "P") return v;
+  if (v === "cowok") return "L";
+  if (v === "cewek") return "P";
+  return null;
+}
+export function mapJenisKelaminFromDb(v: string | null | undefined): "cowok" | "cewek" | null {
+  if (v === "L") return "cowok";
+  if (v === "P") return "cewek";
+  if (v === "cowok" || v === "cewek") return v as "cowok" | "cewek";
+  return null;
+}
 
 export function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;

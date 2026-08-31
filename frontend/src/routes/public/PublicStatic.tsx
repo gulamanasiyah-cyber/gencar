@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence, useInView, useReducedMotion } from "motion/react";
 import { ArrowRight, MapPin, Quote, Sparkles, Users, CalendarDays, MessageCircle, X } from "lucide-react";
-import { MOCK_PENGURUS, MOCK_STORIES, TENTANG_TIMELINE, TENTANG_NILAI, type PubPengurus, type PengurusLevel } from "./data";
+import { type PubPengurus, type PengurusLevel } from "./data";
 import type { TentangJson } from "../../../../shared/validation";
+import { apiFetch } from "../../lib/api";
 
 function CountUp({ target, prefix = "", suffix = "", decimals = 0 }: { target: number; prefix?: string; suffix?: string; decimals?: number }) {
   const [val, setVal] = useState(0);
@@ -43,26 +44,56 @@ function waLink(raw?: string | null) {
   if (!d) return null;
   return `https://wa.me/${d}`;
 }
+
 function initials(nama: string) {
   return nama.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 }
 
-
-
 export function PublicPengurus() {
+  const [pengurusList, setPengurusList] = useState<PubPengurus[]>([]);
+  const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<PubPengurus | null>(null);
   const [mobileActiveIdx, setMobileActiveIdx] = useState<number | null>(null);
 
+  useEffect(() => {
+    let cancel = false;
+    apiFetch<unknown>("/api/public/pengurus")
+      .then((raw) => {
+        if (cancel) return;
+        const list: PubPengurus[] = Array.isArray(raw)
+          ? raw.map((p: any) => ({
+              id: p.id,
+              nama: p.nama,
+              role: p.dapukan ?? p.role ?? "Pengurus",
+              foto: p.foto ?? "",
+              level: p.level ?? "bidang",
+              bio: p.bio,
+              kontakWa: p.kontakWa,
+              urutan: p.urutan,
+            }))
+          : [];
+        setPengurusList(list);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancel) {
+          setPengurusList([]);
+          setLoading(false);
+        }
+      });
+
+    return () => { cancel = true; };
+  }, []);
+
   const ordered = useMemo(() => {
-    const src: PubPengurus[] = MOCK_PENGURUS;
     const order: Record<PengurusLevel, number> = { pimpinan: 0, sekretariat: 1, bidang: 2, koordinator: 3 };
-    return [...src].sort((a, b) => {
+    return [...pengurusList].sort((a, b) => {
       const oa = order[a.level as PengurusLevel] ?? 2;
       const ob = order[b.level as PengurusLevel] ?? 2;
       if (oa !== ob) return oa - ob;
       return (a.urutan ?? 0) - (b.urutan ?? 0);
     });
-  }, []);
+  }, [pengurusList]);
 
   useEffect(() => {
     const mql = window.matchMedia("(max-width: 640px)");
@@ -117,24 +148,33 @@ export function PublicPengurus() {
         <p style={{ textAlign: "center", marginInline: "auto" }}>Tata cetak grafis tebal — nomor urut, garis batas, foto kontras. Klasifikasi jelas tanpa hiasan.</p>
       </div>
 
-      <motion.div
-        className="swiss-pengurus-grid"
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: true, amount: 0.12 }}
-        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
-      >
-        {ordered.map((p, idx) => (
-          <SwissCard
-            key={p.nama + p.role}
-            p={p}
-            index={idx}
-            featured={idx === 0}
-            isMobileActive={mobileActiveIdx === idx}
-            onOpen={setActive}
-          />
-        ))}
-      </motion.div>
+      {loading ? (
+        <div className="lp-empty-card" style={{ maxWidth: 640, margin: "20px auto" }}>Memuat bagan kepengurusan…</div>
+      ) : ordered.length === 0 ? (
+        <div className="pub-empty">
+          <h3>Bagan Belum Dipublikasikan</h3>
+          <p>Daftar pengurus daerah akan tampil setelah dikurasi oleh tim sekretariat.</p>
+        </div>
+      ) : (
+        <motion.div
+          className="swiss-pengurus-grid"
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, amount: 0.12 }}
+          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
+        >
+          {ordered.map((p, idx) => (
+            <SwissCard
+              key={p.nama + p.role}
+              p={p}
+              index={idx}
+              featured={idx === 0}
+              isMobileActive={mobileActiveIdx === idx}
+              onOpen={setActive}
+            />
+          ))}
+        </motion.div>
+      )}
 
       <div className="retro-cta">
         <p>Klik kartu untuk lihat bio & kontak WA — susunan cetak 3 kolom, nomor 01 sebagai pimpinan utama.</p>
@@ -145,7 +185,7 @@ export function PublicPengurus() {
       </div>
 
       <AnimatePresence>
-        {active && <SwissModal p={active} onClose={() => setActive(null)} />}
+        {active && <SwissModal p={active} allItems={ordered} onClose={() => setActive(null)} />}
       </AnimatePresence>
     </div>
   );
@@ -184,7 +224,7 @@ function SwissCard({ p, index, featured, isMobileActive, onOpen }: { p: PubPengu
   );
 }
 
-function SwissModal({ p, onClose }: { p: PubPengurus; onClose: () => void }) {
+function SwissModal({ p, allItems, onClose }: { p: PubPengurus; allItems: PubPengurus[]; onClose: () => void }) {
   const wa = waLink(p.kontakWa);
   const [flipped, setFlipped] = useState(false);
   useEffect(() => {
@@ -198,6 +238,9 @@ function SwissModal({ p, onClose }: { p: PubPengurus; onClose: () => void }) {
     document.body.style.overflow = "hidden";
     return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
   }, [onClose, flipped]);
+
+  const pIndex = allItems.findIndex((x) => x.nama === p.nama && x.role === p.role) + 1;
+
   return (
     <motion.div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-label={`Detail ${p.nama}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
       <div style={{ perspective: 1000, width: "100%", maxWidth: 440, display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }} onClick={(e) => e.stopPropagation()}>
@@ -212,7 +255,7 @@ function SwissModal({ p, onClose }: { p: PubPengurus; onClose: () => void }) {
           aria-label={flipped ? "Lihat foto" : "Balik untuk bio"}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setFlipped((v) => !v); } }}
         >
-          {/* FRONT — polaroid foto */}
+          {/* FRONT */}
           <div className="swiss-flip-face swiss-flip-front">
             <div className="swiss-polaroid-card">
               <button type="button" className="swiss-polaroid-close" onClick={(e) => { e.stopPropagation(); onClose(); }} aria-label="Tutup"><X size={14} /></button>
@@ -221,13 +264,13 @@ function SwissModal({ p, onClose }: { p: PubPengurus; onClose: () => void }) {
                 <span className="swiss-flip-hint">Tap untuk balik ↻</span>
               </div>
               <div className="swiss-polaroid-caption">
-                <span className="swiss-polaroid-num">{String(orderedIndex(p)).padStart(2, "0")}</span>
+                <span className="swiss-polaroid-num">{String(pIndex > 0 ? pIndex : 1).padStart(2, "0")}</span>
                 <strong>{p.nama}</strong>
                 <span>{p.role} · {p.level}</span>
               </div>
             </div>
           </div>
-          {/* BACK — bio tulisan tangan */}
+          {/* BACK */}
           <div className="swiss-flip-face swiss-flip-back">
             <div className="swiss-polaroid-card swiss-polaroid-card--back">
               <button type="button" className="swiss-polaroid-close" onClick={(e) => { e.stopPropagation(); onClose(); }} aria-label="Tutup"><X size={14} /></button>
@@ -252,68 +295,82 @@ function SwissModal({ p, onClose }: { p: PubPengurus; onClose: () => void }) {
   );
 }
 
-function orderedIndex(p: PubPengurus): number {
-  const order: Record<PengurusLevel, number> = { pimpinan: 0, sekretariat: 1, bidang: 2, koordinator: 3 };
-  return [...MOCK_PENGURUS].sort((a, b) => {
-    const oa = order[a.level as PengurusLevel] ?? 2;
-    const ob = order[b.level as PengurusLevel] ?? 2;
-    if (oa !== ob) return oa - ob;
-    return (a.urutan ?? 0) - (b.urutan ?? 0);
-  }).findIndex((x) => x.nama === p.nama && x.role === p.role) + 1;
-}
-
 export function PublicTentang({ data: propData }: { data?: TentangJson | null } = {}) {
   const [dyn, setDyn] = useState<TentangJson | null>(propData ?? null);
+  const [loading, setLoading] = useState(propData === undefined);
 
   useEffect(() => {
     if (propData !== undefined) {
       setDyn(propData);
+      setLoading(false);
       return;
     }
-    fetch("/api/public/tentang")
-      .then((r) => (r.ok ? r.json() : null))
+    apiFetch<{ html?: string; json?: TentangJson }>("/api/public/tentang")
       .then((j) => {
         if (j?.json) setDyn(j.json);
+        setLoading(false);
       })
-      .catch(() => {});
+      .catch(() => {
+        setLoading(false);
+      });
   }, [propData]);
 
-  const hero = dyn?.hero;
-  const letter = dyn?.letter;
-  const manifesto = dyn?.manifesto;
-  const chronicle = dyn?.chronicle;
-  const voices = dyn?.voices;
-  const stats = dyn?.stats;
-  const cta = dyn?.cta;
+  if (loading) {
+    return (
+      <div className="pub-section" style={{ paddingTop: 40, textAlign: "center" }}>
+        <div className="lp-empty-card">Memuat informasi profil…</div>
+      </div>
+    );
+  }
 
-  const lead = voices?.stories?.[0] ?? MOCK_STORIES[0];
-  const side = voices?.stories?.slice(1) ?? MOCK_STORIES.slice(1);
+  if (!dyn) {
+    return (
+      <div className="pub-section" style={{ paddingTop: 40 }}>
+        <div className="pub-empty">
+          <h2>Profil Belum Dikonfigurasi</h2>
+          <p>Pengurus belum mempublikasikan informasi tentang organisasi.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const hero = dyn.hero;
+  const letter = dyn.letter;
+  const manifesto = dyn.manifesto;
+  const chronicle = dyn.chronicle;
+  const voices = dyn.voices;
+  const stats = dyn.stats;
+  const cta = dyn.cta;
+
+  const lead = voices?.stories?.[0];
+  const side = voices?.stories?.slice(1) ?? [];
 
   return (
     <div style={{ display: "grid", gap: 0 }}>
+      {/* Hero */}
       <div className="tentang-ink-hero">
         <div className="tentang-ink-inner">
           <div className="tentang-ink-copy">
-            <span className="tentang-kicker">{hero?.kicker ?? "Etalase Muda-Mudi Cengkareng"}</span>
+            <span className="tentang-kicker">{hero?.kicker || "Etalase Muda-Mudi Cengkareng"}</span>
             <h1>
-              {hero?.title ?? "Wadah kebersamaan &"} <em>{hero?.titleEm ?? "pembinaan generus"}</em> {hero?.titleEnd ?? "di Cengkareng."}
+              {hero?.title || "Wadah kebersamaan &"} <em>{hero?.titleEm || "pembinaan generus"}</em> {hero?.titleEnd || "di Cengkareng."}
             </h1>
             <p className="lead">
-              {hero?.lead ?? "Ruang dokumentasi resmi kegiatan, syiar nilai budi pekerti, dan etalase karya generasi muda LDII Daerah Cengkareng — dari tingkat kelompok hingga daerah."}
+              {hero?.lead || "Ruang dokumentasi resmi kegiatan, syiar nilai budi pekerti, dan etalase karya generasi muda LDII Daerah Cengkareng."}
             </p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", paddingTop: 4 }}>
-              <Link to={hero?.ctaPrimary?.href ?? "/kegiatan"} className="btn-lime">
-                {hero?.ctaPrimary?.label ?? "Arsip kegiatan"} <ArrowRight size={16} />
+              <Link to={hero?.ctaPrimary?.href || "/kegiatan"} className="btn-lime">
+                {hero?.ctaPrimary?.label || "Arsip kegiatan"} <ArrowRight size={16} />
               </Link>
               <Link
-                to={hero?.ctaSecondary?.href ?? "/pengurus"}
+                to={hero?.ctaSecondary?.href || "/pengurus"}
                 style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 18px", borderRadius: 999, background: "rgba(255,255,255,0.1)", color: "#fff", fontWeight: 700, fontSize: 14, border: "1px solid rgba(255,255,255,0.16)" }}
               >
-                {hero?.ctaSecondary?.label ?? "Struktur Pengurus"}
+                {hero?.ctaSecondary?.label || "Struktur Pengurus"}
               </Link>
             </div>
             <div className="tentang-ink-meta">
-              {(hero?.meta ?? [
+              {(hero?.meta || [
                 { icon: "sparkles", text: "Etalase Dokumentasi" },
                 { icon: "users", text: "Daerah Cengkareng" },
                 { icon: "calendar", text: "Pembinaan Berkelanjutan" },
@@ -326,147 +383,158 @@ export function PublicTentang({ data: propData }: { data?: TentangJson | null } 
                 </span>
               ))}
             </div>
-            <div className="tentang-ghost-num" aria-hidden>{hero?.ghostText ?? "LDII"}</div>
+            <div className="tentang-ghost-num" aria-hidden>{hero?.ghostText || "LDII"}</div>
           </div>
           <div className="tentang-ink-visual">
-            <img src={hero?.image ?? "https://picsum.photos/seed/gencar-tentang-hero/900/900"} alt="Kebersamaan Muda-Mudi Cengkareng" loading="eager" />
+            <img src={hero?.image || "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=900&h=900&q=80"} alt="Kebersamaan Muda-Mudi Cengkareng" loading="eager" />
             <div className="tentang-ink-float">
               <span style={{ width: 32, height: 32, borderRadius: 10, background: "var(--pub-lime)", display: "grid", placeItems: "center", flexShrink: 0 }}><Quote size={14} /></span>
-              <span>{hero?.floatQuote ?? "“Rukun, kompak, dan kerja sama yang baik.”"}</span>
-              <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--pub-muted)", whiteSpace: "nowrap" }}>{hero?.floatAttribution ?? "— Karakter Luhur"}</span>
+              <span>{hero?.floatQuote || "“Rukun, kompak, dan kerja sama yang baik.”"}</span>
+              <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--pub-muted)", whiteSpace: "nowrap" }}>{hero?.floatAttribution || "— Karakter Luhur"}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="tentang-letter">
-        <figure className="tentang-letter-illus">
-          <img src={letter?.image ?? "https://picsum.photos/seed/gencar-origin/700/800"} alt="Pembinaan Generasi Muda" loading="lazy" />
-          <figcaption>{letter?.caption ?? "Dokumentasi pembinaan berjenjang: dari kelompok, desa, hingga tingkat daerah Cengkareng."}</figcaption>
-        </figure>
-        <div className="tentang-letter-body">
-          <h2>{letter?.heading ?? "Dinamika Pembinaan & Sinergi Generus"}</h2>
-          <p className="dropcap">
-            {letter?.dropcapText ?? "Pembinaan generasi muda di Cengkareng berakar dari pengajian rutin kelompok hingga kegiatan terpadu tingkat daerah. Setiap jenjang usia dirangkul melalui materi Al-Qur'an dan Al-Hadits yang aplikatif serta pembiasaan akhlak mulia."}
-          </p>
-          <p>
-            {letter?.paragraph2 ?? "Tujuan utama kami adalah mencetak generasi penerus yang memiliki Tri Sukses: alim dan faqih dalam ilmu agama, berakhlakul karimah dalam pergaulan, serta mandiri dalam mengarungi kehidupan bermasyarakat."}
-          </p>
-          <p>
-            {letter?.paragraph3 ?? "Laman web ini dihadirkan sebagai etalase publik yang transparan dan rapi. Seluruh dokumentasi kegiatan, artikel kepemudaan, dan karya warga tersaji agar menjadi inspirasi positif bagi sesama dan masyarakat luas."}
-          </p>
-          <div className="pub-quote">
-            {letter?.quote ?? "“Membina generus bukan sekadar program tahunan, melainkan ikhtiar berkesinambungan mencetak insan yang bermanfaat bagi agama, nusa, dan bangsa.”"}
-            <cite>{letter?.quoteCite ?? "— Pembina Muda-Mudi Cengkareng"}</cite>
+      {/* Letter */}
+      {letter && (
+        <div className="tentang-letter">
+          <figure className="tentang-letter-illus">
+            <img src={letter.image || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=700&h=800&q=80"} alt="Pembinaan Generasi Muda" loading="lazy" />
+            <figcaption>{letter.caption || "Dokumentasi pembinaan berjenjang: dari kelompok, desa, hingga tingkat daerah Cengkareng."}</figcaption>
+          </figure>
+          <div className="tentang-letter-body">
+            <h2>{letter.heading}</h2>
+            <p className="dropcap">{letter.dropcapText}</p>
+            {letter.paragraph2 && <p>{letter.paragraph2}</p>}
+            {letter.paragraph3 && <p>{letter.paragraph3}</p>}
+            {letter.quote && (
+              <div className="pub-quote">
+                {letter.quote}
+                {letter.quoteCite && <cite>{letter.quoteCite}</cite>}
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="tentang-manifesto">
-        <h2 style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 24, letterSpacing: "-0.03em" }}>{manifesto?.heading ?? "Pondasi Pembinaan: Tri Sukses Generus"}</h2>
-        <p style={{ fontSize: 13, color: "var(--pub-muted)", marginTop: 6 }}>{manifesto?.subheading ?? "Tiga target utama yang senantiasa ditanamkan dalam setiap kegiatan muda-mudi."}</p>
-        <div className="tentang-manifesto-grid">
-          {(manifesto?.cards ?? (TENTANG_NILAI as any)).map((c: any, i: number) => {
-            const isInk = c.isInk ?? i === 0;
-            const isHash = c.href?.startsWith("#");
-            return (
-              <div key={i} className={`tentang-mani-card ${isInk ? "tentang-mani-card--ink" : ""}`}>
-                <span className="tentang-mani-num">{c.num ?? String(i + 1).padStart(2, "0")}</span>
-                <h3>{c.title}</h3>
-                <p>{c.body}</p>
-                {isHash ? (
-                  <a href={c.href}>{c.proof} <ArrowRight size={14} /></a>
-                ) : (
-                  <Link to={c.href}>{c.proof} <ArrowRight size={14} /></Link>
-                )}
-              </div>
-            );
-          })}
+      {/* Manifesto */}
+      {manifesto && manifesto.cards?.length > 0 && (
+        <div className="tentang-manifesto">
+          <h2 style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 24, letterSpacing: "-0.03em" }}>{manifesto.heading}</h2>
+          {manifesto.subheading && <p style={{ fontSize: 13, color: "var(--pub-muted)", marginTop: 6 }}>{manifesto.subheading}</p>}
+          <div className="tentang-manifesto-grid">
+            {manifesto.cards.map((c, i) => {
+              const isInk = c.isInk ?? i === 0;
+              const isHash = c.href?.startsWith("#");
+              return (
+                <div key={i} className={`tentang-mani-card ${isInk ? "tentang-mani-card--ink" : ""}`}>
+                  <span className="tentang-mani-num">{c.num || String(i + 1).padStart(2, "0")}</span>
+                  <h3>{c.title}</h3>
+                  <p>{c.body}</p>
+                  {isHash ? (
+                    <a href={c.href}>{c.proof} <ArrowRight size={14} /></a>
+                  ) : (
+                    <Link to={c.href}>{c.proof} <ArrowRight size={14} /></Link>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="tentang-chronicle">
-        <h2 style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 24, letterSpacing: "-0.03em" }}>{chronicle?.heading ?? "Pilar & Dimensi Pembinaan"}</h2>
-        <p style={{ fontSize: 13, color: "var(--pub-muted)", marginTop: 6 }}>{chronicle?.subheading ?? "Fokus pengembangan potensi generasi muda se-Daerah Cengkareng."}</p>
-        <div className="tentang-chrono-grid">
-          {(chronicle?.items ?? TENTANG_TIMELINE).map((t, i) => (
-            <div key={i} className="tentang-chrono-card">
-              <img src={(t as any).image || `https://picsum.photos/seed/gencar-chrono-${i}/300/300`} alt="" loading="lazy" />
-              <div className="tentang-chrono-body">
-                <strong>{t.year}</strong>
-                <h4>{t.title}</h4>
-                <p>{t.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div id="cerita" className="tentang-voices">
-        <h2 style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 24, letterSpacing: "-0.03em" }}>{voices?.heading ?? "Cerita dari Lapangan"}</h2>
-        <p style={{ fontSize: 13, color: "var(--pub-muted)", marginTop: 6 }}>{voices?.subheading ?? "Refleksi nyata dari muda-mudi, pembina, dan penggerak kegiatan di Cengkareng."}</p>
-        <div className="tentang-voices-grid">
-          {lead && (
-            <div className="tentang-voice-feature">
-              <img src={lead.foto} alt={lead.nama} loading="lazy" />
-              <div className="tentang-voice-feature-content">
-                <blockquote>“{lead.quote}”</blockquote>
-                <cite>{lead.nama} · {lead.peran} · {lead.angkatan}</cite>
-              </div>
-            </div>
-          )}
-          <div className="tentang-voices-side">
-            {side.map((s, i) => (
-              <div key={i} className="tentang-voice-card">
-                <blockquote>“{s.quote}”</blockquote>
-                <cite>{s.nama} · {s.peran} · {s.angkatan}</cite>
-                <p>{s.konteks}</p>
+      {/* Chronicle */}
+      {chronicle && chronicle.items?.length > 0 && (
+        <div className="tentang-chronicle">
+          <h2 style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 24, letterSpacing: "-0.03em" }}>{chronicle.heading}</h2>
+          {chronicle.subheading && <p style={{ fontSize: 13, color: "var(--pub-muted)", marginTop: 6 }}>{chronicle.subheading}</p>}
+          <div className="tentang-chrono-grid">
+            {chronicle.items.map((t, i) => (
+              <div key={i} className="tentang-chrono-card">
+                <img src={t.image || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=300&h=300&q=80"} alt="" loading="lazy" />
+                <div className="tentang-chrono-body">
+                  <strong>{t.year}</strong>
+                  <h4>{t.title}</h4>
+                  <p>{t.desc}</p>
+                </div>
               </div>
             ))}
           </div>
         </div>
-        {lead?.konteks && <p style={{ fontSize: 12, color: "var(--pub-muted)", marginTop: 8, lineHeight: 1.5 }}>{lead.konteks}</p>}
-      </div>
+      )}
 
-      <div className="tentang-stats-ink">
-        <div className="tentang-stats-row">
-          {(stats?.items ?? [
-            { target: 48, label: "Kegiatan Terdokumentasi", variant: "ink" },
-            { target: 1.2, decimals: 1, suffix: "k", label: "Muda-Mudi Terbina", variant: "default" },
-            { target: 36, label: "Artikel & Risalah", variant: "lime" },
-            { target: 12, label: "Pengurus & Koordinator", variant: "default" },
-          ]).map((st: any, i: number) => {
-            const cls = st.variant === "ink" ? "tentang-stat--ink" : st.variant === "lime" ? "tentang-stat--lime" : "";
-            return (
-              <div key={i} className={`tentang-stat ${cls}`}>
-                <strong>
-                  <CountUp target={st.target} decimals={st.decimals ?? 0} suffix={st.suffix ?? ""} prefix={st.prefix ?? ""} />
-                </strong>
-                <span>{st.label}</span>
+      {/* Voices */}
+      {voices && (lead || side.length > 0) && (
+        <div id="cerita" className="tentang-voices">
+          <h2 style={{ fontFamily: "Space Grotesk, sans-serif", fontSize: 24, letterSpacing: "-0.03em" }}>{voices.heading}</h2>
+          {voices.subheading && <p style={{ fontSize: 13, color: "var(--pub-muted)", marginTop: 6 }}>{voices.subheading}</p>}
+          <div className="tentang-voices-grid">
+            {lead && (
+              <div className="tentang-voice-feature">
+                <img src={lead.foto} alt={lead.nama} loading="lazy" />
+                <div className="tentang-voice-feature-content">
+                  <blockquote>“{lead.quote}”</blockquote>
+                  <cite>{lead.nama} · {lead.peran} · {lead.angkatan}</cite>
+                </div>
               </div>
-            );
-          })}
-        </div>
-        <div style={{ textAlign: "center", marginTop: 12 }}>
-          <Link to={stats?.ctaHref ?? "/kegiatan"} style={{ fontSize: 13, fontWeight: 700, display: "inline-flex", gap: 6, alignItems: "center", borderBottom: "1px solid var(--pub-ink)", paddingBottom: 2 }}>
-            {stats?.ctaText ?? "Jelajahi arsip kegiatan terlaksana"} <ArrowRight size={14} />
-          </Link>
-        </div>
-      </div>
-
-      <div className="pub-section">
-        <div className="pub-about">
-          <div>
-            <h3>{cta?.heading ?? "Etalase & Informasi Kepengurusan"}</h3>
-            <p>{cta?.body ?? "Untuk koordinasi internal, informasi jadwal kegiatan tingkat daerah, atau pertanyaan seputar dokumentasi publik generus Cengkareng, silakan hubungi perwakilan pengurus."}</p>
-            <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
-              <Link to={cta?.primaryHref ?? "/kegiatan"} className="btn-lime">{cta?.primaryLabel ?? "Dokumentasi Kegiatan"}</Link>
-              <Link to={cta?.secondaryHref ?? "/pengurus"} className="btn-ghost-dark"><Users size={14} /> {cta?.secondaryLabel ?? "Pengurus Daerah"}</Link>
+            )}
+            <div className="tentang-voices-side">
+              {side.map((s, i) => (
+                <div key={i} className="tentang-voice-card">
+                  <blockquote>“{s.quote}”</blockquote>
+                  <cite>{s.nama} · {s.peran} · {s.angkatan}</cite>
+                  <p>{s.konteks}</p>
+                </div>
+              ))}
             </div>
           </div>
-          <img src={cta?.image ?? "https://picsum.photos/seed/gencar-cta/700/500"} alt="Generus Cengkareng" loading="lazy" />
+          {lead?.konteks && <p style={{ fontSize: 12, color: "var(--pub-muted)", marginTop: 8, lineHeight: 1.5 }}>{lead.konteks}</p>}
         </div>
-      </div>
+      )}
+
+      {/* Stats */}
+      {stats && stats.items?.length > 0 && (
+        <div className="tentang-stats-ink">
+          <div className="tentang-stats-row">
+            {stats.items.map((st, i) => {
+              const cls = st.variant === "ink" ? "tentang-stat--ink" : st.variant === "lime" ? "tentang-stat--lime" : "";
+              return (
+                <div key={i} className={`tentang-stat ${cls}`}>
+                  <strong>
+                    <CountUp target={st.target} decimals={st.decimals ?? 0} suffix={st.suffix ?? ""} prefix={st.prefix ?? ""} />
+                  </strong>
+                  <span>{st.label}</span>
+                </div>
+              );
+            })}
+          </div>
+          {stats.ctaHref && (
+            <div style={{ textAlign: "center", marginTop: 12 }}>
+              <Link to={stats.ctaHref} style={{ fontSize: 13, fontWeight: 700, display: "inline-flex", gap: 6, alignItems: "center", borderBottom: "1px solid var(--pub-ink)", paddingBottom: 2 }}>
+                {stats.ctaText || "Jelajahi arsip kegiatan"} <ArrowRight size={14} />
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* CTA Section */}
+      {cta && (
+        <div className="pub-section">
+          <div className="pub-about">
+            <div>
+              <h3>{cta.heading}</h3>
+              <p>{cta.body}</p>
+              <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+                {cta.primaryHref && <Link to={cta.primaryHref} className="btn-lime">{cta.primaryLabel || "Dokumentasi Kegiatan"}</Link>}
+                {cta.secondaryHref && <Link to={cta.secondaryHref} className="btn-ghost-dark"><Users size={14} /> {cta.secondaryLabel || "Pengurus Daerah"}</Link>}
+              </div>
+            </div>
+            {cta.image && <img src={cta.image} alt="Generus Cengkareng" loading="lazy" />}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

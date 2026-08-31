@@ -57,6 +57,41 @@
       "when": 1787382752266,
       "tag": "0007_pengurus_hierarchy",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1788148444343,
+      "tag": "0008_prune_legacy",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1788148538276,
+      "tag": "0009_ui_followup",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1788148639915,
+      "tag": "0010_fix_legacy_fk",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1788156694789,
+      "tag": "0011_simplify_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1788160000000,
+      "tag": "0012_seed_publik",
+      "breakpoints": true
     }
   ]
 }

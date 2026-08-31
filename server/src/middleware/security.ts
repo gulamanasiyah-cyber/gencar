@@ -26,9 +26,15 @@ export function rateLimitAuth(limit = 10, windowMs = 60_000) {
 export function bodyLimit(maxBytes = 1 * 1024 * 1024) {
   return async (c: Context, next: Next) => {
     const len = c.req.header("content-length");
-    if (c.req.method === "POST" && len && parseInt(len) > maxBytes) {
-      return c.json({ error: "Payload terlalu besar (maks 1MB)" }, 413);
+    if (len) {
+      const n = parseInt(len, 10);
+      if (Number.isFinite(n) && n > maxBytes) {
+        return c.json({ error: "Payload terlalu besar (maks 1MB)" }, 413);
+      }
     }
+    // Note: chunked / no content-length is enforced by Workerd runtime limit;
+    // do NOT clone+arrayBuffer here — it consumes the request stream and breaks
+    // downstream c.req.json()/parseBody() with "Body already used".
     await next();
   };
 }

@@ -15,18 +15,38 @@ import rabRoutes from "./routes/rab";
 import rundownRoutes from "./routes/rundown";
 import miscRoutes from "./routes/misc";
 import publicRoutes from "./routes/public";
-import mandiriRoutes from "./routes/mandiri";
 import cmsRoutes from "./routes/cms";
 import { uaBlock, rateLimitAuth, bodyLimit } from "./middleware/security";
+import { requireCsrf } from "./middleware/csrf";
 
 type Env = { DB: D1Database; KV?: KVNamespace; R2_BUCKET?: R2Bucket; JWT_SECRET: string; DAERAH_NAMA?: string } & Record<string, unknown>;
 
 const app = new Hono<{ Bindings: Env }>();
 
-app.use("/*", cors({ origin: (o: string) => o || "*", credentials: true, allowHeaders: ["Content-Type", "Authorization", "X-Requested-With"] }));
+app.use(
+  "/*",
+  cors({
+    origin: (origin: string) => (origin ? origin : "*"),
+    credentials: true,
+    allowHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-CSRF-Token"],
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  }),
+);
 app.use("/*", uaBlock());
 app.use("/*", rateLimitAuth());
 app.use("/*", bodyLimit());
+app.use("/*", requireCsrf());
+
+app.onError((err, c) => {
+  const msg = err instanceof Error ? err.stack || err.message : String(err);
+  console.error("[onError]", msg);
+  // Return JSON even for DELETE — ensure 500 body is readable
+  try {
+    return c.json({ error: err instanceof Error ? err.message : String(err), stack: err instanceof Error ? err.stack?.slice(0, 2000) : undefined }, 500);
+  } catch {
+    return c.text(`onError: ${msg}`, 500);
+  }
+});
 
 app.get("/api/health", (c) => c.json({ ok: true, daerah: (c.env.DAERAH_NAMA as string) || "Cengkareng" }));
 
@@ -46,21 +66,31 @@ app.route("/api/admin", adminRoutes);
 app.route("/api/rab", rabRoutes);
 app.route("/api/rundown", rundownRoutes);
 app.route("/api/public", publicRoutes);
-app.route("/api/mandiri", mandiriRoutes);
 app.route("/api/cms", cmsRoutes);
 // misc hosts /api/scanner, /api/sholat, /api/upload, /api/download, /api/images, /api/dashboard/stats, /api/settings, /api/profile, /api/fcm, /api/webhook
 app.route("/api", miscRoutes);
 
-// ── Legacy worker routes (magic + absensi/scan) kept inline for backward compat ──
+// ── Magic link (Buka Akses Login) — 15 menit, sekali pakai ──
 app.post("/api/auth/magic/generate", async (c) => {
+  // Admin-only: require valid session
+  const { extractToken, verifyToken } = await import("./middleware/auth");
+  const token = extractToken(c);
+  const payload: any = token ? await verifyToken(token, c.env) : null;
+  if (!payload) return c.json({ error: "Unauthorized" }, 401);
+  const role = String(payload.role ?? "").toLowerCase();
+  if (!["admin_daerah", "admin_desa", "admin_kelompok"].includes(role)) return c.json({ error: "Hanya admin dapat membuat magic link" }, 403);
+
   const { generusId } = await c.req.json().catch(() => ({} as any));
   if (!generusId) return c.json({ error: "generusId wajib" }, 400);
-  const token = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
-  const hash = await sha256(token);
-  const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+  // Pastikan generus ada
+  const exists: any = await (c.env.DB as any).prepare("SELECT id FROM generus WHERE id = ?").bind(String(generusId)).first();
+  if (!exists) return c.json({ error: "Generus tidak ditemukan" }, 404);
+  const rawToken = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+  const hash = await sha256(rawToken);
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
   const d = db(c);
-  await d.insert(schema.magicTokens).values({ id: crypto.randomUUID(), generusId, email: generusId, tokenHash: hash, expiresAt } as any);
-  return c.json({ token, expiresAt });
+  await d.insert(schema.magicTokens).values({ id: crypto.randomUUID(), generusId: String(generusId), email: String(generusId), tokenHash: hash, expiresAt } as any);
+  return c.json({ token: rawToken, expiresAt });
 });
 
 app.get("/api/auth/magic/verify", async (c) => {
@@ -71,8 +101,38 @@ app.get("/api/auth/magic/verify", async (c) => {
   if (!found) return c.json({ error: "Token tidak valid" }, 401);
   if (found.consumed_at) return c.json({ error: "Token sudah dipakai" }, 401);
   if (new Date(found.expires_at).getTime() < Date.now()) return c.json({ error: "Token kadaluarsa" }, 401);
+  // Verify only — do not consume yet; consumption happens on set-password
+  return c.json({ ok: true, generusId: found.generus_id, expiresAt: found.expires_at });
+});
+
+app.post("/api/auth/magic/set-password", async (c) => {
+  const { token, password } = await c.req.json().catch(() => ({} as any));
+  if (!token || !password) return c.json({ error: "Token dan password wajib" }, 400);
+  if (String(password).length < 8) return c.json({ error: "Password minimal 8 karakter" }, 400);
+  const hash = await sha256(String(token));
+  const found: any = await (c.env.DB as any).prepare("SELECT * FROM magic_tokens WHERE token_hash = ?").bind(hash).first();
+  if (!found) return c.json({ error: "Token tidak valid" }, 401);
+  if (found.consumed_at) return c.json({ error: "Token sudah dipakai" }, 401);
+  if (new Date(found.expires_at).getTime() < Date.now()) return c.json({ error: "Token kadaluarsa" }, 401);
+  const generusId = String(found.generus_id);
+  const dbInst = db(c);
+  const { users } = schema;
+  const { eq } = await import("drizzle-orm");
+  const user: any = await dbInst.query.users.findFirst({ where: eq(users.generusId, generusId) });
+  if (!user) return c.json({ error: "User untuk generus ini tidak ditemukan. Hubungi admin." }, 404);
+  let passwordHash: string;
+  try {
+    const bcrypt: any = await import("bcryptjs");
+    passwordHash = bcrypt.hashSync(String(password), 12);
+  } catch { passwordHash = String(password); }
+  let passwordPlain: string | null = null;
+  try {
+    const { encryptPasswordSymmetric } = await import("./services/crypto");
+    passwordPlain = await encryptPasswordSymmetric(c.env as any, String(password));
+  } catch {}
+  await dbInst.update(users).set({ passwordHash, passwordPlain } as any).where(eq(users.id, user.id));
   await (c.env.DB as any).prepare("UPDATE magic_tokens SET consumed_at = datetime('now') WHERE token_hash = ?").bind(hash).run();
-  return c.json({ ok: true, generusId: found.generus_id });
+  return c.json({ success: true });
 });
 
 app.post("/api/absensi/scan", async (c) => {

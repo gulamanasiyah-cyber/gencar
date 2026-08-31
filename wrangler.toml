@@ -9,11 +9,12 @@ directory = "frontend/dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 
-# D1 — isi database_id setelah `wrangler d1 create gencar-db`
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "gencar-db"
-# database_id = "REPLACE_ME"
+# D1 — local: kredensial diisi saat `wrangler d1 create` (remote). Lokal pakai sqlite file di .wrangler/state
+[[d1_databases]]
+binding = "DB"
+database_name = "gencar-db"
+database_id = "local-gencar-db"
+migrations_dir = "drizzle"
 
 # KV untuk magic_tokens rate-limit & session (buat via `wrangler kv namespace create`)
 # [[kv_namespaces]]

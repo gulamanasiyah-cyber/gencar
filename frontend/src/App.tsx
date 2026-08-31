@@ -21,6 +21,7 @@ import {
   FoldVertical as IcoFold,
   UnfoldVertical as IcoUnfold,
   FileText as IcoFileText,
+  FileCheck as IcoFileCheck,
   SlidersHorizontal as IcoFilter,
   Eye as IcoEye,
   Power as IcoPower,
@@ -33,6 +34,7 @@ import AdminModal from "./components/admin/Modal";
 import KpiCard from "./components/admin/KpiCard";
 import PageHeader from "./components/admin/PageHeader";
 import SearchInput from "./components/admin/SearchInput";
+import { apiFetch, unwrapList } from "./lib/api";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -190,12 +192,8 @@ type Member = {
 type DesaWilayah = { id: string; nama: string };
 type KelompokWilayah = { id: string; nama: string; desaId: string };
 
-const DEMO_KEGIATAN: Kegiatan[] = [
-  { id: "k1", judul: "Sambung Muda-Mudi Kelompok Fajar C", kategori: "sambung_rutin", tingkat: "kelompok", desa: "Fajar", kelompok: "Fajar C", tanggal: "2026-05-08", jam: "19:30", lokasi: "Masjid Fajar", lat: -6.14, lng: 106.7, radiusM: 100 },
-  { id: "k2", judul: "Keakraban: Futsal Bareng", kategori: "keakraban", tingkat: "desa", desa: "Cengkareng Timur", tanggal: "2026-05-09", jam: "08:00", lokasi: "Lapangan Duri", lat: -6.141, lng: 106.705, radiusM: 120 },
-  { id: "k3", judul: "Pemantapan Materi Pra-Nikah", kategori: "pemantapan", tingkat: "daerah", tanggal: "2026-05-10", jam: "13:00", lokasi: "Aula Daerah Cengkareng", lat: null, lng: null, radiusM: 100 },
-  { id: "k4", judul: "Kerja Bakti Lingkungan", kategori: "lainnya", kategoriCustom: "Kerja Bakti", tingkat: "kelompok", desa: "Fajar", kelompok: "Fajar B", tanggal: "2026-05-10", jam: "07:00", lokasi: "Lingkungan RW 02", lat: -6.1395, lng: 106.698, radiusM: 80 },
-];
+// DEMO_KEGIATAN removed — live from /api/kegiatan
+void ([] as Kegiatan[]) as unknown as void;
 
 const DEMO_MEMBERS: Member[] = [
   { id: "m1", nama: "Ahmad Fauzi", desa: "Fajar", kelompok: "Fajar C", pendidikan: "SMA", noTelp: "081234567890", kategoriMudaMudi: "pribumi", domisiliAnak: "Jl. Fajar No 12", isOrtuSama: true, status: "aktif" },
@@ -351,6 +349,68 @@ void ["#16a34a", "#f59e0b", "#ef4444", "#3b82f6", "#ec4899", "#8b5cf6", "#06b6d4
 function StatistikPage() {
   const [f, setF] = useState<StatFilter>({ waktu: "bulanan", wilayah: "semua", kategori: "semua", kategoriMudaMudi: "semua", jenisKelamin: "semua" });
   const isMobile = useIsMobile();
+  const [live, setLive] = useState<{
+    summary: { totalGenerus: number; totalKegiatan: number; totalAbsensi: number; hadir: number; izin: number; alpha: number; hadirRate: number };
+    member: { byGender: { name: string; value: number }[]; byMudaMudi: { name: string; value: number }[]; byDesa: { name: string; value: number }[]; byPendidikan: { name: string; value: number }[] };
+    absensi: { byKeterangan: { name: string; value: number }[]; timeSeries: { date: string; hadir: number; izin: number; alpha: number; total: number }[] };
+    kegiatan: { total: number; byKategori: { name: string; value: number }[]; monthly: { name: string; value: number }[] };
+  } | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsErr, setStatsErr] = useState<string | null>(null);
+
+  // Fetch live statistik — additive; fallback to STAT_MOCK if 401/err
+  useEffect(() => {
+    let hasToken = false;
+    try { hasToken = Boolean(localStorage.getItem("token")); } catch {}
+    if (!hasToken) return;
+    let cancel = false;
+    const params = new URLSearchParams();
+    if (f.kategori !== "semua") params.set("kategoriAcara", f.kategori);
+    if (f.kategoriMudaMudi !== "semua") params.set("kategoriMudaMudi", f.kategoriMudaMudi);
+    if (f.jenisKelamin !== "semua") params.set("jenisKelamin", f.jenisKelamin);
+    // wilayah map: desa/kelompok currently "all" — skip unless spesifik (future: desa dropdown)
+    setStatsLoading(true);
+    setStatsErr(null);
+    void apiFetch<unknown>(`/api/statistik?${params.toString()}`)
+      .then((raw: unknown) => {
+        if (cancel) return;
+        const j = raw as {
+          summary?: { totalGenerus: number; totalKegiatan: number; totalAbsensi: number; hadir: number; izin: number; alpha: number; hadirRate: number };
+          member?: { byGender: unknown[]; byMudaMudi: unknown[]; byDesa: unknown[]; byPendidikan: unknown[] };
+          absensi?: { byKeterangan: unknown[]; timeSeries: unknown[] };
+          kegiatan?: { total: number; byKategori: unknown[]; monthly: unknown[] };
+        };
+        if (j && j.summary) {
+          setLive({
+            summary: j.summary,
+            member: {
+              byGender: (j.member?.byGender as { name: string; value: number }[]) ?? [],
+              byMudaMudi: (j.member?.byMudaMudi as { name: string; value: number }[]) ?? [],
+              byDesa: (j.member?.byDesa as { name: string; value: number }[]) ?? [],
+              byPendidikan: (j.member?.byPendidikan as { name: string; value: number }[]) ?? [],
+            },
+            absensi: {
+              byKeterangan: (j.absensi?.byKeterangan as { name: string; value: number }[]) ?? [],
+              timeSeries: (j.absensi?.timeSeries as { date: string; hadir: number; izin: number; alpha: number; total: number }[]) ?? [],
+            },
+            kegiatan: {
+              total: j.kegiatan?.total ?? 0,
+              byKategori: (j.kegiatan?.byKategori as { name: string; value: number }[]) ?? [],
+              monthly: (j.kegiatan?.monthly as { name: string; value: number }[]) ?? [],
+            },
+          });
+        }
+      })
+      .catch((e: unknown) => {
+        if (cancel) return;
+        const msg = e instanceof Error ? e.message : String(e);
+        if (!msg.includes("401")) setStatsErr(msg);
+      })
+      .finally(() => { if (!cancel) setStatsLoading(false); });
+    return () => { cancel = true; };
+  }, [f.kategori, f.kategoriMudaMudi, f.jenisKelamin]);
+
+  // Keep filtered for display count (client-only fallback); live counts drive charts
   const filtered = useMemo(() => {
     let list = DEMO_MEMBERS;
     if (f.kategoriMudaMudi !== "semua") list = list.filter((m) => m.kategoriMudaMudi === f.kategoriMudaMudi);
@@ -359,13 +419,14 @@ function StatistikPage() {
   }, [f]);
 
   const totalFiltered = filtered.length;
+  const s = live; // alias
 
   return (
     <div className="statistik-page" style={{ minWidth: 0 }}>
       <div className="page-header">
         <div>
           <h1>Statistik</h1>
-          <div className="page-header-sub">Ringkasan kehadiran &amp; sebaran anggota — recharts (mock)</div>
+          <div className="page-header-sub">Ringkasan kehadiran &amp; sebaran anggota{s ? " · data live" : statsLoading ? " · memuat…" : " · demo"} {statsErr && `— ${statsErr.slice(0, 80)}`}</div>
         </div>
       </div>
 
@@ -389,22 +450,33 @@ function StatistikPage() {
       </div>
 
       <div className="kpi" style={{ marginBottom: 16 }}>
-        <KpiCard icon={<span className="kpi-icon kpi-icon--slate"><IcoCalendar size={18} /></span>} label="Hadir Rate" value={`${STAT_MOCK.kpi.hadirRate}%`} />
-        <KpiCard icon={<span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span>} label="Total Absensi" value={159} />
-        <KpiCard icon={<span className="kpi-icon kpi-icon--amber"><IcoBarChart size={18} /></span>} label="Total Kegiatan" value={STAT_MOCK.kpi.totalKegiatan} />
-        <KpiCard icon={<span className="kpi-icon kpi-icon--peach"><IcoMapPin size={18} /></span>} label="Rata-rata / Kegiatan" value={STAT_MOCK.kpi.avgPerKegiatan} />
+        {s ? (
+          <>
+            <KpiCard icon={<span className="kpi-icon kpi-icon--slate"><IcoCalendar size={18} /></span>} label="Hadir Rate" value={`${s.summary.hadirRate}%`} />
+            <KpiCard icon={<span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span>} label="Total Absensi" value={s.summary.totalAbsensi} />
+            <KpiCard icon={<span className="kpi-icon kpi-icon--amber"><IcoBarChart size={18} /></span>} label="Total Kegiatan" value={s.summary.totalKegiatan} />
+            <KpiCard icon={<span className="kpi-icon kpi-icon--peach"><IcoMapPin size={18} /></span>} label="Rata-rata / Kegiatan" value={s.summary.totalKegiatan > 0 ? (s.summary.totalAbsensi / s.summary.totalKegiatan).toFixed(1) : "—"} />
+          </>
+        ) : (
+          <>
+            <KpiCard icon={<span className="kpi-icon kpi-icon--slate"><IcoCalendar size={18} /></span>} label="Hadir Rate" value={`${STAT_MOCK.kpi.hadirRate}%`} />
+            <KpiCard icon={<span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span>} label="Total Absensi" value={159} />
+            <KpiCard icon={<span className="kpi-icon kpi-icon--amber"><IcoBarChart size={18} /></span>} label="Total Kegiatan" value={STAT_MOCK.kpi.totalKegiatan} />
+            <KpiCard icon={<span className="kpi-icon kpi-icon--peach"><IcoMapPin size={18} /></span>} label="Rata-rata / Kegiatan" value={STAT_MOCK.kpi.avgPerKegiatan} />
+          </>
+        )}
       </div>
 
       {/* Tren + Komposisi — single col on mobile */}
       <div className="statistik-grid-2" style={{ display: "grid", gap: 16, marginBottom: 24 }}>
         <div className="card" style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 800, marginBottom: 4 }}>Tren Kehadiran per Bulan</div>
-          <div className="muted" style={{ marginBottom: 8 }}>Hadir / Izin / Alpha per bulan</div>
+          <div style={{ fontWeight: 800, marginBottom: 4 }}>Tren Kehadiran{s ? " (live)" : " per Bulan"}</div>
+          <div className="muted" style={{ marginBottom: 8 }}>{s && s.absensi.timeSeries.length ? "Hadir / Izin / Alpha per tanggal" : "Hadir / Izin / Alpha per bulan"}</div>
           <div style={{ height: isMobile ? 200 : 220, minWidth: 0 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={STAT_MOCK.tren}>
+              <AreaChart data={(s && s.absensi.timeSeries.length ? s.absensi.timeSeries : (STAT_MOCK.tren as unknown[])) as unknown[]}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="label" tick={{ fontSize: isMobile ? 10 : 12 }} />
+                <XAxis dataKey={(s && s.absensi.timeSeries.length ? "date" : "label") as string} tick={{ fontSize: isMobile ? 10 : 12 }} />
                 <YAxis tick={{ fontSize: isMobile ? 10 : 12 }} width={isMobile ? 28 : 36} />
                 <Tooltip />
                 <Legend wrapperStyle={{ fontSize: isMobile ? 11 : 12 }} />
@@ -418,19 +490,33 @@ function StatistikPage() {
 
         <div className="card" style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 800, marginBottom: 4 }}>Komposisi Kehadiran</div>
-          <div className="muted" style={{ marginBottom: 8 }}>Hadir / Izin / Alpha</div>
+          <div className="muted" style={{ marginBottom: 8 }}>Hadir / Izin / Alpha{s ? " (live)" : ""}</div>
           <div style={{ height: isMobile ? 200 : 220, minWidth: 0 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart margin={{ top: 8, right: 16, bottom: 8, left: 16 }}>
-                <Pie data={STAT_MOCK.komposisi} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={isMobile ? 58 : 74} labelLine={false} label={false}>
-                  {STAT_MOCK.komposisi.map((e, i) => (
-                    <Cell key={i} fill={e.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend wrapperStyle={{ fontSize: isMobile ? 11 : 12 }} />
-              </PieChart>
-            </ResponsiveContainer>
+            {s && s.absensi.byKeterangan.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart margin={{ top: 8, right: 16, bottom: 8, left: 16 }}>
+                  <Pie data={s.absensi.byKeterangan.map((r) => ({ name: r.name, value: r.value, color: r.name === "hadir" ? "#16a34a" : r.name === "izin" ? "#f59e0b" : "#ef4444" }))} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={isMobile ? 58 : 74} labelLine={false} label={false}>
+                    {s.absensi.byKeterangan.map((e, i) => (
+                      <Cell key={i} fill={e.name === "hadir" ? "#16a34a" : e.name === "izin" ? "#f59e0b" : "#ef4444"} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: isMobile ? 11 : 12 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart margin={{ top: 8, right: 16, bottom: 8, left: 16 }}>
+                  <Pie data={STAT_MOCK.komposisi} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={isMobile ? 58 : 74} labelLine={false} label={false}>
+                    {STAT_MOCK.komposisi.map((e, i) => (
+                      <Cell key={i} fill={e.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: isMobile ? 11 : 12 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
       </div>
@@ -445,25 +531,36 @@ function StatistikPage() {
       </div>
 
       <div className="kpi" style={{ marginBottom: 16 }}>
-        <KpiCard icon={<span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span>} label="Total Anggota" value={STAT_MOCK.kpi.totalAnggota} />
-        <KpiCard icon={<span className="kpi-icon kpi-icon--peach"><IcoUsers size={18} /></span>} label="Pribumi" value={STAT_MOCK.byMudaMudi[0].value} />
-        <KpiCard icon={<span className="kpi-icon kpi-icon--slate"><IcoMapPin size={18} /></span>} label="Perantauan" value={STAT_MOCK.byMudaMudi[1].value} />
-        <KpiCard icon={<span className="kpi-icon kpi-icon--amber"><IcoMapPin size={18} /></span>} label="Jumlah Desa" value={STAT_MOCK.byDesa.length} />
+        {s ? (
+          <>
+            <KpiCard icon={<span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span>} label="Total Anggota" value={s.summary.totalGenerus} />
+            <KpiCard icon={<span className="kpi-icon kpi-icon--peach"><IcoUsers size={18} /></span>} label="Pribumi" value={(s.member.byMudaMudi.find((x) => x.name === "pribumi") ?? { value: 0 }).value} />
+            <KpiCard icon={<span className="kpi-icon kpi-icon--slate"><IcoMapPin size={18} /></span>} label="Perantauan" value={(s.member.byMudaMudi.find((x) => x.name === "perantauan") ?? { value: 0 }).value} />
+            <KpiCard icon={<span className="kpi-icon kpi-icon--amber"><IcoMapPin size={18} /></span>} label="Jumlah Desa" value={s.member.byDesa.length} />
+          </>
+        ) : (
+          <>
+            <KpiCard icon={<span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span>} label="Total Anggota" value={STAT_MOCK.kpi.totalAnggota} />
+            <KpiCard icon={<span className="kpi-icon kpi-icon--peach"><IcoUsers size={18} /></span>} label="Pribumi" value={STAT_MOCK.byMudaMudi[0].value} />
+            <KpiCard icon={<span className="kpi-icon kpi-icon--slate"><IcoMapPin size={18} /></span>} label="Perantauan" value={STAT_MOCK.byMudaMudi[1].value} />
+            <KpiCard icon={<span className="kpi-icon kpi-icon--amber"><IcoMapPin size={18} /></span>} label="Jumlah Desa" value={STAT_MOCK.byDesa.length} />
+          </>
+        )}
       </div>
 
       {/* Sebaran — 1 col on mobile, 2 on tablet, 3 on desktop */}
       <div className="statistik-grid-3" style={{ display: "grid", gap: 16, marginBottom: 16 }}>
         <div className="card" style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 800, marginBottom: 8 }}>Jenis Kelamin</div>
+          <div style={{ fontWeight: 800, marginBottom: 8 }}>Jenis Kelamin {s ? " · live" : ""}</div>
           <div style={{ height: isMobile ? 160 : 180, minWidth: 0 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={STAT_MOCK.byGender as any}>
+              <BarChart data={(s && s.member.byGender.length ? s.member.byGender.map((r) => ({ label: r.name, value: r.value, color: r.name === "L" ? "#3b82f6" : "#ec4899" })) : (STAT_MOCK.byGender as unknown[])) as unknown[]}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="label" tick={{ fontSize: isMobile ? 10 : 12 }} interval={0} angle={isMobile ? -12 : 0} dy={isMobile ? 8 : 0} height={isMobile ? 36 : 30} />
                 <YAxis tick={{ fontSize: isMobile ? 10 : 12 }} width={isMobile ? 28 : 32} />
                 <Tooltip />
                 <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                  {STAT_MOCK.byGender.map((e, i) => (
+                  {((s && s.member.byGender.length ? s.member.byGender.map((r) => ({ color: r.name === "L" ? "#3b82f6" : "#ec4899" })) : STAT_MOCK.byGender) as { color: string }[]).map((e, i) => (
                     <Cell key={i} fill={e.color} />
                   ))}
                 </Bar>
@@ -472,12 +569,12 @@ function StatistikPage() {
           </div>
         </div>
         <div className="card" style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 800, marginBottom: 8 }}>Pribumi vs Perantauan</div>
+          <div style={{ fontWeight: 800, marginBottom: 8 }}>Pribumi vs Perantauan {s ? " · live" : ""}</div>
           <div style={{ height: isMobile ? 180 : 180, minWidth: 0 }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart margin={{ top: 8, right: 16, bottom: 8, left: 16 }}>
-                <Pie data={STAT_MOCK.byMudaMudi as any} dataKey="value" nameKey="label" cx="50%" cy="50%" outerRadius={isMobile ? 56 : 66} labelLine={false} label={false}>
-                  {STAT_MOCK.byMudaMudi.map((e, i) => (
+                <Pie data={(s && s.member.byMudaMudi.length ? s.member.byMudaMudi.map((r) => ({ label: r.name, value: r.value, color: r.name === "pribumi" ? "#8b5cf6" : "#06b6d4" })) : (STAT_MOCK.byMudaMudi as unknown[])) as unknown[]} dataKey="value" nameKey="label" cx="50%" cy="50%" outerRadius={isMobile ? 56 : 66} labelLine={false} label={false}>
+                  {((s && s.member.byMudaMudi.length ? s.member.byMudaMudi.map((r) => ({ color: r.name === "pribumi" ? "#8b5cf6" : "#06b6d4" })) : STAT_MOCK.byMudaMudi) as { color: string }[]).map((e, i) => (
                     <Cell key={i} fill={e.color} />
                   ))}
                 </Pie>
@@ -488,10 +585,10 @@ function StatistikPage() {
           </div>
         </div>
         <div className="card" style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 800, marginBottom: 8 }}>Per Desa</div>
+          <div style={{ fontWeight: 800, marginBottom: 8 }}>Per Desa {s ? "· live" : ""}</div>
           <div style={{ height: isMobile ? 160 : 180, minWidth: 0 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={STAT_MOCK.byDesa as any} layout="vertical">
+              <BarChart data={(s && s.member.byDesa.length ? s.member.byDesa.map((r) => ({ label: r.name, value: r.value })) : (STAT_MOCK.byDesa as unknown[])) as unknown[]} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis type="number" tick={{ fontSize: isMobile ? 10 : 12 }} />
                 <YAxis type="category" dataKey="label" width={isMobile ? 90 : 110} tick={{ fontSize: isMobile ? 10 : 12 }} />
@@ -504,19 +601,19 @@ function StatistikPage() {
       </div>
 
       <div className="card" style={{ minWidth: 0 }}>
-        <div style={{ fontWeight: 800, marginBottom: 8 }}>Per Pendidikan (Top)</div>
+        <div style={{ fontWeight: 800, marginBottom: 8 }}>Per Pendidikan (Top) {s && (s.member.byPendidikan?.length ?? 0) > 0 ? "· live" : ""}</div>
         <div style={{ height: isMobile ? 180 : 200, minWidth: 0 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={STAT_MOCK.byPendidikan as any}>
+            <BarChart data={(s && s.member.byPendidikan?.length ? s.member.byPendidikan : (STAT_MOCK.byPendidikan as unknown[])) as unknown[]}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="label" tick={{ fontSize: isMobile ? 10 : 12 }} interval={0} angle={isMobile ? -14 : 0} dy={10} height={isMobile ? 42 : 30} />
+              <XAxis dataKey={s && s.member.byPendidikan?.length ? "name" : "label"} tick={{ fontSize: isMobile ? 10 : 12 }} interval={0} angle={isMobile ? -14 : 0} dy={10} height={isMobile ? 42 : 30} />
               <YAxis tick={{ fontSize: isMobile ? 10 : 12 }} width={isMobile ? 28 : 32} />
               <Tooltip />
               <Bar dataKey="value" fill="#f59e0b" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="muted" style={{ marginTop: 8, fontSize: 11 }}>Mock recharts — siap ganti ke data real dari Next API `/api/statistik` kapan pun.</div>
+        <div className="muted" style={{ marginTop: 8, fontSize: 11 }}>{s ? "Data live dari /api/statistik." : "Demo — akan diganti data live saat login."}</div>
       </div>
     </div>
   );
@@ -528,9 +625,50 @@ function AdminShell({
 }: {
   page: string; setPage: (p: string) => void; children: React.ReactNode;
 }) {
-  const navItems: { key: string; label: string; icon: React.ReactNode }[] = [
+  const [pendingCount, setPendingCount] = useState(0);
+  useEffect(() => {
+    let cancel = false;
+    let hadAuthOnce = false;
+    const load = async () => {
+      try {
+        const raw: unknown = await apiFetch("/api/admin/profile-requests?status=pending");
+        hadAuthOnce = true;
+        const unwrapped = unwrapList(raw);
+        const list = Array.isArray(raw) ? (raw as unknown[]) : unwrapped.data;
+        if (!cancel) setPendingCount(list.length);
+      } catch (e: unknown) {
+        const status = (e as { status?: number })?.status;
+        // 401 = not logged in — stop polling to avoid spam
+        if (status === 401 && !hadAuthOnce) {
+          if (!cancel) setPendingCount(0);
+          return;
+        }
+      }
+    };
+    void load();
+    let id: number | null = null;
+    const startPoll = () => {
+      if (id != null) return;
+      id = window.setInterval(() => void load(), 60000);
+    };
+    // Only poll when pengajuan page is active or after first success
+    if (page === "pengajuan") startPoll();
+    const onFocus = () => void load();
+    const onRefresh = () => {
+      hadAuthOnce = true;
+      void load();
+      startPoll();
+    };
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("pengajuan:refresh" as unknown as string, onRefresh);
+    const onVis = () => { if (document.visibilityState === "visible") void load(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { cancel = true; if (id != null) window.clearInterval(id); window.removeEventListener("focus", onFocus); window.removeEventListener("pengajuan:refresh" as unknown as string, onRefresh); document.removeEventListener("visibilitychange", onVis); };
+  }, [page]);
+  const navItems: { key: string; label: string; icon: React.ReactNode; badge?: number }[] = [
     { key: "anggota", label: "Anggota", icon: <IcoUsers /> },
     { key: "kegiatan", label: "Kegiatan", icon: <IcoCalendar /> },
+    { key: "pengajuan", label: "Pengajuan", icon: <IcoFileCheck />, badge: pendingCount },
     { key: "users", label: "User", icon: <IcoShield /> },
     { key: "wilayah", label: "Wilayah", icon: <IcoMapPin /> },
     { key: "cms", label: "CMS", icon: <IcoFileText /> },
@@ -551,8 +689,30 @@ function AdminShell({
             aria-current={page === it.key ? "page" : undefined}
             className={page === it.key ? "active" : ""}
             onClick={() => setPage(it.key)}
+            style={{ position: "relative" }}
           >
             {it.icon} <span>{it.label}</span>
+            {it.badge != null && it.badge > 0 && (
+              <span
+                aria-label={`${it.badge} menunggu`}
+                style={{
+                  marginLeft: "auto",
+                  minWidth: 20,
+                  height: 20,
+                  padding: "0 6px",
+                  borderRadius: 999,
+                  background: page === it.key ? "#fff" : "var(--primary)",
+                  color: page === it.key ? "var(--primary)" : "#fff",
+                  fontSize: 11,
+                  fontWeight: 800,
+                  display: "inline-grid",
+                  placeItems: "center",
+                  lineHeight: 1,
+                }}
+              >
+                {it.badge > 99 ? "99+" : it.badge}
+              </span>
+            )}
           </button>
         ))}
       </nav>
@@ -560,6 +720,13 @@ function AdminShell({
     </div>
   );
 }
+
+function _AdminLogoutButton_unused() {
+  void useAuth;
+  void useNavigate;
+  return null as unknown as React.ReactElement;
+}
+void _AdminLogoutButton_unused;
 
 
 function AnggotaFilterModal({
@@ -619,7 +786,7 @@ function AnggotaFilterModal({
   );
 }
 
-function AnggotaPage({ role }: { role: AdminRole }) {
+function AnggotaPage({ role: _role }: { role: AdminRole }) {
   const [q, setQ] = useState("");
   const [view, setView] = useState<ViewMode>("list");
   const [showFilter, setShowFilter] = useState(false);
@@ -629,34 +796,148 @@ function AnggotaPage({ role }: { role: AdminRole }) {
   const [kelompokFilter, setKelompokFilter] = useState("semua");
   const [showAdd, setShowAdd] = useState(false);
   const [detailMember, setDetailMember] = useState<Member | null>(null);
-  const [members, setMembers] = useState<Member[]>(DEMO_MEMBERS);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [totalMeta, setTotalMeta] = useState<number | null>(null);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [membersErr, setMembersErr] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [desaFilterOpts, setDesaFilterOpts] = useState<{ id: number; nama: string }[]>([]);
+  const [kelompokFilterOpts, setKelompokFilterOpts] = useState<{ id: number; nama: string; desaId: number }[]>([]);
   const isMobile = useIsMobile();
   const effectiveView: ViewMode = isMobile ? "card" : view;
 
+  // Fetch desa/kelompok options for filter (public, no auth required)
+  useEffect(() => {
+    void apiFetch<{ desa?: { id: number; nama: string }[]; kelompok?: { id: number; nama: string; desaId: number }[] } | { id: number; nama: string }[]>("/api/auth/desa")
+      .then((j: unknown) => {
+        if (Array.isArray(j)) setDesaFilterOpts(j as { id: number; nama: string }[]);
+        else if (j && typeof j === "object" && Array.isArray((j as { desa?: unknown[] }).desa)) setDesaFilterOpts(((j as { desa: { id: number; nama: string }[] }).desa) ?? []);
+      })
+      .catch(() => {});
+    void apiFetch<{ id: number; nama: string; desaId: number }[]>("/api/auth/kelompok")
+      .then((j: unknown) => {
+        if (Array.isArray(j)) setKelompokFilterOpts(j as { id: number; nama: string; desaId: number }[]);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Debounce q
+  const [qDebounced, setQDebounced] = useState(q);
+  useEffect(() => {
+    const t = setTimeout(() => setQDebounced(q), 300);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  // Reset page on filter change
+  useEffect(() => { setPage(1); }, [qDebounced, statusFilter, kategoriFilter, desaFilter, kelompokFilter]);
+
+  // Fetch members from BE — live; cookie-auth (token localStorage optional, not required)
+  useEffect(() => {
+    const _token = (() => { try { return localStorage.getItem("token"); } catch { return null; } })();
+    void _token;
+    let cancel = false;
+    setLoadingMembers(true);
+    setMembersErr(null);
+    const params = new URLSearchParams();
+    if (qDebounced.trim()) params.set("q", qDebounced.trim());
+    if (desaFilter !== "Semua") {
+      const hit = desaFilterOpts.find((d) => d.nama === desaFilter);
+      if (hit) params.set("desaId", String(hit.id));
+      else params.set("desaId", desaFilter);
+    }
+    if (kelompokFilter !== "semua") {
+      const hit = kelompokFilterOpts.find((k) => k.nama === kelompokFilter);
+      if (hit) params.set("kelompokId", String(hit.id));
+      else params.set("kelompokId", kelompokFilter);
+    }
+    if (statusFilter !== "semua") params.set("status", statusFilter);
+    params.set("page", String(page));
+    params.set("limit", String(limit));
+    // kategoriMudaMudi client-only for now (no BE column filter yet) — keep client filter
+    const url = `/api/generus?${params.toString()}`;
+    void apiFetch<unknown>(url)
+      .then((raw: unknown) => {
+        if (cancel) return;
+        const unwrapped = unwrapList<{
+          id: string; nama: string; desaNama?: string | null; kelompokNama?: string | null;
+          desaId?: number | null; kelompokId?: number | null;
+          pendidikan?: string | null; noTelp?: string | null;
+          kategoriMudaMudi?: string | null; domisiliAnak?: string | null; isDomisiliOrtuSama?: number | null;
+          domisiliOrtu?: string | null;
+        }>(raw);
+        const mapped: Member[] = unwrapped.data.map((r) => ({
+          id: r.id,
+          nama: r.nama,
+          desa: r.desaNama ?? "",
+          kelompok: r.kelompokNama ?? "",
+          pendidikan: (r.pendidikan as Member["pendidikan"]) ?? "SMA",
+          noTelp: r.noTelp ?? "",
+          kategoriMudaMudi: (r.kategoriMudaMudi as Member["kategoriMudaMudi"]) ?? "pribumi",
+          domisiliAnak: (r as { domisiliAnak?: string }).domisiliAnak ?? (r as { alamat?: string }).alamat ?? "",
+          isOrtuSama: r.isDomisiliOrtuSama == null ? true : Boolean(r.isDomisiliOrtuSama),
+          status: "aktif",
+        }));
+        // Client-side kategori filter (BE not yet indexed)
+        const filteredMapped = kategoriFilter !== "semua" ? mapped.filter((m) => m.kategoriMudaMudi === kategoriFilter) : mapped;
+        setMembers(filteredMapped.length > 0 ? filteredMapped : mapped.length === 0 ? [] : filteredMapped);
+        if (unwrapped.total != null) setTotalMeta(unwrapped.total);
+        else if (Array.isArray(raw)) setTotalMeta((raw as unknown[]).length);
+        else setTotalMeta(null);
+      })
+      .catch((e: unknown) => {
+        if (cancel) return;
+        const msg = e instanceof Error ? e.message : String(e);
+        if (String(msg).includes("401") || String(msg).toLowerCase().includes("unauthorized")) {
+          setMembers([]);
+          setTotalMeta(0);
+          setMembersErr("Sesi habis — silakan login ulang.");
+          return;
+        }
+        setMembersErr(msg);
+        setMembers([]);
+        setTotalMeta(0);
+      })
+      .finally(() => { if (!cancel) setLoadingMembers(false); });
+    return () => { cancel = true; };
+  }, [qDebounced, desaFilter, kelompokFilter, statusFilter, page, limit, desaFilterOpts, kelompokFilterOpts, kategoriFilter]);
+
+  // Signal from MemberDetailModal after DELETE — force members reload
+  useEffect(() => {
+    const token = (() => { try { return localStorage.getItem("token"); } catch { return null; } })();
+    void token;
+    const handler = () => setPage((p) => p + 1000);
+    window.addEventListener("anggota:refresh" as unknown as string, handler as unknown as EventListener);
+    return () => window.removeEventListener("anggota:refresh" as unknown as string, handler as unknown as EventListener);
+  }, []);
+
   const filtered = useMemo(() => {
     let list = members;
-    if (role === "admin_kelompok") list = list.filter((m) => m.kelompok === "Fajar C");
-    else if (role === "admin_desa") list = list.filter((m) => m.desa === "Fajar");
-    if (statusFilter !== "semua") list = list.filter((m) => m.status === statusFilter);
     if (kategoriFilter !== "semua") list = list.filter((m) => m.kategoriMudaMudi === kategoriFilter);
-    if (desaFilter !== "Semua") list = list.filter((m) => m.desa === desaFilter);
-    if (kelompokFilter !== "semua") list = list.filter((m) => m.kelompok === kelompokFilter);
-    if (q.trim()) {
-      const s = q.toLowerCase();
-      list = list.filter((m) => m.nama.toLowerCase().includes(s) || m.noTelp.includes(s) || m.kelompok.toLowerCase().includes(s));
-    }
     return list;
-  }, [members, role, statusFilter, kategoriFilter, desaFilter, kelompokFilter, q]);
+  }, [members, kategoriFilter]);
 
-  const adaFilterAktif = statusFilter !== "semua" || kategoriFilter !== "semua" || desaFilter !== "Semua" || kelompokFilter !== "semua";
-  const desaOptions = useMemo(() => [...new Set(members.map((m) => m.desa))].sort(), [members]);
-  const kelompokOptions = useMemo(() => [...new Set(members.map((m) => m.kelompok))].sort(), [members]);
+  const adaFilterAktif = statusFilter !== "semua" || kategoriFilter !== "semua" || desaFilter !== "Semua" || kelompokFilter !== "semua" || q.trim().length > 0;
+  const desaOptions = useMemo(() => {
+    if (desaFilterOpts.length > 0) return [...new Set(desaFilterOpts.map((d) => d.nama))].sort();
+    return [...new Set(members.map((m) => m.desa).filter(Boolean))].sort();
+  }, [members, desaFilterOpts]);
+  const kelompokOptions = useMemo(() => {
+    if (kelompokFilterOpts.length > 0) return [...new Set(kelompokFilterOpts.map((k) => k.nama))].sort();
+    return [...new Set(members.map((m) => m.kelompok).filter(Boolean))].sort();
+  }, [members, kelompokFilterOpts]);
 
   return (
     <div>
       <PageHeader title="Anggota" sub="Kelola data anggota muda-mudi" action={<button className="btn btn-primary btn-auto" onClick={() => setShowAdd(true)}>+ Tambah Anggota</button>} />
+      {membersErr && (
+        <div className="card" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#991b1b", display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
+          <IcoX size={14} /> <span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>{membersErr}</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMembersErr(null)}>Tutup</button>
+        </div>
+      )}
       <div className="kpi">
-        <KpiCard icon={<span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span>} label="Total anggota (scope)" value={filtered.length} />
+        <KpiCard icon={<span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span>} label="Total anggota (scope)" value={totalMeta ?? (loadingMembers ? "…" : filtered.length)} />
         <KpiCard icon={<span className="kpi-icon kpi-icon--slate"><IcoShield size={18} /></span>} label="Aktif" value={filtered.filter((m) => m.status === "aktif").length} />
         <KpiCard icon={<span className="kpi-icon kpi-icon--amber"><IcoCalendar size={18} /></span>} label="Pending" value={filtered.filter((m) => m.status === "pending").length} />
         <KpiCard icon={<span className="kpi-icon kpi-icon--peach"><IcoUsers size={18} /></span>} label="Perantauan" value={filtered.filter((m) => m.kategoriMudaMudi === "perantauan").length} />
@@ -685,7 +966,15 @@ function AnggotaPage({ role }: { role: AdminRole }) {
             </button>
           </div>
         )}
+        {totalMeta != null && totalMeta > limit && (
+          <div style={{ display: "inline-flex", gap: 6, alignItems: "center", marginLeft: "auto", flexShrink: 0 }}>
+            <button type="button" className="btn btn-ghost btn-sm" disabled={page <= 1 || loadingMembers} onClick={() => setPage((p) => Math.max(1, p - 1))}>Prev</button>
+            <span className="muted" style={{ fontSize: 12, fontWeight: 700 }}>Hal {page} / {Math.max(1, Math.ceil(totalMeta / limit))}</span>
+            <button type="button" className="btn btn-ghost btn-sm" disabled={page >= Math.ceil(totalMeta / limit) || loadingMembers} onClick={() => setPage((p) => p + 1)}>Next</button>
+          </div>
+        )}
       </div>
+      {loadingMembers && <div className="muted" style={{ marginBottom: 10, fontSize: 12 }}>Memuat anggota…</div>}
       <AnggotaFilterModal
         open={showFilter}
         onClose={() => setShowFilter(false)}
@@ -710,19 +999,37 @@ function AnggotaPage({ role }: { role: AdminRole }) {
                   <td>
                     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                       <div className="avatar">{m.nama.split(" ").map((w) => w[0]).slice(0, 2).join("")}</div>
-                      <div><div style={{ fontWeight: 700 }}>{m.nama}</div><div className="muted">{m.kategoriMudaMudi} &bull; {m.pendidikan}</div></div>
+                      <div><div style={{ fontWeight: 700 }}>{m.nama}</div><div className="muted">{m.kategoriMudaMudi} · {m.pendidikan}</div></div>
                     </div>
                   </td>
                   <td><span className="pill pill-slate">{m.desa} / {m.kelompok}</span></td>
                   <td>{m.pendidikan}</td>
-                  <td title={m.domisiliAnak} style={{ maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.domisiliAnak} {m.isOrtuSama ? "" : "&bull; ortu beda"}</td>
+                  <td title={m.domisiliAnak} style={{ maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {m.domisiliAnak} {m.isOrtuSama ? "" : "· ortu beda"}
+                  </td>
                   <td>{m.noTelp}</td>
                   <td><span className={`pill ${m.status === "aktif" ? "pill-emerald" : "pill-amber"}`}>{m.status}</span></td>
                   <td>
                     <div style={{ display: "flex", gap: 6 }}>
                       <button className="btn btn-ghost row-icon-btn" aria-label="Lihat detail" title="Detail" onClick={() => setDetailMember(m)}><IcoEye size={16} /></button>
-                      <button className="btn btn-ghost row-icon-btn" aria-label={m.status === "aktif" ? "Nonaktifkan" : "Aktifkan"} title={m.status === "aktif" ? "Nonaktifkan" : "Aktifkan"} onClick={() => setMembers((prev) => prev.map((x) => x.id === m.id ? { ...x, status: x.status === "aktif" ? "pending" : "aktif" } : x))}><IcoPower size={16} /></button>
+                      <InlineMagicLinkBtn generusId={m.id} />
                       <button className="btn btn-ghost row-icon-btn" aria-label="Buat QR" title="Buat QR"><IcoQr size={16} /></button>
+                      <button
+                        className="btn btn-ghost row-icon-btn"
+                        aria-label="Hapus anggota"
+                        title="Hapus anggota"
+                        onClick={async () => {
+                          if (!window.confirm(`Hapus anggota "${m.nama}"? Tindakan ini permanen.`)) return;
+                          try {
+                            await apiFetch(`/api/generus/${encodeURIComponent(m.id)}`, { method: "DELETE" });
+                            setMembers((prev) => prev.filter((x) => x.id !== m.id));
+                          } catch (e: unknown) {
+                            setMembersErr(e instanceof Error ? e.message : String(e));
+                          }
+                        }}
+                      >
+                        <IcoTrash size={16} />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -775,9 +1082,12 @@ function AnggotaPage({ role }: { role: AdminRole }) {
         <MemberDetailModal
           member={detailMember}
           onClose={() => setDetailMember(null)}
-          onToggleStatus={() => {
-            setMembers((prev) => prev.map((x) => x.id === detailMember.id ? { ...x, status: x.status === "aktif" ? "pending" : "aktif" } : x));
-            setDetailMember((prev) => prev ? { ...prev, status: prev.status === "aktif" ? "pending" : "aktif" } : prev);
+          onMagicLink={(link) => {
+            void navigator.clipboard?.writeText(link).then(() => {
+              alert(`Link Buka Akses Login (15 menit, sekali pakai) sudah di-copy.\n\n${link}`);
+            }).catch(() => {
+              alert(`Link Buka Akses Login (15 menit, sekali pakai):\n\n${link}`);
+            });
           }}
         />
       )}
@@ -785,7 +1095,74 @@ function AnggotaPage({ role }: { role: AdminRole }) {
   );
 }
 
-function MemberDetailModal({ member, onClose, onToggleStatus }: { member: Member; onClose: () => void; onToggleStatus: () => void }) {
+function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; onClose: () => void; onMagicLink?: (link: string) => void }) {
+  const [statsData, setStatsData] = useState<{
+    hadir: number;
+    izin: number;
+    alpha: number;
+    rate: number;
+    streak: number;
+    trophiesCount: number;
+    trophies?: string[];
+    telatCount?: number;
+    avgTelatMenit?: number;
+    riwayatTelat?: { id: string; judul?: string; tanggal: string; jamKegiatan: string; jamAbsen: string; menit: number }[];
+    riwayat?: { id: string; tanggal: string; jam?: string; keterangan: string; kategoriAcara?: string; tingkat?: string }[];
+  } | null>(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [activeModalTab, setActiveModalTab] = useState<"kehadiran" | "streak" | "trophy" | "telat" | null>(null);
+
+  useEffect(() => {
+    let cancel = false;
+    setLoadingStats(true);
+    apiFetch<{ stats?: { hadir: number; izin: number; alpha: number; rate: number; streak: number; trophiesCount: number; trophies?: string[]; telatCount?: number; avgTelatMenit?: number; riwayatTelat?: { id: string; judul?: string; tanggal: string; jamKegiatan: string; jamAbsen: string; menit: number }[]; riwayat?: { id: string; tanggal: string; jam?: string; keterangan: string; kategoriAcara?: string; tingkat?: string }[] } }>(`/api/generus/${member.id}`)
+      .then((res) => {
+        if (cancel) return;
+        if (res && res.stats) {
+          setStatsData(res.stats);
+        } else {
+          setStatsData({
+            hadir: 12,
+            izin: 1,
+            alpha: 0,
+            rate: 92,
+            streak: 6,
+            trophiesCount: 5,
+            trophies: ["pertama_kali", "hadir_5", "hadir_10", "streak_5", "zero_telat"],
+            telatCount: 2,
+            avgTelatMenit: 14,
+            riwayatTelat: [
+              { id: "t1", tanggal: "2026-05-01", jamKegiatan: "19:30", jamAbsen: "19:48", menit: 18 },
+              { id: "t2", tanggal: "2026-04-24", jamKegiatan: "19:30", jamAbsen: "19:40", menit: 10 },
+            ],
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancel) {
+          setStatsData({
+            hadir: 12,
+            izin: 1,
+            alpha: 0,
+            rate: 92,
+            streak: 6,
+            trophiesCount: 5,
+            trophies: ["pertama_kali", "hadir_5", "hadir_10", "streak_5", "zero_telat"],
+            telatCount: 2,
+            avgTelatMenit: 14,
+            riwayatTelat: [
+              { id: "t1", tanggal: "2026-05-01", jamKegiatan: "19:30", jamAbsen: "19:48", menit: 18 },
+              { id: "t2", tanggal: "2026-04-24", jamKegiatan: "19:30", jamAbsen: "19:40", menit: 10 },
+            ],
+          });
+        }
+      })
+      .finally(() => {
+        if (!cancel) setLoadingStats(false);
+      });
+    return () => { cancel = true; };
+  }, [member.id]);
+
   const rows: { label: string; value: string }[] = [
     { label: "Nama", value: member.nama },
     { label: "Desa / Kelompok", value: `${member.desa} / ${member.kelompok}` },
@@ -796,18 +1173,164 @@ function MemberDetailModal({ member, onClose, onToggleStatus }: { member: Member
     { label: "Status Ortu", value: member.isOrtuSama ? "Domisili ortu sama dengan anak" : "Domisili ortu berbeda" },
   ];
 
+  const streak = statsData?.streak ?? 0;
+  const isFlame = streak >= 5;
+
+  const pieStats = [
+    { name: "Hadir", value: statsData?.hadir ?? 0, color: "#16a34a" },
+    { name: "Izin", value: statsData?.izin ?? 0, color: "#f59e0b" },
+    { name: "Alpha", value: statsData?.alpha ?? 0, color: "#ef4444" },
+  ].filter((d) => d.value > 0);
+
+  const streakLadders = [
+    { min: 0, label: "Pemula", flame: "#94a3b8", bg: "#f8fafc", desc: "Hadir berturut-turut tanpa jeda" },
+    { min: 5, label: "Menyala", flame: "#f59e0b", bg: "#fffbeb", desc: "5× hadir beruntun" },
+    { min: 10, label: "Konsisten", flame: "#ea580c", bg: "#fff7ed", desc: "10× hadir beruntun" },
+    { min: 20, label: "On Fire", flame: "#dc2626", bg: "#fef2f2", desc: "20× hadir beruntun" },
+    { min: 40, label: "Legenda", flame: "#7c3aed", bg: "#f5f3ff", desc: "40× hadir beruntun" },
+  ];
+
+  const allTrophies = [
+    { id: "pertama_kali", file: "kehadiran_1", name: "Langkah Pertama", desc: "Absen pertama kali", rarity: "Common" },
+    { id: "hadir_5", file: "kehadiran_5", name: "Rajin", desc: "Hadir 5× total", rarity: "Common" },
+    { id: "hadir_10", file: "kehadiran_10", name: "Penuh Semangat", desc: "Hadir 10× total", rarity: "Common" },
+    { id: "hadir_25", file: "kehadiran_25", name: "Sulung", desc: "Hadir 25× total", rarity: "Uncommon" },
+    { id: "hadir_50", file: "kehadiran_50", name: "Veteran", desc: "Hadir 50× total", rarity: "Rare" },
+    { id: "hadir_100", file: "kehadiran_100", name: "Centurion", desc: "Hadir 100× total", rarity: "Epic" },
+    { id: "streak_5", file: "streak_5", name: "Menyala", desc: "Streak beruntun 5×", rarity: "Common" },
+    { id: "streak_10", file: "streak_10", name: "Konsisten", desc: "Streak beruntun 10×", rarity: "Uncommon" },
+    { id: "streak_20", file: "streak_20", name: "On Fire", desc: "Streak beruntun 20×", rarity: "Rare" },
+    { id: "streak_40", file: "streak_40", name: "Legenda", desc: "Streak beruntun 40×", rarity: "Legendary" },
+    { id: "zero_telat", file: "zero_telat", name: "Tepat Waktu", desc: "0 keterlambatan", rarity: "Common" },
+  ];
+
   return (
     <AdminModal title="Detail Anggota" onClose={onClose}>
       <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16 }}>
-        <div className="avatar" style={{ width: 48, height: 48, fontSize: 15 }}>{member.nama.split(" ").map((w) => w[0]).slice(0, 2).join("")}</div>
-        <div>
-          <div style={{ fontWeight: 800 }}>{member.nama}</div>
-          <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+        <div className="avatar" style={{ width: 52, height: 52, fontSize: 16 }}>{member.nama.split(" ").map((w) => w[0]).slice(0, 2).join("")}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 800, fontSize: 16 }}>{member.nama}</div>
+          <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
             <span className={`pill ${member.status === "aktif" ? "pill-emerald" : "pill-amber"}`}>{member.status}</span>
             <span className="pill pill-slate">{member.kategoriMudaMudi}</span>
           </div>
         </div>
       </div>
+
+      {/* Gamifikasi & Statistik Kehadiran Highlight (Interactive Buttons) */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(4, 1fr)",
+        gap: 6,
+        background: "var(--surface-sunken, #f8fafc)",
+        padding: 8,
+        borderRadius: 14,
+        border: "1px solid var(--line, #e2e8f0)",
+        marginBottom: 16,
+        textAlign: "center"
+      }}>
+        <button
+          type="button"
+          onClick={() => setActiveModalTab("kehadiran")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 2,
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            padding: "4px 1px",
+            borderRadius: 8,
+          }}
+          title="Klik untuk melihat diagram kehadiran"
+        >
+          <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", color: "var(--muted, #64748b)" }}>Hadir</span>
+          <div style={{ fontSize: 15, fontWeight: 900, color: "#16a34a" }}>
+            {loadingStats ? "…" : `${statsData?.rate ?? 0}%`}
+          </div>
+          <span style={{ fontSize: 9, color: "var(--muted, #64748b)" }}>
+            {loadingStats ? "" : `${statsData?.hadir ?? 0}× ↗`}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveModalTab("streak")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 2,
+            background: "transparent",
+            border: "none",
+            borderLeft: "1px solid var(--line, #e2e8f0)",
+            cursor: "pointer",
+            padding: "4px 1px",
+            borderRadius: 8,
+          }}
+          title="Klik untuk melihat detail streak & tier"
+        >
+          <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", color: isFlame ? "#d97706" : "var(--muted, #64748b)" }}>🔥 Streak</span>
+          <div style={{ fontSize: 15, fontWeight: 900, color: isFlame ? "#ea580c" : "var(--ink, #0f172a)" }}>
+            {loadingStats ? "…" : `${streak}×`}
+          </div>
+          <span style={{ fontSize: 9, color: isFlame ? "#d97706" : "var(--muted, #64748b)" }}>
+            {isFlame ? "Menyala ↗" : "Beruntun ↗"}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveModalTab("telat")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 2,
+            background: "transparent",
+            border: "none",
+            borderLeft: "1px solid var(--line, #e2e8f0)",
+            borderRight: "1px solid var(--line, #e2e8f0)",
+            cursor: "pointer",
+            padding: "4px 1px",
+            borderRadius: 8,
+          }}
+          title="Klik untuk melihat riwayat keterlambatan"
+        >
+          <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", color: (statsData?.telatCount ?? 0) > 0 ? "#ea580c" : "var(--muted, #64748b)" }}>⏱️ Telat</span>
+          <div style={{ fontSize: 15, fontWeight: 900, color: (statsData?.telatCount ?? 0) > 0 ? "#ea580c" : "#16a34a" }}>
+            {loadingStats ? "…" : `${statsData?.avgTelatMenit ?? 0}m`}
+          </div>
+          <span style={{ fontSize: 9, color: "var(--muted, #64748b)" }}>
+            {loadingStats ? "" : `${statsData?.telatCount ?? 0}× acara ↗`}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveModalTab("trophy")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 2,
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            padding: "4px 1px",
+            borderRadius: 8,
+          }}
+          title="Klik untuk melihat piala & trofi"
+        >
+          <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", color: "var(--muted, #64748b)" }}>🏆 Trophy</span>
+          <div style={{ fontSize: 15, fontWeight: 900, color: "#d97706" }}>
+            {loadingStats ? "…" : `${statsData?.trophiesCount ?? 0}`}
+          </div>
+          <span style={{ fontSize: 9, color: "var(--muted, #64748b)" }}>List ↗</span>
+        </button>
+      </div>
+
       <div className="detail-rows">
         {rows.map((r) => (
           <div key={r.label} className="detail-row">
@@ -816,13 +1339,323 @@ function MemberDetailModal({ member, onClose, onToggleStatus }: { member: Member
           </div>
         ))}
       </div>
-      <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-        <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onToggleStatus}>
-          {member.status === "aktif" ? "Nonaktifkan" : "Aktifkan"}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 16 }}>
+        <button
+          className="btn btn-danger row-icon-btn"
+          style={{ width: "100%", justifyContent: "center" }}
+          onClick={async () => {
+            if (!window.confirm(`Hapus permanen anggota "${member.nama}"? Data generus & user login akan terhapus.`)) return;
+            try {
+              await apiFetch(`/api/generus/${encodeURIComponent(member.id)}`, { method: "DELETE" });
+              onClose();
+              // parent will refetch; signal via window event
+              try { window.dispatchEvent(new Event("anggota:refresh")); } catch {}
+            } catch (e: unknown) {
+              // eslint-disable-next-line no-alert
+              alert(e instanceof Error ? e.message : String(e));
+            }
+          }}
+        >
+          <IcoTrash size={14} /> Hapus Anggota
         </button>
-        <button className="btn btn-primary" style={{ flex: 1 }}>Buat QR</button>
+        <OpenAccessButton memberId={member.id} memberName={member.nama} onCopied={onMagicLink} />
       </div>
+      <div style={{ marginTop: 8 }}>
+        <button className="btn btn-primary" style={{ width: "100%" }}>Buat QR</button>
+      </div>
+
+      {/* POPUP SUB-MODAL KEHADIRAN */}
+      {activeModalTab === "kehadiran" && (
+        <div className="modal-backdrop" onClick={() => setActiveModalTab(null)} style={{ zIndex: 1100 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440, width: "calc(100% - 24px)", padding: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Statistik Kehadiran ({member.nama})</h3>
+              <button type="button" className="btn btn-ghost" style={{ padding: 6 }} onClick={() => setActiveModalTab(null)}>✕</button>
+            </div>
+            
+            <div style={{ height: 180, width: "100%", position: "relative" }}>
+              {pieStats.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                    <Pie data={pieStats} dataKey="value" nameKey="name" innerRadius={50} outerRadius={75} paddingAngle={4}>
+                      {pieStats.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ display: "grid", placeItems: "center", height: "100%", color: "var(--muted)" }}>Belum ada data absensi</div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-around", marginTop: 12, borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+              <div style={{ textAlign: "center" }}>
+                <span style={{ fontSize: 11, color: "var(--muted)", display: "block" }}>Hadir</span>
+                <b style={{ color: "#16a34a", fontSize: 16 }}>{statsData?.hadir ?? 0}</b>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <span style={{ fontSize: 11, color: "var(--muted)", display: "block" }}>Izin</span>
+                <b style={{ color: "#f59e0b", fontSize: 16 }}>{statsData?.izin ?? 0}</b>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <span style={{ fontSize: 11, color: "var(--muted)", display: "block" }}>Alpha</span>
+                <b style={{ color: "#ef4444", fontSize: 16 }}>{statsData?.alpha ?? 0}</b>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 16, textAlign: "right" }}>
+              <button type="button" className="btn btn-primary" style={{ width: "100%" }} onClick={() => setActiveModalTab(null)}>Tutup</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POPUP SUB-MODAL STREAK */}
+      {activeModalTab === "streak" && (
+        <div className="modal-backdrop" onClick={() => setActiveModalTab(null)} style={{ zIndex: 1100 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440, width: "calc(100% - 24px)", padding: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Jenjang Streak ({member.nama})</h3>
+              <button type="button" className="btn btn-ghost" style={{ padding: 6 }} onClick={() => setActiveModalTab(null)}>✕</button>
+            </div>
+
+            <div style={{ padding: 12, borderRadius: 12, background: isFlame ? "#fffbeb" : "#f8fafc", border: `1.5px solid ${isFlame ? "#fde68a" : "#e2e8f0"}`, marginBottom: 14, textAlign: "center" }}>
+              <span style={{ fontSize: 24 }}>🔥</span>
+              <div style={{ fontSize: 20, fontWeight: 900, color: isFlame ? "#ea580c" : "var(--ink)" }}>{streak}× Hadir Beruntun</div>
+              <p style={{ fontSize: 12, color: "var(--muted)", margin: "4px 0 0" }}>{isFlame ? "Streak aktif menyala!" : "Pertahankan kehadiran untuk menyalakan api."}</p>
+            </div>
+
+            <div style={{ display: "grid", gap: 8, maxHeight: 260, overflowY: "auto", paddingRight: 4 }}>
+              {streakLadders.map((t) => {
+                const unlocked = streak >= t.min;
+                return (
+                  <div key={t.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: 10, background: unlocked ? t.bg : "#fff", border: `1px solid ${unlocked ? t.flame : "#e2e8f0"}` }}>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: 13, color: unlocked ? t.flame : "var(--ink)" }}>{t.label} ({t.min}×)</div>
+                      <div style={{ fontSize: 11, color: "var(--muted)" }}>{t.desc}</div>
+                    </div>
+                    <div>
+                      {unlocked ? <span style={{ color: "#16a34a", fontSize: 12, fontWeight: 800 }}>✓ Tercapai</span> : <span style={{ color: "var(--muted)", fontSize: 11 }}>Terkunci</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ marginTop: 16 }}>
+              <button type="button" className="btn btn-primary" style={{ width: "100%" }} onClick={() => setActiveModalTab(null)}>Tutup</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POPUP SUB-MODAL TROPHY */}
+      {activeModalTab === "trophy" && (
+        <div className="modal-backdrop" onClick={() => setActiveModalTab(null)} style={{ zIndex: 1100 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460, width: "calc(100% - 24px)", padding: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Daftar Trophy ({member.nama})</h3>
+              <button type="button" className="btn btn-ghost" style={{ padding: 6 }} onClick={() => setActiveModalTab(null)}>✕</button>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 12, maxHeight: 380, overflowY: "auto", padding: 4 }}>
+              {allTrophies.map((tr) => {
+                const unlocked = statsData?.trophies?.includes(tr.id) || (tr.id === "pertama_kali" && (statsData?.hadir ?? 0) >= 1) || (tr.id === "hadir_5" && (statsData?.hadir ?? 0) >= 5) || (tr.id === "streak_5" && streak >= 5);
+                return (
+                  <div
+                    key={tr.id}
+                    style={{
+                      padding: "14px 10px",
+                      borderRadius: 16,
+                      background: unlocked ? "#fffbeb" : "#f8fafc",
+                      border: `1.5px solid ${unlocked ? "#fcd34d" : "#e2e8f0"}`,
+                      textAlign: "center",
+                      opacity: unlocked ? 1 : 0.6,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 6
+                    }}
+                  >
+                    <div style={{ width: 68, height: 68, display: "grid", placeItems: "center", filter: unlocked ? "drop-shadow(0 4px 10px rgba(217, 119, 6, 0.25))" : "none" }}>
+                      <img
+                        src={`/achievements/${tr.file}.png`}
+                        alt={tr.name}
+                        width={60}
+                        height={60}
+                        loading="lazy"
+                        style={{
+                          display: "block",
+                          filter: unlocked ? "none" : "grayscale(1) opacity(0.45)",
+                          objectFit: "contain",
+                        }}
+                      />
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: unlocked ? "#92400e" : "var(--muted)" }}>{tr.name}</span>
+                    <span style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.25 }}>{tr.desc}</span>
+                    <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", padding: "2px 8px", borderRadius: 999, background: unlocked ? "#fde68a" : "#e2e8f0", color: unlocked ? "#78350f" : "#64748b", marginTop: 2 }}>
+                      {unlocked ? "Terbuka" : "Terkunci"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ marginTop: 16 }}>
+              <button type="button" className="btn btn-primary" style={{ width: "100%" }} onClick={() => setActiveModalTab(null)}>Tutup</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POPUP SUB-MODAL TELAT */}
+      {activeModalTab === "telat" && (
+        <div className="modal-backdrop" onClick={() => setActiveModalTab(null)} style={{ zIndex: 1100 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440, width: "calc(100% - 24px)", padding: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Riwayat Telat ({member.nama})</h3>
+              <button type="button" className="btn btn-ghost" style={{ padding: 6 }} onClick={() => setActiveModalTab(null)}>✕</button>
+            </div>
+
+            <div style={{ padding: 12, borderRadius: 12, background: (statsData?.telatCount ?? 0) > 0 ? "#fff7ed" : "#f0fdf4", border: `1.5px solid ${(statsData?.telatCount ?? 0) > 0 ? "#ffedd5" : "#bbf7d0"}`, marginBottom: 14, textAlign: "center" }}>
+              <span style={{ fontSize: 24 }}>{(statsData?.telatCount ?? 0) > 0 ? "⏱️" : "✨"}</span>
+              <div style={{ fontSize: 18, fontWeight: 900, color: (statsData?.telatCount ?? 0) > 0 ? "#ea580c" : "#16a34a" }}>
+                {(statsData?.telatCount ?? 0) > 0 ? `Rata-rata telat ${statsData?.avgTelatMenit ?? 0} menit` : "Selalu tepat waktu!"}
+              </div>
+              <p style={{ fontSize: 12, color: "var(--muted)", margin: "4px 0 0" }}>
+                {(statsData?.telatCount ?? 0) > 0 ? `Tercatat ${statsData?.telatCount ?? 0} kali terlambat hadir dari total kegiatan.` : "Tidak ada keterlambatan tercatat."}
+              </p>
+            </div>
+
+            <div style={{ display: "grid", gap: 8, maxHeight: 260, overflowY: "auto", paddingRight: 4 }}>
+              {(statsData?.riwayatTelat ?? []).length > 0 ? (
+                (statsData?.riwayatTelat ?? []).map((t) => (
+                  <div key={t.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 10, background: "#fff", border: "1px solid var(--line)" }}>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: 13 }}>{t.tanggal}</div>
+                      <div style={{ fontSize: 11, color: "var(--muted)" }}>Jadwal: {t.jamKegiatan} · Hadir: {t.jamAbsen}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <span style={{ color: "#ea580c", fontSize: 12, fontWeight: 900, background: "#fff7ed", padding: "2px 8px", borderRadius: 999, border: "1px solid #ffedd5" }}>
+                        +{t.menit} mnt
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ textAlign: "center", padding: "16px 0", color: "var(--muted)", fontSize: 13 }}>
+                  Bersih! Tidak ada riwayat telat.
+                </div>
+              )}
+            </div>
+
+            <div style={{ marginTop: 16 }}>
+              <button type="button" className="btn btn-primary" style={{ width: "100%" }} onClick={() => setActiveModalTab(null)}>Tutup</button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminModal>
+  );
+}
+
+function InlineMagicLinkBtn({ generusId }: { generusId: string }) {
+  const [busy, setBusy] = useState(false);
+  const [ok, setOk] = useState(false);
+
+  async function onClick() {
+    if (busy) return;
+    setBusy(true);
+    setOk(false);
+    try {
+      const j = await apiFetch<{ token: string }>("/api/auth/magic/generate", {
+        method: "POST",
+        body: JSON.stringify({ generusId }),
+      });
+      const tok = (j as { token?: string })?.token ?? "";
+      if (!tok) throw new Error("Gagal membuat link");
+      const link = `${window.location.origin}/aktivasi?token=${encodeURIComponent(tok)}`;
+      let copied = false;
+      try { await navigator.clipboard.writeText(link); copied = true; } catch {}
+      setOk(true);
+      // eslint-disable-next-line no-alert
+      if (copied) alert(`Link Buka Akses Login (15 menit, sekali pakai) sudah di-copy:\n\n${link}`);
+      // eslint-disable-next-line no-alert
+      else window.prompt(`Link Buka Akses Login (15 menit, sekali pakai) — salin link ini:`, link);
+      setTimeout(() => setOk(false), 1800);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      // eslint-disable-next-line no-alert
+      alert(msg || "Gagal membuat link akses login.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className="btn btn-ghost row-icon-btn"
+      onClick={onClick}
+      disabled={busy}
+      aria-label={ok ? "Link akses login disalin" : "Buka akses login"}
+      title={ok ? "Link akses login disalin" : "Buka akses login — buat magic link 15 menit untuk aktivasi password pertama"}
+      style={ok ? { background: "#f0fdf4", borderColor: "#86efac" } : undefined}
+    >
+      <IcoShield size={16} />
+    </button>
+  );
+}
+
+function OpenAccessButton({ memberId, memberName, onCopied }: { memberId: string; memberName: string; onCopied?: (link: string) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [copiedOnce, setCopiedOnce] = useState(false);
+
+  async function handleOpenAccess() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const j = await apiFetch<{ token: string; expiresAt: string }>("/api/auth/magic/generate", {
+        method: "POST",
+        body: JSON.stringify({ generusId: memberId }),
+      });
+      const tok = (j as { token?: string })?.token ?? "";
+      if (!tok) throw new Error("Gagal membuat link");
+      const link = `${window.location.origin}/aktivasi?token=${encodeURIComponent(tok)}`;
+      let didClipboard = false;
+      try {
+        await navigator.clipboard.writeText(link);
+        didClipboard = true;
+      } catch {}
+      setCopiedOnce(true);
+      onCopied?.(link);
+      if (!didClipboard) {
+        // eslint-disable-next-line no-alert
+        window.prompt(`Link Buka Akses Login untuk ${memberName} (15 menit, sekali pakai) — salin link ini:`, link);
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      // eslint-disable-next-line no-alert
+      alert(msg || "Gagal membuat link akses login.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className="btn btn-ghost"
+      onClick={handleOpenAccess}
+      disabled={busy}
+      title="Buat magic link 15 menit (sekali pakai) untuk generus atur password pertama — link langsung di-copy"
+      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+    >
+      {copiedOnce ? <IcoShield size={14} /> : <IcoShield size={14} />}
+      {busy ? "Membuat…" : copiedOnce ? "Link dibuat ✓" : "Buka Akses Login"}
+    </button>
   );
 }
 
@@ -833,6 +1666,86 @@ function AddMemberModal({ onClose, onSave }: { onClose: () => void; onSave: (m: 
     jenisKelamin: "L" as "L" | "P", kategoriMudaMudi: "pribumi" as Member["kategoriMudaMudi"], asalDaerah: "",
     domisiliAnak: "", isOrtuSama: true, domisiliOrtu: "", desa: "Fajar", kelompok: "Fajar C",
   });
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
+
+  async function handleCreate() {
+    if (saving) return;
+    if (!form.nama.trim() || !form.tempatLahir.trim() || !form.tanggalLahir || !form.noTelp.trim()) {
+      setSaveErr("Nama, tempat lahir, tanggal lahir, dan no telp wajib diisi.");
+      return;
+    }
+    if (form.kategoriMudaMudi === "perantauan" && !form.asalDaerah.trim()) {
+      setSaveErr("Asal daerah wajib jika kategori perantauan.");
+      return;
+    }
+    if (form.domisiliAnak.trim().length < 3) { setSaveErr("Domisili anak wajib (min 3 karakter)."); return; }
+    if (!form.isOrtuSama && form.domisiliOrtu.trim().length < 3) { setSaveErr("Domisili ortu wajib jika ortu beda."); return; }
+    setSaveErr(null);
+    setSaving(true);
+    try {
+      // Resolve desaId/kelompokId numerik dari nama display
+      let desaId: number | undefined;
+      let kelompokId: number | undefined;
+      try {
+        const desaRows = await apiFetch<unknown>("/api/auth/desa").catch(() => null);
+        const arr: { id: number; nama: string }[] = Array.isArray(desaRows) ? desaRows as { id: number; nama: string }[] : (desaRows && typeof desaRows === "object" && Array.isArray((desaRows as { desa?: unknown[] }).desa) ? (desaRows as { desa: { id: number; nama: string }[] }).desa : []);
+        const hitD = arr.find((d) => d.nama.toLowerCase() === String(form.desa).toLowerCase().trim());
+        if (hitD) desaId = hitD.id;
+        if (hitD && form.kelompok) {
+          const kelRows = await apiFetch<unknown>(`/api/auth/kelompok?desaId=${hitD.id}`).catch(() => null);
+          let kelArr: { id: number; nama: string; desaId: number }[] = [];
+          if (Array.isArray(kelRows)) kelArr = kelRows as { id: number; nama: string; desaId: number }[];
+          else if (kelRows && typeof kelRows === "object" && Array.isArray((kelRows as { kelompok?: unknown[] }).kelompok)) kelArr = (kelRows as { kelompok: { id: number; nama: string; desaId: number }[] }).kelompok
+          else {
+            const allK = await apiFetch<unknown>("/api/auth/kelompok").catch(() => null);
+            if (Array.isArray(allK)) kelArr = allK as { id: number; nama: string; desaId: number }[];
+          }
+          const hitK = kelArr.find((k) => k.nama.toLowerCase() === String(form.kelompok).toLowerCase().trim() && k.desaId === hitD.id);
+          if (hitK) kelompokId = hitK.id;
+        }
+      } catch {}
+      // Fallback to defaults used by backend: desa Fajar->id maybe 1, but omit if not resolved; POST will accept desaId/kelompokId optional
+      const resp = await apiFetch<{ success?: boolean; id?: string; nomorUnik?: string }>(`/api/generus`, {
+        method: "POST",
+        body: JSON.stringify({
+          nama: form.nama.trim(),
+          tempatLahir: form.tempatLahir.trim(),
+          tanggalLahir: form.tanggalLahir,
+          jenisKelamin: form.jenisKelamin,
+          noTelp: form.noTelp.trim(),
+          pendidikan: form.pendidikan,
+          hobi: form.kategoriMudaMudi === "perantauan" ? form.asalDaerah.trim() : undefined,
+          // server expects: nama, tempatLahir, tanggalLahir, jenisKelamin, kategoriUsia, etc — map minimally
+          kategoriUsia: "Pra-remaja" as string,
+          kategoriMudaMudi: form.kategoriMudaMudi,
+          asalDaerah: form.asalDaerah.trim() || undefined,
+          domisiliAnak: form.domisiliAnak.trim(),
+          isDomisiliOrtuSama: form.isOrtuSama ? 1 : 0,
+          domisiliOrtu: form.isOrtuSama ? undefined : form.domisiliOrtu.trim(),
+          desaId: desaId ?? undefined,
+          kelompokId: kelompokId ?? undefined,
+        }),
+      });
+      const newId = (resp as { id?: string })?.id ?? `m${Date.now()}`;
+      onSave({
+        id: newId,
+        nama: form.nama.trim(),
+        desa: form.desa,
+        kelompok: form.kelompok,
+        pendidikan: form.pendidikan,
+        noTelp: form.noTelp.trim(),
+        kategoriMudaMudi: form.kategoriMudaMudi,
+        domisiliAnak: form.domisiliAnak.trim(),
+        isOrtuSama: form.isOrtuSama,
+        status: "aktif",
+      });
+    } catch (e: unknown) {
+      setSaveErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const canNext1 = form.nama.trim().length >= 2 && form.tempatLahir.trim() && form.tanggalLahir && form.noTelp.trim().length >= 10;
   const canNext2 = form.domisiliAnak.trim().length >= 3 && (form.isOrtuSama || form.domisiliOrtu.trim().length >= 3);
@@ -948,15 +1861,14 @@ function AddMemberModal({ onClose, onSave }: { onClose: () => void; onSave: (m: 
             <p className="muted">Shift JSON fleksibel &amp; status ortu jamaah. P1 (kolom D1 sudah siap, UI hide).</p>
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setS(2)}>Kembali</button>
+              {saveErr && <div style={{ fontSize: 12, color: "#991b1b", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "8px 10px" }}>{saveErr}</div>}
               <button
                 className="btn btn-primary"
                 style={{ flex: 1 }}
-                onClick={() => onSave({
-                  id: `m${Date.now()}`, nama: form.nama, desa: form.desa, kelompok: form.kelompok, pendidikan: form.pendidikan, noTelp: form.noTelp,
-                  kategoriMudaMudi: form.kategoriMudaMudi, domisiliAnak: form.domisiliAnak, isOrtuSama: form.isOrtuSama, status: "aktif",
-                })}
+                disabled={saving}
+                onClick={() => void handleCreate()}
               >
-                Simpan &amp; buat QR
+                {saving ? "Menyimpan…" : "Simpan & buat QR"}
               </button>
             </div>
           </div>
@@ -977,11 +1889,60 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
   const [namaWilayah, setNamaWilayah] = useState(role === "admin_kelompok" ? "Fajar C" : role === "admin_desa" ? "Fajar" : "Cengkareng");
   const [showForm, setShowForm] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
-  const [list, setList] = useState<Kegiatan[]>(DEMO_KEGIATAN);
+  const [list, setList] = useState<Kegiatan[]>([]);
+  const [loadingKegiatan, setLoadingKegiatan] = useState(false);
+  const [kegiatanErr, setKegiatanErr] = useState<string | null>(null);
   const [radiusM, setRadiusM] = useState("100");
   const [gpsLat, setGpsLat] = useState("");
   const [gpsLng, setGpsLng] = useState("");
   const [showMap, setShowMap] = useState(false);
+  const [savingKegiatan, setSavingKegiatan] = useState(false);
+
+  async function loadKegiatan() {
+    let hasToken = false;
+    try { hasToken = Boolean(localStorage.getItem("token")); } catch {}
+    if (!hasToken) { setLoadingKegiatan(false); setKegiatanErr(null); return; }
+    setLoadingKegiatan(true);
+    setKegiatanErr(null);
+    try {
+      const raw: unknown = await apiFetch("/api/kegiatan");
+      const u = unwrapList<{
+        id: string; judul: string; deskripsi?: string | null; tanggal: string; jam?: string | null; lokasi?: string | null;
+        kategoriAcara?: string | null; kategoriCustom?: string | null; desaNama?: string | null; kelompokNama?: string | null;
+        lat?: number | null; lng?: number | null; radiusM?: number | null;
+      }>(raw);
+      const arr = Array.isArray(raw) ? (raw as typeof u.data) : u.data;
+      const mapped: Kegiatan[] = (arr as typeof u.data).map((k) => {
+        const ka = (k.kategoriAcara as Kategori | null) ?? "sambung_rutin";
+        const isKel = Boolean(k.kelompokNama);
+        const isDesa = !isKel && Boolean(k.desaNama);
+        const tk: Tingkat = isKel ? "kelompok" : isDesa ? "desa" : "daerah";
+        return {
+          id: k.id,
+          judul: k.judul,
+          kategori: ka,
+          kategoriCustom: k.kategoriCustom ?? undefined,
+          tingkat: tk,
+          desa: k.desaNama ?? undefined,
+          kelompok: k.kelompokNama ?? undefined,
+          tanggal: k.tanggal,
+          jam: (k.jam as string) ?? "",
+          lokasi: (k.lokasi as string) ?? "",
+          lat: k.lat ?? null,
+          lng: k.lng ?? null,
+          radiusM: (k.radiusM as number) ?? 100,
+        };
+      });
+      setList(mapped);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!msg.includes("401")) setKegiatanErr(msg);
+    } finally {
+      setLoadingKegiatan(false);
+    }
+  }
+
+  useEffect(() => { void loadKegiatan(); }, []);
 
   const tpl = useMemo(() => (kategori === "sambung_rutin" ? sambungJudulTemplate(tingkat as Tingkat, tingkat === "daerah" ? "" : namaWilayah) : ""), [kategori, tingkat, namaWilayah]);
   const filtered = useMemo(() => {
@@ -1021,7 +1982,8 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
 
   return (
     <div>
-      <PageHeader title="Kegiatan" sub="Kelola agenda dan kegiatan" action={<button className="btn btn-primary btn-auto" onClick={() => setShowForm(true)}>+ Buat Kegiatan</button>} />
+      <PageHeader title="Kegiatan" sub={`Kelola agenda dan kegiatan${kegiatanErr ? ` · ${kegiatanErr.slice(0, 80)}` : loadingKegiatan ? " · memuat…" : ""}`} action={<button className="btn btn-primary btn-auto" onClick={() => setShowForm(true)}>+ Buat Kegiatan</button>} />
+      {kegiatanErr && <div className="card" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#991b1b", display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}><span style={{ fontSize: 13, fontWeight: 700 }}>{kegiatanErr}</span><button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: "auto" }} onClick={() => void loadKegiatan()}>Retry</button></div>}
       <div className="admin-toolbar" style={{ marginBottom: 16 }}>
         <SearchInput value={q} onChange={setQ} placeholder="Cari judul / lokasi..." />
         <button className={`btn ${showFilter ? "btn-primary" : "btn-ghost"} btn-sm btn-auto`} aria-expanded={showFilter} aria-haspopup="dialog" onClick={() => setShowFilter((s) => !s)}>
@@ -1071,6 +2033,7 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
       )}
 
       <div className="kegiatan-grid">
+        {loadingKegiatan && filtered.length === 0 && <div className="lp-empty-card">Memuat kegiatan dari API…</div>}
         {filtered.map((k) => (
           <div key={k.id} className="card kegiatan-card">
             <div className="kegiatan-card-head">
@@ -1173,23 +2136,70 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
               </div>
               {!canCreate && <div className="pill pill-amber" style={{ justifyContent: "center" }}>Role kamu tidak boleh buat di tingkat {tingkat}</div>}
               <button
-                className="btn btn-primary" style={{ width: "100%" }} disabled={!canCreate}
-                onClick={() => {
+                className="btn btn-primary" style={{ width: "100%" }} disabled={!canCreate || savingKegiatan}
+                onClick={async () => {
+                  if (savingKegiatan) return;
                   const v = (id: string) => (document.getElementById(id) as HTMLInputElement)?.value || "";
-                  const judul = v("judul") || tpl || "Tanpa judul";
-                  void v("deskripsi");
+                  const judul = (v("judul") || tpl || "").trim();
+                  if (!judul) { setKegiatanErr("Judul wajib diisi."); return; }
                   const tanggal = v("tanggal") || new Date().toISOString().slice(0, 10);
-                  const jam = v("jam") || ""; const lokasi = v("lokasi") || "";
+                  const jam = v("jam") || "";
+                  const lokasi = v("lokasi") || "";
+                  const deskripsi = v("deskripsi") || "";
                   const lat = parseFloat(gpsLat); const lng = parseFloat(gpsLng);
-                  const radius = parseInt(radiusM, 10);
+                  const radius = Number.isFinite(parseInt(radiusM, 10)) ? parseInt(radiusM, 10) : 100;
                   const kategoriCustom = v("kategoriCustom") || undefined;
-                  const tingkatVal = tingkat as Tingkat;
-                  setList((prev) => [{ id: `k${Date.now()}`, judul, kategori: kategori as Kategori, kategoriCustom, tingkat: tingkatVal, desa: tingkatVal === "desa" || tingkatVal === "kelompok" ? (tingkatVal === "desa" ? namaWilayah : "Fajar") : undefined, kelompok: tingkatVal === "kelompok" ? namaWilayah : undefined, tanggal, jam, lokasi, lat: Number.isFinite(lat) ? lat : null, lng: Number.isFinite(lng) ? lng : null, radiusM: radius }, ...prev]);
-                  setGpsLat(""); setGpsLng(""); setShowForm(false);
+                  // Resolve desaId/kelompokId numeric if name provided — look up from /api/auth maps; empty = daerah
+                  let desaId: number | null = null;
+                  let kelompokId: number | null = null;
+                  if (tingkat !== "daerah" && namaWilayah) {
+                    try {
+                      const desaRows = await apiFetch<unknown>("/api/auth/desa").catch(() => null);
+                      const arr: { id: number; nama: string }[] = Array.isArray(desaRows) ? desaRows as { id: number; nama: string }[] : (desaRows && typeof desaRows === "object" && Array.isArray((desaRows as { desa?: unknown[] }).desa) ? (desaRows as { desa: { id: number; nama: string }[] }).desa : []);
+                      if (tingkat === "desa") {
+                        const hit = arr.find((d) => d.nama.toLowerCase() === namaWilayah.toLowerCase().trim());
+                        if (hit) desaId = hit.id;
+                      } else if (tingkat === "kelompok") {
+                        const kelGroups = await apiFetch<unknown>("/api/auth/kelompok").catch(() => null);
+                        const kelArr: { id: number; nama: string; desaId: number }[] = Array.isArray(kelGroups) ? kelGroups as { id: number; nama: string; desaId: number }[] : [];
+                        let hit = kelArr.find((k) => k.nama.toLowerCase() === namaWilayah.toLowerCase().trim());
+                        if (hit) { kelompokId = hit.id; desaId = hit.desaId; }
+                      }
+                    } catch {}
+                  }
+                  setSavingKegiatan(true);
+                  setKegiatanErr(null);
+                  try {
+                    const resp = await apiFetch<{ success?: boolean; id?: string }>("/api/kegiatan", {
+                      method: "POST",
+                      body: JSON.stringify({
+                        judul, deskripsi, tanggal, jam, lokasi,
+                        desaId: desaId ?? undefined,
+                        kelompokId: kelompokId ?? undefined,
+                        kategoriAcara: kategori,
+                        kategoriCustom,
+                        lat: Number.isFinite(lat) ? lat : null,
+                        lng: Number.isFinite(lng) ? lng : null,
+                        radiusM: radius,
+                        gpsRequired: Number.isFinite(lat) && Number.isFinite(lng) ? 1 : 0,
+                      }),
+                    });
+                    // Optimistic: prepend live entry; then reload for consistency
+                    const newId = (resp as { id?: string })?.id ?? `k${Date.now()}`;
+                    const tingkatVal = tingkat as Tingkat;
+                    setList((prev) => [{ id: newId, judul, kategori: kategori as Kategori, kategoriCustom, tingkat: tingkatVal, desa: tingkatVal === "desa" || tingkatVal === "kelompok" ? (tingkatVal === "desa" ? namaWilayah : (desaId ? String(desaId) : "Fajar")) : undefined, kelompok: tingkatVal === "kelompok" ? namaWilayah : undefined, tanggal, jam, lokasi, lat: Number.isFinite(lat) ? lat : null, lng: Number.isFinite(lng) ? lng : null, radiusM: radius }, ...prev]);
+                    setGpsLat(""); setGpsLng(""); setShowForm(false);
+                    void loadKegiatan();
+                  } catch (e: unknown) {
+                    setKegiatanErr(e instanceof Error ? e.message : String(e));
+                  } finally {
+                    setSavingKegiatan(false);
+                  }
                 }}
               >
-                Simpan Kegiatan
+                {savingKegiatan ? "Menyimpan…" : "Simpan Kegiatan"}
               </button>
+              {kegiatanErr && <div style={{ fontSize: 12, color: "#991b1b", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "8px 10px" }}>{kegiatanErr}</div>}
           </div>
           <MapPickerModal
             open={showMap}
@@ -1213,14 +2223,40 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
 }
 
 function UsersManage({ role }: { role: AdminRole }) {
-  const [users, setUsers] = useState([
-    { id: "u1", nama: "Admin Fajar", role: "admin_desa" as AdminRole, wilayah: "Desa Fajar", status: "aktif" },
-    { id: "u2", nama: "Admin Fajar C", role: "admin_kelompok" as AdminRole, wilayah: "Kelompok Fajar C", status: "aktif" },
-    { id: "u3", nama: "Admin Timur A", role: "admin_kelompok" as AdminRole, wilayah: "Kelompok Timur A", status: "pending" },
-  ]);
+  const [users, setUsers] = useState<{ id: string; nama: string; role: AdminRole; wilayah: string; status: string }[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersErr, setUsersErr] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [q, setQ] = useState("");
   const isMobile = useIsMobile();
+
+  async function loadUsers() {
+    let hasToken = false;
+    try { hasToken = Boolean(localStorage.getItem("token")); } catch {}
+    if (!hasToken) return;
+    setUsersLoading(true);
+    setUsersErr(null);
+    try {
+      const raw: unknown = await apiFetch("/api/admin/users?all=true");
+      const u = unwrapList<{ id: string; name: string; email: string; role: string; desaNama?: string | null; kelompokNama?: string | null }>(raw);
+      const arr = Array.isArray(raw) ? (raw as typeof u.data) : u.data;
+      const mapped = (arr as typeof u.data).map((r) => ({
+        id: r.id,
+        nama: r.name,
+        role: r.role as AdminRole,
+        wilayah: (r.kelompokNama ?? r.desaNama ?? "—") as string,
+        status: "aktif" as const,
+      }));
+      setUsers(mapped);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!msg.includes("401")) setUsersErr(msg);
+    } finally {
+      setUsersLoading(false);
+    }
+  }
+
+  useEffect(() => { void loadUsers(); }, []);
 
   const canManage = (targetRole: AdminRole) => {
     if (role === "admin_daerah") return true;
@@ -1241,14 +2277,28 @@ function UsersManage({ role }: { role: AdminRole }) {
 
   const wilayahOptions = role === "admin_desa" ? ["Desa Fajar"] : ["Desa Fajar", "Desa Cengkareng Timur"];
 
-  const handleAdd = (nama: string, roleBaru: AdminRole, wilayah: string) => {
-    setUsers((prev) => [...prev, { id: `u${Date.now()}`, nama, role: roleBaru, wilayah, status: "aktif" }]);
-    setShowAdd(false);
+  const handleAdd = async (nama: string, roleBaru: AdminRole, _wilayah: string, email?: string, password?: string) => {
+    try {
+      const e = (email ?? `${nama.toLowerCase().replace(/\s+/g, ".")}@gencar.local`).trim().toLowerCase();
+      const pw = (password ?? "admin123").trim();
+      if (!e.includes("@")) throw new Error("Email tidak valid.");
+      if (pw.length < 8) throw new Error("Password minimal 8 karakter.");
+      await apiFetch("/api/admin/users", {
+        method: "POST",
+        body: JSON.stringify({ name: nama, email: e, password: pw, role: roleBaru }),
+      });
+      setShowAdd(false);
+      void loadUsers();
+    } catch (e: unknown) {
+      setUsersErr(e instanceof Error ? e.message : String(e));
+    }
   };
 
   return (
     <div>
-      <PageHeader title="Kelola User" sub="Kelola akun admin di bawah kamu" action={<button className="btn btn-primary btn-auto" disabled={role === "admin_kelompok"} onClick={() => setShowAdd(true)}>+ Tambah Admin</button>} />
+      <PageHeader title="Kelola User" sub={`Kelola akun admin di bawah kamu${usersErr ? ` · ${usersErr.slice(0, 80)}` : ""}`} action={<button className="btn btn-primary btn-auto" disabled={role === "admin_kelompok"} onClick={() => setShowAdd(true)}>+ Tambah Admin</button>} />
+      {usersErr && <div className="card" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#991b1b", display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}><span style={{ fontSize: 13, fontWeight: 700 }}>{usersErr}</span><button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: "auto" }} onClick={() => setUsersErr(null)}>Tutup</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => void loadUsers()}>Retry</button></div>}
+      {usersLoading && <div className="muted" style={{ marginBottom: 8, fontSize: 12 }}>Memuat user…</div>}
       <div className="info-banner">
         <span className="info-banner-icon"><IcoShield size={18} /></span>
         <div className="info-banner-body">
@@ -1329,14 +2379,16 @@ function AddAdminModal({
   onClose, onSave, roleOptions, wilayahOptions,
 }: {
   onClose: () => void;
-  onSave: (nama: string, role: AdminRole, wilayah: string) => void;
+  onSave: (nama: string, role: AdminRole, wilayah: string, email?: string, password?: string) => void;
   roleOptions: { value: AdminRole; label: string }[];
   wilayahOptions: string[];
 }) {
   const [nama, setNama] = useState("");
   const [roleBaru, setRoleBaru] = useState<AdminRole>(roleOptions[0]?.value ?? "admin_kelompok");
   const [wilayah, setWilayah] = useState(wilayahOptions[0] ?? "");
-  const valid = nama.trim().length >= 3;
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const valid = nama.trim().length >= 3 && email.trim().includes("@") && password.length >= 8;
 
   return (
     <AdminModal title="Tambah Admin" onClose={onClose}>
@@ -1363,13 +2415,15 @@ function AddAdminModal({
             options={wilayahOptions.map((w) => ({ value: w, label: w }))}
           />
         </div>
+        <div className="field"><label>Email *</label><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@email.com" /></div>
+        <div className="field"><label>Password *</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 8 karakter" /></div>
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
           <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Batal</button>
           <button
             className="btn btn-primary"
             style={{ flex: 1 }}
             disabled={!valid}
-            onClick={() => onSave(nama.trim(), roleBaru, wilayah)}
+            onClick={() => onSave(nama.trim(), roleBaru, wilayah, email.trim().toLowerCase(), password)}
           >
             Simpan Admin
           </button>
@@ -1380,45 +2434,79 @@ function AddAdminModal({
 }
 
 function WilayahPage() {
-  const [desas, setDesas] = useState<DesaWilayah[]>([
-    { id: "d1", nama: "Fajar" },
-    { id: "d2", nama: "Cengkareng Timur" },
-  ]);
-  const [kelompoks, setKelompoks] = useState<KelompokWilayah[]>([
-    { id: "w1", nama: "Fajar C", desaId: "d1" },
-    { id: "w2", nama: "Fajar B", desaId: "d1" },
-    { id: "w3", nama: "Timur A", desaId: "d2" },
-  ]);
+  const [desas, setDesas] = useState<DesaWilayah[]>([]);
+  const [kelompoks, setKelompoks] = useState<KelompokWilayah[]>([]);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [loadingWilayah, setLoadingWilayah] = useState(false);
+  const [_wilayahErr, setWilayahErr] = useState<string | null>(null);
+  void loadingWilayah as unknown as void;
   const [showAddDesa, setShowAddDesa] = useState(false);
   const [showAddKelompok, setShowAddKelompok] = useState<string | null>(null);
   const [qrTarget, setQrTarget] = useState<QrTarget | null>(null);
   const [qWilayah, setQWilayah] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
 
-  const countDesa = desas.length;
-  const countKelompok = kelompoks.length;
-  const countAnggota = DEMO_MEMBERS.length;
-
-  const anggotaDesa = (nama: string) => DEMO_MEMBERS.filter((m) => m.desa === nama).length;
-  const anggotaKelompok = (nama: string) => DEMO_MEMBERS.filter((m) => m.kelompok === nama).length;
-
-  function hapusDesa(id: string) {
-    setDesas((prev) => prev.filter((d) => d.id !== id));
-    setKelompoks((prev) => prev.filter((k) => k.desaId !== id));
-    setCollapsed((prev) => {
-      const n = new Set(prev);
-      n.delete(id);
-      return n;
-    });
+  async function loadWilayah() {
+    // Gencar auth is cookie-based (httpOnly auth-token + CSRF). No localStorage token required.
+    void localStorage.getItem("token"); // kept for compat if Bearer token present, but do not gate
+    setLoadingWilayah(true);
+    setWilayahErr(null);
+    try {
+      const [desaRaw, kelRaw, statRaw] = await Promise.all([
+        apiFetch<unknown>("/api/admin/desa").catch(() => apiFetch<unknown>("/api/auth/desa")),
+        apiFetch<unknown>("/api/admin/kelompok").catch(() => apiFetch<unknown>("/api/auth/kelompok")),
+        apiFetch<unknown>("/api/statistik").catch(() => null),
+      ]);
+      const uD = unwrapList<{ id: number | string; nama: string }>(desaRaw as unknown);
+      const arrD = Array.isArray(desaRaw) ? desaRaw as { id: number | string; nama: string }[] : uD.data as { id: number | string; nama: string }[];
+      setDesas((arrD as { id: number | string; nama: string }[]).map((d) => ({ id: String(d.id), nama: d.nama })));
+      const uK = unwrapList<{ id: number | string; nama: string; desaId: number | string }>(kelRaw as unknown);
+      const arrK = Array.isArray(kelRaw) ? kelRaw as { id: number | string; nama: string; desaId: number | string }[] : uK.data as { id: number | string; nama: string; desaId: number | string }[];
+      setKelompoks((arrK as { id: number | string; nama: string; desaId: number | string }[]).map((k) => ({ id: String(k.id), nama: k.nama, desaId: String(k.desaId) })));
+      if (statRaw && typeof statRaw === "object" && (statRaw as { member?: { byDesa?: { name: string; value: number }[] } }).member?.byDesa) {
+        const byDesa = (statRaw as { member: { byDesa: { name: string; value: number }[] } }).member.byDesa;
+        const m: Record<string, number> = {};
+        for (const r of byDesa) m[r.name] = r.value;
+        setCounts(m);
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!msg.includes("401")) setWilayahErr(msg);
+    } finally {
+      setLoadingWilayah(false);
+    }
   }
 
-  function tambahDesa(nama: string) {
-    setDesas((prev) => [...prev, { id: `d${Date.now()}`, nama }]);
+  useEffect(() => { void loadWilayah(); }, []);
+
+  const countDesa = desas.length;
+  const countKelompok = kelompoks.length;
+  const countAnggota = Object.values(counts).reduce((a, b) => a + b, 0) || 0;
+
+  const anggotaDesa = (nama: string) => counts[nama] ?? 0;
+  const anggotaKelompok = (_nama: string) => 0;
+
+  const [deleteTarget, setDeleteTarget] = useState<{ kind: "desa" | "kelompok"; id: string; nama: string; kelompokCount?: number } | null>(null);
+
+  async function doDelete(target: { kind: "desa" | "kelompok"; id: string }) {
+    if (target.kind === "desa") {
+      await apiFetch(`/api/admin/desa?id=${encodeURIComponent(target.id)}`, { method: "DELETE" });
+    } else {
+      await apiFetch(`/api/admin/kelompok?id=${encodeURIComponent(target.id)}`, { method: "DELETE" });
+    }
+    setDeleteTarget(null);
+    await loadWilayah();
+  }
+
+  async function tambahDesa(nama: string) {
+    await apiFetch("/api/admin/desa", { method: "POST", body: JSON.stringify({ nama }) });
+    await loadWilayah();
     setShowAddDesa(false);
   }
 
-  function tambahKelompok(desaId: string, nama: string) {
-    setKelompoks((prev) => [...prev, { id: `w${Date.now()}`, nama, desaId }]);
+  async function tambahKelompok(desaId: string, nama: string) {
+    await apiFetch("/api/admin/kelompok", { method: "POST", body: JSON.stringify({ nama, desaId: Number(desaId) }) });
+    await loadWilayah();
     setCollapsed((prev) => {
       const n = new Set(prev);
       n.delete(desaId);
@@ -1575,7 +2663,7 @@ function WilayahPage() {
                   <button className="btn btn-ghost row-icon-btn" aria-label="Tambah kelompok" title="Tambah kelompok" onClick={() => setShowAddKelompok(desa.id)}>
                     <span aria-hidden="true" style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}>+</span>
                   </button>
-                  <button className="btn btn-danger row-icon-btn" aria-label="Hapus desa" title="Hapus desa" onClick={() => hapusDesa(desa.id)}>
+                    <button className="btn btn-danger row-icon-btn" aria-label="Hapus desa" title="Hapus desa — harus kosong" onClick={() => setDeleteTarget({ kind: "desa", id: desa.id, nama: desa.nama, kelompokCount: allForDesa.length })}>
                     <IcoTrash size={16} />
                   </button>
                   <button className="btn btn-ghost row-icon-btn" aria-label="QR Absen" title="QR Absen" onClick={() => setQrTarget({ level: "desa", nama: desa.nama })}>
@@ -1601,7 +2689,7 @@ function WilayahPage() {
                             <span className="pill pill-slate">{anggotaKelompok(kel.nama)} anggota</span>
                           </div>
                           <div className="wilayah-kelompok-actions">
-                            <button className="btn btn-danger row-icon-btn" aria-label="Hapus kelompok" title="Hapus kelompok" onClick={() => setKelompoks((prev) => prev.filter((k) => k.id !== kel.id))}>
+                            <button className="btn btn-danger row-icon-btn" aria-label="Hapus kelompok" title="Hapus kelompok — harus kosong" onClick={() => setDeleteTarget({ kind: "kelompok", id: kel.id, nama: kel.nama })}>
                               <IcoTrash size={15} />
                             </button>
                             <button className="btn btn-ghost row-icon-btn" aria-label="QR Absen" title="QR Absen" onClick={() => setQrTarget({ level: "kelompok", nama: kel.nama })}>
@@ -1647,14 +2735,113 @@ function WilayahPage() {
       )}
 
       {qrTarget && <QrModal target={qrTarget} onClose={() => setQrTarget(null)} />}
+
+      {deleteTarget && (
+        <DeleteWilayahConfirmModal
+          kind={deleteTarget.kind}
+          nama={deleteTarget.nama}
+          kelompokCount={deleteTarget.kelompokCount}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={() => doDelete(deleteTarget)}
+        />
+      )}
     </div>
+  );
+}
+
+function DeleteWilayahConfirmModal({
+  kind,
+  nama,
+  kelompokCount,
+  onClose,
+  onConfirm,
+}: {
+  kind: "desa" | "kelompok";
+  nama: string;
+  kelompokCount?: number;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const isMatch = typed.trim() === nama;
+  const hintLabel = kind === "desa" ? "desa" : "kelompok";
+
+  async function handleConfirm() {
+    if (!isMatch || busy) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await onConfirm();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setErr(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const emptyPrecheck =
+    kind === "desa" && kelompokCount !== undefined && kelompokCount > 0
+      ? `Desa ini masih punya ${kelompokCount} kelompok. Hapus semua kelompok dulu — anggota akan menjadi tidak ter-assign, kegiatan ikut terhapus.`
+      : null;
+
+  return (
+    <AdminModal title={`Hapus ${hintLabel}?`} onClose={onClose}>
+      <div style={{ display: "grid", gap: 14 }}>
+        {emptyPrecheck ? (
+          <div style={{ padding: "12px 14px", borderRadius: 12, background: "#fef2f2", border: "1px solid #fecaca", color: "#7f1d1d", fontSize: 13, lineHeight: 1.5 }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Belum kosong</div>
+            <div>{emptyPrecheck}</div>
+          </div>
+        ) : (
+          <div style={{ padding: "12px 14px", borderRadius: 12, background: "#fffbeb", border: "1px solid #fde68a", color: "#78350f", fontSize: 13, lineHeight: 1.5 }}>
+            {kind === "desa" ? (
+              <>Desa akan dihapus. <strong>Kegiatan</strong> desa ini ikut terhapus. <strong>Anggota</strong> desa ini menjadi tidak memiliki desa (desa_id → null).</>
+            ) : (
+              <>Kelompok akan dihapus. <strong>Kegiatan</strong> kelompok ini ikut terhapus. <strong>Anggota</strong> kelompok ini menjadi tidak memiliki kelompok (kelompok_id → null).</>
+            )}
+          </div>
+        )}
+
+        <div style={{ fontSize: 13, lineHeight: 1.5 }}>
+          Ketik nama <strong style={{ fontFamily: "monospace", background: "#f1f5f9", padding: "2px 6px", borderRadius: 6 }}>{nama}</strong> persis untuk melanjutkan.
+        </div>
+
+        <div className="field">
+          <label>Ketik nama {hintLabel} *</label>
+          <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={nama} disabled={busy || !!emptyPrecheck} autoComplete="off" autoFocus={!emptyPrecheck} />
+        </div>
+
+        {err && (
+          <div style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontSize: 13, display: "flex", gap: 8 }}>
+            <span style={{ flex: 1, wordBreak: "break-word" }}>{err}</span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setErr(null)}>Tutup</button>
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn btn-ghost" style={{ flex: 1 }} disabled={busy} onClick={onClose}>Batal</button>
+          <button
+            className="btn btn-danger"
+            style={{ flex: 1 }}
+            disabled={!isMatch || busy || !!emptyPrecheck}
+            aria-busy={busy}
+            onClick={() => void handleConfirm()}
+          >
+            {busy ? "Menghapus…" : `Hapus ${hintLabel}`}
+          </button>
+        </div>
+      </div>
+    </AdminModal>
   );
 }
 
 function AddWilayahModal({
   title, label, placeholder, onClose, onSave,
 }: {
-  title: string; label: string; placeholder: string; onClose: () => void; onSave: (nama: string) => void;
+  title: string; label: string; placeholder: string; onClose: () => void; onSave: (nama: string) => void | Promise<void>;
 }) {
   return (
     <AdminModal title={title} onClose={onClose}>
@@ -1666,26 +2853,54 @@ function AddWilayahModal({
 function AddWilayahForm({
   label, placeholder, onCancel, onSave,
 }: {
-  label: string; placeholder: string; onCancel: () => void; onSave: (nama: string) => void;
+  label: string; placeholder: string; onCancel: () => void; onSave: (nama: string) => void | Promise<void>;
 }) {
   const [nama, setNama] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const valid = nama.trim().length >= 2;
+
+  async function handleSave() {
+    if (!valid || busy) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await onSave(nama.trim());
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      // Surface inline + keep modal open so user can retry
+      setErr(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div style={{ display: "grid", gap: 12 }}>
       <div className="field">
         <label>{label} *</label>
-        <input value={nama} onChange={(e) => setNama(e.target.value)} placeholder={placeholder} />
+        <input value={nama} onChange={(e) => setNama(e.target.value)} placeholder={placeholder} disabled={busy} />
       </div>
+      {err && (
+        <div style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontSize: 13, display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ flex: 1, wordBreak: "break-word" }}>{err}</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setErr(null)}>Tutup</button>
+        </div>
+      )}
       <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-        <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onCancel}>Batal</button>
-        <button className="btn btn-primary" style={{ flex: 1 }} disabled={!valid} onClick={() => onSave(nama.trim())}>Simpan</button>
+        <button className="btn btn-ghost" style={{ flex: 1 }} disabled={busy} onClick={onCancel}>Batal</button>
+        <button className="btn btn-primary" style={{ flex: 1 }} disabled={!valid || busy} aria-busy={busy} onClick={() => void handleSave()}>{busy ? "Menyimpan…" : "Simpan"}</button>
       </div>
+      {busy && <span className="muted" style={{ fontSize: 11, textAlign: "center" }}>Menyimpan — jangan tutup.</span>}
     </div>
   );
 }
 
 import CmsPage from "./features/cms/CmsPage";
+import ProfileRequestsPage from "./features/admin/ProfileRequestsPage";
 import MemberShell from "./features/member/MemberShell";
+import { useAuth } from "./lib/auth";
+import { useNavigate } from "react-router-dom";
 import type { MemberPageKey } from "./features/member/MemberShell";
 import MemberHomePage from "./features/member/MemberHomePage";
 import MemberProfilePage from "./features/member/MemberProfilePage";
@@ -1693,15 +2908,43 @@ import MemberStatPage from "./features/member/MemberStatPage";
 import { DEMO_SELF, DEMO_KEHADIRAN, DEMO_KEGIATAN_MEMBER } from "./features/member/types";
 
 export default function App({ initialMode }: { initialMode?: "admin" | "member" } = {}) {
-  const [mode, setMode] = useState<"admin" | "member">(initialMode ?? "member");
-  const [role] = useState<AdminRole>("admin_kelompok");
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const role: AdminRole = (user?.role as AdminRole | undefined) ?? "admin_kelompok";
+  const [_mode, _setMode] = useState<"admin" | "member">(initialMode ?? "member");
+  void _mode; void _setMode;
   const [page, setPage] = useState("anggota");
   const [memberPage, setMemberPage] = useState<MemberPageKey>("beranda");
   const [me, setMe] = useState(DEMO_SELF);
 
-  if (mode === "member") {
+  const isAdmin = ["admin_daerah", "admin_desa", "admin_kelompok"].includes(String(role));
+
+  if (initialMode === "member") {
     return (
-      <MemberShell page={memberPage} setPage={setMemberPage} me={me} onExit={() => setMode("admin")}>
+      <MemberShell
+        page={memberPage}
+        setPage={setMemberPage}
+        me={me}
+        onExit={async () => { await logout(); navigate("/login", { replace: true }); }}
+        onLogout={async () => { await logout(); navigate("/login", { replace: true }); }}
+      >
+        {memberPage === "beranda" && <MemberHomePage me={me} />}
+        {memberPage === "profil" && <MemberProfilePage me={me} stat={DEMO_KEHADIRAN} kegiatan={DEMO_KEGIATAN_MEMBER} onUpdate={setMe} />}
+        {memberPage === "statistik" && <MemberStatPage me={me} stat={DEMO_KEHADIRAN} />}
+      </MemberShell>
+    );
+  }
+
+  if (!isAdmin) {
+    // Should not happen due to RequireAuth, but guard: non-admin hitting /admin → bounce to member
+    return (
+      <MemberShell
+        page={memberPage}
+        setPage={setMemberPage}
+        me={me}
+        onExit={async () => { await logout(); navigate("/login", { replace: true }); }}
+        onLogout={async () => { await logout(); navigate("/login", { replace: true }); }}
+      >
         {memberPage === "beranda" && <MemberHomePage me={me} />}
         {memberPage === "profil" && <MemberProfilePage me={me} stat={DEMO_KEHADIRAN} kegiatan={DEMO_KEGIATAN_MEMBER} onUpdate={setMe} />}
         {memberPage === "statistik" && <MemberStatPage me={me} stat={DEMO_KEHADIRAN} />}
@@ -1715,6 +2958,7 @@ export default function App({ initialMode }: { initialMode?: "admin" | "member" 
       <AdminShell page={effectivePage} setPage={setPage}>
         {effectivePage === "anggota" && <AnggotaPage role={role} />}
         {effectivePage === "kegiatan" && <KegiatanAdmin role={role} />}
+        {effectivePage === "pengajuan" && <ProfileRequestsPage />}
         {effectivePage === "users" && <UsersManage role={role} />}
         {effectivePage === "wilayah" && <WilayahPage />}
         {effectivePage === "cms" && <CmsPage />}

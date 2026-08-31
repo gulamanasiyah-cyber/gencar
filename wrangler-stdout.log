@@ -1,0 +1,284 @@
+
+ ⛅️ wrangler 4.95.0 (update available 4.127.1)
+──────────────────────────────────────────────
+[custom build] Running: npm run build --prefix ./frontend
+[custom build] 
+[custom build] > frontend@0.0.0 build
+[custom build] > tsc -b && vite build
+[custom build] 
+[custom build] 
+[custom build] [33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+[custom build]   - `__dirname` (vite.config.ts:8:44). Use `import.meta.dirname` instead
+[custom build] Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+[custom build] 
+[custom build] [36mvite v8.2.2 [32mbuilding client environment for production...[36m[39m
+[custom build] 
+[custom build] transforming...
+[custom build] 
+[custom build] ✓ 2947 modules transformed.
+[custom build] 
+[custom build] rendering chunks...
+[custom build] 
+[custom build] computing gzip size...
+[custom build] 
+[custom build] [33m[plugin builtin:vite-reporter] 
+[custom build] (!) Some chunks are larger than 500 kB after minification. Consider:
+[custom build] - Using dynamic import() to code-split the application
+[custom build] - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+[custom build] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+[custom build] 
+[custom build] dist/index.html                     0.87 kB │ gzip:   0.46 kB
+[custom build] dist/assets/index-oU4msO6a.css    165.93 kB │ gzip:  32.39 kB
+[custom build] dist/assets/index-D_cjadnY.js   2,056.37 kB │ gzip: 612.74 kB
+[custom build] 
+[custom build] [32m✓ built in 2.64s[39m
+[custom build] 
+Using secrets defined in .env.local
+Your Worker has access to the following bindings:
+Binding                                                          Resource                  Mode
+env.DB (gencar-db)                                               D1 Database               local
+env.ASSETS                                                       Assets                    local
+env.DAERAH_NAMA ("Cengkareng")                                   Environment Variable      local
+env.TURSO_DATABASE_URL ("(hidden)")                              Environment Variable      local
+env.TURSO_AUTH_TOKEN ("(hidden)")                                Environment Variable      local
+env.JWT_SECRET ("(hidden)")                                      Environment Variable      local
+env.NEXT_PUBLIC_APP_URL ("(hidden)")                             Environment Variable      local
+env.CLOUDINARY_CLOUD_NAME ("(hidden)")                           Environment Variable      local
+env.CLOUDINARY_API_KEY ("(hidden)")                              Environment Variable      local
+env.CLOUDINARY_API_SECRET ("(hidden)")                           Environment Variable      local
+env.PUSHER_APP_ID ("(hidden)")                                   Environment Variable      local
+env.NEXT_PUBLIC_PUSHER_KEY ("(hidden)")                          Environment Variable      local
+env.PUSHER_SECRET ("(hidden)")                                   Environment Variable      local
+env.NEXT_PUBLIC_PUSHER_CLUSTER ("(hidden)")                      Environment Variable      local
+env.EVOLUTION_API_URL ("(hidden)")                               Environment Variable      local
+env.EVOLUTION_API_KEY ("(hidden)")                               Environment Variable      local
+env.EVOLUTION_INSTANCE ("(hidden)")                              Environment Variable      local
+env.WHATSAPP_API_KEY ("(hidden)")                                Environment Variable      local
+env.WHATSAPP_PHONE_NUMBER_ID ("(hidden)")                        Environment Variable      local
+env.WHATSAPP_TEMPLATE_NAME ("(hidden)")                          Environment Variable      local
+env.WHATSAPP_TEMPLATE_LANG ("(hidden)")                          Environment Variable      local
+env.FIREBASE_PROJECT_ID ("(hidden)")                             Environment Variable      local
+env.FIREBASE_CLIENT_EMAIL ("(hidden)")                           Environment Variable      local
+env.FIREBASE_PRIVATE_KEY ("(hidden)")                            Environment Variable      local
+env.NEXT_PUBLIC_FIREBASE_API_KEY ("(hidden)")                    Environment Variable      local
+env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ("(hidden)")                Environment Variable      local
+env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ("(hidden)")                 Environment Variable      local
+env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ("(hidden)")        Environment Variable      local
+env.NEXT_PUBLIC_FIREBASE_APP_ID ("(hidden)")                     Environment Variable      local
+env.NEXT_PUBLIC_FIREBASE_VAPID_KEY ("(hidden)")                  Environment Variable      local
+env.FONNTE_TOKEN ("(hidden)")                                    Environment Variable      local
+env.FONNTE_TOKEN_2 ("(hidden)")                                  Environment Variable      local
+
+The file src changed, restarting build...
+[custom build] Running: npm run build --prefix ./frontend
+[custom build] 
+[custom build] > frontend@0.0.0 build
+[custom build] > tsc -b && vite build
+[custom build] 
+[custom build] 
+[custom build] [33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+[custom build]   - `__dirname` (vite.config.ts:8:44). Use `import.meta.dirname` instead
+[custom build] Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+[custom build] 
+[custom build] [36mvite v8.2.2 [32mbuilding client environment for production...[36m[39m
+[custom build] 
+[custom build] transforming...
+[custom build] 
+[custom build] ✓ 2947 modules transformed.
+[custom build] 
+[custom build] rendering chunks...
+[custom build] computing gzip size...
+[custom build] dist/index.html                     0.87 kB │ gzip:   0.46 kB
+[custom build] dist/assets/index-oU4msO6a.css    165.93 kB │ gzip:  32.39 kB
+[custom build] dist/assets/index-D_cjadnY.js   2,056.37 kB │ gzip: 612.74 kB
+[custom build] 
+[custom build] [32m✓ built in 2.03s[39m
+[custom build] 
+[custom build] [33m[plugin builtin:vite-reporter] 
+[custom build] (!) Some chunks are larger than 500 kB after minification. Consider:
+[custom build] - Using dynamic import() to code-split the application
+[custom build] - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+[custom build] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+[custom build] 
+⎔ Starting local server...
+[wrangler:info] Ready on http://127.0.0.1:8787
+[wrangler:info] GET /api/auth/me 200 OK (31ms)
+[wrangler:info] GET /api/auth/me 200 OK (8ms)
+[wrangler:info] GET /api/admin/profile-requests 200 OK (114ms)
+[wrangler:info] GET /api/admin/profile-requests 200 OK (13ms)
+[wrangler:info] GET /api/auth/me 200 OK (9ms)
+[wrangler:info] GET /api/auth/me 200 OK (7ms)
+[wrangler:info] GET /api/auth/desa 200 OK (31ms)
+[wrangler:info] GET /api/auth/kelompok 200 OK (45ms)
+[wrangler:info] GET /api/generus 200 OK (85ms)
+[wrangler:info] GET /api/admin/profile-requests 200 OK (102ms)
+[wrangler:info] GET /api/auth/desa 200 OK (91ms)
+[wrangler:info] GET /api/auth/kelompok 200 OK (94ms)
+[wrangler:info] GET /api/admin/profile-requests 200 OK (42ms)
+[wrangler:info] GET /api/auth/me 200 OK (9ms)
+[wrangler:info] GET /api/auth/me 200 OK (5ms)
+[wrangler:info] GET /api/auth/desa 200 OK (29ms)
+[wrangler:info] GET /api/auth/kelompok 200 OK (38ms)
+[wrangler:info] GET /api/admin/profile-requests 200 OK (46ms)
+[wrangler:info] GET /api/auth/desa 200 OK (33ms)
+[wrangler:info] GET /api/auth/kelompok 200 OK (28ms)
+[wrangler:info] GET /api/admin/profile-requests 200 OK (30ms)
+[wrangler:info] GET /api/generus 200 OK (49ms)
+[wrangler:info] GET /api/auth/me 200 OK (10ms)
+[wrangler:info] GET /api/auth/me 200 OK (6ms)
+[wrangler:info] GET /api/auth/desa 200 OK (57ms)
+[wrangler:info] GET /api/admin/profile-requests 200 OK (81ms)
+[wrangler:info] GET /api/auth/kelompok 200 OK (69ms)
+[wrangler:info] GET /api/auth/kelompok 200 OK (32ms)
+[wrangler:info] GET /api/admin/profile-requests 200 OK (29ms)
+[wrangler:info] GET /api/auth/desa 200 OK (31ms)
+[wrangler:info] GET /api/auth/me 200 OK (6ms)
+[wrangler:info] GET /api/auth/me 200 OK (7ms)
+[wrangler:info] GET /api/auth/me 200 OK (10ms)
+[wrangler:info] GET /api/auth/me 200 OK (6ms)
+[wrangler:info] GET /api/admin/profile-requests 200 OK (30ms)
+[wrangler:info] GET /api/admin/profile-requests 200 OK (13ms)
+[wrangler:info] GET /api/admin/profile-requests 200 OK (19ms)
+[wrangler:info] GET /api/admin/profile-requests 200 OK (15ms)
+[wrangler:info] GET /api/auth/me 200 OK (8ms)
+[wrangler:info] GET /api/auth/me 200 OK (5ms)
+[wrangler:info] GET /api/auth/me 200 OK (7ms)
+[wrangler:info] GET /api/auth/me 200 OK (7ms)
+[wrangler:info] GET /api/auth/me 200 OK (9ms)
+[wrangler:info] GET /api/auth/me 200 OK (7ms)
+[wrangler:info] GET /api/auth/me 200 OK (7ms)
+[wrangler:info] GET /api/auth/me 200 OK (8ms)
+[wrangler:info] GET /api/auth/me 200 OK (9ms)
+[wrangler:info] GET /api/auth/me 200 OK (7ms)
+[custom build] Running: npm run build --prefix ./frontend
+[custom build] 
+[custom build] > frontend@0.0.0 build
+[custom build] > tsc -b && vite build
+[custom build] 
+[custom build] 
+[wrangler:info] GET /api/auth/me 200 OK (11ms)
+[wrangler:info] GET /api/auth/me 200 OK (10ms)
+[wrangler:info] GET /api/auth/desa 200 OK (530ms)
+[wrangler:info] GET /api/auth/kelompok 200 OK (543ms)
+[wrangler:info] GET /api/generus 200 OK (603ms)
+[wrangler:info] GET /api/admin/profile-requests 200 OK (649ms)
+[wrangler:info] GET /api/auth/desa 200 OK (27ms)
+[wrangler:info] GET /api/auth/kelompok 200 OK (41ms)
+[wrangler:info] GET /api/admin/profile-requests 200 OK (92ms)
+[wrangler:info] GET /api/auth/me 200 OK (9ms)
+[wrangler:info] GET /api/auth/me 200 OK (10ms)
+[wrangler:info] GET /api/auth/me 200 OK (12ms)
+[wrangler:info] GET /api/auth/me 200 OK (10ms)
+[wrangler:info] GET /api/auth/desa 200 OK (19ms)
+[wrangler:info] GET /api/auth/kelompok 200 OK (29ms)
+[wrangler:info] GET /api/admin/profile-requests 200 OK (33ms)
+[wrangler:info] GET /api/auth/desa 200 OK (33ms)
+[wrangler:info] GET /api/auth/kelompok 200 OK (14ms)
+[wrangler:info] GET /api/admin/profile-requests 200 OK (21ms)
+[custom build] [33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+[custom build]   - `__dirname` (vite.config.ts:8:44). Use `import.meta.dirname` instead
+[custom build] Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+[custom build] 
+[custom build] [36mvite v8.2.2 [32mbuilding client environment for production...[36m[39m
+[custom build] 
+[custom build] transforming...
+[custom build] 
+[custom build] ✓ 2947 modules transformed.
+[custom build] 
+[custom build] rendering chunks...
+[custom build] 
+[custom build] computing gzip size...
+[custom build] dist/index.html                     0.87 kB │ gzip:   0.46 kB
+[custom build] dist/assets/index-oU4msO6a.css    165.93 kB │ gzip:  32.39 kB
+[custom build] dist/assets/index-D_cjadnY.js   2,056.37 kB │ gzip: 612.74 kB
+[custom build] 
+[custom build] [32m✓ built in 11.72s[39m
+[custom build] 
+[custom build] [33m[plugin builtin:vite-reporter] 
+[custom build] (!) Some chunks are larger than 500 kB after minification. Consider:
+[custom build] - Using dynamic import() to code-split the application
+[custom build] - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+[custom build] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+[custom build] [33m[33m[PLUGIN_TIMINGS] [0mYour build spent 37% of 11.7s inside plugin hooks (4.3s).
+[custom build] Measured inside the callback, so queue time is excluded and time the callback itself awaited is not:
+[custom build]   - vite:css transform (28%, 3.3s, 4 calls)
+[custom build] Those rows are 28% of the build; the rest of the 37% is below.
+[custom build] Not measurable — 1 hook whose calls overlap, so elapsed time covers work other calls were doing. Profile with `node --cpu-prof`:
+[custom build]   - vite:asset load (3 calls)
+[custom build] See https://rolldown.rs/reference/InputOptions.checks#plugintimings for more details.
+[custom build] [39m
+[custom build] 
+Using secrets defined in .env.local
+Your Worker has access to the following bindings:
+Binding                                                          Resource                  Mode
+env.DB (gencar-db)                                               D1 Database               local
+env.ASSETS                                                       Assets                    local
+env.DAERAH_NAMA ("Cengkareng")                                   Environment Variable      local
+env.TURSO_DATABASE_URL ("(hidden)")                              Environment Variable      local
+env.TURSO_AUTH_TOKEN ("(hidden)")                                Environment Variable      local
+env.JWT_SECRET ("(hidden)")                                      Environment Variable      local
+env.NEXT_PUBLIC_APP_URL ("(hidden)")                             Environment Variable      local
+env.CLOUDINARY_CLOUD_NAME ("(hidden)")                           Environment Variable      local
+env.CLOUDINARY_API_KEY ("(hidden)")                              Environment Variable      local
+env.CLOUDINARY_API_SECRET ("(hidden)")                           Environment Variable      local
+env.PUSHER_APP_ID ("(hidden)")                                   Environment Variable      local
+env.NEXT_PUBLIC_PUSHER_KEY ("(hidden)")                          Environment Variable      local
+env.PUSHER_SECRET ("(hidden)")                                   Environment Variable      local
+env.NEXT_PUBLIC_PUSHER_CLUSTER ("(hidden)")                      Environment Variable      local
+env.EVOLUTION_API_URL ("(hidden)")                               Environment Variable      local
+env.EVOLUTION_API_KEY ("(hidden)")                               Environment Variable      local
+env.EVOLUTION_INSTANCE ("(hidden)")                              Environment Variable      local
+env.WHATSAPP_API_KEY ("(hidden)")                                Environment Variable      local
+env.WHATSAPP_PHONE_NUMBER_ID ("(hidden)")                        Environment Variable      local
+env.WHATSAPP_TEMPLATE_NAME ("(hidden)")                          Environment Variable      local
+env.WHATSAPP_TEMPLATE_LANG ("(hidden)")                          Environment Variable      local
+env.FIREBASE_PROJECT_ID ("(hidden)")                             Environment Variable      local
+env.FIREBASE_CLIENT_EMAIL ("(hidden)")                           Environment Variable      local
+env.FIREBASE_PRIVATE_KEY ("(hidden)")                            Environment Variable      local
+env.NEXT_PUBLIC_FIREBASE_API_KEY ("(hidden)")                    Environment Variable      local
+env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ("(hidden)")                Environment Variable      local
+env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ("(hidden)")                 Environment Variable      local
+env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ("(hidden)")        Environment Variable      local
+env.NEXT_PUBLIC_FIREBASE_APP_ID ("(hidden)")                     Environment Variable      local
+env.NEXT_PUBLIC_FIREBASE_VAPID_KEY ("(hidden)")                  Environment Variable      local
+env.FONNTE_TOKEN ("(hidden)")                                    Environment Variable      local
+env.FONNTE_TOKEN_2 ("(hidden)")                                  Environment Variable      local
+
+The file src changed, restarting build...
+[custom build] Running: npm run build --prefix ./frontend
+[custom build] 
+[custom build] > frontend@0.0.0 build
+[custom build] > tsc -b && vite build
+[custom build] 
+[custom build] 
+[custom build] [33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+[custom build]   - `__dirname` (vite.config.ts:8:44). Use `import.meta.dirname` instead
+[custom build] Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+[custom build] 
+[custom build] [36mvite v8.2.2 [32mbuilding client environment for production...[36m[39m
+[custom build] 
+[custom build] transforming...
+[custom build] 
+[custom build] ✓ 2947 modules transformed.
+[custom build] 
+[custom build] rendering chunks...
+[custom build] 
+[custom build] computing gzip size...
+[custom build] 
+[custom build] dist/index.html                     0.87 kB │ gzip:   0.46 kB
+[custom build] dist/assets/index-oU4msO6a.css    165.93 kB │ gzip:  32.39 kB
+[custom build] dist/assets/index-D_cjadnY.js   2,056.37 kB │ gzip: 612.74 kB
+[custom build] 
+[custom build] 
+[custom build] [33m[plugin builtin:vite-reporter] 
+[custom build] (!) Some chunks are larger than 500 kB after minification. Consider:
+[custom build] - Using dynamic import() to code-split the application
+[custom build] - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+[custom build] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+[custom build] 
+[custom build] [32m✓ built in 1.28s[39m
+[custom build] 
+⎔ Reloading local server...
+⎔ Local server updated and ready
+[wrangler:info] GET /api/auth/me 200 OK (16288ms)
+[wrangler:info] GET /api/auth/me 200 OK (6ms)

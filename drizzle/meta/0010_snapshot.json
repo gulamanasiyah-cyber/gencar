@@ -1,0 +1,3281 @@
+{
+  "id": "e385b9ef-1cad-4adc-94ed-700b0237a8f1",
+  "prevId": "78c6b97b-bf53-41ef-bcc7-8b50a7979981",
+  "version": "6",
+  "dialect": "sqlite",
+  "tables": {
+    "absensi": {
+      "name": "absensi",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kegiatan_id": {
+          "name": "kegiatan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "generus_id": {
+          "name": "generus_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        },
+        "keterangan": {
+          "name": "keterangan",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'hadir'"
+        }
+      },
+      "indexes": {
+        "absensi_kegiatan_id_idx": {
+          "name": "absensi_kegiatan_id_idx",
+          "columns": [
+            "kegiatan_id"
+          ],
+          "isUnique": false
+        },
+        "absensi_generus_id_idx": {
+          "name": "absensi_generus_id_idx",
+          "columns": [
+            "generus_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "absensi_kegiatan_id_kegiatan_id_fk": {
+          "name": "absensi_kegiatan_id_kegiatan_id_fk",
+          "tableFrom": "absensi",
+          "columnsFrom": [
+            "kegiatan_id"
+          ],
+          "tableTo": "kegiatan",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "absensi_generus_id_generus_id_fk": {
+          "name": "absensi_generus_id_generus_id_fk",
+          "tableFrom": "absensi",
+          "columnsFrom": [
+            "generus_id"
+          ],
+          "tableTo": "generus",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "artikel": {
+      "name": "artikel",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "judul": {
+          "name": "judul",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "konten": {
+          "name": "konten",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ringkasan": {
+          "name": "ringkasan",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cover_image": {
+          "name": "cover_image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'pending'"
+        },
+        "tipe": {
+          "name": "tipe",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'artikel'"
+        },
+        "author_id": {
+          "name": "author_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "published_at": {
+          "name": "published_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "rating_sum": {
+          "name": "rating_sum",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "rating_count": {
+          "name": "rating_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "artikel_author_id_users_id_fk": {
+          "name": "artikel_author_id_users_id_fk",
+          "tableFrom": "artikel",
+          "columnsFrom": [
+            "author_id"
+          ],
+          "tableTo": "users",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "desa": {
+      "name": "desa",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "nama": {
+          "name": "nama",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "form_panitia_dan_pengurus": {
+      "name": "form_panitia_dan_pengurus",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "generus_id": {
+          "name": "generus_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "kegiatan_id": {
+          "name": "kegiatan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "nama": {
+          "name": "nama",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "jenis_kelamin": {
+          "name": "jenis_kelamin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tempat_lahir": {
+          "name": "tempat_lahir",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tanggal_lahir": {
+          "name": "tanggal_lahir",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "alamat": {
+          "name": "alamat",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "no_telp": {
+          "name": "no_telp",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "suku": {
+          "name": "suku",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "foto": {
+          "name": "foto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mandiri_desa_id": {
+          "name": "mandiri_desa_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mandiri_kelompok_id": {
+          "name": "mandiri_kelompok_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "dapukan": {
+          "name": "dapukan",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "nomor_unik": {
+          "name": "nomor_unik",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "form_panitia_dan_pengurus_generus_id_idx": {
+          "name": "form_panitia_dan_pengurus_generus_id_idx",
+          "columns": [
+            "generus_id"
+          ],
+          "isUnique": false
+        },
+        "form_panitia_dan_pengurus_nama_idx": {
+          "name": "form_panitia_dan_pengurus_nama_idx",
+          "columns": [
+            "nama"
+          ],
+          "isUnique": false
+        },
+        "form_panitia_dan_pengurus_dapukan_idx": {
+          "name": "form_panitia_dan_pengurus_dapukan_idx",
+          "columns": [
+            "dapukan"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "form_panitia_dan_pengurus_generus_id_generus_id_fk": {
+          "name": "form_panitia_dan_pengurus_generus_id_generus_id_fk",
+          "tableFrom": "form_panitia_dan_pengurus",
+          "columnsFrom": [
+            "generus_id"
+          ],
+          "tableTo": "generus",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "form_panitia_dan_pengurus_kegiatan_id_mandiri_kegiatan_id_fk": {
+          "name": "form_panitia_dan_pengurus_kegiatan_id_mandiri_kegiatan_id_fk",
+          "tableFrom": "form_panitia_dan_pengurus",
+          "columnsFrom": [
+            "kegiatan_id"
+          ],
+          "tableTo": "mandiri_kegiatan",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "form_panitia_dan_pengurus_mandiri_desa_id_mandiri_desa_id_fk": {
+          "name": "form_panitia_dan_pengurus_mandiri_desa_id_mandiri_desa_id_fk",
+          "tableFrom": "form_panitia_dan_pengurus",
+          "columnsFrom": [
+            "mandiri_desa_id"
+          ],
+          "tableTo": "mandiri_desa",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "form_panitia_dan_pengurus_mandiri_kelompok_id_mandiri_kelompok_id_fk": {
+          "name": "form_panitia_dan_pengurus_mandiri_kelompok_id_mandiri_kelompok_id_fk",
+          "tableFrom": "form_panitia_dan_pengurus",
+          "columnsFrom": [
+            "mandiri_kelompok_id"
+          ],
+          "tableTo": "mandiri_kelompok",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "generus": {
+      "name": "generus",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nomor_unik": {
+          "name": "nomor_unik",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nama": {
+          "name": "nama",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nama_ortu": {
+          "name": "nama_ortu",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tempat_lahir": {
+          "name": "tempat_lahir",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tanggal_lahir": {
+          "name": "tanggal_lahir",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "jenis_kelamin": {
+          "name": "jenis_kelamin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kategori_usia": {
+          "name": "kategori_usia",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kategori": {
+          "name": "kategori",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'Generus'"
+        },
+        "alamat": {
+          "name": "alamat",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "no_telp": {
+          "name": "no_telp",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "no_telp_ortu": {
+          "name": "no_telp_ortu",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pendidikan": {
+          "name": "pendidikan",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pekerjaan": {
+          "name": "pekerjaan",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status_nikah": {
+          "name": "status_nikah",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'Belum Menikah'"
+        },
+        "hobi": {
+          "name": "hobi",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "makanan_minuman_favorit": {
+          "name": "makanan_minuman_favorit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "suku": {
+          "name": "suku",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "foto": {
+          "name": "foto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "desa_id": {
+          "name": "desa_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "kelompok_id": {
+          "name": "kelompok_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mandiri_desa_id": {
+          "name": "mandiri_desa_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mandiri_kelompok_id": {
+          "name": "mandiri_kelompok_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "instagram": {
+          "name": "instagram",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_generus": {
+          "name": "is_generus",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "generus_nomor_unik_unique": {
+          "name": "generus_nomor_unik_unique",
+          "columns": [
+            "nomor_unik"
+          ],
+          "isUnique": true
+        },
+        "generus_nama_idx": {
+          "name": "generus_nama_idx",
+          "columns": [
+            "nama"
+          ],
+          "isUnique": false
+        },
+        "generus_desa_id_idx": {
+          "name": "generus_desa_id_idx",
+          "columns": [
+            "desa_id"
+          ],
+          "isUnique": false
+        },
+        "generus_kelompok_id_idx": {
+          "name": "generus_kelompok_id_idx",
+          "columns": [
+            "kelompok_id"
+          ],
+          "isUnique": false
+        },
+        "generus_mandiri_desa_id_idx": {
+          "name": "generus_mandiri_desa_id_idx",
+          "columns": [
+            "mandiri_desa_id"
+          ],
+          "isUnique": false
+        },
+        "generus_mandiri_kelompok_id_idx": {
+          "name": "generus_mandiri_kelompok_id_idx",
+          "columns": [
+            "mandiri_kelompok_id"
+          ],
+          "isUnique": false
+        },
+        "generus_kategori_usia_idx": {
+          "name": "generus_kategori_usia_idx",
+          "columns": [
+            "kategori_usia"
+          ],
+          "isUnique": false
+        },
+        "generus_jenis_kelamin_idx": {
+          "name": "generus_jenis_kelamin_idx",
+          "columns": [
+            "jenis_kelamin"
+          ],
+          "isUnique": false
+        },
+        "generus_status_nikah_idx": {
+          "name": "generus_status_nikah_idx",
+          "columns": [
+            "status_nikah"
+          ],
+          "isUnique": false
+        },
+        "generus_is_generus_idx": {
+          "name": "generus_is_generus_idx",
+          "columns": [
+            "is_generus"
+          ],
+          "isUnique": false
+        },
+        "generus_no_telp_idx": {
+          "name": "generus_no_telp_idx",
+          "columns": [
+            "no_telp"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "generus_desa_id_desa_id_fk": {
+          "name": "generus_desa_id_desa_id_fk",
+          "tableFrom": "generus",
+          "columnsFrom": [
+            "desa_id"
+          ],
+          "tableTo": "desa",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "generus_kelompok_id_kelompok_id_fk": {
+          "name": "generus_kelompok_id_kelompok_id_fk",
+          "tableFrom": "generus",
+          "columnsFrom": [
+            "kelompok_id"
+          ],
+          "tableTo": "kelompok",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "generus_mandiri_desa_id_mandiri_desa_id_fk": {
+          "name": "generus_mandiri_desa_id_mandiri_desa_id_fk",
+          "tableFrom": "generus",
+          "columnsFrom": [
+            "mandiri_desa_id"
+          ],
+          "tableTo": "mandiri_desa",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "generus_mandiri_kelompok_id_mandiri_kelompok_id_fk": {
+          "name": "generus_mandiri_kelompok_id_mandiri_kelompok_id_fk",
+          "tableFrom": "generus",
+          "columnsFrom": [
+            "mandiri_kelompok_id"
+          ],
+          "tableTo": "mandiri_kelompok",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "id_card_builder_data": {
+      "name": "id_card_builder_data",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nama": {
+          "name": "nama",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "daerah": {
+          "name": "daerah",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "desa": {
+          "name": "desa",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "dapukan": {
+          "name": "dapukan",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "foto": {
+          "name": "foto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "nomor_unik": {
+          "name": "nomor_unik",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "jenis_kelamin": {
+          "name": "jenis_kelamin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "kegiatan_id": {
+          "name": "kegiatan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "gradient": {
+          "name": "gradient",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "id_card_builder_nomor_unik_idx": {
+          "name": "id_card_builder_nomor_unik_idx",
+          "columns": [
+            "nomor_unik"
+          ],
+          "isUnique": false
+        },
+        "id_card_builder_kegiatan_id_idx": {
+          "name": "id_card_builder_kegiatan_id_idx",
+          "columns": [
+            "kegiatan_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "id_card_builder_data_kegiatan_id_mandiri_kegiatan_id_fk": {
+          "name": "id_card_builder_data_kegiatan_id_mandiri_kegiatan_id_fk",
+          "tableFrom": "id_card_builder_data",
+          "columnsFrom": [
+            "kegiatan_id"
+          ],
+          "tableTo": "mandiri_kegiatan",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "kegiatan": {
+      "name": "kegiatan",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "judul": {
+          "name": "judul",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "deskripsi": {
+          "name": "deskripsi",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tanggal": {
+          "name": "tanggal",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "jam": {
+          "name": "jam",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lokasi": {
+          "name": "lokasi",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "desa_id": {
+          "name": "desa_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "kelompok_id": {
+          "name": "kelompok_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "kegiatan_desa_id_idx": {
+          "name": "kegiatan_desa_id_idx",
+          "columns": [
+            "desa_id"
+          ],
+          "isUnique": false
+        },
+        "kegiatan_kelompok_id_idx": {
+          "name": "kegiatan_kelompok_id_idx",
+          "columns": [
+            "kelompok_id"
+          ],
+          "isUnique": false
+        },
+        "kegiatan_tanggal_idx": {
+          "name": "kegiatan_tanggal_idx",
+          "columns": [
+            "tanggal"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "kegiatan_desa_id_desa_id_fk": {
+          "name": "kegiatan_desa_id_desa_id_fk",
+          "tableFrom": "kegiatan",
+          "columnsFrom": [
+            "desa_id"
+          ],
+          "tableTo": "desa",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "kegiatan_kelompok_id_kelompok_id_fk": {
+          "name": "kegiatan_kelompok_id_kelompok_id_fk",
+          "tableFrom": "kegiatan",
+          "columnsFrom": [
+            "kelompok_id"
+          ],
+          "tableTo": "kelompok",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "kelompok": {
+      "name": "kelompok",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "nama": {
+          "name": "nama",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "desa_id": {
+          "name": "desa_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "kelompok_desa_id_desa_id_fk": {
+          "name": "kelompok_desa_id_desa_id_fk",
+          "tableFrom": "kelompok",
+          "columnsFrom": [
+            "desa_id"
+          ],
+          "tableTo": "desa",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "mandiri": {
+      "name": "mandiri",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "generus_id": {
+          "name": "generus_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kegiatan_id": {
+          "name": "kegiatan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "nomor_urut": {
+          "name": "nomor_urut",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status_pdkt": {
+          "name": "status_pdkt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'Aktif'"
+        },
+        "catatan": {
+          "name": "catatan",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_session_token": {
+          "name": "last_session_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "device_id": {
+          "name": "device_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "mandiri_generus_id_idx": {
+          "name": "mandiri_generus_id_idx",
+          "columns": [
+            "generus_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "mandiri_generus_id_generus_id_fk": {
+          "name": "mandiri_generus_id_generus_id_fk",
+          "tableFrom": "mandiri",
+          "columnsFrom": [
+            "generus_id"
+          ],
+          "tableTo": "generus",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "mandiri_kegiatan_id_mandiri_kegiatan_id_fk": {
+          "name": "mandiri_kegiatan_id_mandiri_kegiatan_id_fk",
+          "tableFrom": "mandiri",
+          "columnsFrom": [
+            "kegiatan_id"
+          ],
+          "tableTo": "mandiri_kegiatan",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "mandiri_absensi": {
+      "name": "mandiri_absensi",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kegiatan_id": {
+          "name": "kegiatan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "generus_id": {
+          "name": "generus_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        },
+        "keterangan": {
+          "name": "keterangan",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'hadir'"
+        }
+      },
+      "indexes": {
+        "mandiri_absensi_kegiatan_id_idx": {
+          "name": "mandiri_absensi_kegiatan_id_idx",
+          "columns": [
+            "kegiatan_id"
+          ],
+          "isUnique": false
+        },
+        "mandiri_absensi_generus_id_idx": {
+          "name": "mandiri_absensi_generus_id_idx",
+          "columns": [
+            "generus_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "mandiri_absensi_kegiatan_id_mandiri_kegiatan_id_fk": {
+          "name": "mandiri_absensi_kegiatan_id_mandiri_kegiatan_id_fk",
+          "tableFrom": "mandiri_absensi",
+          "columnsFrom": [
+            "kegiatan_id"
+          ],
+          "tableTo": "mandiri_kegiatan",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "mandiri_absensi_generus_id_generus_id_fk": {
+          "name": "mandiri_absensi_generus_id_generus_id_fk",
+          "tableFrom": "mandiri_absensi",
+          "columnsFrom": [
+            "generus_id"
+          ],
+          "tableTo": "generus",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "mandiri_antrean": {
+      "name": "mandiri_antrean",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "generus_id": {
+          "name": "generus_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'Menunggu'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "mandiri_antrean_generus_id_generus_id_fk": {
+          "name": "mandiri_antrean_generus_id_generus_id_fk",
+          "tableFrom": "mandiri_antrean",
+          "columnsFrom": [
+            "generus_id"
+          ],
+          "tableTo": "generus",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "mandiri_desa": {
+      "name": "mandiri_desa",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "nama": {
+          "name": "nama",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kota": {
+          "name": "kota",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "mandiri_kegiatan": {
+      "name": "mandiri_kegiatan",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "judul": {
+          "name": "judul",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "deskripsi": {
+          "name": "deskripsi",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tanggal": {
+          "name": "tanggal",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "lokasi": {
+          "name": "lokasi",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "kota": {
+          "name": "kota",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "desa_id": {
+          "name": "desa_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "kelompok_id": {
+          "name": "kelompok_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "mandiri_kegiatan_desa_id_mandiri_desa_id_fk": {
+          "name": "mandiri_kegiatan_desa_id_mandiri_desa_id_fk",
+          "tableFrom": "mandiri_kegiatan",
+          "columnsFrom": [
+            "desa_id"
+          ],
+          "tableTo": "mandiri_desa",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "mandiri_kegiatan_kelompok_id_mandiri_kelompok_id_fk": {
+          "name": "mandiri_kegiatan_kelompok_id_mandiri_kelompok_id_fk",
+          "tableFrom": "mandiri_kegiatan",
+          "columnsFrom": [
+            "kelompok_id"
+          ],
+          "tableTo": "mandiri_kelompok",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "mandiri_kelompok": {
+      "name": "mandiri_kelompok",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "nama": {
+          "name": "nama",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "mandiri_desa_id": {
+          "name": "mandiri_desa_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "mandiri_kelompok_mandiri_desa_id_mandiri_desa_id_fk": {
+          "name": "mandiri_kelompok_mandiri_desa_id_mandiri_desa_id_fk",
+          "tableFrom": "mandiri_kelompok",
+          "columnsFrom": [
+            "mandiri_desa_id"
+          ],
+          "tableTo": "mandiri_desa",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "mandiri_komentar": {
+      "name": "mandiri_komentar",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "penerima_id": {
+          "name": "penerima_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pengirim_id": {
+          "name": "pengirim_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pengirim_nama": {
+          "name": "pengirim_nama",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_anonim": {
+          "name": "is_anonim",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "komentar": {
+          "name": "komentar",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "mandiri_komentar_penerima_id_idx": {
+          "name": "mandiri_komentar_penerima_id_idx",
+          "columns": [
+            "penerima_id"
+          ],
+          "isUnique": false
+        },
+        "mandiri_komentar_pengirim_id_idx": {
+          "name": "mandiri_komentar_pengirim_id_idx",
+          "columns": [
+            "pengirim_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "mandiri_komentar_penerima_id_generus_id_fk": {
+          "name": "mandiri_komentar_penerima_id_generus_id_fk",
+          "tableFrom": "mandiri_komentar",
+          "columnsFrom": [
+            "penerima_id"
+          ],
+          "tableTo": "generus",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "mandiri_komentar_pengirim_id_generus_id_fk": {
+          "name": "mandiri_komentar_pengirim_id_generus_id_fk",
+          "tableFrom": "mandiri_komentar",
+          "columnsFrom": [
+            "pengirim_id"
+          ],
+          "tableTo": "generus",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "mandiri_kuisioner": {
+      "name": "mandiri_kuisioner",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pemilihan_id": {
+          "name": "pemilihan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pengisi_id": {
+          "name": "pengisi_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nama_pnkb": {
+          "name": "nama_pnkb",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "no_hp_pnkb": {
+          "name": "no_hp_pnkb",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tanggapan": {
+          "name": "tanggapan",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "rekomendasi": {
+          "name": "rekomendasi",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "mandiri_kuisioner_pemilihan_id_mandiri_pemilihan_id_fk": {
+          "name": "mandiri_kuisioner_pemilihan_id_mandiri_pemilihan_id_fk",
+          "tableFrom": "mandiri_kuisioner",
+          "columnsFrom": [
+            "pemilihan_id"
+          ],
+          "tableTo": "mandiri_pemilihan",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "mandiri_kuisioner_pengisi_id_generus_id_fk": {
+          "name": "mandiri_kuisioner_pengisi_id_generus_id_fk",
+          "tableFrom": "mandiri_kuisioner",
+          "columnsFrom": [
+            "pengisi_id"
+          ],
+          "tableTo": "generus",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "mandiri_kunjungan": {
+      "name": "mandiri_kunjungan",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "generus_id": {
+          "name": "generus_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "room_id": {
+          "name": "room_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pemilihan_id": {
+          "name": "pemilihan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "kegiatan_id": {
+          "name": "kegiatan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "mandiri_kunjungan_generus_id_idx": {
+          "name": "mandiri_kunjungan_generus_id_idx",
+          "columns": [
+            "generus_id"
+          ],
+          "isUnique": false
+        },
+        "mandiri_kunjungan_room_id_idx": {
+          "name": "mandiri_kunjungan_room_id_idx",
+          "columns": [
+            "room_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "mandiri_kunjungan_generus_id_generus_id_fk": {
+          "name": "mandiri_kunjungan_generus_id_generus_id_fk",
+          "tableFrom": "mandiri_kunjungan",
+          "columnsFrom": [
+            "generus_id"
+          ],
+          "tableTo": "generus",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "mandiri_kunjungan_room_id_mandiri_rooms_id_fk": {
+          "name": "mandiri_kunjungan_room_id_mandiri_rooms_id_fk",
+          "tableFrom": "mandiri_kunjungan",
+          "columnsFrom": [
+            "room_id"
+          ],
+          "tableTo": "mandiri_rooms",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "mandiri_kunjungan_pemilihan_id_mandiri_pemilihan_id_fk": {
+          "name": "mandiri_kunjungan_pemilihan_id_mandiri_pemilihan_id_fk",
+          "tableFrom": "mandiri_kunjungan",
+          "columnsFrom": [
+            "pemilihan_id"
+          ],
+          "tableTo": "mandiri_pemilihan",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "mandiri_kunjungan_kegiatan_id_mandiri_kegiatan_id_fk": {
+          "name": "mandiri_kunjungan_kegiatan_id_mandiri_kegiatan_id_fk",
+          "tableFrom": "mandiri_kunjungan",
+          "columnsFrom": [
+            "kegiatan_id"
+          ],
+          "tableTo": "mandiri_kegiatan",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "mandiri_pemilihan": {
+      "name": "mandiri_pemilihan",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pengirim_id": {
+          "name": "pengirim_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "penerima_id": {
+          "name": "penerima_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kegiatan_id": {
+          "name": "kegiatan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'Menunggu'"
+        },
+        "hasil_pengirim": {
+          "name": "hasil_pengirim",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "hasil_penerima": {
+          "name": "hasil_penerima",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "mandiri_pemilihan_pengirim_id_idx": {
+          "name": "mandiri_pemilihan_pengirim_id_idx",
+          "columns": [
+            "pengirim_id"
+          ],
+          "isUnique": false
+        },
+        "mandiri_pemilihan_penerima_id_idx": {
+          "name": "mandiri_pemilihan_penerima_id_idx",
+          "columns": [
+            "penerima_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "mandiri_pemilihan_pengirim_id_generus_id_fk": {
+          "name": "mandiri_pemilihan_pengirim_id_generus_id_fk",
+          "tableFrom": "mandiri_pemilihan",
+          "columnsFrom": [
+            "pengirim_id"
+          ],
+          "tableTo": "generus",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "mandiri_pemilihan_penerima_id_generus_id_fk": {
+          "name": "mandiri_pemilihan_penerima_id_generus_id_fk",
+          "tableFrom": "mandiri_pemilihan",
+          "columnsFrom": [
+            "penerima_id"
+          ],
+          "tableTo": "generus",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "mandiri_pemilihan_kegiatan_id_mandiri_kegiatan_id_fk": {
+          "name": "mandiri_pemilihan_kegiatan_id_mandiri_kegiatan_id_fk",
+          "tableFrom": "mandiri_pemilihan",
+          "columnsFrom": [
+            "kegiatan_id"
+          ],
+          "tableTo": "mandiri_kegiatan",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "mandiri_rooms": {
+      "name": "mandiri_rooms",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nama": {
+          "name": "nama",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pemilihan_id": {
+          "name": "pemilihan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'Kosong'"
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "mandiri_rooms_pemilihan_id_mandiri_pemilihan_id_fk": {
+          "name": "mandiri_rooms_pemilihan_id_mandiri_pemilihan_id_fk",
+          "tableFrom": "mandiri_rooms",
+          "columnsFrom": [
+            "pemilihan_id"
+          ],
+          "tableTo": "mandiri_pemilihan",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "organisasi_pengurus": {
+      "name": "organisasi_pengurus",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nama": {
+          "name": "nama",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "dapukan": {
+          "name": "dapukan",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "foto": {
+          "name": "foto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "urutan": {
+          "name": "urutan",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        },
+        "level": {
+          "name": "level",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'bidang'"
+        },
+        "bio": {
+          "name": "bio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "kontak_wa": {
+          "name": "kontak_wa",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "rab": {
+      "name": "rab",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kegiatan_id": {
+          "name": "kegiatan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mandiri_kegiatan_id": {
+          "name": "mandiri_kegiatan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "item": {
+          "name": "item",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "volume": {
+          "name": "volume",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "satuan": {
+          "name": "satuan",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "harga_satuan": {
+          "name": "harga_satuan",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "total_harga": {
+          "name": "total_harga",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "keterangan": {
+          "name": "keterangan",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "rab_kegiatan_id_idx": {
+          "name": "rab_kegiatan_id_idx",
+          "columns": [
+            "kegiatan_id"
+          ],
+          "isUnique": false
+        },
+        "rab_mandiri_kegiatan_id_idx": {
+          "name": "rab_mandiri_kegiatan_id_idx",
+          "columns": [
+            "mandiri_kegiatan_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "rab_kegiatan_id_kegiatan_id_fk": {
+          "name": "rab_kegiatan_id_kegiatan_id_fk",
+          "tableFrom": "rab",
+          "columnsFrom": [
+            "kegiatan_id"
+          ],
+          "tableTo": "kegiatan",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "rab_mandiri_kegiatan_id_mandiri_kegiatan_id_fk": {
+          "name": "rab_mandiri_kegiatan_id_mandiri_kegiatan_id_fk",
+          "tableFrom": "rab",
+          "columnsFrom": [
+            "mandiri_kegiatan_id"
+          ],
+          "tableTo": "mandiri_kegiatan",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "rab_approval": {
+      "name": "rab_approval",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kegiatan_id": {
+          "name": "kegiatan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mandiri_kegiatan_id": {
+          "name": "mandiri_kegiatan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status_pengurus": {
+          "name": "status_pengurus",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'pending'"
+        },
+        "status_admin": {
+          "name": "status_admin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'pending'"
+        },
+        "is_submitted": {
+          "name": "is_submitted",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "catatan_pengurus": {
+          "name": "catatan_pengurus",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "catatan_admin": {
+          "name": "catatan_admin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "rab_approval_kegiatan_id_idx": {
+          "name": "rab_approval_kegiatan_id_idx",
+          "columns": [
+            "kegiatan_id"
+          ],
+          "isUnique": false
+        },
+        "rab_approval_mandiri_kegiatan_id_idx": {
+          "name": "rab_approval_mandiri_kegiatan_id_idx",
+          "columns": [
+            "mandiri_kegiatan_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "rab_approval_kegiatan_id_kegiatan_id_fk": {
+          "name": "rab_approval_kegiatan_id_kegiatan_id_fk",
+          "tableFrom": "rab_approval",
+          "columnsFrom": [
+            "kegiatan_id"
+          ],
+          "tableTo": "kegiatan",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "rab_approval_mandiri_kegiatan_id_mandiri_kegiatan_id_fk": {
+          "name": "rab_approval_mandiri_kegiatan_id_mandiri_kegiatan_id_fk",
+          "tableFrom": "rab_approval",
+          "columnsFrom": [
+            "mandiri_kegiatan_id"
+          ],
+          "tableTo": "mandiri_kegiatan",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "rundown": {
+      "name": "rundown",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kegiatan_id": {
+          "name": "kegiatan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mandiri_kegiatan_id": {
+          "name": "mandiri_kegiatan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "waktu": {
+          "name": "waktu",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "agenda": {
+          "name": "agenda",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pic": {
+          "name": "pic",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "keterangan": {
+          "name": "keterangan",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "rundown_kegiatan_id_idx": {
+          "name": "rundown_kegiatan_id_idx",
+          "columns": [
+            "kegiatan_id"
+          ],
+          "isUnique": false
+        },
+        "rundown_mandiri_kegiatan_id_idx": {
+          "name": "rundown_mandiri_kegiatan_id_idx",
+          "columns": [
+            "mandiri_kegiatan_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "rundown_kegiatan_id_kegiatan_id_fk": {
+          "name": "rundown_kegiatan_id_kegiatan_id_fk",
+          "tableFrom": "rundown",
+          "columnsFrom": [
+            "kegiatan_id"
+          ],
+          "tableTo": "kegiatan",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "rundown_mandiri_kegiatan_id_mandiri_kegiatan_id_fk": {
+          "name": "rundown_mandiri_kegiatan_id_mandiri_kegiatan_id_fk",
+          "tableFrom": "rundown",
+          "columnsFrom": [
+            "mandiri_kegiatan_id"
+          ],
+          "tableTo": "mandiri_kegiatan",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "rundown_approval": {
+      "name": "rundown_approval",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kegiatan_id": {
+          "name": "kegiatan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mandiri_kegiatan_id": {
+          "name": "mandiri_kegiatan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status_pengurus": {
+          "name": "status_pengurus",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'pending'"
+        },
+        "is_submitted": {
+          "name": "is_submitted",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "catatan_pengurus": {
+          "name": "catatan_pengurus",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "rundown_approval_kegiatan_id_idx": {
+          "name": "rundown_approval_kegiatan_id_idx",
+          "columns": [
+            "kegiatan_id"
+          ],
+          "isUnique": false
+        },
+        "rundown_approval_mandiri_kegiatan_id_idx": {
+          "name": "rundown_approval_mandiri_kegiatan_id_idx",
+          "columns": [
+            "mandiri_kegiatan_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "rundown_approval_kegiatan_id_kegiatan_id_fk": {
+          "name": "rundown_approval_kegiatan_id_kegiatan_id_fk",
+          "tableFrom": "rundown_approval",
+          "columnsFrom": [
+            "kegiatan_id"
+          ],
+          "tableTo": "kegiatan",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "rundown_approval_mandiri_kegiatan_id_mandiri_kegiatan_id_fk": {
+          "name": "rundown_approval_mandiri_kegiatan_id_mandiri_kegiatan_id_fk",
+          "tableFrom": "rundown_approval",
+          "columnsFrom": [
+            "mandiri_kegiatan_id"
+          ],
+          "tableTo": "mandiri_kegiatan",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "saran_masukan": {
+      "name": "saran_masukan",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "untuk": {
+          "name": "untuk",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "saran": {
+          "name": "saran",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nama": {
+          "name": "nama",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_anonim": {
+          "name": "is_anonim",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "settings": {
+      "name": "settings",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "users": {
+      "name": "users",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "password_plain": {
+          "name": "password_plain",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'pending'"
+        },
+        "desa_id": {
+          "name": "desa_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "kelompok_id": {
+          "name": "kelompok_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mandiri_desa_id": {
+          "name": "mandiri_desa_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mandiri_kelompok_id": {
+          "name": "mandiri_kelompok_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "generus_id": {
+          "name": "generus_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "columns": [
+            "email"
+          ],
+          "isUnique": true
+        },
+        "users_name_idx": {
+          "name": "users_name_idx",
+          "columns": [
+            "name"
+          ],
+          "isUnique": false
+        },
+        "users_email_idx": {
+          "name": "users_email_idx",
+          "columns": [
+            "email"
+          ],
+          "isUnique": false
+        },
+        "users_desa_id_idx": {
+          "name": "users_desa_id_idx",
+          "columns": [
+            "desa_id"
+          ],
+          "isUnique": false
+        },
+        "users_kelompok_id_idx": {
+          "name": "users_kelompok_id_idx",
+          "columns": [
+            "kelompok_id"
+          ],
+          "isUnique": false
+        },
+        "users_mandiri_desa_id_idx": {
+          "name": "users_mandiri_desa_id_idx",
+          "columns": [
+            "mandiri_desa_id"
+          ],
+          "isUnique": false
+        },
+        "users_mandiri_kelompok_id_idx": {
+          "name": "users_mandiri_kelompok_id_idx",
+          "columns": [
+            "mandiri_kelompok_id"
+          ],
+          "isUnique": false
+        },
+        "users_role_idx": {
+          "name": "users_role_idx",
+          "columns": [
+            "role"
+          ],
+          "isUnique": false
+        },
+        "users_generus_id_idx": {
+          "name": "users_generus_id_idx",
+          "columns": [
+            "generus_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "users_desa_id_desa_id_fk": {
+          "name": "users_desa_id_desa_id_fk",
+          "tableFrom": "users",
+          "columnsFrom": [
+            "desa_id"
+          ],
+          "tableTo": "desa",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "users_kelompok_id_kelompok_id_fk": {
+          "name": "users_kelompok_id_kelompok_id_fk",
+          "tableFrom": "users",
+          "columnsFrom": [
+            "kelompok_id"
+          ],
+          "tableTo": "kelompok",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "users_mandiri_desa_id_mandiri_desa_id_fk": {
+          "name": "users_mandiri_desa_id_mandiri_desa_id_fk",
+          "tableFrom": "users",
+          "columnsFrom": [
+            "mandiri_desa_id"
+          ],
+          "tableTo": "mandiri_desa",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "users_mandiri_kelompok_id_mandiri_kelompok_id_fk": {
+          "name": "users_mandiri_kelompok_id_mandiri_kelompok_id_fk",
+          "tableFrom": "users",
+          "columnsFrom": [
+            "mandiri_kelompok_id"
+          ],
+          "tableTo": "mandiri_kelompok",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "users_generus_id_generus_id_fk": {
+          "name": "users_generus_id_generus_id_fk",
+          "tableFrom": "users",
+          "columnsFrom": [
+            "generus_id"
+          ],
+          "tableTo": "generus",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "users_old": {
+      "name": "users_old",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'generus'"
+        },
+        "desa_id": {
+          "name": "desa_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "kelompok_id": {
+          "name": "kelompok_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "generus_id": {
+          "name": "generus_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "users_old_email_unique": {
+          "name": "users_old_email_unique",
+          "columns": [
+            "email"
+          ],
+          "isUnique": true
+        },
+        "users_old_name_idx": {
+          "name": "users_old_name_idx",
+          "columns": [
+            "name"
+          ],
+          "isUnique": false
+        },
+        "users_old_email_idx": {
+          "name": "users_old_email_idx",
+          "columns": [
+            "email"
+          ],
+          "isUnique": false
+        },
+        "users_old_desa_id_idx": {
+          "name": "users_old_desa_id_idx",
+          "columns": [
+            "desa_id"
+          ],
+          "isUnique": false
+        },
+        "users_old_kelompok_id_idx": {
+          "name": "users_old_kelompok_id_idx",
+          "columns": [
+            "kelompok_id"
+          ],
+          "isUnique": false
+        },
+        "users_old_role_idx": {
+          "name": "users_old_role_idx",
+          "columns": [
+            "role"
+          ],
+          "isUnique": false
+        },
+        "users_old_generus_id_idx": {
+          "name": "users_old_generus_id_idx",
+          "columns": [
+            "generus_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "visitor_stats": {
+      "name": "visitor_stats",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "country_code": {
+          "name": "country_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "country_name": {
+          "name": "country_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "count": {
+          "name": "count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "visitor_stats_country_code_unique": {
+          "name": "visitor_stats_country_code_unique",
+          "columns": [
+            "country_code"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "tim_gambuh": {
+      "name": "tim_gambuh",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "nama": {
+          "name": "nama",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "umur": {
+          "name": "umur",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "kegiatan_id": {
+          "name": "kegiatan_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "daerah_id": {
+          "name": "daerah_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "desa_id": {
+          "name": "desa_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "kelompok_id": {
+          "name": "kelompok_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tipe": {
+          "name": "tipe",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "no_telp": {
+          "name": "no_telp",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "foto": {
+          "name": "foto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "tim_gambuh_kegiatan_id_idx": {
+          "name": "tim_gambuh_kegiatan_id_idx",
+          "columns": [
+            "kegiatan_id"
+          ],
+          "isUnique": false
+        },
+        "tim_gambuh_daerah_id_idx": {
+          "name": "tim_gambuh_daerah_id_idx",
+          "columns": [
+            "daerah_id"
+          ],
+          "isUnique": false
+        },
+        "tim_gambuh_desa_id_idx": {
+          "name": "tim_gambuh_desa_id_idx",
+          "columns": [
+            "desa_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}

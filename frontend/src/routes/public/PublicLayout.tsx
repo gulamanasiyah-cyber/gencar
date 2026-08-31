@@ -33,7 +33,7 @@ export default function PublicLayout() {
             <NavLink to="/tentang" className={({ isActive }) => (isActive ? "active" : "")}>Tentang</NavLink>
           </nav>
 
-          <Link to="/member" className="pub-nav-ghost" aria-label="Masuk ke member">
+          <Link to="/login" className="pub-nav-ghost" aria-label="Masuk ke portal">
             <LogIn size={14} /> Masuk
           </Link>
 
@@ -79,7 +79,7 @@ export default function PublicLayout() {
             ))}
             <div style={{ height: 1, background: "var(--pub-line)", margin: "4px 0" }} aria-hidden />
             <Link
-              to="/member"
+              to="/login"
               onClick={() => setOpen(false)}
               style={{
                 padding: "12px 14px",

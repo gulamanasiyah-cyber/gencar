@@ -3,6 +3,7 @@ import { Users as IcoUsers, CalendarDays as IcoCalendar, Shield as IcoShield, Ma
 import KpiCard from "../../components/admin/KpiCard";
 import SearchInput from "../../components/admin/SearchInput";
 import AdminModal from "../../components/admin/Modal";
+import { apiFetch } from "../../lib/api";
 
 type PengurusLevel = "pimpinan" | "sekretariat" | "bidang" | "koordinator";
 type PengurusRow = { id: string; nama: string; dapukan: string; foto: string | null; level: PengurusLevel; bio: string | null; kontakWa: string | null; urutan: number };
@@ -43,9 +44,22 @@ export default function PengurusTab() {
   const [q, setQ] = useState("");
 
   useEffect(() => {
-    fetch("/api/admin/pengurus").then((r) => r.ok ? r.json() : Promise.reject(r.status)).then((j) => {
-      if (Array.isArray(j) && j.length) setRows(j.map((x: any) => ({ id: x.id, nama: x.nama, dapukan: x.dapukan, foto: x.foto ?? null, level: (x.level as PengurusLevel) || "bidang", bio: x.bio ?? null, kontakWa: x.kontakWa ?? x.kontak_wa ?? null, urutan: Number(x.urutan ?? 0) })));
-    }).catch(() => {});
+    apiFetch<any[]>("/api/admin/pengurus")
+      .then((j) => {
+        if (Array.isArray(j)) {
+          setRows(j.map((x: any) => ({
+            id: x.id,
+            nama: x.nama,
+            dapukan: x.dapukan,
+            foto: x.foto ?? null,
+            level: (x.level as PengurusLevel) || "bidang",
+            bio: x.bio ?? null,
+            kontakWa: x.kontakWa ?? x.kontak_wa ?? null,
+            urutan: Number(x.urutan ?? 0),
+          })));
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const filtered = useMemo(() => {
@@ -64,12 +78,30 @@ export default function PengurusTab() {
     return g;
   }, [filtered]);
 
+  const previewOrdered = useMemo(() => {
+    const order: Record<PengurusLevel, number> = { pimpinan: 0, sekretariat: 1, bidang: 2, koordinator: 3 };
+    return [...filtered].sort((a, b) => {
+      const oa = order[a.level as PengurusLevel] ?? 2;
+      const ob = order[b.level as PengurusLevel] ?? 2;
+      if (oa !== ob) return oa - ob;
+      return (a.urutan ?? 0) - (b.urutan ?? 0);
+    });
+  }, [filtered]);
+
+  const initials = (nama: string) => nama.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+  const waLink = (raw?: string | null) => {
+    if (!raw) return null;
+    const d = raw.replace(/\D/g, "");
+    if (!d) return null;
+    return `https://wa.me/${d}`;
+  };
+
   const openCreate = () => { setEditing(null); setShowForm(true); };
   const openEdit = (r: PengurusRow) => { setEditing(r); setShowForm(true); };
   const handleDelete = (id: string) => {
     if (!confirm("Hapus pengurus ini?")) return;
     setRows((prev) => prev.filter((x) => x.id !== id));
-    void fetch(`/api/admin/pengurus?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
+    void apiFetch(`/api/admin/pengurus?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
   };
   const levelLabel = (lvl: PengurusLevel) => PENGURUS_LEVEL_OPTIONS.find((o) => o.value === lvl)?.label ?? lvl;
 
@@ -120,14 +152,61 @@ export default function PengurusTab() {
           </div>
         );
       })}
+
+      <div className="card" style={{ marginTop: 16, padding: 0, overflow: "hidden", border: "1px solid var(--line)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 16px", borderBottom: "1px solid var(--line)", background: "#fff" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 999, background: "var(--ink)", display: "inline-block" }} />
+            <strong style={{ fontSize: 13, letterSpacing: "-0.01em" }}>Preview — Tampilan Publik</strong>
+            <span className="pill pill-slate">{previewOrdered.length} kartu</span>
+          </div>
+          <a href="/pengurus" target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm btn-auto" style={{ padding: "6px 10px", fontSize: 12 }}>Buka /pengurus</a>
+        </div>
+        {previewOrdered.length === 0 ? (
+          <div className="muted" style={{ padding: 16 }}>Belum ada pengurus — preview kosong.</div>
+        ) : (
+          <div style={{ padding: 12, background: "var(--pub-paper, #fff)", overflow: "auto" }}>
+            <div className="swiss-pengurus-grid" style={{ maxWidth: 960, margin: "0 auto" }}>
+              {previewOrdered.map((p, idx) => {
+                const num = String(idx + 1).padStart(2, "0");
+                const wa = waLink(p.kontakWa);
+                const isHero = idx === 0;
+                return (
+                  <button
+                    key={`preview-${p.id}`}
+                    type="button"
+                    className={`swiss-card ${isHero ? "swiss-card--hero" : ""}`}
+                    onClick={() => openEdit(p)}
+                    aria-label={`Edit ${p.nama}`}
+                    title="Klik untuk edit"
+                  >
+                    <span className="swiss-num">{num}</span>
+                    <div className="swiss-photo">
+                      {p.foto ? <img src={p.foto} alt={p.nama} loading="lazy" /> : <div className="swiss-initials">{initials(p.nama)}</div>}
+                    </div>
+                    <div className="swiss-copy">
+                      <span className="swiss-role">{p.dapukan}</span>
+                      <strong className="swiss-name">{p.nama}</strong>
+                      <span className="swiss-level">{p.level}</span>
+                      {p.bio && <p className="swiss-bio">{p.bio}</p>}
+                    </div>
+                    {wa && <span className="swiss-wa">WA</span>}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="muted" style={{ textAlign: "center", marginTop: 10, fontSize: 11 }}>Klik kartu untuk edit · Hover untuk lihat efek gelap seperti di halaman publik.</p>
+          </div>
+        )}
+      </div>
       {showForm && (
         <PengurusFormModal initial={editing} onClose={() => setShowForm(false)} onSave={(saved) => {
           if (editing) {
             setRows((prev) => prev.map((x) => x.id === saved.id ? saved : x));
-            void fetch("/api/admin/pengurus", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: saved.id, nama: saved.nama, dapukan: saved.dapukan, foto: saved.foto, level: saved.level, bio: saved.bio, kontakWa: saved.kontakWa, urutan: saved.urutan }) }).catch(() => {});
+            void apiFetch("/api/admin/pengurus", { method: "PUT", body: JSON.stringify({ id: saved.id, nama: saved.nama, dapukan: saved.dapukan, foto: saved.foto, level: saved.level, bio: saved.bio, kontakWa: saved.kontakWa, urutan: saved.urutan }) }).catch(() => {});
           } else {
             setRows((prev) => [saved, ...prev]);
-            void fetch("/api/admin/pengurus", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nama: saved.nama, dapukan: saved.dapukan, foto: saved.foto, level: saved.level, bio: saved.bio, kontakWa: saved.kontakWa, urutan: saved.urutan }) }).then((r) => r.json()).then((j) => { if (j?.id) setRows((prev) => prev.map((x) => x.id === saved.id ? { ...x, id: j.id } : x)); }).catch(() => {});
+            void apiFetch<{ id: string }>("/api/admin/pengurus", { method: "POST", body: JSON.stringify({ nama: saved.nama, dapukan: saved.dapukan, foto: saved.foto, level: saved.level, bio: saved.bio, kontakWa: saved.kontakWa, urutan: saved.urutan }) }).then((j) => { if (j?.id) setRows((prev) => prev.map((x) => x.id === saved.id ? { ...x, id: j.id } : x)); }).catch(() => {});
           }
           setShowForm(false); setEditing(null);
         }} />

@@ -48,27 +48,22 @@ CREATE TABLE `generus` (
 	`makanan_minuman_favorit` text,
 	`suku` text,
 	`foto` text,
+	`avatar_id` text,
 	`desa_id` integer,
 	`kelompok_id` integer,
-	`mandiri_desa_id` integer,
-	`mandiri_kelompok_id` integer,
 	`instagram` text,
 	`is_generus` integer DEFAULT 0,
 	`created_by` text,
 	`created_at` text DEFAULT (datetime('now')),
 	`updated_at` text DEFAULT (datetime('now')),
 	FOREIGN KEY (`desa_id`) REFERENCES `desa`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`kelompok_id`) REFERENCES `kelompok`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`mandiri_desa_id`) REFERENCES `mandiri_desa`(`id`) ON UPDATE no action ON DELETE set null,
-	FOREIGN KEY (`mandiri_kelompok_id`) REFERENCES `mandiri_kelompok`(`id`) ON UPDATE no action ON DELETE set null
+	FOREIGN KEY (`kelompok_id`) REFERENCES `kelompok`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `generus_nomor_unik_unique` ON `generus` (`nomor_unik`);--> statement-breakpoint
 CREATE INDEX `generus_nama_idx` ON `generus` (`nama`);--> statement-breakpoint
 CREATE INDEX `generus_desa_id_idx` ON `generus` (`desa_id`);--> statement-breakpoint
 CREATE INDEX `generus_kelompok_id_idx` ON `generus` (`kelompok_id`);--> statement-breakpoint
-CREATE INDEX `generus_mandiri_desa_id_idx` ON `generus` (`mandiri_desa_id`);--> statement-breakpoint
-CREATE INDEX `generus_mandiri_kelompok_id_idx` ON `generus` (`mandiri_kelompok_id`);--> statement-breakpoint
 CREATE INDEX `generus_kategori_usia_idx` ON `generus` (`kategori_usia`);--> statement-breakpoint
 CREATE INDEX `generus_jenis_kelamin_idx` ON `generus` (`jenis_kelamin`);--> statement-breakpoint
 CREATE INDEX `generus_status_nikah_idx` ON `generus` (`status_nikah`);--> statement-breakpoint
@@ -307,14 +302,10 @@ CREATE TABLE `users` (
 	`role` text DEFAULT 'pending' NOT NULL,
 	`desa_id` integer,
 	`kelompok_id` integer,
-	`mandiri_desa_id` integer,
-	`mandiri_kelompok_id` integer,
 	`generus_id` text,
 	`created_at` text DEFAULT (datetime('now')),
 	FOREIGN KEY (`desa_id`) REFERENCES `desa`(`id`) ON UPDATE no action ON DELETE set null,
 	FOREIGN KEY (`kelompok_id`) REFERENCES `kelompok`(`id`) ON UPDATE no action ON DELETE set null,
-	FOREIGN KEY (`mandiri_desa_id`) REFERENCES `mandiri_desa`(`id`) ON UPDATE no action ON DELETE set null,
-	FOREIGN KEY (`mandiri_kelompok_id`) REFERENCES `mandiri_kelompok`(`id`) ON UPDATE no action ON DELETE set null,
 	FOREIGN KEY (`generus_id`) REFERENCES `generus`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
@@ -323,8 +314,6 @@ CREATE INDEX `users_name_idx` ON `users` (`name`);--> statement-breakpoint
 CREATE INDEX `users_email_idx` ON `users` (`email`);--> statement-breakpoint
 CREATE INDEX `users_desa_id_idx` ON `users` (`desa_id`);--> statement-breakpoint
 CREATE INDEX `users_kelompok_id_idx` ON `users` (`kelompok_id`);--> statement-breakpoint
-CREATE INDEX `users_mandiri_desa_id_idx` ON `users` (`mandiri_desa_id`);--> statement-breakpoint
-CREATE INDEX `users_mandiri_kelompok_id_idx` ON `users` (`mandiri_kelompok_id`);--> statement-breakpoint
 CREATE INDEX `users_role_idx` ON `users` (`role`);--> statement-breakpoint
 CREATE INDEX `users_generus_id_idx` ON `users` (`generus_id`);--> statement-breakpoint
 CREATE TABLE `users_old` (

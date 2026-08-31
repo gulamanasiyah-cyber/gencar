@@ -12,13 +12,12 @@ import {
   Share2,
   Timer,
 } from "lucide-react";
-import { MOCK_KEGIATAN, type PubKegiatan } from "./data";
+import { apiFetch, unwrapList } from "../../lib/api";
+import type { PubKegiatan } from "./data";
 
 const PER_PAGE = 6;
 
-// ── helpers ─────────────────────────────────────────────────────────────
 function parseKegiatanMs(k: PubKegiatan): number {
-  // tanggal "YYYY-MM-DD", jam "HH:mm" (WIB → treat as local)
   const t = `${k.tanggal}T${(k.jam ?? "00:00").padStart(5, "0")}:00`;
   const ms = Date.parse(t);
   return Number.isNaN(ms) ? Date.parse(k.tanggal) : ms;
@@ -87,14 +86,12 @@ function Pagination({ page, totalPages, onPage }: { page: number; totalPages: nu
 }
 
 function formatTanggalIndo(iso: string): string {
-  // 2026-09-02 → 2 Sep 2026 (tanpa Intl biar deterministik)
   const [y, m, d] = iso.split("-").map(Number);
   const bulan = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
   if (!y || !m || !d) return iso;
   return `${d} ${bulan[m - 1] ?? m} ${y}`;
 }
 
-// ── LIST ────────────────────────────────────────────────────────────────
 export function PublicKegiatanList() {
   const [searchParams, setSearchParams] = useSearchParams();
   const cats = ["Semua", "Sambung Rutin", "Keakraban", "Pemantapan", "Lainnya"] as const;
@@ -107,7 +104,10 @@ export function PublicKegiatanList() {
   const [page, setPage] = useState(Number.isFinite(urlPage) && urlPage >= 1 ? urlPage : 1);
   const qDebounceRef = useRef<number | null>(null);
 
-  // hydrate from URL when searchParams change externally (back/forward, direct link)
+  const [items, setItems] = useState<PubKegiatan[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     const uq = searchParams.get("q") ?? "";
     const uc = searchParams.get("kategori");
@@ -120,322 +120,436 @@ export function PublicKegiatanList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
-  // sync q/cat/page → URL (replace, debounce q)
-  const syncUrl = (nextQ: string, nextCat: string, nextPage: number) => {
-    const next = new URLSearchParams();
-    if (nextQ.trim()) next.set("q", nextQ.trim());
-    if (nextCat !== "Semua") next.set("kategori", nextCat);
-    if (nextPage > 1) next.set("page", String(nextPage));
-    setSearchParams(next, { replace: true });
+  useEffect(() => {
+    let cancel = false;
+    setLoading(true);
+
+    const params = new URLSearchParams();
+    if (q.trim()) params.set("q", q.trim());
+    if (cat !== "Semua") {
+      const acaraMap: Record<string, string> = {
+        "Sambung Rutin": "sambung_rutin",
+        "Keakraban": "keakraban",
+        "Pemantapan": "pemantapan",
+        "Lainnya": "lainnya",
+      };
+      params.set("kategoriAcara", acaraMap[cat] ?? cat);
+    }
+    params.set("page", String(page));
+    params.set("limit", String(PER_PAGE));
+
+    apiFetch<unknown>(`/api/public/kegiatan-publik?${params.toString()}`)
+      .then((raw) => {
+        if (cancel) return;
+        const unwrapped = unwrapList<{
+          slug: string;
+          judul: string;
+          excerpt?: string;
+          coverImage?: string;
+          cover_image?: string;
+          kategori?: string;
+          tanggal: string;
+          lokasi?: string;
+          jam?: string;
+          konten?: string;
+        }>(raw);
+
+        const list: PubKegiatan[] = unwrapped.data.map((r) => ({
+          slug: r.slug,
+          judul: r.judul,
+          excerpt: r.excerpt ?? "",
+          cover: r.coverImage ?? r.cover_image ?? "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&h=700&q=80",
+          kategori: r.kategori ?? "Kegiatan",
+          tanggal: r.tanggal,
+          lokasi: r.lokasi ?? "Cengkareng",
+          jam: r.jam,
+          konten: r.konten,
+        }));
+
+        setItems(list);
+        setTotalCount(unwrapped.total ?? list.length);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancel) {
+          setItems([]);
+          setTotalCount(0);
+          setLoading(false);
+        }
+      });
+
+    return () => { cancel = true; };
+  }, [q, cat, page]);
+
+  const updateUrl = (newQ: string, newCat: typeof cats[number], newPage: number) => {
+    const nextParams = new URLSearchParams();
+    if (newQ.trim()) nextParams.set("q", newQ.trim());
+    if (newCat !== "Semua") nextParams.set("kategori", newCat);
+    if (newPage > 1) nextParams.set("page", String(newPage));
+    setSearchParams(nextParams, { replace: true });
   };
 
-  const setQAndUrl = (v: string) => {
-    setQ(v);
-    setPage(1);
+  const onSearchChange = (val: string) => {
+    setQ(val);
     if (qDebounceRef.current) window.clearTimeout(qDebounceRef.current);
-    qDebounceRef.current = window.setTimeout(() => syncUrl(v, cat, 1), 180);
+    qDebounceRef.current = window.setTimeout(() => {
+      setPage(1);
+      updateUrl(val, cat, 1);
+    }, 250);
   };
-  const setCatAndUrl = (v: typeof cats[number]) => {
-    setCat(v);
+
+  const onCatChange = (c: typeof cats[number]) => {
+    setCat(c);
     setPage(1);
-    if (qDebounceRef.current) window.clearTimeout(qDebounceRef.current);
-    syncUrl(q, v, 1);
+    updateUrl(q, c, 1);
   };
 
-  const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    return MOCK_KEGIATAN.filter((k) => {
-      if (cat !== "Semua" && k.kategori !== cat) return false;
-      if (!s) return true;
-      return (k.judul + " " + k.excerpt + " " + k.lokasi).toLowerCase().includes(s);
-    });
-  }, [q, cat]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
-  const safePage = Math.min(page, totalPages);
-  const slice = useMemo(() => filtered.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE), [filtered, safePage]);
-  const goPage = (n: number) => {
-    const np = Math.max(1, Math.min(totalPages, n));
+  const onPageChange = (np: number) => {
     setPage(np);
-    syncUrl(q, cat, np);
+    updateUrl(q, cat, np);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // header besar: kegiatan terdekat (upcoming paling dekat) — independen dari filter biar selalu kelihatan
-  const upcoming: PubKegiatan | null = useMemo(() => {
-    const now = Date.now();
-    const future = MOCK_KEGIATAN.map((k) => ({ k, ms: parseKegiatanMs(k) }))
-      .filter((x) => x.ms > now)
-      .sort((a, b) => a.ms - b.ms);
-    return future[0]?.k ?? null;
-  }, []);
-  const countdown = useCountdown(upcoming ? parseKegiatanMs(upcoming) : null);
-  const isUpcomingVisible = upcoming != null && countdown != null && !countdown.past;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PER_PAGE));
+  const upcomingHero = useMemo(() => {
+    return items.map((k) => ({ k, ms: parseKegiatanMs(k) }))
+      .filter((x) => x.ms > Date.now())
+      .sort((a, b) => a.ms - b.ms)[0]?.k ?? items[0] ?? null;
+  }, [items]);
+
+  const countdown = useCountdown(upcomingHero ? parseKegiatanMs(upcomingHero) : null);
+  const isFuture = countdown != null && !countdown.past;
 
   return (
-    <div className="pub-section">
-      {/* head */}
-      <div className="pub-section-head-row" style={{ marginBottom: 18 }}>
-        <div className="pub-section-head" style={{ marginBottom: 0 }}>
-          <span className="pub-eyebrow">Agenda Publik</span>
-          <h2>Kegiatan</h2>
-          <p>Kegiatan publik yang sudah tayang — dikurasi pengurus. Bukan kegiatan internal. {filtered.length} kegiatan.</p>
-        </div>
-        <span className="pub-trust-pill" style={{ alignSelf: "end" }}>
-          {filtered.length} kegiatan
-        </span>
-      </div>
-
-      {/* header besar — kegiatan terdekat + countdown */}
-      {upcoming && (
-        <Link to={`/kegiatan/${upcoming.slug}`} className="pub-kegiatan-hero">
-          <div className="pub-kegiatan-hero-media">
-            <img src={upcoming.cover} alt={upcoming.judul} loading="eager" />
-            <span className="pub-tag pub-kegiatan-hero-tag">{upcoming.kategori}</span>
-          </div>
+    <div className="pub-section" style={{ paddingTop: 32 }}>
+      {/* ── Hero: upcoming highlight ── */}
+      {upcomingHero && (
+        <div className="pub-kegiatan-hero">
           <div className="pub-kegiatan-hero-body">
-            <span className="pub-kegiatan-hero-kicker">
-              <Timer size={12} /> Kegiatan terdekat
-              {isUpcomingVisible ? <span className="pub-kegiatan-hero-live">· countdown live</span> : null}
-            </span>
-            <h3 className="pub-kegiatan-hero-title">{upcoming.judul}</h3>
-            <p className="pub-kegiatan-hero-excerpt">{upcoming.excerpt}</p>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <span className="pub-tag">{upcomingHero.kategori}</span>
+              {isFuture && <span className="pub-tag" style={{ background: "#22c55e", color: "#fff" }}>Segera</span>}
+            </div>
+            <h1 className="pub-kegiatan-hero-title">{upcomingHero.judul}</h1>
+            <p className="pub-kegiatan-hero-excerpt">{upcomingHero.excerpt}</p>
             <div className="pub-kegiatan-hero-meta">
-              <span>
-                <CalendarDays size={13} /> {formatTanggalIndo(upcoming.tanggal)} {upcoming.jam ? `· ${upcoming.jam} WIB` : ""}
-              </span>
-              <span>
-                <MapPin size={13} /> {upcoming.lokasi}
-              </span>
+              <span><CalendarDays size={13} /> {formatTanggalIndo(upcomingHero.tanggal)}{upcomingHero.jam ? ` · ${upcomingHero.jam}` : ""}</span>
+              <span><MapPin size={13} /> {upcomingHero.lokasi}</span>
             </div>
 
-            {isUpcomingVisible && countdown && (
-              <div className="pub-countdown" aria-label="Hitung mundur ke kegiatan terdekat">
-                <div className="pub-countdown-box">
-                  <strong>{String(countdown.days).padStart(2, "0")}</strong>
-                  <span>hari</span>
-                </div>
+            {isFuture && countdown && (
+              <div className="pub-countdown" aria-label={`Hitung mundur: ${countdown.days} hari ${countdown.hours} jam ${countdown.mins} menit ${countdown.secs} detik`}>
+                <div className="pub-countdown-item"><strong>{countdown.days}</strong><span>Hari</span></div>
                 <span className="pub-countdown-sep">:</span>
-                <div className="pub-countdown-box">
-                  <strong>{String(countdown.hours).padStart(2, "0")}</strong>
-                  <span>jam</span>
-                </div>
+                <div className="pub-countdown-item"><strong>{String(countdown.hours).padStart(2, "0")}</strong><span>Jam</span></div>
                 <span className="pub-countdown-sep">:</span>
-                <div className="pub-countdown-box">
-                  <strong>{String(countdown.mins).padStart(2, "0")}</strong>
-                  <span>menit</span>
-                </div>
+                <div className="pub-countdown-item"><strong>{String(countdown.mins).padStart(2, "0")}</strong><span>Menit</span></div>
                 <span className="pub-countdown-sep">:</span>
-                <div className="pub-countdown-box pub-countdown-box--sec">
-                  <strong>{String(countdown.secs).padStart(2, "0")}</strong>
-                  <span>detik</span>
-                </div>
+                <div className="pub-countdown-item"><strong>{String(countdown.secs).padStart(2, "0")}</strong><span>Detik</span></div>
               </div>
             )}
-            {!isUpcomingVisible && <span className="pub-countdown-done">Sudah lewat — lihat dokumentasinya di detail.</span>}
 
-            <span className="pub-kegiatan-hero-cta">
-              Lihat detail <ArrowRight size={14} />
-            </span>
+            <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
+              <Link to={`/kegiatan/${upcomingHero.slug}`} className="btn-lime">
+                Detail Kegiatan <ArrowRight size={14} />
+              </Link>
+            </div>
           </div>
-        </Link>
+          <div className="pub-kegiatan-hero-media">
+            <img src={upcomingHero.cover} alt={upcomingHero.judul} loading="eager" />
+          </div>
+        </div>
       )}
 
-      {/* toolbar — search + kategori + meta — URL-synced */}
-      <div className="pub-list-toolbar">
-        <label className="pub-search">
-          <Search size={14} />
-          <input value={q} onChange={(e) => setQAndUrl(e.target.value)} placeholder="Cari judul / lokasi..." aria-label="Cari kegiatan" />
-          {q && (
-            <button type="button" className="pub-search-clear" onClick={() => setQAndUrl("")} aria-label="Hapus pencarian">
-              ×
-            </button>
-          )}
+      {/* ── Toolbar: search & category filter ── */}
+      <div className="pub-kegiatan-toolbar">
+        <label className="pub-kegiatan-search">
+          <Search size={15} />
+          <input
+            type="search"
+            placeholder="Cari kegiatan, topik, atau lokasi…"
+            value={q}
+            onChange={(e) => onSearchChange(e.target.value)}
+            aria-label="Cari kegiatan"
+          />
         </label>
-        <span className="pub-toolbar-meta">
-          Hal {safePage} dari {totalPages} · {filtered.length} hasil · share URL simpan filter
-        </span>
-      </div>
-      <div className="pub-kegiatan-catbar" role="tablist" aria-label="Filter kategori">
-        {cats.map((c) => (
-          <button
-            key={c}
-            role="tab"
-            aria-selected={cat === c}
-            onClick={() => setCatAndUrl(c as typeof cats[number])}
-            className={`pub-kegiatan-cat ${cat === c ? "is-active" : ""}`}
-          >
-            {c}
-          </button>
-        ))}
+
+        <div className="pub-kegiatan-cats" role="tablist" aria-label="Kategori kegiatan">
+          {cats.map((c) => (
+            <button
+              key={c}
+              type="button"
+              role="tab"
+              aria-selected={cat === c}
+              className={`chip ${cat === c ? "active" : ""}`}
+              onClick={() => onCatChange(c)}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {filtered.length === 0 ? (
-        <div className="pub-empty">
-          <p style={{ fontWeight: 800 }}>Belum ada kegiatan yang cocok.</p>
-          <p style={{ fontSize: 13, color: "var(--pub-muted)", marginTop: 6 }}>Coba ganti kata kunci atau kategori.</p>
+      <div className="pub-kegiatan-meta-count">
+        <span>Menampilkan <strong>{items.length}</strong> dari <strong>{totalCount}</strong> kegiatan</span>
+        {(q || cat !== "Semua") && (
           <button
             type="button"
-            className="btn-ghost-dark"
-            style={{ marginTop: 14 }}
+            className="pub-kegiatan-reset"
             onClick={() => {
               setQ("");
               setCat("Semua");
               setPage(1);
-              syncUrl("", "Semua", 1);
+              updateUrl("", "Semua", 1);
             }}
           >
             Reset filter
           </button>
+        )}
+      </div>
+
+      {/* ── Grid Cards ── */}
+      {loading ? (
+        <div className="lp-empty-card" style={{ marginTop: 24 }}>Memuat daftar kegiatan…</div>
+      ) : items.length === 0 ? (
+        <div className="pub-empty">
+          <h3>Tidak ada kegiatan yang cocok</h3>
+          <p>Coba gunakan kata kunci lain atau pilih kategori Semua.</p>
+          <button
+            type="button"
+            className="btn-ghost-dark"
+            onClick={() => {
+              setQ("");
+              setCat("Semua");
+              setPage(1);
+              updateUrl("", "Semua", 1);
+            }}
+          >
+            Tampilkan Semua Kegiatan
+          </button>
         </div>
       ) : (
-        <>
-          <div className="pub-kegiatan-grid">
-            {slice.map((k) => {
-              const ms = parseKegiatanMs(k);
-              const isFuture = ms > Date.now();
-              return (
-                <Link key={k.slug} to={`/kegiatan/${k.slug}`} className="pub-kegiatan-card">
-                  <div className="pub-kegiatan-card-media">
-                    <img src={k.cover} alt={k.judul} loading="lazy" />
-                    {isFuture && <span className="pub-kegiatan-badge">Akan datang</span>}
-                  </div>
-                  <div className="pub-kegiatan-card-body">
-                    <span className="pub-kegiatan-card-kicker">{k.kategori}</span>
-                    <strong className="pub-kegiatan-card-title">{k.judul}</strong>
-                    <p className="pub-kegiatan-card-excerpt">{k.excerpt}</p>
-                    <span className="pub-kegiatan-card-meta">
-                      <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-                        <CalendarDays size={12} /> {formatTanggalIndo(k.tanggal)} {k.jam ? `· ${k.jam}` : ""}
-                      </span>
-                      <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-                        <MapPin size={12} /> {k.lokasi}
-                      </span>
-                    </span>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-          <Pagination page={safePage} totalPages={totalPages} onPage={goPage} />
-        </>
+        <div className="pub-kegiatan-grid">
+          {items.map((k) => (
+            <article key={k.slug} className="pub-kegiatan-card">
+              <Link to={`/kegiatan/${k.slug}`} className="pub-kegiatan-card-media" tabIndex={-1} aria-hidden="true">
+                <img src={k.cover} alt="" loading="lazy" />
+                <span className="pub-kegiatan-badge">{k.kategori}</span>
+              </Link>
+              <div className="pub-kegiatan-card-body">
+                <span className="pub-kegiatan-card-kicker">{formatTanggalIndo(k.tanggal)}</span>
+                <h2 className="pub-kegiatan-card-title">
+                  <Link to={`/kegiatan/${k.slug}`}>{k.judul}</Link>
+                </h2>
+                <p className="pub-kegiatan-card-excerpt">{k.excerpt}</p>
+                <div className="pub-kegiatan-card-meta">
+                  <span><MapPin size={13} /> {k.lokasi}</span>
+                  {k.jam && <span><Clock3 size={13} /> {k.jam}</span>}
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
       )}
+
+      {/* ── Pagination ── */}
+      <Pagination page={page} totalPages={totalPages} onPage={onPageChange} />
     </div>
   );
 }
 
-// ── DETAIL ──────────────────────────────────────────────────────────────
 export function PublicKegiatanDetail() {
-  const { slug } = useParams();
-  const item = MOCK_KEGIATAN.find((k) => k.slug === slug);
+  const { slug } = useParams<{ slug: string }>();
+  const [item, setItem] = useState<PubKegiatan | null>(null);
+  const [related, setRelated] = useState<PubKegiatan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!slug) return;
+    let cancel = false;
+    setLoading(true);
+
+    apiFetch<any>(`/api/public/kegiatan-publik/${encodeURIComponent(slug)}`)
+      .then((raw) => {
+        if (cancel || !raw) return;
+        const k: PubKegiatan = {
+          slug: raw.slug,
+          judul: raw.judul,
+          excerpt: raw.excerpt ?? "",
+          cover: raw.coverImage ?? raw.cover_image ?? "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&h=700&q=80",
+          kategori: raw.kategori ?? "Kegiatan",
+          tanggal: raw.tanggal,
+          lokasi: raw.lokasi ?? "Cengkareng",
+          jam: raw.jam,
+          konten: raw.konten,
+        };
+        setItem(k);
+        setLoading(false);
+
+        // Fetch related
+        apiFetch<unknown>("/api/public/kegiatan-publik?limit=4")
+          .then((relRaw) => {
+            if (cancel) return;
+            const unwrapped = unwrapList<{ slug: string; judul: string; excerpt?: string; coverImage?: string; cover_image?: string; kategori?: string; tanggal: string; lokasi?: string }>(relRaw);
+            const relList = unwrapped.data
+              .filter((x) => x.slug !== k.slug)
+              .slice(0, 3)
+              .map((x) => ({
+                slug: x.slug,
+                judul: x.judul,
+                excerpt: x.excerpt ?? "",
+                cover: x.coverImage ?? x.cover_image ?? "",
+                kategori: x.kategori ?? "Kegiatan",
+                tanggal: x.tanggal,
+                lokasi: x.lokasi ?? "Cengkareng",
+              }));
+            setRelated(relList);
+          })
+          .catch(() => {});
+      })
+      .catch(() => {
+        if (!cancel) {
+          setItem(null);
+          setLoading(false);
+        }
+      });
+
+    return () => { cancel = true; };
+  }, [slug]);
+
+  const countdown = useCountdown(item ? parseKegiatanMs(item) : null);
+  const isFuture = countdown != null && !countdown.past;
+
+  const onShare = async () => {
+    const url = window.location.href;
+    if (navigator.share && item) {
+      try {
+        await navigator.share({ title: item.judul, text: item.excerpt, url });
+        return;
+      } catch {}
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
+
+  if (loading) {
+    return (
+      <div className="pub-section" style={{ paddingTop: 32 }}>
+        <div className="lp-empty-card">Memuat detail kegiatan…</div>
+      </div>
+    );
+  }
+
   if (!item) {
     return (
-      <div className="pub-section">
+      <div className="pub-section" style={{ paddingTop: 32 }}>
         <div className="pub-empty">
-          <p style={{ fontWeight: 800 }}>Kegiatan tidak ditemukan.</p>
-          <p style={{ fontSize: 13, color: "var(--pub-muted)", marginTop: 6 }}>
-            Slug <code>{slug}</code> belum tayang. Mungkin masih draft atau salah alamat.
-          </p>
-          <Link to="/kegiatan" className="btn-lime" style={{ marginTop: 14, width: "fit-content", marginInline: "auto" }}>
-            <ArrowLeft size={14} /> Kembali ke kegiatan
+          <h2>Kegiatan tidak ditemukan</h2>
+          <p>Mungkin tautan sudah usang atau acara telah dihapus.</p>
+          <Link to="/kegiatan" className="btn-lime">
+            <ArrowLeft size={14} /> Kembali ke Daftar Kegiatan
           </Link>
         </div>
       </div>
     );
   }
-  const ms = parseKegiatanMs(item);
-  const isFuture = ms > Date.now();
-  const countdown = useCountdown(isFuture ? ms : null);
-  const related = MOCK_KEGIATAN.filter((k) => k.slug !== item.slug).slice(0, 3);
 
   return (
-    <div className="pub-section pub-detail">
-      <Link to="/kegiatan" style={{ fontSize: 13, fontWeight: 700, display: "inline-flex", gap: 6, alignItems: "center", width: "fit-content" }}>
-        <ArrowLeft size={14} /> Semua kegiatan
-      </Link>
-
-      <div className="pub-detail-hero">
-        <img src={item.cover} alt={item.judul} />
+    <article className="pub-section" style={{ paddingTop: 24 }}>
+      <div className="pub-detail-back">
+        <Link to="/kegiatan" className="pub-link" style={{ borderBottom: "none" }}>
+          <ArrowLeft size={14} /> Semua Kegiatan
+        </Link>
       </div>
 
-      <div className="pub-detail-meta">
-        <span className="pub-tag">{item.kategori}</span>
-        <span>
-          <CalendarDays size={12} /> {formatTanggalIndo(item.tanggal)} {item.jam ? `· ${item.jam} WIB` : ""}
-        </span>
-        <span>
-          <MapPin size={12} /> {item.lokasi}
-        </span>
-        {isFuture ? (
-          <span className="pill pill-amber" style={{ gap: 6 }}>
-            <Timer size={11} /> Akan datang
-          </span>
-        ) : (
-          <span className="pill pill-slate">Selesai</span>
-        )}
+      <header className="pub-detail-head">
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+          <span className="pub-tag">{item.kategori}</span>
+          {isFuture && <span className="pub-tag" style={{ background: "#22c55e", color: "#fff" }}>Segera</span>}
+        </div>
+
+        <h1 className="pub-detail-title">{item.judul}</h1>
+        <p className="pub-detail-lead">{item.excerpt}</p>
+
+        <div className="pub-detail-meta-bar">
+          <div className="pub-detail-meta-item"><CalendarDays size={15} /><strong>{formatTanggalIndo(item.tanggal)}</strong></div>
+          {item.jam && <div className="pub-detail-meta-item"><Clock3 size={15} /><strong>{item.jam} WIB</strong></div>}
+          <div className="pub-detail-meta-item"><MapPin size={15} /><strong>{item.lokasi}</strong></div>
+          <button type="button" className="pub-detail-share" onClick={onShare} aria-label="Bagikan kegiatan">
+            <Share2 size={14} /> {copied ? "Tautan Tersalin!" : "Bagikan"}
+          </button>
+        </div>
+      </header>
+
+      {/* Hero Media */}
+      <div className="pub-detail-media">
+        <img src={item.cover} alt={item.judul} loading="eager" />
       </div>
 
-      <h1 className="pub-detail-title">{item.judul}</h1>
-      <p className="pub-detail-excerpt">{item.excerpt}</p>
-
-      {isFuture && countdown && !countdown.past && (
-        <div className="pub-countdown pub-countdown--detail" aria-label="Hitung mundur kegiatan">
-          <span className="pub-countdown-label">
-            <Clock3 size={12} /> Mulai dalam
-          </span>
-          <div className="pub-countdown-row">
-            <div className="pub-countdown-box">
-              <strong>{String(countdown.days).padStart(2, "0")}</strong>
-              <span>hari</span>
-            </div>
+      {/* Countdown Card (if upcoming) */}
+      {isFuture && countdown && (
+        <div className="pub-detail-countdown-card">
+          <div>
+            <span className="pub-detail-cd-kicker"><Timer size={14} /> Hitung Mundur Acara</span>
+            <div style={{ fontWeight: 800, fontSize: 15, marginTop: 2 }}>Waktu tersisa menuju kegiatan</div>
+          </div>
+          <div className="pub-countdown" aria-label={`Hitung mundur: ${countdown.days} hari ${countdown.hours} jam`}>
+            <div className="pub-countdown-item"><strong>{countdown.days}</strong><span>Hari</span></div>
             <span className="pub-countdown-sep">:</span>
-            <div className="pub-countdown-box">
-              <strong>{String(countdown.hours).padStart(2, "0")}</strong>
-              <span>jam</span>
-            </div>
+            <div className="pub-countdown-item"><strong>{String(countdown.hours).padStart(2, "0")}</strong><span>Jam</span></div>
             <span className="pub-countdown-sep">:</span>
-            <div className="pub-countdown-box">
-              <strong>{String(countdown.mins).padStart(2, "0")}</strong>
-              <span>menit</span>
-            </div>
+            <div className="pub-countdown-item"><strong>{String(countdown.mins).padStart(2, "0")}</strong><span>Menit</span></div>
             <span className="pub-countdown-sep">:</span>
-            <div className="pub-countdown-box pub-countdown-box--sec">
-              <strong>{String(countdown.secs).padStart(2, "0")}</strong>
-              <span>detik</span>
-            </div>
+            <div className="pub-countdown-item"><strong>{String(countdown.secs).padStart(2, "0")}</strong><span>Detik</span></div>
           </div>
         </div>
       )}
 
-      {item.konten ? <div className="pub-prose" dangerouslySetInnerHTML={{ __html: item.konten }} /> : <div className="pub-prose"><p>Konten lengkap akan diisi via CMS (TipTap) — placeholder untuk development.</p></div>}
-
-      <div className="pub-detail-actions">
-        <a href={`https://wa.me/?text=${encodeURIComponent(item.judul + " — " + (typeof window !== "undefined" ? window.location.href : ""))}`} target="_blank" rel="noreferrer" className="btn-lime">
-          <Share2 size={14} /> Share ke WhatsApp
-        </a>
-        <button type="button" className="btn-ghost-dark" onClick={() => navigator.clipboard.writeText(window.location.href)}>
-          Copy link
-        </button>
+      {/* Content body */}
+      <div className="pub-detail-content">
+        <div className="pub-prose">
+          {item.konten ? (
+            <div dangerouslySetInnerHTML={{ __html: item.konten }} />
+          ) : (
+            <>
+              <p>
+                Kegiatan <strong>{item.judul}</strong> diselenggarakan dalam rangka mempererat ukhuwah dan pembinaan generus muda-mudi di lingkungan Daerah Cengkareng.
+              </p>
+              <p>
+                Seluruh peserta diharapkan hadir tepat waktu di <em>{item.lokasi}</em> dengan berpakaian rapi dan sopan. Untuk konfirmasi kehadiran dan koordinasi transportasi kelompok, silakan hubungi penanggung jawab masing-masing.
+              </p>
+            </>
+          )}
+        </div>
       </div>
 
+      {/* Related activities */}
       {related.length > 0 && (
-        <div className="pub-related">
-          <h3>Kegiatan lain</h3>
-          <div className="pub-related-grid">
-            {related.map((k) => (
-              <Link key={k.slug} to={`/kegiatan/${k.slug}`} className="pub-related-card">
-                <img src={k.cover} alt={k.judul} loading="lazy" />
-                <div>
-                  <strong>{k.judul}</strong>
-                  <span>
-                    {formatTanggalIndo(k.tanggal)} · {k.lokasi}
-                  </span>
+        <section className="pub-detail-related">
+          <h2>Kegiatan Terkait Lainnya</h2>
+          <div className="pub-kegiatan-grid">
+            {related.map((r) => (
+              <article key={r.slug} className="pub-kegiatan-card">
+                <Link to={`/kegiatan/${r.slug}`} className="pub-kegiatan-card-media" tabIndex={-1} aria-hidden="true">
+                  <img src={r.cover} alt="" loading="lazy" />
+                  <span className="pub-kegiatan-badge">{r.kategori}</span>
+                </Link>
+                <div className="pub-kegiatan-card-body">
+                  <span className="pub-kegiatan-card-kicker">{formatTanggalIndo(r.tanggal)}</span>
+                  <h3 className="pub-kegiatan-card-title">
+                    <Link to={`/kegiatan/${r.slug}`}>{r.judul}</Link>
+                  </h3>
+                  <p className="pub-kegiatan-card-excerpt">{r.excerpt}</p>
                 </div>
-              </Link>
+              </article>
             ))}
           </div>
-        </div>
+        </section>
       )}
-    </div>
+    </article>
   );
 }

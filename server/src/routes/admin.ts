@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { eq, or, like, sql, and, asc, desc, ne, inArray } from "drizzle-orm";
-import { desa, kelompok, users, generus, mandiri, organisasiPengurus, saranMasukan, timGambuh, kegiatan, absensi } from "../../../shared/schema";
+import { eq, or, like, sql, and, asc, desc, ne } from "drizzle-orm";
+import { desa, kelompok, users, generus, organisasiPengurus, saranMasukan, kegiatan } from "../../../shared/schema";
 import { getDb } from "../utils/db";
 import { requireAuth } from "../middleware/auth";
 
@@ -8,7 +8,7 @@ type Env = { DB: D1Database; JWT_SECRET: string; APP_ENCRYPTION_KEY?: string; [k
 const r = new Hono<{ Bindings: Env }>();
 r.use("/*", requireAuth());
 
-function isAdminRole(role: string) { return ["admin", "pengurus_daerah", "kmm_daerah"].includes(role); }
+function isAdminRole(role: string) { return ["admin_daerah", "admin_desa", "admin_kelompok"].includes(role); }
 
 // ── desa ──
 r.get("/desa", async (c) => {
@@ -37,23 +37,51 @@ r.put("/desa", async (c) => {
   return c.json({ success: true });
 });
 r.delete("/desa", async (c) => {
-  const session = c.get("user" as any) as any;
-  if (!isAdminRole(session.role)) return c.json({ error: "Unauthorized" }, 401);
-  const id = c.req.query("id");
-  if (!id) return c.json({ error: "ID diperlukan" }, 400);
-  const desaId = Number(id);
-  const db = getDb(c.env);
-  const generusInDesa = await db.select({ id: generus.id }).from(generus).where(eq(generus.desaId, desaId));
-  const generusIds = generusInDesa.map((g: any) => g.id);
-  if (generusIds.length) await db.delete(absensi).where(inArray(absensi.generusId, generusIds));
-  const kegiatanInDesa = await db.select({ id: kegiatan.id }).from(kegiatan).where(eq(kegiatan.desaId, desaId));
-  const kegiatanIds = kegiatanInDesa.map((k: any) => k.id);
-  if (kegiatanIds.length) await db.delete(absensi).where(inArray(absensi.kegiatanId, kegiatanIds));
-  await db.delete(generus).where(eq(generus.desaId, desaId));
-  await db.delete(kegiatan).where(eq(kegiatan.desaId, desaId));
-  await db.delete(kelompok).where(eq(kelompok.desaId, desaId));
-  await db.delete(desa).where(eq(desa.id, desaId));
-  return c.json({ success: true });
+  try {
+    const session = c.get("user" as any) as any;
+    if (!isAdminRole(session.role)) return c.json({ error: "Unauthorized" }, 401);
+    const id = c.req.query("id");
+    if (!id) return c.json({ error: "ID diperlukan" }, 400);
+    const desaId = Number(id);
+    if (!Number.isFinite(desaId) || desaId <= 0) return c.json({ error: "ID tidak valid" }, 400);
+    const envDb = (c.env as any).DB as D1Database;
+    // Guard: desa harus kosong dari kelompok
+    try {
+      const r: any = await envDb.prepare("SELECT COUNT(*) as cnt FROM kelompok WHERE desa_id = ?").bind(desaId).first();
+      const kelCount = Number(r?.cnt ?? 0);
+      if (kelCount > 0) return c.json({ error: `Desa masih memiliki ${kelCount} kelompok — hapus semua kelompok terlebih dahulu` }, 409);
+    } catch {}
+
+    const logs: string[] = [];
+    const runStep = async (label: string, sql: string) => {
+      try {
+        const r = await envDb.prepare(sql).bind(desaId).run();
+        const ch = (r as any)?.meta?.changes ?? 0;
+        logs.push(`${label}: ok (${ch})`);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        logs.push(`${label}: FAIL - ${msg}`);
+        throw new Error(`Step "${label}" gagal: ${msg}`);
+      }
+    };
+
+    await runStep("del-absensi-by-generus", "DELETE FROM absensi WHERE generus_id IN (SELECT id FROM generus WHERE desa_id = ?)");
+    await runStep("del-absensi-by-kegiatan", "DELETE FROM absensi WHERE kegiatan_id IN (SELECT id FROM kegiatan WHERE desa_id = ?)");
+    await runStep("del-rab", "DELETE FROM rab WHERE kegiatan_id IN (SELECT id FROM kegiatan WHERE desa_id = ?)");
+    await runStep("del-rab-approval", "DELETE FROM rab_approval WHERE kegiatan_id IN (SELECT id FROM kegiatan WHERE desa_id = ?)");
+    await runStep("del-rundown", "DELETE FROM rundown WHERE kegiatan_id IN (SELECT id FROM kegiatan WHERE desa_id = ?)");
+    await runStep("del-rundown-approval", "DELETE FROM rundown_approval WHERE kegiatan_id IN (SELECT id FROM kegiatan WHERE desa_id = ?)");
+    await runStep("del-kegiatan", "DELETE FROM kegiatan WHERE desa_id = ?");
+    await runStep("null-generus", "UPDATE generus SET desa_id = NULL WHERE desa_id = ?");
+    await runStep("null-users", "UPDATE users SET desa_id = NULL WHERE desa_id = ?");
+    await runStep("del-wilayah-qr", "DELETE FROM wilayah_qr WHERE desa_id = ?");
+    await runStep("del-desa", "DELETE FROM desa WHERE id = ?");
+
+    return c.json({ success: true, logs });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? String((e as any)?.message ?? e) : String(e);
+    return c.json({ error: `Gagal hapus desa: ${msg}` }, 500);
+  }
 });
 
 // ── kelompok ──
@@ -83,22 +111,54 @@ r.put("/kelompok", async (c) => {
   return c.json({ success: true });
 });
 r.delete("/kelompok", async (c) => {
-  const session = c.get("user" as any) as any;
-  if (!isAdminRole(session.role)) return c.json({ error: "Unauthorized" }, 401);
-  const id = c.req.query("id");
-  if (!id) return c.json({ error: "ID diperlukan" }, 400);
-  const kelompokId = Number(id);
-  const db = getDb(c.env);
-  const generusInKel = await db.select({ id: generus.id }).from(generus).where(eq(generus.kelompokId, kelompokId));
-  const gids = generusInKel.map((g: any) => g.id);
-  if (gids.length) await db.delete(absensi).where(inArray(absensi.generusId, gids));
-  const kegiatanInKel = await db.select({ id: kegiatan.id }).from(kegiatan).where(eq(kegiatan.kelompokId, kelompokId));
-  const kids = kegiatanInKel.map((k: any) => k.id);
-  if (kids.length) await db.delete(absensi).where(inArray(absensi.kegiatanId, kids));
-  await db.delete(generus).where(eq(generus.kelompokId, kelompokId));
-  await db.delete(kegiatan).where(eq(kegiatan.kelompokId, kelompokId));
-  await db.delete(kelompok).where(eq(kelompok.id, kelompokId));
-  return c.json({ success: true });
+  try {
+    const session = c.get("user" as any) as any;
+    if (!isAdminRole(session.role)) return c.json({ error: "Unauthorized" }, 401);
+    const id = c.req.query("id");
+    if (!id) return c.json({ error: "ID diperlukan" }, 400);
+    const kelompokId = Number(id);
+    if (!Number.isFinite(kelompokId) || kelompokId <= 0) return c.json({ error: "ID tidak valid" }, 400);
+    const DB = (c.env as any).DB as D1Database;
+    if (!DB) return c.json({ error: "DB binding hilang" }, 500);
+
+    const logs: string[] = [];
+    const runStep = async (label: string, sql: string) => {
+      try {
+        const r = await DB.prepare(sql).bind(kelompokId).run();
+        const ch = (r as any)?.meta?.changes ?? 0;
+        logs.push(`${label}: ok (${ch})`);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        logs.push(`${label}: FAIL - ${msg}`);
+        throw new Error(`Step "${label}" gagal: ${msg}`);
+      }
+    };
+
+    // 1. Hapus absensi yang referensi generus di kelompok ini
+    await runStep("del-absensi-by-generus", "DELETE FROM absensi WHERE generus_id IN (SELECT id FROM generus WHERE kelompok_id = ?)");
+    // 2. Hapus absensi dari kegiatan di kelompok ini
+    await runStep("del-absensi-by-kegiatan", "DELETE FROM absensi WHERE kegiatan_id IN (SELECT id FROM kegiatan WHERE kelompok_id = ?)");
+    // 3. Hapus rab/rundown/kegiatan
+    await runStep("del-rab", "DELETE FROM rab WHERE kegiatan_id IN (SELECT id FROM kegiatan WHERE kelompok_id = ?)");
+    await runStep("del-rab-approval", "DELETE FROM rab_approval WHERE kegiatan_id IN (SELECT id FROM kegiatan WHERE kelompok_id = ?)");
+    await runStep("del-rundown", "DELETE FROM rundown WHERE kegiatan_id IN (SELECT id FROM kegiatan WHERE kelompok_id = ?)");
+    await runStep("del-rundown-approval", "DELETE FROM rundown_approval WHERE kegiatan_id IN (SELECT id FROM kegiatan WHERE kelompok_id = ?)");
+    await runStep("del-kegiatan", "DELETE FROM kegiatan WHERE kelompok_id = ?");
+    // 4. Hapus child generus (profile_change_requests, magic_tokens)
+    await runStep("del-pcr", "DELETE FROM profile_change_requests WHERE generus_id IN (SELECT id FROM generus WHERE kelompok_id = ?)");
+    await runStep("del-magic", "DELETE FROM magic_tokens WHERE generus_id IN (SELECT id FROM generus WHERE kelompok_id = ?)");
+    // 5. NULLIFY generus & users — CRITICAL: harus sebelum DELETE kelompok agar CASCADE tidak trigger
+    await runStep("null-generus", "UPDATE generus SET kelompok_id = NULL WHERE kelompok_id = ?");
+    await runStep("null-users", "UPDATE users SET kelompok_id = NULL WHERE kelompok_id = ?");
+    // 6. Hapus wilayah_qr & kelompok
+    await runStep("del-wilayah-qr", "DELETE FROM wilayah_qr WHERE kelompok_id = ?");
+    await runStep("del-kelompok", "DELETE FROM kelompok WHERE id = ?");
+
+    return c.json({ success: true, logs });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? String((e as any)?.message ?? e) : String(e);
+    return c.json({ error: `Gagal hapus kelompok: ${msg}` }, 500);
+  }
 });
 
 // ── users ──
@@ -141,9 +201,9 @@ r.post("/users", async (c) => {
   try { const { encryptPasswordSymmetric } = await import("../services/crypto"); passwordPlain = await encryptPasswordSymmetric(c.env, String(password)); } catch {}
   const id = crypto.randomUUID();
   let generusId: string | null = null;
-  if (["generus", "kelompok", "desa", "pengurus_daerah", "usia_mandiri"].includes(role)) {
+  if (["admin_daerah", "admin_desa", "admin_kelompok", "generus"].includes(role)) {
     generusId = crypto.randomUUID();
-    const prefix = role === "generus" ? "G" : "P";
+    const prefix = role === "generus" ? "G" : "A";
     const nomorUnik = `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
     await db.insert(generus).values({ id: generusId, nomorUnik, nama: name, jenisKelamin: "L", kategoriUsia: "SMA", desaId: desaId ? Number(desaId) : null, kelompokId: kelompokId ? Number(kelompokId) : null, isGenerus: 1 } as any);
   }
@@ -239,7 +299,7 @@ r.get("/saran", async (c) => {
   const session = c.get("user" as any) as any;
   if (!isAdminRole(session.role)) return c.json({ error: "Unauthorized" }, 401);
   const db = getDb(c.env);
-  const data = await db.select().from(saranMasukan).where(ne(saranMasukan.untuk, "Romantic Room")).orderBy(saranMasukan.createdAt);
+  const data = await db.select().from(saranMasukan).orderBy(saranMasukan.createdAt);
   return c.json([...data].reverse());
 });
 r.delete("/saran", async (c) => {
@@ -249,78 +309,6 @@ r.delete("/saran", async (c) => {
   if (!id) return c.json({ error: "ID diperlukan" }, 400);
   const db = getDb(c.env);
   await db.delete(saranMasukan).where(eq(saranMasukan.id, id));
-  return c.json({ success: true });
-});
-
-// ── tim-gambuh ──
-r.get("/tim-gambuh", async (c) => {
-  const db = getDb(c.env);
-  const data = await db.select().from(timGambuh).where(eq(timGambuh.tipe, "PNKB" as any));
-  return c.json(data);
-});
-r.post("/tim-gambuh", requireAuth(), async (c) => {
-  const body: any = await c.req.json().catch(() => ({}));
-  const { nama, umur, kegiatanId, daerahId, desaId, kelompokId, noTelp, foto } = body;
-  if (!nama) return c.json({ error: "Nama wajib diisi" }, 400);
-  const db = getDb(c.env);
-  const id = crypto.randomUUID();
-  await db.insert(timGambuh).values({ id, nama, umur: umur ? Number(umur) : null, kegiatanId: kegiatanId || null, daerahId: daerahId ? Number(daerahId) : null, desaId: desaId ? Number(desaId) : null, kelompokId: kelompokId ? Number(kelompokId) : null, tipe: "PNKB", noTelp: noTelp || null, foto: foto || null } as any);
-  return c.json({ success: true, id });
-});
-r.get("/tim-gambuh/:id", async (c) => {
-  const id = c.req.param("id");
-  const db = getDb(c.env);
-  const row: any = await db.query.timGambuh.findFirst({ where: eq(timGambuh.id, id) });
-  if (!row) return c.json({ error: "Tidak ditemukan" }, 404);
-  return c.json(row);
-});
-r.put("/tim-gambuh/:id", requireAuth(), async (c) => {
-  const id = c.req.param("id");
-  const body: any = await c.req.json().catch(() => ({}));
-  const db = getDb(c.env);
-  await db.update(timGambuh).set({ ...body, updatedAt: new Date().toISOString() } as any).where(eq(timGambuh.id, id));
-  return c.json({ success: true });
-});
-r.delete("/tim-gambuh/:id", requireAuth(), async (c) => {
-  const id = c.req.param("id");
-  const db = getDb(c.env);
-  await db.delete(timGambuh).where(eq(timGambuh.id, id));
-  return c.json({ success: true });
-});
-
-// ── tim-penunggu ── (tipe Tim Penunggu / Penunggu PNKB / Penunggu Ibu Gambuh)
-r.get("/tim-penunggu", async (c) => {
-  const db = getDb(c.env);
-  const data = await db.select().from(timGambuh).where(or(eq(timGambuh.tipe, "Tim Penunggu" as any), eq(timGambuh.tipe, "Penunggu PNKB" as any), eq(timGambuh.tipe, "Penunggu Ibu Gambuh" as any)) as any);
-  return c.json(data);
-});
-r.post("/tim-penunggu", requireAuth(), async (c) => {
-  const body: any = await c.req.json().catch(() => ({}));
-  const { nama, umur, kegiatanId, daerahId, desaId, kelompokId, tipe, noTelp, foto } = body;
-  if (!nama) return c.json({ error: "Nama wajib diisi" }, 400);
-  const id = crypto.randomUUID();
-  const db = getDb(c.env);
-  await db.insert(timGambuh).values({ id, nama, umur: umur ? Number(umur) : null, kegiatanId: kegiatanId || null, daerahId: daerahId ? Number(daerahId) : null, desaId: desaId ? Number(desaId) : null, kelompokId: kelompokId ? Number(kelompokId) : null, tipe: tipe || "Tim Penunggu", noTelp: noTelp || null, foto: foto || null } as any);
-  return c.json({ success: true, id });
-});
-r.get("/tim-penunggu/:id", async (c) => {
-  const id = c.req.param("id");
-  const db = getDb(c.env);
-  const row: any = await db.query.timGambuh.findFirst({ where: eq(timGambuh.id, id) });
-  if (!row) return c.json({ error: "Tidak ditemukan" }, 404);
-  return c.json(row);
-});
-r.put("/tim-penunggu/:id", requireAuth(), async (c) => {
-  const id = c.req.param("id");
-  const body: any = await c.req.json().catch(() => ({}));
-  const db = getDb(c.env);
-  await db.update(timGambuh).set({ ...body, updatedAt: new Date().toISOString() } as any).where(eq(timGambuh.id, id));
-  return c.json({ success: true });
-});
-r.delete("/tim-penunggu/:id", requireAuth(), async (c) => {
-  const id = c.req.param("id");
-  const db = getDb(c.env);
-  await db.delete(timGambuh).where(eq(timGambuh.id, id));
   return c.json({ success: true });
 });
 

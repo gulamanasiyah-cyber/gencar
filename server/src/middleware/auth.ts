@@ -7,21 +7,24 @@ export type JWTPayload = {
   userId: string;
   email: string;
   name: string;
-  role: "admin" | "pengurus_daerah" | "kmm_daerah" | "desa" | "kelompok" | "generus" | "peserta" | "creator" | "tim_pnkb" | "admin_romantic_room" | "admin_keuangan" | "admin_kegiatan" | "admin_pdkt" | "usia_mandiri" | "pending" | "tim_pnkb_gambuh" | "admin_daerah" | "admin_desa" | "admin_kelompok";
+  role: "admin_daerah" | "admin_desa" | "admin_kelompok" | "generus";
   desaId: number | null;
   kelompokId: number | null;
-  mandiriDesaId?: number | null;
-  mandiriKelompokId?: number | null;
   generusId?: string | null;
 };
 
 function getSecretKey(env: any): Uint8Array {
-  const raw = env?.JWT_SECRET || "";
-  if (!raw || raw.length < 32) {
-    // dev fallback — NEVER deploy without 32+ char secret
-    return new TextEncoder().encode("dev-only-fallback-secret-DO-NOT-DEPLOY-THIS-1234");
+  // Prefer JWT_SECRET; if absent locally (wrangler dev), derive stable dev key from DB id / DAERAH so
+  // signing and verification use the same fallback. Never rely on empty — it would vary per worker reload.
+  const raw = String(env?.JWT_SECRET ?? env?.DAERAH_NAMA ?? "").trim();
+  const fallback = `dev-gencar-fallback-${String(env?.DAERAH_NAMA ?? "Cengkareng")}-DO-NOT-DEPLOY-`;
+  const prod = env?.NODE_ENV === "production" || env?.ENV === "production";
+  if (!raw || raw.length < 16) {
+    if (prod) throw new Error("JWT_SECRET wajib 16+ karakter di production");
+    return new TextEncoder().encode(fallback);
   }
-  return new TextEncoder().encode(raw);
+  if (raw.length < 32 && prod) throw new Error("JWT_SECRET wajib 32+ karakter di production");
+  return new TextEncoder().encode(raw.length >= 16 ? raw : fallback);
 }
 
 export async function createToken(payload: JWTPayload, env: any): Promise<string> {
