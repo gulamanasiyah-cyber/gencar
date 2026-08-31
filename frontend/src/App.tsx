@@ -2275,9 +2275,7 @@ function UsersManage({ role }: { role: AdminRole }) {
     { value: "admin_kelompok" as AdminRole, label: "Admin Kelompok" },
   ];
 
-  const wilayahOptions = role === "admin_desa" ? ["Desa Fajar"] : ["Desa Fajar", "Desa Cengkareng Timur"];
-
-  const handleAdd = async (nama: string, roleBaru: AdminRole, _wilayah: string, email?: string, password?: string) => {
+  const handleAdd = async (nama: string, roleBaru: AdminRole, _wilayah: string, email?: string, password?: string, desaId?: number, kelompokId?: number) => {
     try {
       const e = (email ?? `${nama.toLowerCase().replace(/\s+/g, ".")}@gencar.local`).trim().toLowerCase();
       const pw = (password ?? "admin123").trim();
@@ -2285,7 +2283,7 @@ function UsersManage({ role }: { role: AdminRole }) {
       if (pw.length < 8) throw new Error("Password minimal 8 karakter.");
       await apiFetch("/api/admin/users", {
         method: "POST",
-        body: JSON.stringify({ name: nama, email: e, password: pw, role: roleBaru }),
+        body: JSON.stringify({ name: nama, email: e, password: pw, role: roleBaru, desaId: desaId || undefined, kelompokId: kelompokId || undefined }),
       });
       setShowAdd(false);
       void loadUsers();
@@ -2368,7 +2366,6 @@ function UsersManage({ role }: { role: AdminRole }) {
           onClose={() => setShowAdd(false)}
           onSave={handleAdd}
           roleOptions={roleOptions}
-          wilayahOptions={wilayahOptions}
         />
       )}
     </div>
@@ -2376,19 +2373,35 @@ function UsersManage({ role }: { role: AdminRole }) {
 }
 
 function AddAdminModal({
-  onClose, onSave, roleOptions, wilayahOptions,
+  onClose, onSave, roleOptions,
 }: {
   onClose: () => void;
-  onSave: (nama: string, role: AdminRole, wilayah: string, email?: string, password?: string) => void;
+  onSave: (nama: string, role: AdminRole, wilayah: string, email?: string, password?: string, desaId?: number, kelompokId?: number) => void;
   roleOptions: { value: AdminRole; label: string }[];
-  wilayahOptions: string[];
 }) {
   const [nama, setNama] = useState("");
   const [roleBaru, setRoleBaru] = useState<AdminRole>(roleOptions[0]?.value ?? "admin_kelompok");
-  const [wilayah, setWilayah] = useState(wilayahOptions[0] ?? "");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const valid = nama.trim().length >= 3 && email.trim().includes("@") && password.length >= 8;
+  const [desaList, setDesaList] = useState<{ id: number; nama: string }[]>([]);
+  const [kelList, setKelList] = useState<{ id: number; nama: string; desaId: number }[]>([]);
+  const [selectedDesaId, setSelectedDesaId] = useState<number | "">("");
+  const [selectedKelId, setSelectedKelId] = useState<number | "">("");
+
+  useEffect(() => {
+    apiFetch("/api/admin/desa").then((r: any) => setDesaList(Array.isArray(r) ? r : [])).catch(() => {});
+    apiFetch("/api/admin/kelompok").then((r: any) => setKelList(Array.isArray(r) ? r : [])).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    setSelectedDesaId("");
+    setSelectedKelId("");
+  }, [roleBaru]);
+
+  const filteredKel = selectedDesaId ? kelList.filter((k) => k.desaId === Number(selectedDesaId)) : [];
+  const needDesa = roleBaru === "admin_desa" || roleBaru === "admin_kelompok";
+  const needKel = roleBaru === "admin_kelompok";
+  const valid = nama.trim().length >= 3 && email.trim().includes("@") && password.length >= 8 && (!needDesa || selectedDesaId !== "") && (!needKel || selectedKelId !== "");
 
   return (
     <AdminModal title="Tambah Admin" onClose={onClose}>
@@ -2406,15 +2419,28 @@ function AddAdminModal({
             options={roleOptions.map((o) => ({ value: o.value, label: o.label }))}
           />
         </div>
-        <div className="field">
-          <label>Wilayah *</label>
-          <Select
-            value={wilayah}
-            onChange={setWilayah}
-            ariaLabel="Wilayah admin"
-            options={wilayahOptions.map((w) => ({ value: w, label: w }))}
-          />
-        </div>
+        {needDesa && (
+          <div className="field">
+            <label>Desa *</label>
+            <Select
+              value={selectedDesaId === "" ? "" : String(selectedDesaId)}
+              onChange={(v) => { setSelectedDesaId(v ? Number(v) : ""); setSelectedKelId(""); }}
+              ariaLabel="Pilih desa"
+              options={[{ value: "", label: "-- Pilih Desa --" }, ...desaList.map((d) => ({ value: String(d.id), label: d.nama }))]}
+            />
+          </div>
+        )}
+        {needKel && selectedDesaId && (
+          <div className="field">
+            <label>Kelompok *</label>
+            <Select
+              value={selectedKelId === "" ? "" : String(selectedKelId)}
+              onChange={(v) => setSelectedKelId(v ? Number(v) : "")}
+              ariaLabel="Pilih kelompok"
+              options={[{ value: "", label: "-- Pilih Kelompok --" }, ...filteredKel.map((k) => ({ value: String(k.id), label: k.nama }))]}
+            />
+          </div>
+        )}
         <div className="field"><label>Email *</label><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@email.com" /></div>
         <div className="field"><label>Password *</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 8 karakter" /></div>
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
@@ -2423,7 +2449,7 @@ function AddAdminModal({
             className="btn btn-primary"
             style={{ flex: 1 }}
             disabled={!valid}
-            onClick={() => onSave(nama.trim(), roleBaru, wilayah, email.trim().toLowerCase(), password)}
+            onClick={() => onSave(nama.trim(), roleBaru, "", email.trim().toLowerCase(), password, selectedDesaId ? Number(selectedDesaId) : undefined, selectedKelId ? Number(selectedKelId) : undefined)}
           >
             Simpan Admin
           </button>
