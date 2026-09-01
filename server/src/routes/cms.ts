@@ -10,7 +10,7 @@ const r = new Hono<{ Bindings: Env }>();
 r.use("/*", requireAuth());
 
 function isPublisher(role: string) {
-  return ["admin_daerah", "admin_desa", "admin_kelompok"].includes(role);
+  return role === "admin_daerah";
 }
 function canCreate(role: string) {
   return ["admin_daerah", "admin_desa", "admin_kelompok", "generus"].includes(role);

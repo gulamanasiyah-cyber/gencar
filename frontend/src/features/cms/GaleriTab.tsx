@@ -19,11 +19,14 @@ export type GaleriItem = {
   tanggal?: string | null;
   lokasi?: string | null;
   status: "draft" | "published";
+  authorId?: string;
 };
 
 const KATEGORI_OPTIONS = ["Kegiatan", "Sambung Rutin", "Festival", "Olahraga", "Workshop", "Sosial"];
 
-export default function GaleriTab() {
+type AdminRole = "admin_daerah" | "admin_desa" | "admin_kelompok";
+
+export default function GaleriTab({ role, userId }: { role: AdminRole; userId?: string }) {
   const [items, setItems] = useState<GaleriItem[]>([]);
   const [q, setQ] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -43,6 +46,8 @@ export default function GaleriTab() {
   const filtered = q
     ? items.filter((a) => `${a.judul} ${a.kategori || ""} ${a.lokasi || ""}`.toLowerCase().includes(q.toLowerCase()))
     : items;
+
+  const canEditItem = (item: GaleriItem) => role === "admin_daerah" || item.authorId === userId;
 
   const handleDelete = (id: string) => {
     if (!confirm("Hapus foto galeri ini?")) return;
@@ -111,6 +116,8 @@ export default function GaleriTab() {
             </div>
 
             <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
+              {canEditItem(item) && (
+              <>
               <button
                 type="button"
                 className="btn btn-ghost row-icon-btn"
@@ -129,6 +136,8 @@ export default function GaleriTab() {
               >
                 <IcoTrash size={16} />
               </button>
+              </>
+              )}
               <a
                 href="/galeri"
                 target="_blank"
@@ -147,6 +156,7 @@ export default function GaleriTab() {
       {showModal && (
         <GaleriSingleFotoModal
           initial={editing}
+          role={role}
           onClose={() => setShowModal(false)}
           onSaveSuccess={() => {
             setShowModal(false);
@@ -161,10 +171,12 @@ export default function GaleriTab() {
 
 function GaleriSingleFotoModal({
   initial,
+  role,
   onClose,
   onSaveSuccess,
 }: {
   initial: GaleriItem | null;
+  role: AdminRole;
   onClose: () => void;
   onSaveSuccess: () => void;
 }) {
@@ -180,7 +192,7 @@ function GaleriSingleFotoModal({
     durasi: initial?.durasi ?? "",
     tanggal: initial?.tanggal ?? new Date().toISOString().slice(0, 10),
     lokasi: initial?.lokasi ?? "Cengkareng",
-    status: initial?.status ?? "published",
+    status: initial?.status ?? (role === "admin_daerah" ? "published" : "draft"),
   }));
   const [saving, setSaving] = useState(false);
   const [flipped, setFlipped] = useState(false);

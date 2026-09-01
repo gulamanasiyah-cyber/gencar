@@ -16,11 +16,14 @@ type Row = {
   tipe: string;
   kategori?: string;
   authorName?: string;
+  authorId?: string;
   publishedAt?: string | null;
   createdAt?: string;
 };
 
-export default function ArtikelTab({ tipe = "artikel" }: { tipe?: "artikel" | "berita" }) {
+type AdminRole = "admin_daerah" | "admin_desa" | "admin_kelompok";
+
+export default function ArtikelTab({ tipe = "artikel", role, userId }: { tipe?: "artikel" | "berita"; role: AdminRole; userId?: string }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [q, setQ] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "editor">("list");
@@ -81,12 +84,15 @@ export default function ArtikelTab({ tipe = "artikel" }: { tipe?: "artikel" | "b
     ])
   );
 
+  const canEditItem = (r: Row) => role === "admin_daerah" || r.authorId === userId;
+
   if (viewMode === "editor") {
     return (
       <ArtikelEditorPage
         tipe={tipe}
         initial={editing}
         existingCategories={existingCategories as string[]}
+        role={role}
         onBack={() => setViewMode("list")}
         onSaveSuccess={() => {
           setViewMode("list");
@@ -139,12 +145,16 @@ export default function ArtikelTab({ tipe = "artikel" }: { tipe?: "artikel" | "b
               </div>
             </div>
             <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+              {canEditItem(r) && (
+              <>
               <button type="button" className="btn btn-ghost row-icon-btn" aria-label="Edit" title="Edit" onClick={() => openEdit(r)}>
                 <IcoEdit size={16} />
               </button>
               <button type="button" className="btn btn-danger row-icon-btn" aria-label="Hapus" title="Hapus" onClick={() => handleDelete(r.id)}>
                 <IcoTrash size={16} />
               </button>
+              </>
+              )}
             </div>
           </div>
         ))}
@@ -157,12 +167,14 @@ function ArtikelEditorPage({
   tipe,
   initial,
   existingCategories = [],
+  role,
   onBack,
   onSaveSuccess,
 }: {
   tipe: string;
   initial: Row | null;
   existingCategories?: string[];
+  role: AdminRole;
   onBack: () => void;
   onSaveSuccess: (saved: any) => void;
 }) {
@@ -269,7 +281,7 @@ function ArtikelEditorPage({
                   onChange={(e) => setF({ ...f, status: e.target.value })}
                   className="filter-input"
                 >
-                  <option value="published">Published (Tayang)</option>
+                  {role === "admin_daerah" && <option value="published">Published (Tayang)</option>}
                   <option value="pending">Pending / Draft</option>
                 </select>
               </div>

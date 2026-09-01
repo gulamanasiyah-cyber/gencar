@@ -142,6 +142,26 @@ export const absensi = sqliteTable("absensi", {
   generusIdIdx: index("absensi_generus_id_idx").on(table.generusId),
 }));
 
+// ── Kegiatan Peserta Wajib — target peserta yang wajib hadir ──
+export const kegiatanPeserta = sqliteTable("kegiatan_peserta", {
+  id: text("id").primaryKey(),
+  kegiatanId: text("kegiatan_id").notNull().references(() => kegiatan.id, { onDelete: "cascade" }),
+  generusId: text("generus_id").references(() => generus.id, { onDelete: "cascade" }),
+  kelompokId: integer("kelompok_id").references(() => kelompok.id, { onDelete: "cascade" }),
+  desaId: integer("desa_id").references(() => desa.id, { onDelete: "cascade" }),
+  status: text("status", { enum: ["pending", "approved", "rejected"] }).default("approved").notNull(),
+  requestedBy: text("requested_by"),
+  approvedBy: text("approved_by"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+}, (table) => ({
+  kegiatanIdIdx: index("kegiatan_peserta_kegiatan_id_idx").on(table.kegiatanId),
+  generusIdIdx: index("kegiatan_peserta_generus_id_idx").on(table.generusId),
+  kelompokIdIdx: index("kegiatan_peserta_kelompok_id_idx").on(table.kelompokId),
+  desaIdIdx: index("kegiatan_peserta_desa_id_idx").on(table.desaId),
+  statusIdx: index("kegiatan_peserta_status_idx").on(table.status),
+}));
+
 // ── Magic tokens — onboarding 30m sekali pakai ──
 export const magicTokens = sqliteTable("magic_tokens", {
   id: text("id").primaryKey(),

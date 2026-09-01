@@ -15,8 +15,8 @@ r.get("/", async (c) => {
   const db = getDb(c.env);
   const targetKegiatan: any = await db.query.kegiatan.findFirst({ where: eq(kegiatan.id, kegiatanId) });
   if (!targetKegiatan) return c.json({ error: "Kegiatan tidak ditemukan" }, 404);
-  if (session.role === "desa" && targetKegiatan.desaId != session.desaId) return c.json({ error: "Tidak diizinkan" }, 403);
-  if (session.role === "kelompok") {
+  if (session.role === "admin_desa" && targetKegiatan.desaId != session.desaId) return c.json({ error: "Tidak diizinkan" }, 403);
+  if (session.role === "admin_kelompok") {
     if (targetKegiatan.kelompokId !== null && targetKegiatan.kelompokId != session.kelompokId) return c.json({ error: "Tidak diizinkan" }, 403);
     if (targetKegiatan.desaId !== null && targetKegiatan.desaId != session.desaId) return c.json({ error: "Tidak diizinkan" }, 403);
   }
@@ -30,8 +30,8 @@ r.get("/search", async (c) => {
   const q = (c.req.query("q") || "").trim();
   if (!q) return c.json([]);
   const conditions: any[] = [or(like(generus.nama, `%${q}%`), like(generus.nomorUnik, `%${q}%`))];
-  if (session.role === "desa" && session.desaId) conditions.push(eq(generus.desaId, session.desaId));
-  else if (session.role === "kelompok" && session.kelompokId) conditions.push(eq(generus.kelompokId, session.kelompokId));
+  if (session.role === "admin_desa" && session.desaId) conditions.push(eq(generus.desaId, session.desaId));
+  else if (session.role === "admin_kelompok" && session.kelompokId) conditions.push(eq(generus.kelompokId, session.kelompokId));
   const db = getDb(c.env);
   const data = await db.select().from(generus).where(and(...conditions)).limit(10);
   return c.json(data);
@@ -45,8 +45,8 @@ r.post("/", async (c) => {
   const db = getDb(c.env);
   const kegiatanExists: any = await db.query.kegiatan.findFirst({ where: eq(kegiatan.id, kegiatanId) });
   if (!kegiatanExists) return c.json({ error: "Kegiatan tidak ditemukan" }, 404);
-  if (session.role === "desa" && kegiatanExists.desaId && kegiatanExists.desaId != session.desaId) return c.json({ error: "Tidak diizinkan" }, 403);
-  if (session.role === "kelompok") {
+  if (session.role === "admin_desa" && kegiatanExists.desaId && kegiatanExists.desaId != session.desaId) return c.json({ error: "Tidak diizinkan" }, 403);
+  if (session.role === "admin_kelompok") {
     if (kegiatanExists.desaId && kegiatanExists.desaId != session.desaId) return c.json({ error: "Tidak diizinkan" }, 403);
     if (kegiatanExists.kelompokId && kegiatanExists.kelompokId != session.kelompokId) return c.json({ error: "Tidak diizinkan" }, 403);
   }
@@ -70,10 +70,10 @@ r.delete("/", async (c) => {
   const db = getDb(c.env);
   const existing: any = await db.query.absensi.findFirst({ where: eq(absensi.id, id) });
   if (!existing) return c.json({ error: "Absensi tidak ditemukan" }, 404);
-  if (session.role === "desa" || session.role === "kelompok") {
+  if (session.role === "admin_desa" || session.role === "admin_kelompok") {
     const relatedKegiatan: any = await db.query.kegiatan.findFirst({ where: eq(kegiatan.id, existing.kegiatanId) });
-    if (session.role === "desa" && relatedKegiatan?.desaId != session.desaId) return c.json({ error: "Tidak diizinkan" }, 403);
-    if (session.role === "kelompok") {
+    if (session.role === "admin_desa" && relatedKegiatan?.desaId != session.desaId) return c.json({ error: "Tidak diizinkan" }, 403);
+    if (session.role === "admin_kelompok") {
       if (relatedKegiatan?.kelompokId !== null && relatedKegiatan?.kelompokId != session.kelompokId) return c.json({ error: "Tidak diizinkan" }, 403);
       if (relatedKegiatan?.desaId !== null && relatedKegiatan?.desaId != session.desaId) return c.json({ error: "Tidak diizinkan" }, 403);
     }

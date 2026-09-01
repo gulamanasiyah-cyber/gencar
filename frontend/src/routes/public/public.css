@@ -2526,6 +2526,178 @@ section:has(.pub-marquee) .pub-section-head-row { max-width: var(--pub-max); mar
   .pub-pengurus-cta-actions { justify-content: start; }
 }
 
+/* ── Kegiatan List Page — Toolbar, Search, Categories ── */
+.pub-kegiatan-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.pub-kegiatan-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--pub-line);
+  background: var(--pub-paper);
+  color: var(--pub-muted);
+  flex: 1;
+  min-width: 200px;
+  max-width: 360px;
+  transition: border-color 0.16s;
+}
+.pub-kegiatan-search:focus-within { border-color: var(--pub-line-strong); }
+.pub-kegiatan-search input {
+  border: none;
+  outline: none;
+  background: none;
+  font-size: 14px;
+  color: var(--pub-ink);
+  width: 100%;
+  font-family: inherit;
+}
+.pub-kegiatan-search input::placeholder { color: var(--pub-faint); }
+.pub-kegiatan-cats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pub-kegiatan-cats .chip {
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--pub-line);
+  background: var(--pub-paper);
+  color: var(--pub-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.16s;
+  font-family: inherit;
+}
+.pub-kegiatan-cats .chip:hover { border-color: var(--pub-line-strong); color: var(--pub-ink); background: var(--pub-paper-2); }
+.pub-kegiatan-cats .chip.active { background: var(--pub-ink); color: #fff; border-color: var(--pub-ink); }
+.pub-kegiatan-meta-count {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--pub-muted);
+  margin-bottom: 16px;
+}
+.pub-kegiatan-reset {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pub-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.pub-kegiatan-reset:hover { text-decoration: underline; }
+
+/* ── Kegiatan Detail Page ── */
+.pub-detail-back {
+  margin-bottom: 20px;
+}
+.pub-detail-head {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.pub-detail-lead {
+  font-size: 15px;
+  color: var(--pub-muted);
+  line-height: 1.6;
+  max-width: 64ch;
+  border-left: 3px solid var(--pub-accent);
+  padding-left: 14px;
+}
+.pub-detail-meta-bar {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 13px;
+  color: var(--pub-muted);
+}
+.pub-detail-meta-item {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-weight: 600;
+}
+.pub-detail-share {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--pub-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-left: auto;
+}
+.pub-detail-share:hover { text-decoration: underline; }
+.pub-detail-media {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--pub-line);
+  background: var(--pub-paper-2);
+  margin-bottom: 28px;
+}
+.pub-detail-media img {
+  width: 100%;
+  height: clamp(220px, 36vw, 420px);
+  object-fit: cover;
+  display: block;
+}
+.pub-detail-countdown-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 18px 22px;
+  border-radius: var(--pub-radius-md);
+  background: var(--pub-paper-2);
+  border: 1px solid var(--pub-line);
+  margin-bottom: 28px;
+}
+.pub-detail-cd-kicker {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pub-muted);
+}
+.pub-detail-content {
+  max-width: 72ch;
+}
+.pub-detail-related {
+  margin-top: 40px;
+  padding-top: 28px;
+  border-top: 1px solid var(--pub-line);
+}
+.pub-detail-related h2 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin-bottom: 16px;
+}
+@media (max-width: 640px) {
+  .pub-detail-meta-bar { flex-direction: column; gap: 8px; }
+  .pub-detail-share { margin-left: 0; }
+  .pub-detail-countdown-card { flex-direction: column; text-align: center; }
+}
+
 /* ── Galeri Page — Irregular Bento Pinterest Grid & Lightbox ── */
 .pub-galeri-hero {
   padding-bottom: 0 !important;

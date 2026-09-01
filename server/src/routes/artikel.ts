@@ -62,10 +62,10 @@ r.put("/:id", requireAuth(), async (c) => {
   const db = getDb(c.env);
   const existing: any = await db.query.artikel.findFirst({ where: and(eq(artikel.id, id), eq(artikel.tipe, "artikel")) });
   if (!existing) return c.json({ error: "Tidak ditemukan" }, 404);
-  if (existing.authorId !== session.userId && !["admin_daerah", "admin_desa", "admin_kelompok"].includes(session.role)) return c.json({ error: "Tidak diizinkan" }, 403);
+  if (existing.authorId !== session.userId && session.role !== "admin_daerah") return c.json({ error: "Tidak diizinkan" }, 403);
   const body: any = await c.req.json().catch(() => ({}));
   const { judul, konten, ringkasan, status, coverImage, kategori } = body;
-  if (status && !["admin_daerah", "admin_desa", "admin_kelompok"].includes(session.role)) return c.json({ error: "Tidak diizinkan ubah status" }, 403);
+  if (status && status !== existing.status && session.role !== "admin_daerah") return c.json({ error: "Hanya admin daerah yang bisa ubah status" }, 403);
   const updateData: any = { updatedAt: new Date().toISOString() };
   if (judul !== undefined) updateData.judul = judul;
   if (konten !== undefined) updateData.konten = konten;
@@ -86,7 +86,7 @@ r.put("/:id", requireAuth(), async (c) => {
       updateData.slug = s;
     }
   }
-  if (status !== undefined && ["admin_daerah", "admin_desa", "admin_kelompok"].includes(session.role)) {
+  if (status !== undefined && session.role === "admin_daerah") {
     updateData.status = status;
     if (status === "published") updateData.publishedAt = new Date().toISOString();
   }

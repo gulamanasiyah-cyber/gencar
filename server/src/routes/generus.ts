@@ -36,7 +36,7 @@ function buildWhereClause(session: any, search?: string, _ignoreRoleRestriction?
   }
   if (jenisKelamin && (jenisKelamin === "L" || jenisKelamin === "P")) conditions.push(eq(generus.jenisKelamin, jenisKelamin as any));
   // Exclude admin accounts — they are not real anggota
-  conditions.push(or(isNull(users.role), notInArray(users.role, ["admin_daerah", "admin_desa", "admin_kelompok"])));
+  conditions.push(sql`${generus.id} NOT IN (SELECT generus_id FROM users WHERE generus_id IS NOT NULL AND role IN ('admin_daerah', 'admin_desa', 'admin_kelompok'))`);
   return (conditions.length > 0 ? and(...conditions) : undefined) as any;
 }
 
@@ -89,7 +89,7 @@ r.get("/", async (c) => {
   if (isExport) {
     let query: any = db.select(commonSelect).from(generus).leftJoin(users, eq(generus.id, users.generusId)).leftJoin(desa, eq(generus.desaId, desa.id)).leftJoin(kelompok, eq(generus.kelompokId, kelompok.id));
     let data: any[] = await query.where(finalWhere).orderBy(...orderByClause);
-    if (session.role === "admin") data = await Promise.all(data.map(async (item: any) => ({ ...item, passwordPlain: await decryptPasswordSymmetric(c.env, item.passwordPlain as string) })));
+    if (session.role === "admin_daerah") data = await Promise.all(data.map(async (item: any) => ({ ...item, passwordPlain: await decryptPasswordSymmetric(c.env, item.passwordPlain as string) })));
     return c.json({ data, total: data.length, page: 1, limit: data.length, meta: { total: data.length, page: 1, limit: data.length } } as unknown as any, 200, { "Cache-Control": "private, max-age=60" } as any);
   }
 
@@ -99,7 +99,7 @@ r.get("/", async (c) => {
 
   const [dataRaw, countResult] = await Promise.all([dataQuery.where(whereClause).orderBy(...orderByClause).limit(limit).offset(offset), countQuery.where(whereClause)]);
   let data: any[] = dataRaw;
-  if (session.role === "admin") data = await Promise.all(data.map(async (item: any) => ({ ...item, passwordPlain: await decryptPasswordSymmetric(c.env, item.passwordPlain as string) })));
+  if (session.role === "admin_daerah") data = await Promise.all(data.map(async (item: any) => ({ ...item, passwordPlain: await decryptPasswordSymmetric(c.env, item.passwordPlain as string) })));
   return c.json({ data, total: Number(countResult[0]?.count || 0), page, limit, meta: { total: Number(countResult[0]?.count || 0), page, limit } } as unknown as any, 200, { "Cache-Control": "private, max-age=30, stale-while-revalidate=60" } as any);
 });
 
@@ -146,9 +146,12 @@ r.get("/filters", async (c) => {
 
 r.get("/:id", async (c) => {
   const id = c.req.param("id");
+  const session = c.get("user" as any) as any;
   const db = getDb(c.env);
   const row: any = await db.query.generus.findFirst({ where: eq(generus.id, id) });
   if (!row) return c.json({ error: "Tidak ditemukan" }, 404);
+  if (session.role === "admin_desa" && session.desaId && row.desaId !== session.desaId) return c.json({ error: "Forbidden" }, 403);
+  if (session.role === "admin_kelompok" && session.kelompokId && row.kelompokId !== session.kelompokId) return c.json({ error: "Forbidden" }, 403);
 
   // Ambil data statistik kehadiran & absensi untuk perhitungan gamifikasi & streak
   const absensiRows = await db
@@ -257,15 +260,25 @@ r.get("/:id", async (c) => {
 
 r.patch("/:id", async (c) => {
   const id = c.req.param("id");
+  const session = c.get("user" as any) as any;
   const body: any = await c.req.json().catch(() => ({}));
   const db = getDb(c.env);
+  const existing: any = await db.query.generus.findFirst({ where: eq(generus.id, id) });
+  if (!existing) return c.json({ error: "Tidak ditemukan" }, 404);
+  if (session.role === "admin_desa" && session.desaId && existing.desaId !== session.desaId) return c.json({ error: "Forbidden" }, 403);
+  if (session.role === "admin_kelompok" && session.kelompokId && existing.kelompokId !== session.kelompokId) return c.json({ error: "Forbidden" }, 403);
   await db.update(generus).set({ ...body, updatedAt: sql`(datetime('now'))` } as any).where(eq(generus.id, id));
   return c.json({ success: true });
 });
 
 r.delete("/:id", async (c) => {
   const id = c.req.param("id");
+  const session = c.get("user" as any) as any;
   const db = getDb(c.env);
+  const existing: any = await db.query.generus.findFirst({ where: eq(generus.id, id) });
+  if (!existing) return c.json({ error: "Tidak ditemukan" }, 404);
+  if (session.role === "admin_desa" && session.desaId && existing.desaId !== session.desaId) return c.json({ error: "Forbidden" }, 403);
+  if (session.role === "admin_kelompok" && session.kelompokId && existing.kelompokId !== session.kelompokId) return c.json({ error: "Forbidden" }, 403);
   await db.delete(generus).where(eq(generus.id, id));
   return c.json({ success: true });
 });
