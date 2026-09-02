@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, Pencil as IcoEdit, Plus, Save, Share2, Trash2 as IcoTrash, User2 } from "lucide-react";
+import { ArrowLeft, CalendarDays, ExternalLink, Pencil as IcoEdit, Plus, Save, Share2, Trash2 as IcoTrash, User2 } from "lucide-react";
+import { apiFetch } from "../../lib/api";
 import SearchInput from "../../components/admin/SearchInput";
 import ImageUploadInput from "../../components/admin/ImageUploadInput";
 import RichTextEditor from "../../components/admin/RichTextEditor";
@@ -8,6 +9,7 @@ import SplitPreviewLayout from "./SplitPreviewLayout";
 
 type Row = {
   id: string;
+  slug?: string | null;
   judul: string;
   ringkasan?: string | null;
   konten?: string | null;
@@ -32,10 +34,9 @@ export default function ArtikelTab({ tipe = "artikel", role, userId }: { tipe?: 
   const load = () => {
     const qs = q ? `?q=${encodeURIComponent(q)}` : "";
     const url = tipe === "berita" ? `/api/berita${qs}` : `/api/artikel${qs}`;
-    fetch(url)
-      .then((r) => (r.ok ? r.json() : []))
+    apiFetch<unknown>(url)
       .then((j) => {
-        const list = Array.isArray(j) ? j : j.data || [];
+        const list = Array.isArray(j) ? j : (j as any).data || [];
         const filtered = q ? list.filter((x: any) => `${x.judul} ${x.ringkasan || ""}`.toLowerCase().includes(q.toLowerCase())) : list;
         setRows(filtered);
       })
@@ -50,7 +51,7 @@ export default function ArtikelTab({ tipe = "artikel", role, userId }: { tipe?: 
     if (!confirm(`Hapus ${tipe} ini?`)) return;
     setRows((p) => p.filter((x) => x.id !== id));
     const url = tipe === "berita" ? `/api/berita/${id}` : `/api/artikel/${id}`;
-    void fetch(url, { method: "DELETE" }).catch(() => {});
+    void apiFetch(url, { method: "DELETE" }).catch(() => {});
   };
 
   const openCreate = () => {
@@ -61,8 +62,7 @@ export default function ArtikelTab({ tipe = "artikel", role, userId }: { tipe?: 
   const openEdit = (r: Row) => {
     // Fetch detail if needed
     const url = tipe === "berita" ? `/api/berita/${r.id}` : `/api/artikel/${r.id}`;
-    fetch(url)
-      .then((res) => (res.ok ? res.json() : r))
+    apiFetch<Row>(url)
       .then((detail) => {
         setEditing(detail);
         setViewMode("editor");
@@ -145,6 +145,9 @@ export default function ArtikelTab({ tipe = "artikel", role, userId }: { tipe?: 
               </div>
             </div>
             <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+              <a href={`/${tipe}/${r.slug || r.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-ghost row-icon-btn" title="Preview" aria-label="Preview">
+                <ExternalLink size={16} />
+              </a>
               {canEditItem(r) && (
               <>
               <button type="button" className="btn btn-ghost row-icon-btn" aria-label="Edit" title="Edit" onClick={() => openEdit(r)}>
@@ -198,9 +201,8 @@ function ArtikelEditorPage({
       const base = tipe === "berita" ? "/api/berita" : "/api/artikel";
       const url = isEdit ? `${base}/${initial.id}` : base;
       const method = isEdit ? "PUT" : "POST";
-      const res = await fetch(url, {
+      const data = await apiFetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: initial?.id,
           judul: f.judul.trim(),
@@ -211,8 +213,6 @@ function ArtikelEditorPage({
           status: f.status,
         }),
       });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json().catch(() => ({}));
       onSaveSuccess(data);
     } catch (e: any) {
       alert(e.message || "Gagal menyimpan");

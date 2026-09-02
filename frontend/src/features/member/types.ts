@@ -19,12 +19,11 @@ export type MemberIdentity = {
   avatarStyle?: string | null;
   /** @deprecated Seed for DiceBear */
   avatarSeed?: string | null;
+  email?: string;
   nomorUnik?: string;
   status: "aktif" | "pending";
   /** Hobi — JSON array stringified or comma-separated list of HobbyKey */
   hobi?: string | null;
-  /** Custom text when hobi includes "lainnya" */
-  hobiCustom?: string | null;
   /** Detail per-hobi — JSON stringified Record<HobbyKey, string> */
   hobiDetail?: string | null;
 };

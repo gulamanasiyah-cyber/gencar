@@ -77,7 +77,7 @@ r.get("/", async (c) => {
   const commonSelect: any = {
     id: generus.id, nomorUnik: generus.nomorUnik, nama: generus.nama,
     email: canSeePrivateData ? users.email : sql`NULL`, passwordPlain: session.role === "admin_daerah" ? users.passwordPlain : sql`NULL`, role: users.role,
-    desaNama: desa.nama, kelompokNama: kelompok.nama, foto: generus.foto, avatarId: generus.avatarId, instagram: generus.instagram,
+    desaId: generus.desaId, kelompokId: generus.kelompokId, desaNama: desa.nama, kelompokNama: kelompok.nama, foto: generus.foto, avatarId: generus.avatarId, instagram: generus.instagram,
     tanggalLahir: generus.tanggalLahir, tempatLahir: generus.tempatLahir, kategoriUsia: generus.kategoriUsia, kategori: generus.kategori, jenisKelamin: generus.jenisKelamin,
     kategoriMudaMudi: generus.kategoriMudaMudi, asalDaerah: generus.asalDaerah, domisiliAnak: generus.domisiliAnak, domisiliOrtu: generus.domisiliOrtu, isDomisiliOrtuSama: generus.isDomisiliOrtuSama, hobi: generus.hobi, hobiDetail: generus.hobiDetail,
     noTelp: canSeePrivateData ? generus.noTelp : sql`NULL`, namaOrtu: canSeePrivateData ? generus.namaOrtu : sql`NULL`, alamat: generus.alamat, pendidikan: generus.pendidikan, pekerjaan: generus.pekerjaan, statusNikah: generus.statusNikah, suku: generus.suku, makananMinumanFavorit: generus.makananMinumanFavorit, kriteriaPasangan: generus.kriteriaPasangan, createdAt: generus.createdAt,

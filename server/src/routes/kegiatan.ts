@@ -1,6 +1,12 @@
 import { Hono } from "hono";
 import { eq, and, sql, or, isNull } from "drizzle-orm";
+
 import { kegiatan, desa, kelompok, kegiatanPeserta, generus, absensi } from "../../../shared/schema";
+
+function inList(column: any, values: any[]) {
+  if (values.length === 0) return sql`1 = 0`;
+  return sql`${column} IN (${sql.join(values.map((v) => sql`${v}`), sql`, `)})`;
+}
 import { getDb } from "../utils/db";
 import { requireAuth } from "../middleware/auth";
 
@@ -43,11 +49,11 @@ r.get("/", async (c) => {
   }
   if (session.role === "admin_desa" && session.desaId) {
     const ors = [eq(kegiatan.desaId, session.desaId), and(isNull(kegiatan.desaId), isNull(kegiatan.kelompokId))];
-    if (pesertaKegiatanIds.length > 0) ors.push(sql`${kegiatan.id} IN (${sql.join(pesertaKegiatanIds.map((id) => sql`${id}`), sql`, `)})`);
+    if (pesertaKegiatanIds.length > 0) ors.push(inList(kegiatan.id, pesertaKegiatanIds));
     conditions.push(or(...ors));
   } else if (session.role === "admin_kelompok" && session.kelompokId && session.desaId) {
     const ors = [eq(kegiatan.kelompokId, session.kelompokId), and(eq(kegiatan.desaId, session.desaId), isNull(kegiatan.kelompokId)), and(isNull(kegiatan.desaId), isNull(kegiatan.kelompokId))];
-    if (pesertaKegiatanIds.length > 0) ors.push(sql`${kegiatan.id} IN (${sql.join(pesertaKegiatanIds.map((id) => sql`${id}`), sql`, `)})`);
+    if (pesertaKegiatanIds.length > 0) ors.push(inList(kegiatan.id, pesertaKegiatanIds));
     conditions.push(or(...ors));
   }
   const data = await db.select({ id: kegiatan.id, judul: kegiatan.judul, deskripsi: kegiatan.deskripsi, tanggal: kegiatan.tanggal, jam: kegiatan.jam, lokasi: kegiatan.lokasi, kategoriAcara: kegiatan.kategoriAcara, kategoriCustom: kegiatan.kategoriCustom, lat: kegiatan.lat, lng: kegiatan.lng, radiusM: kegiatan.radiusM, gpsRequired: kegiatan.gpsRequired, desaNama: desa.nama, kelompokNama: kelompok.nama, desaId: kegiatan.desaId, kelompokId: kegiatan.kelompokId, createdBy: kegiatan.createdBy, createdAt: kegiatan.createdAt }).from(kegiatan).leftJoin(desa, eq(kegiatan.desaId, desa.id)).leftJoin(kelompok, eq(kegiatan.kelompokId, kelompok.id)).where(conditions.length ? and(...conditions) : undefined).orderBy(sql`${kegiatan.tanggal} DESC`);
@@ -56,12 +62,38 @@ r.get("/", async (c) => {
   const pesertaCounts: Record<string, number> = {};
   const pendingCounts: Record<string, number> = {};
   if (kegIds.length > 0) {
-    const pRows = await db.select({ kegiatanId: kegiatanPeserta.kegiatanId, count: sql<number>`count(*)` }).from(kegiatanPeserta).where(sql`${kegiatanPeserta.kegiatanId} IN (${sql.join(kegIds.map((id) => sql`${id}`), sql`, `)})`).groupBy(kegiatanPeserta.kegiatanId);
+    const pRows = await db.select({ kegiatanId: kegiatanPeserta.kegiatanId, count: sql<number>`count(*)` }).from(kegiatanPeserta).where(inList(kegiatanPeserta.kegiatanId, kegIds)).groupBy(kegiatanPeserta.kegiatanId);
     for (const r of pRows) pesertaCounts[r.kegiatanId] = Number(r.count);
-    const pendRows = await db.select({ kegiatanId: kegiatanPeserta.kegiatanId, count: sql<number>`count(*)` }).from(kegiatanPeserta).where(and(sql`${kegiatanPeserta.kegiatanId} IN (${sql.join(kegIds.map((id) => sql`${id}`), sql`, `)})`, eq(kegiatanPeserta.status, "pending"))).groupBy(kegiatanPeserta.kegiatanId);
+    const pendRows = await db.select({ kegiatanId: kegiatanPeserta.kegiatanId, count: sql<number>`count(*)` }).from(kegiatanPeserta).where(and(inList(kegiatanPeserta.kegiatanId, kegIds), eq(kegiatanPeserta.status, "pending"))).groupBy(kegiatanPeserta.kegiatanId);
     for (const r of pendRows) pendingCounts[r.kegiatanId] = Number(r.count);
   }
-  const enriched = data.map((k) => ({ ...k, pesertaCount: pesertaCounts[k.id] ?? 0, pendingPesertaCount: pendingCounts[k.id] ?? 0 }));
+  // Get ALL peserta entries per kegiatan (with desa/kelompok names)
+  const allPesertaEntries: Record<string, { id: string; status: string; catatan: string | null; desaNama: string | null; kelompokNama: string | null; desaId: number | null; kelompokId: number | null }[]> = {};
+  // Also get current user's own peserta entry
+  const myPesertaStatus: Record<string, string> = {};
+  const myPesertaId: Record<string, string> = {};
+  const myPesertaCatatan: Record<string, string | null> = {};
+  if (kegIds.length > 0) {
+    const allRows = await db.select({
+      kegiatanId: kegiatanPeserta.kegiatanId, id: kegiatanPeserta.id, status: kegiatanPeserta.status,
+      catatan: kegiatanPeserta.catatan, desaId: kegiatanPeserta.desaId, kelompokId: kegiatanPeserta.kelompokId,
+      desaNama: desa.nama, kelompokNama: kelompok.nama,
+    }).from(kegiatanPeserta)
+      .leftJoin(desa, eq(kegiatanPeserta.desaId, desa.id))
+      .leftJoin(kelompok, eq(kegiatanPeserta.kelompokId, kelompok.id))
+      .where(inList(kegiatanPeserta.kegiatanId, kegIds));
+    for (const r of allRows) {
+      if (!allPesertaEntries[r.kegiatanId]) allPesertaEntries[r.kegiatanId] = [];
+      allPesertaEntries[r.kegiatanId].push({ id: r.id, status: r.status, catatan: r.catatan ?? null, desaNama: r.desaNama ?? null, kelompokNama: r.kelompokNama ?? null, desaId: r.desaId, kelompokId: r.kelompokId });
+      // Check if this is current user's entry
+      if (session.role === "admin_desa" && r.desaId === session.desaId) {
+        myPesertaStatus[r.kegiatanId] = r.status; myPesertaId[r.kegiatanId] = r.id; myPesertaCatatan[r.kegiatanId] = r.catatan ?? null;
+      } else if (session.role === "admin_kelompok" && (r.kelompokId === session.kelompokId || r.desaId === session.desaId)) {
+        myPesertaStatus[r.kegiatanId] = r.status; myPesertaId[r.kegiatanId] = r.id; myPesertaCatatan[r.kegiatanId] = r.catatan ?? null;
+      }
+    }
+  }
+  const enriched = data.map((k) => ({ ...k, pesertaCount: pesertaCounts[k.id] ?? 0, pendingPesertaCount: pendingCounts[k.id] ?? 0, pesertaStatus: myPesertaStatus[k.id] || null, myPesertaId: myPesertaId[k.id] || null, pesertaCatatan: myPesertaCatatan[k.id] || null, pesertaEntries: allPesertaEntries[k.id] || [] }));
   return c.json({ data: enriched, meta: { total: enriched.length } } as unknown as typeof enriched, 200, { "Cache-Control": "no-store" } as any);
 });
 
@@ -109,6 +141,13 @@ r.get("/:id", async (c) => {
   return c.json(row);
 });
 
+r.get("/:id/peserta-entries", async (c) => {
+  const id = c.req.param("id");
+  const db = getDb(c.env);
+  const rows = await db.select().from(kegiatanPeserta).where(eq(kegiatanPeserta.kegiatanId, id));
+  return c.json(rows);
+});
+
 r.get("/:id/peserta", async (c) => {
   const id = c.req.param("id");
   const db = getDb(c.env);
@@ -122,12 +161,12 @@ r.get("/:id/peserta", async (c) => {
   directGenerusIds.forEach((gid) => allGenerusIds.add(gid));
   // Expand desa → all generus in those desa
   if (desaIds.length > 0) {
-    const genRows = await db.select({ id: generus.id }).from(generus).where(sql`${generus.desaId} IN (${sql.join(desaIds.map((d) => sql`${d}`), sql`, `)})`);
+    const genRows = await db.select({ id: generus.id }).from(generus).where(inList(generus.desaId, desaIds));
     genRows.forEach((g) => allGenerusIds.add(g.id));
   }
   // Expand kelompok → all generus in those kelompok
   if (kelompokIds.length > 0) {
-    const genRows = await db.select({ id: generus.id }).from(generus).where(sql`${generus.kelompokId} IN (${sql.join(kelompokIds.map((k) => sql`${k}`), sql`, `)})`);
+    const genRows = await db.select({ id: generus.id }).from(generus).where(inList(generus.kelompokId, kelompokIds));
     genRows.forEach((g) => allGenerusIds.add(g.id));
   }
   // Get attendance for this kegiatan
@@ -137,7 +176,7 @@ r.get("/:id/peserta", async (c) => {
   const generusIds = [...allGenerusIds];
   let generusDetails: { id: string; nama: string; desaNama: string | null; kelompokNama: string | null }[] = [];
   if (generusIds.length > 0) {
-    generusDetails = await db.select({ id: generus.id, nama: generus.nama, desaNama: desa.nama, kelompokNama: kelompok.nama }).from(generus).leftJoin(desa, eq(generus.desaId, desa.id)).leftJoin(kelompok, eq(generus.kelompokId, kelompok.id)).where(sql`${generus.id} IN (${sql.join(generusIds.map((g) => sql`${g}`), sql`, `)})`);
+    generusDetails = await db.select({ id: generus.id, nama: generus.nama, desaNama: desa.nama, kelompokNama: kelompok.nama }).from(generus).leftJoin(desa, eq(generus.desaId, desa.id)).leftJoin(kelompok, eq(generus.kelompokId, kelompok.id)).where(inList(generus.id, generusIds));
   }
   const result = generusDetails.map((g) => ({
     ...g,
@@ -249,13 +288,15 @@ r.put("/:id/peserta/:pesertaId/approve", async (c) => {
 r.put("/:id/peserta/:pesertaId/reject", async (c) => {
   const pesertaId = c.req.param("pesertaId");
   const session = c.get("user" as any) as any;
+  const body: any = await c.req.json().catch(() => ({}));
+  const catatan = body.catatan || null;
   const db = getDb(c.env);
   const existing: any = await db.query.kegiatanPeserta.findFirst({ where: eq(kegiatanPeserta.id, pesertaId) });
   if (!existing) return c.json({ error: "Tidak ditemukan" }, 404);
   if (existing.status !== "pending") return c.json({ error: "Sudah diproses" }, 400);
   if (session.role === "admin_desa" && existing.desaId !== session.desaId) return c.json({ error: "Forbidden" }, 403);
   if (session.role === "admin_kelompok" && existing.kelompokId !== session.kelompokId) return c.json({ error: "Forbidden" }, 403);
-  await db.update(kegiatanPeserta).set({ status: "rejected", approvedBy: session.userId, updatedAt: new Date().toISOString() }).where(eq(kegiatanPeserta.id, pesertaId));
+  await db.update(kegiatanPeserta).set({ status: "rejected", approvedBy: session.userId, catatan, updatedAt: new Date().toISOString() }).where(eq(kegiatanPeserta.id, pesertaId));
   return c.json({ success: true });
 });
 

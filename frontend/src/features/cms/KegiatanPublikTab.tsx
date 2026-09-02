@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, CalendarDays, Eye, MapPin, Pencil as IcoEdit, Plus, Save, Share2, Timer, Trash2 as IcoTrash } from "lucide-react";
+import { apiFetch } from "../../lib/api";
 import SearchInput from "../../components/admin/SearchInput";
 import ImageUploadInput from "../../components/admin/ImageUploadInput";
 import RichTextEditor from "../../components/admin/RichTextEditor";
@@ -31,9 +32,8 @@ export default function KegiatanPublikTab({ role, userId }: { role: AdminRole; u
   const [editing, setEditing] = useState<Row | null>(null);
 
   const load = () => {
-    fetch(`/api/cms/kegiatan-publik?q=${encodeURIComponent(q)}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((j) => setRows(j.data || j || []))
+    apiFetch<unknown>(`/api/cms/kegiatan-publik?q=${encodeURIComponent(q)}`)
+      .then((j: any) => setRows(j.data || j || []))
       .catch(() => {});
   };
 
@@ -44,7 +44,7 @@ export default function KegiatanPublikTab({ role, userId }: { role: AdminRole; u
   const handleDelete = (id: string) => {
     if (!confirm("Hapus kegiatan publik ini?")) return;
     setRows((p) => p.filter((x) => x.id !== id));
-    void fetch(`/api/cms/kegiatan-publik/${id}`, { method: "DELETE" }).catch(() => {});
+    void apiFetch(`/api/cms/kegiatan-publik/${id}`, { method: "DELETE" }).catch(() => {});
   };
 
   const existingCategories = Array.from(
@@ -198,9 +198,8 @@ function KegiatanPublikEditorPage({
       const isEdit = !!initial?.id;
       const url = isEdit ? `/api/cms/kegiatan-publik/${initial.id}` : "/api/cms/kegiatan-publik";
       const method = isEdit ? "PUT" : "POST";
-      const res = await fetch(url, {
+      const data = await apiFetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: initial?.id,
           slug: f.slug || undefined,
@@ -216,8 +215,6 @@ function KegiatanPublikEditorPage({
           status: f.status,
         }),
       });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json().catch(() => ({}));
       onSaveSuccess(data);
     } catch (e: any) {
       alert(e.message || "Gagal menyimpan");

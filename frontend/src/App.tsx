@@ -204,6 +204,10 @@ type Kegiatan = {
   createdBy?: string;
   pesertaCount?: number;
   pendingPesertaCount?: number;
+  pesertaStatus?: "pending" | "approved" | "rejected" | null;
+  myPesertaId?: string | null;
+  pesertaCatatan?: string | null;
+  pesertaEntries?: { id: string; status: string; catatan: string | null; desaNama: string | null; kelompokNama: string | null }[];
 };
 
 type Member = {
@@ -216,6 +220,8 @@ type Member = {
   kategoriMudaMudi: "pribumi" | "perantauan";
   domisiliAnak: string;
   isOrtuSama: boolean;
+  hobi?: string | null;
+  hobiDetail?: string | null;
   status: "aktif" | "pending";
 };
 
@@ -742,7 +748,6 @@ function AdminShell({
   const navItems: { key: string; label: string; icon: React.ReactNode; badge?: number }[] = [
     { key: "anggota", label: "Anggota", icon: <IcoUsers /> },
     { key: "kegiatan", label: "Kegiatan", icon: <IcoCalendar /> },
-    { key: "undangan", label: "Undangan", icon: <IcoBell /> },
     { key: "pengajuan", label: "Pengajuan", icon: <IcoFileCheck />, badge: pendingCount },
     { key: "users", label: "User", icon: <IcoShield /> },
     ...(role === "admin_daerah" ? [{ key: "wilayah", label: "Wilayah", icon: <IcoMapPin /> }] : []),
@@ -961,6 +966,8 @@ function AnggotaPage({ role: _role }: { role: AdminRole }) {
           kategoriMudaMudi: (r.kategoriMudaMudi as Member["kategoriMudaMudi"]) ?? "pribumi",
           domisiliAnak: (r as { domisiliAnak?: string }).domisiliAnak ?? (r as { alamat?: string }).alamat ?? "",
           isOrtuSama: r.isDomisiliOrtuSama == null ? true : Boolean(r.isDomisiliOrtuSama),
+          hobi: (r as any).hobi ?? null,
+          hobiDetail: (r as any).hobiDetail ?? null,
           status: "aktif",
         }));
         // Client-side kategori filter (BE not yet indexed)
@@ -1404,6 +1411,19 @@ function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; o
           </div>
         ))}
       </div>
+      {member.hobi && (() => {
+        let hobbyNames: string[] = [];
+        try { hobbyNames = JSON.parse(member.hobi); } catch { hobbyNames = []; }
+        if (hobbyNames.length === 0) return null;
+        return (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted, #6b7280)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Hobi</div>
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+              {hobbyNames.map((h) => <span key={h} className="pill pill-slate" style={{ fontSize: 11 }}>{h}</span>)}
+            </div>
+          </div>
+        );
+      })()}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 16 }}>
         <button
           className="btn btn-danger"
@@ -2071,18 +2091,20 @@ function DeleteKegiatanModal({ kegiatan, onClose, onDeleted }: { kegiatan: Kegia
     }
   }
 
+  const judulShort = kegiatan.judul.length > 40 ? kegiatan.judul.slice(0, 40) + "…" : kegiatan.judul;
+
   return (
-    <AdminModal title={`Hapus ${kegiatan.judul}?`} onClose={onClose}>
+    <AdminModal title="Hapus Kegiatan?" onClose={onClose}>
       <div style={{ display: "grid", gap: 14 }}>
         <div style={{ padding: "12px 14px", borderRadius: 12, background: "#fffbeb", border: "1px solid #fde68a", color: "#78350f", fontSize: 13, lineHeight: 1.5 }}>
-          <strong>{kegiatan.judul}</strong> akan dihapus permanen. Data kegiatan ini tidak bisa dikembalikan.
+          <strong style={{ wordBreak: "break-word" }}>{kegiatan.judul}</strong> akan dihapus permanen. Data kegiatan ini tidak bisa dikembalikan.
         </div>
         <div style={{ fontSize: 13, lineHeight: 1.5 }}>
-          Ketik <strong style={{ fontFamily: "monospace", background: "#f1f5f9", padding: "2px 6px", borderRadius: 6 }}>{confirmText}</strong> untuk melanjutkan.
+          Ketik <strong style={{ fontFamily: "monospace", background: "#f1f5f9", padding: "2px 6px", borderRadius: 6, wordBreak: "break-all" }}>{confirmText}</strong> untuk melanjutkan.
         </div>
         <div className="field">
           <label>Konfirmasi *</label>
-          <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={confirmText} disabled={busy} autoComplete="off" autoFocus />
+          <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={judulShort} disabled={busy} autoComplete="off" autoFocus />
         </div>
         {err && (
           <div style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontSize: 13, display: "flex", gap: 8 }}>
@@ -2092,8 +2114,8 @@ function DeleteKegiatanModal({ kegiatan, onClose, onDeleted }: { kegiatan: Kegia
         )}
         <div style={{ display: "flex", gap: 8 }}>
           <button className="btn btn-ghost" style={{ flex: 1 }} disabled={busy} onClick={onClose}>Batal</button>
-          <button className="btn btn-danger" style={{ flex: 1 }} disabled={!isMatch || busy} aria-busy={busy} onClick={() => void handleDelete()}>
-            {busy ? "Menghapus…" : confirmText}
+          <button className="btn btn-danger" style={{ flex: 1, minWidth: 0 }} disabled={!isMatch || busy} aria-busy={busy} onClick={() => void handleDelete()}>
+            {busy ? "Menghapus…" : "Hapus"}
           </button>
         </div>
       </div>
@@ -2486,6 +2508,9 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
   const [editingKegiatan, setEditingKegiatan] = useState<Kegiatan | null>(null);
   const [absensiKegiatan, setAbsensiKegiatan] = useState<Kegiatan | null>(null);
   const [deletingKegiatan, setDeletingKegiatan] = useState<Kegiatan | null>(null);
+  const [detailKegiatan, setDetailKegiatan] = useState<Kegiatan | null>(null);
+  const [rejectingPeserta, setRejectingPeserta] = useState<{ kegiatanId: string; pesertaId: string } | null>(null);
+  const [pesertaDetailKegiatan, setPesertaDetailKegiatan] = useState<Kegiatan | null>(null);
   const [savingKegiatan, setSavingKegiatan] = useState(false);
   const [targetedPeserta, setTargetedPeserta] = useState(false);
   const [pesertaDesaIds, setPesertaDesaIds] = useState<number[]>([]);
@@ -2537,6 +2562,10 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
           createdBy: k.createdBy ?? undefined,
           pesertaCount: (k as any).pesertaCount ?? 0,
           pendingPesertaCount: (k as any).pendingPesertaCount ?? 0,
+          pesertaStatus: (k as any).pesertaStatus ?? null,
+          myPesertaId: (k as any).myPesertaId ?? null,
+          pesertaCatatan: (k as any).pesertaCatatan ?? null,
+          pesertaEntries: (k as any).pesertaEntries ?? [],
         };
       });
       setList(mapped);
@@ -2549,6 +2578,20 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
   }
 
   useEffect(() => { void loadKegiatan(); }, []);
+
+  // Load existing peserta when editing a kegiatan
+  useEffect(() => {
+    if (!editingKegiatan) return;
+    apiFetch<{ id: string; desaId?: number | null; kelompokId?: number | null; generusId?: string | null }[]>(`/api/kegiatan/${editingKegiatan.id}/peserta-entries`)
+      .then((entries) => {
+        if (!entries || entries.length === 0) { setTargetedPeserta(false); return; }
+        setTargetedPeserta(true);
+        setPesertaDesaIds(entries.filter((e) => e.desaId && !e.kelompokId && !e.generusId).map((e) => e.desaId!));
+        setPesertaKelompokIds(entries.filter((e) => e.kelompokId).map((e) => e.kelompokId!));
+        setPesertaGenerusIds(entries.filter((e) => e.generusId).map((e) => e.generusId!));
+      })
+      .catch(() => {});
+  }, [editingKegiatan?.id]);
 
   useEffect(() => {
     if (!showForm) return;
@@ -2663,6 +2706,11 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
               <span className="pill pill-slate" style={{ fontSize: 11 }}>{k.tingkat === "daerah" ? "Daerah" : k.tingkat === "desa" ? `Desa${k.desa ? ` • ${k.desa}` : ""}` : `Kelompok${k.kelompok ? ` • ${k.kelompok}` : ""}`}</span>
               {(k.pesertaCount ?? 0) > 0 && <span className="pill pill-amber" style={{ fontSize: 11 }}><IcoUsers size={10} /> {k.pesertaCount} wajib</span>}
               {(k.pendingPesertaCount ?? 0) > 0 && <span className="pill pill-amber" style={{ fontSize: 11, background: "#fef3c7", color: "#92400e" }}>⏳ {k.pendingPesertaCount} pending</span>}
+              {(k.pesertaEntries?.some((e) => e.status === "rejected") ?? false) && (
+                <span className="pill" style={{ fontSize: 11, background: "#fef2f2", color: "#991b1b", cursor: "pointer" }} onClick={() => setPesertaDetailKegiatan(k)}>
+                  ✗ {k.pesertaEntries!.filter((e) => e.status === "rejected").length} ditolak
+                </span>
+              )}
             </div>
             <div className="kegiatan-card-body">
               <div className="kegiatan-title">{k.judul}</div>
@@ -2678,16 +2726,36 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
                 <span className="kegiatan-meta-value">{k.lokasi || "—"}</span>
               </div>
             </div>
+            {k.pesertaStatus === "pending" && k.myPesertaId && (
+              <div style={{ display: "flex", gap: 6, padding: "8px 14px", background: "#fffbeb", borderTop: "1px solid #fde68a" }}>
+                <span style={{ fontSize: 12, color: "#92400e", flex: 1, display: "flex", alignItems: "center", gap: 4 }}>Undangan menunggu persetujuan</span>
+                <button className="btn btn-primary btn-sm" style={{ fontSize: 11, padding: "4px 10px" }} onClick={async () => { try { await apiFetch(`/api/kegiatan/${k.id}/peserta/${k.myPesertaId}/approve`, { method: "PUT" }); void loadKegiatan(); } catch {} }}>Terima</button>
+                <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => setRejectingPeserta({ kegiatanId: k.id, pesertaId: k.myPesertaId! })}>Tolak</button>
+              </div>
+            )}
+            {k.pesertaStatus === "rejected" && (
+              <div style={{ padding: "8px 14px", background: "#fef2f2", borderTop: "1px solid #fecaca" }}>
+                <div style={{ fontSize: 12, color: "#991b1b", fontWeight: 600 }}>Undangan ditolak</div>
+                {k.pesertaCatatan && <div style={{ fontSize: 12, color: "#7f1d1d", marginTop: 2 }}>Alasan: {k.pesertaCatatan}</div>}
+              </div>
+            )}
             <div className="kegiatan-card-actions">
+              <button className="btn btn-ghost row-icon-btn" aria-label="Lihat detail" title="Detail" onClick={() => setDetailKegiatan(k)}>
+                <IcoEye size={15} />
+              </button>
               <button className="btn btn-ghost row-icon-btn" aria-label="Lihat Absensi" title="Lihat Absensi" onClick={() => setAbsensiKegiatan(k)}>
                 <IcoUsers size={15} />
               </button>
-              <button className="btn btn-ghost row-icon-btn" aria-label="Edit" title="Edit" onClick={() => { setEditingKegiatan(k); setShowForm(true); }}>
-                <IcoEdit size={15} />
-              </button>
-              <button className="btn btn-danger row-icon-btn" aria-label="Hapus" title="Hapus" onClick={() => setDeletingKegiatan(k)}>
-                <IcoTrash size={16} />
-              </button>
+              {(role === "admin_daerah" || (role === "admin_desa" && (k.desaId === user?.desaId || k.tingkat === "daerah")) || (role === "admin_kelompok" && (k.kelompokId === user?.kelompokId || k.tingkat === "daerah"))) && (
+                <>
+                  <button className="btn btn-ghost row-icon-btn" aria-label="Edit" title="Edit" onClick={() => { setEditingKegiatan(k); setShowForm(true); }}>
+                    <IcoEdit size={15} />
+                  </button>
+                  <button className="btn btn-danger row-icon-btn" aria-label="Hapus" title="Hapus" onClick={() => setDeletingKegiatan(k)}>
+                    <IcoTrash size={16} />
+                  </button>
+                </>
+              )}
             </div>
           </div>
         ))}
@@ -2960,7 +3028,164 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
       {deletingKegiatan && (
         <DeleteKegiatanModal kegiatan={deletingKegiatan} onClose={() => setDeletingKegiatan(null)} onDeleted={() => { setDeletingKegiatan(null); void loadKegiatan(); }} />
       )}
+
+      {rejectingPeserta && (
+        <RejectPesertaModal
+          kegiatanId={rejectingPeserta.kegiatanId}
+          pesertaId={rejectingPeserta.pesertaId}
+          onClose={() => setRejectingPeserta(null)}
+          onRejected={() => { setRejectingPeserta(null); void loadKegiatan(); }}
+        />
+      )}
+
+      {pesertaDetailKegiatan && (
+        <AdminModal title="Status Undangan" onClose={() => setPesertaDetailKegiatan(null)}>
+          <div style={{ display: "grid", gap: 10 }}>
+            {pesertaDetailKegiatan.pesertaEntries?.map((e) => (
+              <div key={e.id} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #e5e7eb", display: "flex", alignItems: "center", gap: 10 }}>
+                <span className={`pill ${e.status === "approved" ? "pill-emerald" : e.status === "rejected" ? "" : "pill-amber"}`} style={e.status === "rejected" ? { background: "#fef2f2", color: "#991b1b" } : { fontSize: 11 }}>
+                  {e.status === "approved" ? "Diterima" : e.status === "rejected" ? "Ditolak" : "Menunggu"}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{e.desaNama ? `Desa ${e.desaNama}` : ""}{e.kelompokNama ? ` • ${e.kelompokNama}` : ""}</div>
+                  {e.catatan && <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>Alasan: {e.catatan}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </AdminModal>
+      )}
+
+      {detailKegiatan && (
+        <AdminModal title="Detail Kegiatan" onClose={() => setDetailKegiatan(null)}>
+          <div style={{ display: "grid", gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Judul</div>
+              <div style={{ fontSize: 15, fontWeight: 600 }}>{detailKegiatan.judul}</div>
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <span className={`pill ${detailKegiatan.kategori === "sambung_rutin" ? "pill-emerald" : "pill-amber"}`}>{detailKegiatan.kategori === "sambung_rutin" ? "Sambung Rutin" : detailKegiatan.kategoriCustom || detailKegiatan.kategori}</span>
+              <span className="pill pill-slate">{detailKegiatan.tingkat === "daerah" ? "Daerah" : detailKegiatan.tingkat === "desa" ? `Desa • ${detailKegiatan.desa || "—"}` : `Kelompok • ${detailKegiatan.kelompok || "—"}`}</span>
+              {(detailKegiatan.pesertaCount ?? 0) > 0 && <span className="pill pill-amber"><IcoUsers size={10} /> {detailKegiatan.pesertaCount} wajib</span>}
+            </div>
+            {detailKegiatan.deskripsi && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Deskripsi</div>
+                <div style={{ fontSize: 13, lineHeight: 1.6, color: "#374151", whiteSpace: "pre-wrap" }}>{detailKegiatan.deskripsi}</div>
+              </div>
+            )}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Tanggal</div>
+                <div style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}><IcoCalendar size={13} /> {detailKegiatan.tanggal}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Jam</div>
+                <div style={{ fontSize: 13 }}>{detailKegiatan.jam || "—"}</div>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Lokasi</div>
+              <div style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}><IcoMapPin size={13} /> {detailKegiatan.lokasi || "—"}</div>
+            </div>
+            {detailKegiatan.lat && detailKegiatan.lng && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Lokasi di Peta</div>
+                <div style={{ borderRadius: 12, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+                  <iframe
+                    title="Peta Lokasi"
+                    width="100%"
+                    height="220"
+                    style={{ border: 0 }}
+                    loading="lazy"
+                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${detailKegiatan.lng - 0.008}%2C${detailKegiatan.lat - 0.005}%2C${detailKegiatan.lng + 0.008}%2C${detailKegiatan.lat + 0.005}&layer=mapnik&marker=${detailKegiatan.lat}%2C${detailKegiatan.lng}`}
+                  />
+                </div>
+                <a
+                  href={`https://www.openstreetmap.org/?mlat=${detailKegiatan.lat}&mlon=${detailKegiatan.lng}#map=16/${detailKegiatan.lat}/${detailKegiatan.lng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontSize: 12, color: "var(--primary-dark, #65a30d)", display: "inline-flex", alignItems: "center", gap: 4, marginTop: 6 }}
+                >Buka di OpenStreetMap →</a>
+              </div>
+            )}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Radius</div>
+                <div style={{ fontSize: 13 }}>{detailKegiatan.radiusM}m</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>GPS Wajib</div>
+                <div style={{ fontSize: 13 }}>{detailKegiatan.gpsRequired ? "Ya" : "Tidak"}</div>
+              </div>
+            </div>
+          </div>
+        </AdminModal>
+      )}
     </div>
+  );
+}
+
+function RejectPesertaModal({
+  kegiatanId,
+  pesertaId,
+  onClose,
+  onRejected,
+}: {
+  kegiatanId: string;
+  pesertaId: string;
+  onClose: () => void;
+  onRejected: () => void;
+}) {
+  const [catatan, setCatatan] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function handleReject() {
+    setBusy(true);
+    setErr(null);
+    try {
+      await apiFetch(`/api/kegiatan/${kegiatanId}/peserta/${pesertaId}/reject`, {
+        method: "PUT",
+        body: JSON.stringify({ catatan: catatan.trim() || null }),
+      });
+      onRejected();
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <AdminModal title="Tolak Undangan" onClose={onClose}>
+      <div style={{ display: "grid", gap: 14 }}>
+        <div style={{ fontSize: 13, lineHeight: 1.5, color: "#374151" }}>
+          Berikan alasan penolakan (opsional).
+        </div>
+        <div className="field">
+          <label>Alasan Penolakan</label>
+          <textarea
+            rows={3}
+            value={catatan}
+            onChange={(e) => setCatatan(e.target.value)}
+            placeholder="Contoh: Jaduran bentrok dengan kegiatan lain"
+            disabled={busy}
+          />
+        </div>
+        {err && (
+          <div style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontSize: 13 }}>
+            {err}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn btn-ghost" style={{ flex: 1 }} disabled={busy} onClick={onClose}>Batal</button>
+          <button className="btn btn-danger" style={{ flex: 1 }} disabled={busy} onClick={() => void handleReject()}>
+            {busy ? "Menolak…" : "Tolak"}
+          </button>
+        </div>
+      </div>
+    </AdminModal>
   );
 }
 
@@ -3033,11 +3258,13 @@ function UndanganMasukPage() {
 }
 
 function UsersManage({ role }: { role: AdminRole }) {
+  const { user } = useAuth();
   const [users, setUsers] = useState<{ id: string; nama: string; role: AdminRole; wilayah: string; email: string; desaId?: number | null; kelompokId?: number | null; status: string }[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersErr, setUsersErr] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [editingUser, setEditingUser] = useState<{ id: string; nama: string; role: AdminRole; wilayah: string; email?: string; desaId?: number | null; kelompokId?: number | null } | null>(null);
+  const [deletingUser, setDeletingUser] = useState<{ id: string; nama: string } | null>(null);
   const [q, setQ] = useState("");
   const isMobile = useIsMobile();
 
@@ -3072,9 +3299,16 @@ function UsersManage({ role }: { role: AdminRole }) {
 
   useEffect(() => { void loadUsers(); }, []);
 
-  const canManage = (targetRole: AdminRole) => {
+  const canManage = (targetRole: AdminRole, targetDesaId?: number | null, targetKelompokId?: number | null) => {
     if (role === "admin_daerah") return true;
-    if (role === "admin_desa") return targetRole === "admin_kelompok";
+    if (role === "admin_desa") {
+      if (targetRole === "admin_desa" && targetDesaId === user?.desaId) return true;
+      if (targetRole === "admin_kelompok" && targetDesaId === user?.desaId) return true;
+      return false;
+    }
+    if (role === "admin_kelompok") {
+      return targetRole === "admin_kelompok" && targetKelompokId === user?.kelompokId;
+    }
     return false;
   };
 
@@ -3085,8 +3319,12 @@ function UsersManage({ role }: { role: AdminRole }) {
   }, [users, q]);
 
   const roleOptions: { value: AdminRole; label: string }[] = [
-    ...(role === "admin_daerah" ? [{ value: "admin_daerah" as AdminRole, label: "Admin Daerah" }] : []),
-    ...(role === "admin_daerah" ? [{ value: "admin_desa" as AdminRole, label: "Admin Desa" }] : []),
+    ...(role === "admin_daerah" ? [
+      { value: "admin_daerah" as AdminRole, label: "Admin Daerah" },
+    ] : []),
+    ...(role === "admin_daerah" || role === "admin_desa" ? [
+      { value: "admin_desa" as AdminRole, label: "Admin Desa" },
+    ] : []),
     { value: "admin_kelompok" as AdminRole, label: "Admin Kelompok" },
   ];
 
@@ -3117,19 +3355,20 @@ function UsersManage({ role }: { role: AdminRole }) {
     }
   };
 
-  const handleToggle = async (u: { id: string; status: string }) => {
+  const handleToggle = async (u: { id: string; status: string; role: string }) => {
     try {
-      await apiFetch("/api/admin/users", { method: "PUT", body: JSON.stringify({ id: u.id, role: u.status === "aktif" ? "generus" : "admin_kelompok" }) });
+      await apiFetch("/api/admin/users", { method: "PUT", body: JSON.stringify({ id: u.id, role: u.status === "aktif" ? "generus" : u.role }) });
       void loadUsers();
     } catch (e: unknown) {
       setUsersErr(e instanceof Error ? e.message : String(e));
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Yakin hapus user ini?")) return;
+  const handleDelete = async () => {
+    if (!deletingUser) return;
     try {
-      await apiFetch(`/api/admin/users?id=${id}`, { method: "DELETE" });
+      await apiFetch(`/api/admin/users?id=${deletingUser.id}`, { method: "DELETE" });
+      setDeletingUser(null);
       void loadUsers();
     } catch (e: unknown) {
       setUsersErr(e instanceof Error ? e.message : String(e));
@@ -3138,14 +3377,14 @@ function UsersManage({ role }: { role: AdminRole }) {
 
   return (
     <div>
-      <PageHeader title="Kelola User" sub={`Kelola akun admin di bawah kamu${usersErr ? ` · ${usersErr.slice(0, 80)}` : ""}`} action={<button className="btn btn-primary btn-auto" disabled={role === "admin_kelompok"} onClick={() => setShowAdd(true)}>+ Tambah Admin</button>} />
+      <PageHeader title="Kelola User" sub={`Kelola akun admin di bawah kamu${usersErr ? ` · ${usersErr.slice(0, 80)}` : ""}`} action={<button className="btn btn-primary btn-auto" onClick={() => setShowAdd(true)}>+ Tambah Admin</button>} />
       {usersErr && <div className="card" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#991b1b", display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}><span style={{ fontSize: 13, fontWeight: 700 }}>{usersErr}</span><button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: "auto" }} onClick={() => setUsersErr(null)}>Tutup</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => void loadUsers()}>Retry</button></div>}
       {usersLoading && <div className="muted" style={{ marginBottom: 8, fontSize: 12 }}>Memuat user…</div>}
       <div className="info-banner">
         <span className="info-banner-icon"><IcoShield size={18} /></span>
         <div className="info-banner-body">
           <strong className="info-banner-title">Kelola User di bawah kamu</strong>
-          <p className="info-banner-desc">{role === "admin_daerah" ? "Kelola semua admin di wilayah kamu." : role === "admin_desa" ? "Kelola admin kelompok di desamu." : "Kamu tidak bisa kelola user."}</p>
+          <p className="info-banner-desc">{role === "admin_daerah" ? "Kelola semua admin di wilayah kamu." : role === "admin_desa" ? "Kelola admin desa dan admin kelompok di desamu." : "Kelola admin kelompok di kelompokmu."}</p>
         </div>
       </div>
       <div className="admin-toolbar" style={{ marginBottom: 16 }}>
@@ -3172,9 +3411,8 @@ function UsersManage({ role }: { role: AdminRole }) {
               </div>
 
               <div className="member-card-actions">
-                <button className="btn btn-ghost row-icon-btn" aria-label="Edit" title="Edit" disabled={!canManage(u.role)} onClick={() => setEditingUser(u)}><IcoEdit size={16} /></button>
-                <button className="btn btn-ghost row-icon-btn" aria-label={u.status === "aktif" ? "Nonaktifkan" : "Aktifkan"} title={u.status === "aktif" ? "Nonaktifkan" : "Aktifkan"} disabled={!canManage(u.role)} onClick={() => void handleToggle(u)}><IcoPower size={16} /></button>
-                <button className="btn btn-danger row-icon-btn" aria-label="Hapus" title="Hapus" disabled={!canManage(u.role)} onClick={() => void handleDelete(u.id)}><IcoTrash size={16} /></button>
+                <button className="btn btn-ghost row-icon-btn" aria-label="Edit" title="Edit" disabled={!canManage(u.role, u.desaId, u.kelompokId)} onClick={() => setEditingUser(u)}><IcoEdit size={16} /></button>
+                <button className="btn btn-danger row-icon-btn" aria-label="Hapus" title="Hapus" disabled={!canManage(u.role, u.desaId, u.kelompokId)} onClick={() => setDeletingUser({ id: u.id, nama: u.nama })}><IcoTrash size={16} /></button>
               </div>
             </div>
           ))}
@@ -3194,9 +3432,8 @@ function UsersManage({ role }: { role: AdminRole }) {
                   <td><span className={`pill ${u.status === "aktif" ? "pill-emerald" : "pill-amber"}`}>{u.status}</span></td>
                   <td>
                     <div style={{ display: "flex", gap: 6 }}>
-                      <button className="btn btn-ghost row-icon-btn" aria-label="Edit" title="Edit" disabled={!canManage(u.role)} onClick={() => setEditingUser(u)}><IcoEdit size={16} /></button>
-                      <button className="btn btn-ghost row-icon-btn" aria-label={u.status === "aktif" ? "Nonaktifkan" : "Aktifkan"} title={u.status === "aktif" ? "Nonaktifkan" : "Aktifkan"} disabled={!canManage(u.role)} onClick={() => void handleToggle(u)}><IcoPower size={16} /></button>
-                      <button className="btn btn-danger row-icon-btn" aria-label="Hapus" title="Hapus" disabled={!canManage(u.role)} onClick={() => void handleDelete(u.id)}><IcoTrash size={16} /></button>
+                      <button className="btn btn-ghost row-icon-btn" aria-label="Edit" title="Edit" disabled={!canManage(u.role, u.desaId, u.kelompokId)} onClick={() => setEditingUser(u)}><IcoEdit size={16} /></button>
+                      <button className="btn btn-danger row-icon-btn" aria-label="Hapus" title="Hapus" disabled={!canManage(u.role, u.desaId, u.kelompokId)} onClick={() => setDeletingUser({ id: u.id, nama: u.nama })}><IcoTrash size={16} /></button>
                     </div>
                   </td>
                 </tr>
@@ -3212,6 +3449,9 @@ function UsersManage({ role }: { role: AdminRole }) {
           onClose={() => setShowAdd(false)}
           onSave={handleAdd}
           roleOptions={roleOptions}
+          callerRole={role}
+          callerDesaId={user?.desaId}
+          callerKelompokId={user?.kelompokId}
         />
       )}
       {editingUser && (
@@ -3222,7 +3462,73 @@ function UsersManage({ role }: { role: AdminRole }) {
           roleOptions={roleOptions}
         />
       )}
+      {deletingUser && (
+        <DeleteUserConfirmModal
+          nama={deletingUser.nama}
+          onClose={() => setDeletingUser(null)}
+          onConfirm={handleDelete}
+        />
+      )}
     </div>
+  );
+}
+
+function DeleteUserConfirmModal({
+  nama,
+  onClose,
+  onConfirm,
+}: {
+  nama: string;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const confirmText = `Hapus ${nama}`;
+  const isMatch = typed.trim() === confirmText;
+
+  async function handleConfirm() {
+    if (!isMatch || busy) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await onConfirm();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setErr(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <AdminModal title={`Hapus ${nama}?`} onClose={onClose}>
+      <div style={{ display: "grid", gap: 14 }}>
+        <div style={{ padding: "12px 14px", borderRadius: 12, background: "#fffbeb", border: "1px solid #fde68a", color: "#78350f", fontSize: 13, lineHeight: 1.5 }}>
+          <strong>{nama}</strong> akan dihapus permanen. Akun login dan data terkait akan terhapus.
+        </div>
+        <div style={{ fontSize: 13, lineHeight: 1.5 }}>
+          Ketik <strong style={{ fontFamily: "monospace", background: "#f1f5f9", padding: "2px 6px", borderRadius: 6 }}>{confirmText}</strong> untuk melanjutkan.
+        </div>
+        <div className="field">
+          <label>Konfirmasi *</label>
+          <input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={confirmText} disabled={busy} autoComplete="off" autoFocus />
+        </div>
+        {err && (
+          <div style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontSize: 13, display: "flex", gap: 8 }}>
+            <span style={{ flex: 1, wordBreak: "break-word" }}>{err}</span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setErr(null)}>Tutup</button>
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn btn-ghost" style={{ flex: 1 }} disabled={busy} onClick={onClose}>Batal</button>
+          <button className="btn btn-danger" style={{ flex: 1 }} disabled={!isMatch || busy} aria-busy={busy} onClick={() => void handleConfirm()}>
+            {busy ? "Menghapus…" : confirmText}
+          </button>
+        </div>
+      </div>
+    </AdminModal>
   );
 }
 
@@ -3302,35 +3608,43 @@ function EditAdminModal({
 }
 
 function AddAdminModal({
-  onClose, onSave, roleOptions,
+  onClose, onSave, roleOptions, callerRole, callerDesaId, callerKelompokId,
 }: {
   onClose: () => void;
   onSave: (nama: string, role: AdminRole, wilayah: string, email?: string, password?: string, desaId?: number, kelompokId?: number) => void;
   roleOptions: { value: AdminRole; label: string }[];
+  callerRole: AdminRole;
+  callerDesaId?: number | null;
+  callerKelompokId?: number | null;
 }) {
   const [nama, setNama] = useState("");
   const [roleBaru, setRoleBaru] = useState<AdminRole>(roleOptions[0]?.value ?? "admin_kelompok");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [desaList, setDesaList] = useState<{ id: number; nama: string }[]>([]);
   const [kelList, setKelList] = useState<{ id: number; nama: string; desaId: number }[]>([]);
-  const [selectedDesaId, setSelectedDesaId] = useState<number | "">("");
   const [selectedKelId, setSelectedKelId] = useState<number | "">("");
 
   useEffect(() => {
-    apiFetch("/api/admin/desa").then((r: any) => setDesaList(Array.isArray(r) ? r : [])).catch(() => {});
-    apiFetch("/api/admin/kelompok").then((r: any) => setKelList(Array.isArray(r) ? r : [])).catch(() => {});
-  }, []);
+    if (callerRole === "admin_desa" && roleBaru === "admin_kelompok") {
+      apiFetch("/api/admin/kelompok").then((r: any) => setKelList(Array.isArray(r) ? r : [])).catch(() => {});
+    }
+  }, [callerRole, roleBaru]);
 
-  useEffect(() => {
-    setSelectedDesaId("");
-    setSelectedKelId("");
-  }, [roleBaru]);
+  useEffect(() => { setSelectedKelId(""); }, [roleBaru]);
 
-  const filteredKel = selectedDesaId ? kelList.filter((k) => k.desaId === Number(selectedDesaId)) : [];
-  const needDesa = roleBaru === "admin_desa" || roleBaru === "admin_kelompok";
-  const needKel = roleBaru === "admin_kelompok";
-  const valid = nama.trim().length >= 3 && email.trim().includes("@") && password.length >= 8 && (!needDesa || selectedDesaId !== "") && (!needKel || selectedKelId !== "");
+  // Desa/kelompok is auto-assigned from caller context — no selector needed
+  const autoDesa = callerRole === "admin_desa" || callerRole === "admin_kelompok";
+  const needKelSelect = callerRole === "admin_desa" && roleBaru === "admin_kelompok";
+  const filteredKel = callerDesaId ? kelList.filter((k) => k.desaId === Number(callerDesaId)) : kelList;
+  const valid = nama.trim().length >= 3 && email.trim().includes("@") && password.length >= 8 && (!needKelSelect || selectedKelId !== "");
+
+  function handleSave() {
+    const desaId = autoDesa ? Number(callerDesaId) : undefined;
+    const kelompokId = roleBaru === "admin_kelompok"
+      ? (needKelSelect ? (selectedKelId ? Number(selectedKelId) : undefined) : Number(callerKelompokId))
+      : undefined;
+    onSave(nama.trim(), roleBaru, "", email.trim().toLowerCase(), password, desaId, kelompokId);
+  }
 
   return (
     <AdminModal title="Tambah Admin" onClose={onClose}>
@@ -3348,18 +3662,7 @@ function AddAdminModal({
             options={roleOptions.map((o) => ({ value: o.value, label: o.label }))}
           />
         </div>
-        {needDesa && (
-          <div className="field">
-            <label>Desa *</label>
-            <Select
-              value={selectedDesaId === "" ? "" : String(selectedDesaId)}
-              onChange={(v) => { setSelectedDesaId(v ? Number(v) : ""); setSelectedKelId(""); }}
-              ariaLabel="Pilih desa"
-              options={[{ value: "", label: "-- Pilih Desa --" }, ...desaList.map((d) => ({ value: String(d.id), label: d.nama }))]}
-            />
-          </div>
-        )}
-        {needKel && selectedDesaId && (
+        {needKelSelect && (
           <div className="field">
             <label>Kelompok *</label>
             <Select
@@ -3370,15 +3673,15 @@ function AddAdminModal({
             />
           </div>
         )}
-        <div className="field"><label>Email *</label><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@email.com" /></div>
-        <div className="field"><label>Password *</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 8 karakter" /></div>
+        <div className="field"><label>Email *</label><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@email.com" autoComplete="off" /></div>
+        <div className="field"><label>Password *</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 8 karakter" autoComplete="new-password" /></div>
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
           <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Batal</button>
           <button
             className="btn btn-primary"
             style={{ flex: 1 }}
             disabled={!valid}
-            onClick={() => onSave(nama.trim(), roleBaru, "", email.trim().toLowerCase(), password, selectedDesaId ? Number(selectedDesaId) : undefined, selectedKelId ? Number(selectedKelId) : undefined)}
+            onClick={handleSave}
           >
             Simpan Admin
           </button>
@@ -3898,7 +4201,7 @@ import type { MemberPageKey } from "./features/member/MemberShell";
 import MemberHomePage from "./features/member/MemberHomePage";
 import MemberProfilePage from "./features/member/MemberProfilePage";
 import MemberStatPage from "./features/member/MemberStatPage";
-import { DEMO_SELF, DEMO_KEHADIRAN, DEMO_KEGIATAN_MEMBER } from "./features/member/types";
+import { DEMO_KEGIATAN_MEMBER, type MemberIdentity, type MemberKehadiran } from "./features/member/types";
 
 export default function App({ initialMode }: { initialMode?: "admin" | "member" } = {}) {
   const { user, logout } = useAuth();
@@ -3908,39 +4211,102 @@ export default function App({ initialMode }: { initialMode?: "admin" | "member" 
   void _mode; void _setMode;
   const [page, setPage] = useState("anggota");
   const [memberPage, setMemberPage] = useState<MemberPageKey>("beranda");
-  const [me, setMe] = useState(DEMO_SELF);
+  const [me, setMe] = useState<MemberIdentity | null>(null);
+  const [stat, setStat] = useState<MemberKehadiran | null>(null);
 
   const isAdmin = ["admin_daerah", "admin_desa", "admin_kelompok"].includes(String(role));
 
+  // Load real profile data for member mode
+  useEffect(() => {
+    if (initialMode !== "member" || !user) return;
+    apiFetch<{ user: any; generus: any }>("/api/profile").then(({ user: authUser, generus }) => {
+      if (!generus) return;
+      const genDesaNama = generus.desaNama ?? "";
+      const genKelompokNama = generus.kelompokNama ?? "";
+      const mapped: MemberIdentity = {
+        email: authUser?.email ?? "",
+        id: generus.id,
+        nama: generus.nama,
+        desa: genDesaNama,
+        kelompok: genKelompokNama,
+        pendidikan: generus.pendidikan ?? "SMA",
+        noTelp: generus.noTelp ?? "",
+        kategoriMudaMudi: generus.kategoriMudaMudi ?? "pribumi",
+        asalDaerah: generus.asalDaerah ?? null,
+        domisiliAnak: generus.domisiliAnak ?? generus.alamat ?? "",
+        domisiliOrtu: generus.domisiliOrtu ?? null,
+        isOrtuSama: generus.isDomisiliOrtuSama == null ? true : Boolean(generus.isDomisiliOrtuSama),
+        foto: generus.foto ?? null,
+        avatarId: generus.avatarId ?? null,
+        jenisKelamin: generus.jenisKelamin === "L" ? "cowok" : generus.jenisKelamin === "P" ? "cewek" : null,
+        nomorUnik: generus.nomorUnik ?? "",
+        status: "aktif",
+        hobi: generus.hobi ?? null,
+        hobiDetail: generus.hobiDetail ?? null,
+      };
+      setMe(mapped);
+      // Load stats
+      apiFetch<{ stats?: any }>(`/api/generus/${generus.id}`).then((detail) => {
+        if (!detail?.stats) return;
+        const s = detail.stats;
+        setStat({
+          total: s.total ?? 0,
+          hadir: s.hadir ?? 0,
+          izin: s.izin ?? 0,
+          alpha: s.alpha ?? 0,
+          hadirRate: s.rate ?? 0,
+          telat: s.telatCount ?? 0,
+          rataRataTelatMenit: s.avgTelatMenit ?? 0,
+          riwayatTelat: (s.riwayatTelat ?? []).map((r: any) => ({ tanggal: r.tanggal, judul: r.judul ?? "", menit: r.menit ?? 0 })),
+          tren: [],
+        });
+      }).catch(() => {});
+    }).catch(() => {});
+  }, [initialMode, user]);
+
+  // Persist profile changes to backend
+  const handleProfileUpdate = (m: MemberIdentity) => {
+    setMe(m);
+    if (m.id) {
+      apiFetch("/api/profile", {
+        method: "PUT",
+        body: JSON.stringify({ hobi: m.hobi, hobiDetail: m.hobiDetail, foto: m.foto }),
+      }).catch(() => {});
+    }
+  };
+
   if (initialMode === "member") {
+    const fallbackMe: MemberIdentity = me ?? { id: "", nama: "Memuat…", desa: "", kelompok: "", pendidikan: "", noTelp: "", kategoriMudaMudi: "pribumi", status: "aktif" };
+    const fallbackStat: MemberKehadiran = stat ?? { total: 0, hadir: 0, izin: 0, alpha: 0, hadirRate: 0, tren: [] };
     return (
       <MemberShell
         page={memberPage}
         setPage={setMemberPage}
-        me={me}
+        me={fallbackMe}
         onExit={async () => { await logout(); navigate("/login", { replace: true }); }}
         onLogout={async () => { await logout(); navigate("/login", { replace: true }); }}
       >
-        {memberPage === "beranda" && <MemberHomePage me={me} />}
-        {memberPage === "profil" && <MemberProfilePage me={me} stat={DEMO_KEHADIRAN} kegiatan={DEMO_KEGIATAN_MEMBER} onUpdate={setMe} />}
-        {memberPage === "statistik" && <MemberStatPage me={me} stat={DEMO_KEHADIRAN} />}
+        {memberPage === "beranda" && <MemberHomePage me={fallbackMe} />}
+        {memberPage === "profil" && <MemberProfilePage me={fallbackMe} stat={fallbackStat} kegiatan={DEMO_KEGIATAN_MEMBER} onUpdate={handleProfileUpdate} />}
+        {memberPage === "statistik" && <MemberStatPage me={fallbackMe} stat={fallbackStat} />}
       </MemberShell>
     );
   }
 
   if (!isAdmin) {
-    // Should not happen due to RequireAuth, but guard: non-admin hitting /admin → bounce to member
+    const fallbackMe: MemberIdentity = me ?? { id: "", nama: "Memuat…", desa: "", kelompok: "", pendidikan: "", noTelp: "", kategoriMudaMudi: "pribumi", status: "aktif" };
+    const fallbackStat: MemberKehadiran = stat ?? { total: 0, hadir: 0, izin: 0, alpha: 0, hadirRate: 0, tren: [] };
     return (
       <MemberShell
         page={memberPage}
         setPage={setMemberPage}
-        me={me}
+        me={fallbackMe}
         onExit={async () => { await logout(); navigate("/login", { replace: true }); }}
         onLogout={async () => { await logout(); navigate("/login", { replace: true }); }}
       >
-        {memberPage === "beranda" && <MemberHomePage me={me} />}
-        {memberPage === "profil" && <MemberProfilePage me={me} stat={DEMO_KEHADIRAN} kegiatan={DEMO_KEGIATAN_MEMBER} onUpdate={setMe} />}
-        {memberPage === "statistik" && <MemberStatPage me={me} stat={DEMO_KEHADIRAN} />}
+        {memberPage === "beranda" && <MemberHomePage me={fallbackMe} />}
+        {memberPage === "profil" && <MemberProfilePage me={fallbackMe} stat={fallbackStat} kegiatan={DEMO_KEGIATAN_MEMBER} onUpdate={handleProfileUpdate} />}
+        {memberPage === "statistik" && <MemberStatPage me={fallbackMe} stat={fallbackStat} />}
       </MemberShell>
     );
   }
@@ -3951,7 +4317,6 @@ export default function App({ initialMode }: { initialMode?: "admin" | "member" 
       <AdminShell page={effectivePage} setPage={setPage} role={role}>
         {effectivePage === "anggota" && <AnggotaPage role={role} />}
         {effectivePage === "kegiatan" && <KegiatanAdmin role={role} />}
-        {effectivePage === "undangan" && <UndanganMasukPage />}
         {effectivePage === "pengajuan" && <ProfileRequestsPage />}
         {effectivePage === "users" && <UsersManage role={role} />}
         {effectivePage === "wilayah" && <WilayahPage role={role} />}

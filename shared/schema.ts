@@ -152,6 +152,7 @@ export const kegiatanPeserta = sqliteTable("kegiatan_peserta", {
   status: text("status", { enum: ["pending", "approved", "rejected"] }).default("approved").notNull(),
   requestedBy: text("requested_by"),
   approvedBy: text("approved_by"),
+  catatan: text("catatan"),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 }, (table) => ({

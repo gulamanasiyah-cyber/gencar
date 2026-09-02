@@ -132,7 +132,12 @@ app.post("/api/auth/magic/set-password", async (c) => {
   } catch {}
   await dbInst.update(users).set({ passwordHash, passwordPlain } as any).where(eq(users.id, user.id));
   await (c.env.DB as any).prepare("UPDATE magic_tokens SET consumed_at = datetime('now') WHERE token_hash = ?").bind(hash).run();
-  return c.json({ success: true });
+  // Auto-login: create session cookie
+  const { setSessionCookie } = await import("./middleware/auth");
+  const { setCsrfCookie } = await import("./middleware/csrf");
+  const bearer = await setSessionCookie(c, { userId: user.id, email: user.email, name: user.name, role: user.role, desaId: user.desaId, kelompokId: user.kelompokId, generusId: user.generusId } as any, c.env);
+  setCsrfCookie(c);
+  return c.json({ success: true, token: bearer });
 });
 
 app.post("/api/absensi/scan", async (c) => {

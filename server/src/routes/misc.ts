@@ -192,7 +192,20 @@ r.get("/profile", requireAuth(), async (c) => {
   const db = getDb(c.env);
   const user: any = await db.query.users.findFirst({ where: eq(users.id, session.userId) });
   if (!user) return c.json({ error: "User tidak ditemukan" }, 404);
-  const gen: any = user.generusId ? await db.query.generus.findFirst({ where: eq(generus.id, user.generusId) }) : null;
+  let gen: any = null;
+  if (user.generusId) {
+    gen = await db.query.generus.findFirst({ where: eq(generus.id, user.generusId) });
+    if (gen) {
+      if (gen.desaId) {
+        const d: any = await db.query.desa.findFirst({ where: eq(desa.id, gen.desaId) });
+        gen.desaNama = d?.nama ?? "";
+      }
+      if (gen.kelompokId) {
+        const k: any = await db.query.kelompok.findFirst({ where: eq(kelompok.id, gen.kelompokId) });
+        gen.kelompokNama = k?.nama ?? "";
+      }
+    }
+  }
   return c.json({ user, generus: gen });
 });
 r.put("/profile", requireAuth(), async (c) => {
@@ -202,14 +215,18 @@ r.put("/profile", requireAuth(), async (c) => {
   const user: any = await db.query.users.findFirst({ where: eq(users.id, session.userId) });
   if (!user) return c.json({ error: "User tidak ditemukan" }, 404);
   if (body.name) await db.update(users).set({ name: body.name } as any).where(eq(users.id, session.userId));
-  if (user.generusId && (body.nama || body.alamat || body.noTelp || body.foto)) {
+  if (user.generusId) {
     const gUpdate: any = {};
     if (body.nama) gUpdate.nama = body.nama;
     if (body.alamat !== undefined) gUpdate.alamat = body.alamat;
     if (body.noTelp !== undefined) gUpdate.noTelp = body.noTelp;
     if (body.foto !== undefined) gUpdate.foto = body.foto;
-    gUpdate.updatedAt = new Date().toISOString();
-    await db.update(generus).set(gUpdate).where(eq(generus.id, user.generusId));
+    if (body.hobi !== undefined) gUpdate.hobi = body.hobi;
+    if (body.hobiDetail !== undefined) gUpdate.hobiDetail = body.hobiDetail;
+    if (Object.keys(gUpdate).length > 0) {
+      gUpdate.updatedAt = new Date().toISOString();
+      await db.update(generus).set(gUpdate).where(eq(generus.id, user.generusId));
+    }
   }
   if (body.password) {
     let hash: string;

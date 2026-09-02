@@ -365,7 +365,9 @@ export default function PublicHome() {
             </div>
 
             <h1>
-              Kompak di Majelis, <em>Mandiri</em> di Lapangan.
+              Muda,<br />
+              Bertakwa,<br />
+              <em>Berkarya</em>.
             </h1>
 
             <div className="pub-hero-card">

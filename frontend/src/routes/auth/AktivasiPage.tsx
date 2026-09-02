@@ -51,11 +51,15 @@ export default function AktivasiPage() {
     if (pw !== pw2) { setErr("Konfirmasi password tidak cocok."); return; }
     setBusy(true);
     try {
-      await apiFetch<{ success: boolean }>("/api/auth/magic/set-password", {
+      const res = await apiFetch<{ success: boolean; token?: string }>("/api/auth/magic/set-password", {
         method: "POST",
         body: JSON.stringify({ token, password: pw }),
       });
-      setDone(true);
+      // Auto-login: persist token and redirect to member page
+      if (res.token) {
+        try { localStorage.setItem("token", res.token); } catch {}
+      }
+      navigate("/member", { replace: true });
     } catch (e2: unknown) {
       const msg = e2 instanceof Error ? e2.message : String(e2);
       if (msg.toLowerCase().includes("sudah dipakai")) setErr("Link sudah dipakai. Minta admin buat link baru.");

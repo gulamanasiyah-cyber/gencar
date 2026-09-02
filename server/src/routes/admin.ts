@@ -179,9 +179,19 @@ r.get("/users", async (c) => {
   if (desaIdParam) conditions.push(eq(users.desaId, Number(desaIdParam)));
   const kelompokIdParam = c.req.query("kelompokId");
   if (kelompokIdParam) conditions.push(eq(users.kelompokId, Number(kelompokIdParam)));
+  // Scope enforcement: admin_desa sees own + admin_kelompok in their desa; admin_kelompok sees admin_kelompok in their kelompok
+  if (session.role === "admin_desa" && session.desaId) {
+    conditions.push(or(
+      and(eq(users.role, "admin_desa"), eq(users.desaId, session.desaId)),
+      and(eq(users.role, "admin_kelompok"), eq(users.desaId, session.desaId)),
+    ));
+  } else if (session.role === "admin_kelompok" && session.kelompokId) {
+    conditions.push(eq(users.role, "admin_kelompok"));
+    conditions.push(eq(users.kelompokId, session.kelompokId));
+  }
   const whereClause = conditions.length ? and(...conditions) : undefined;
   if (c.req.query("all") === "true") {
-    const data = await db.select({ id: users.id, name: users.name, email: users.email, role: users.role, desaNama: desa.nama, kelompokNama: kelompok.nama }).from(users).leftJoin(generus, eq(users.generusId, generus.id)).leftJoin(desa, eq(users.desaId, desa.id)).leftJoin(kelompok, eq(users.kelompokId, kelompok.id)).where(whereClause).orderBy(users.name);
+    const data = await db.select({ id: users.id, name: users.name, email: users.email, role: users.role, desaId: users.desaId, kelompokId: users.kelompokId, desaNama: desa.nama, kelompokNama: kelompok.nama }).from(users).leftJoin(generus, eq(users.generusId, generus.id)).leftJoin(desa, eq(users.desaId, desa.id)).leftJoin(kelompok, eq(users.kelompokId, kelompok.id)).where(whereClause).orderBy(users.name);
     return c.json({ data, total: data.length, page: 1, limit: data.length });
   }
   const data = await db.select({ id: users.id, name: users.name, email: users.email, role: users.role, desaId: users.desaId, kelompokId: users.kelompokId, createdAt: users.createdAt }).from(users).where(whereClause).orderBy(users.name).limit(limit).offset(offset);
@@ -191,8 +201,18 @@ r.get("/users", async (c) => {
 r.post("/users", async (c) => {
   const session = c.get("user" as any) as any;
   if (!isAdminRole(session.role)) return c.json({ error: "Unauthorized" }, 401);
-  const { name, email, password, role, desaId, kelompokId } = await c.req.json().catch(() => ({} as any));
+  let { name, email, password, role, desaId, kelompokId } = await c.req.json().catch(() => ({} as any));
   if (!name || !email || !password || !role) return c.json({ error: "Nama, email, password, dan role wajib diisi" }, 400);
+  // Scope enforcement for role assignment
+  if (session.role === "admin_desa") {
+    if (role !== "admin_kelompok" && role !== "admin_desa") return c.json({ error: "Hanya bisa membuat admin desa atau admin kelompok" }, 403);
+    desaId = session.desaId;
+    if (role === "admin_kelompok") kelompokId = kelompokId ? Number(kelompokId) : null;
+  } else if (session.role === "admin_kelompok") {
+    if (role !== "admin_kelompok") return c.json({ error: "Hanya bisa membuat admin kelompok" }, 403);
+    kelompokId = session.kelompokId;
+    desaId = session.desaId;
+  }
   const db = getDb(c.env);
   const existing: any = await db.query.users.findFirst({ where: eq(users.email, String(email).toLowerCase()) });
   if (existing) return c.json({ error: "Email sudah terdaftar" }, 409);
@@ -202,10 +222,9 @@ r.post("/users", async (c) => {
   try { const { encryptPasswordSymmetric } = await import("../services/crypto"); passwordPlain = await encryptPasswordSymmetric(c.env, String(password)); } catch {}
   const id = crypto.randomUUID();
   let generusId: string | null = null;
-  if (["admin_daerah", "admin_desa", "admin_kelompok", "generus"].includes(role)) {
+  if (role === "generus") {
     generusId = crypto.randomUUID();
-    const prefix = role === "generus" ? "G" : "A";
-    const nomorUnik = `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
+    const nomorUnik = `G-${Math.floor(100000 + Math.random() * 900000)}`;
     await db.insert(generus).values({ id: generusId, nomorUnik, nama: name, jenisKelamin: "L", kategoriUsia: "SMA", desaId: desaId ? Number(desaId) : null, kelompokId: kelompokId ? Number(kelompokId) : null, isGenerus: 1 } as any);
   }
   await db.insert(users).values({ id, name, email: String(email).toLowerCase(), passwordHash, passwordPlain, role: role as any, desaId: desaId ? Number(desaId) : null, kelompokId: kelompokId ? Number(kelompokId) : null, generusId: generusId as any } as any);
@@ -219,6 +238,18 @@ r.put("/users", async (c) => {
   const db = getDb(c.env);
   const user: any = await db.query.users.findFirst({ where: eq(users.id, id) });
   if (!user) return c.json({ error: "User tidak ditemukan" }, 404);
+  // Scope enforcement
+  if (session.role === "admin_desa") {
+    const allowed = (user.role === "admin_desa" && user.desaId === session.desaId)
+      || (user.role === "admin_kelompok" && user.desaId === session.desaId);
+    if (!allowed) return c.json({ error: "Tidak diizinkan" }, 403);
+    if (role && role !== "admin_kelompok" && role !== "admin_desa") return c.json({ error: "Tidak bisa mengubah role" }, 403);
+  } else if (session.role === "admin_kelompok") {
+    if (user.role !== "admin_kelompok" || user.kelompokId !== session.kelompokId) {
+      return c.json({ error: "Tidak diizinkan" }, 403);
+    }
+    if (role && role !== "admin_kelompok") return c.json({ error: "Tidak bisa mengubah role" }, 403);
+  }
   const updatePayload: any = {};
   if (role) updatePayload.role = role;
   if (desaId !== undefined) updatePayload.desaId = desaId ? Number(desaId) : null;
@@ -236,11 +267,31 @@ r.delete("/users", async (c) => {
   const session = c.get("user" as any) as any;
   if (!isAdminRole(session.role)) return c.json({ error: "Unauthorized" }, 401);
   const id = c.req.query("id");
-  const role = c.req.query("role");
+  if (!id) return c.json({ error: "ID diperlukan" }, 400);
   const db = getDb(c.env);
-  if (id) await db.delete(users).where(eq(users.id, id));
-  else if (role) await db.delete(users).where(eq(users.role, role as any));
-  else return c.json({ error: "ID atau Role diperlukan" }, 400);
+  const target: any = await db.query.users.findFirst({ where: eq(users.id, id) });
+  if (!target) return c.json({ error: "User tidak ditemukan" }, 404);
+  // Scope enforcement
+  if (session.role === "admin_desa") {
+    const allowed = (target.role === "admin_desa" && target.desaId === session.desaId)
+      || (target.role === "admin_kelompok" && target.desaId === session.desaId);
+    if (!allowed) return c.json({ error: "Tidak diizinkan" }, 403);
+  } else if (session.role === "admin_kelompok") {
+    if (target.role !== "admin_kelompok" || target.kelompokId !== session.kelompokId) {
+      return c.json({ error: "Tidak diizinkan" }, 403);
+    }
+  }
+  // Min 1 enforcement
+  if (target.role === "admin_desa" && target.desaId) {
+    const cnt: any = await db.select({ count: sql<number>`count(*)` }).from(users)
+      .where(and(eq(users.role, "admin_desa"), eq(users.desaId, target.desaId)));
+    if (Number(cnt[0]?.count || 0) <= 1) return c.json({ error: "Minimal harus ada 1 admin desa" }, 400);
+  } else if (target.role === "admin_kelompok" && target.kelompokId) {
+    const cnt: any = await db.select({ count: sql<number>`count(*)` }).from(users)
+      .where(and(eq(users.role, "admin_kelompok"), eq(users.kelompokId, target.kelompokId)));
+    if (Number(cnt[0]?.count || 0) <= 1) return c.json({ error: "Minimal harus ada 1 admin kelompok" }, 400);
+  }
+  await db.delete(users).where(eq(users.id, id));
   return c.json({ success: true });
 });
 

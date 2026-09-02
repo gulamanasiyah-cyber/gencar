@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { Eye, Pencil as IcoEdit, Play, Plus, RotateCcw, Trash2 as IcoTrash } from "lucide-react";
+import { apiFetch } from "../../lib/api";
 import AdminModal from "../../components/admin/Modal";
 import SearchInput from "../../components/admin/SearchInput";
 import ImageUploadInput from "../../components/admin/ImageUploadInput";
@@ -33,8 +34,7 @@ export default function GaleriTab({ role, userId }: { role: AdminRole; userId?: 
   const [editing, setEditing] = useState<GaleriItem | null>(null);
 
   const load = () => {
-    fetch("/api/cms/galeri")
-      .then((r) => (r.ok ? r.json() : []))
+    apiFetch<unknown>("/api/cms/galeri")
       .then((j) => setItems(Array.isArray(j) ? j : []))
       .catch(() => {});
   };
@@ -52,7 +52,7 @@ export default function GaleriTab({ role, userId }: { role: AdminRole; userId?: 
   const handleDelete = (id: string) => {
     if (!confirm("Hapus foto galeri ini?")) return;
     setItems((p) => p.filter((x) => x.id !== id));
-    void fetch(`/api/cms/galeri/${id}`, { method: "DELETE" }).catch(() => {});
+    void apiFetch(`/api/cms/galeri/${id}`, { method: "DELETE" }).catch(() => {});
   };
 
   const openCreate = () => {
@@ -213,12 +213,7 @@ function GaleriSingleFotoModal({
       const isEdit = !!initial?.id;
       const url = isEdit ? `/api/cms/galeri/${initial.id}` : "/api/cms/galeri";
       const method = isEdit ? "PUT" : "POST";
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(f),
-      });
-      if (!res.ok) throw new Error(await res.text());
+      await apiFetch(url, { method, body: JSON.stringify(f) });
       onSaveSuccess();
     } catch (e: any) {
       alert(e.message || "Gagal menyimpan");

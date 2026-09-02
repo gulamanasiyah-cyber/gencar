@@ -59,7 +59,7 @@ auth.post("/login", async (c) => {
   if (!valid) return c.json({ error: "Email atau password salah" }, 401);
   const bearer = await setSessionCookie(c, { userId: user.id, email: user.email, name: user.name, role: user.role, desaId: user.desaId, kelompokId: user.kelompokId, generusId: user.generusId } as any, c.env);
   setCsrfCookie(c);
-  return c.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role }, token: bearer });
+  return c.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role, desaId: user.desaId, kelompokId: user.kelompokId }, token: bearer });
 });
 
 auth.post("/register", async (c) => {

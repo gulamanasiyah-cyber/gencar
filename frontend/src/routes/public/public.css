@@ -319,7 +319,7 @@ a.pub-footer-contact-row:hover { color: var(--pub-accent); }
 .pub-hero-mosque {
   position: absolute;
   right: -2vw;
-  bottom: 24%;
+  bottom: 28%;
   z-index: 1;
   pointer-events: none;
   line-height: 0;
@@ -623,10 +623,19 @@ a.pub-footer-contact-row:hover { color: var(--pub-accent); }
 .pub-hero h1 em {
   font-style: normal;
   color: var(--pub-ink);
-  border-bottom: 4px solid var(--pub-accent);
-  padding-bottom: 2px;
+  position: relative;
   padding-right: 0;
   box-shadow: 0 8px 24px rgba(245,157,43,0.18);
+}
+.pub-hero h1 em::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 30%;
+  height: 4px;
+  background: var(--pub-accent);
+  border-radius: 2px;
 }
 .pub-hero-pill {
   display: inline-flex;
@@ -3061,14 +3070,16 @@ section:has(.pub-marquee) .pub-section-head-row { max-width: var(--pub-max); mar
 }
 .pub-galeri-quote-body p {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.35;
   letter-spacing: -0.02em;
-  color: var(--pub-accent);
+  color: #ffffff;
+  margin: 8px 0;
+  word-break: break-word;
 }
 .pub-galeri-quote-icon {
-  font-size: 44px;
+  font-size: 28px;
   line-height: 1;
   color: var(--pub-primary);
   display: block;

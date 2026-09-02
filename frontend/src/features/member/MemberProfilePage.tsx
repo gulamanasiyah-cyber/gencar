@@ -2,6 +2,7 @@ import { useRef, useMemo, useState, useEffect } from "react";
 import { MapPin, Phone, GraduationCap, Home, Download, Heart, X, Check, Pencil, Volleyball, Plane, Palette, Music, ChefHat, Laptop, BookOpen, Gamepad2, Sparkles, Send, Clock3, AlertCircle } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { toPng } from "html-to-image";
+import { apiFetch } from "../../lib/api";
 import type { MemberIdentity, MemberKehadiran, MemberKegiatan } from "./types";
 import { computeAchievements, HOBBY_KEYS, HOBBY_META, HOBBY_DETAIL_PLACEHOLDER, parseHobi, parseHobiDetail, serializeHobi, serializeHobiDetail } from "./types";
 import type { HobbyKey } from "./types";
@@ -32,16 +33,11 @@ export default function MemberProfilePage({ me, stat, kegiatan, onUpdate }: Prop
   );
 
   useEffect(() => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-      void fetch("/api/profile/requests", { headers: { Authorization: `Bearer ${token}` } })
-        .then((r) => (r.ok ? r.json() : []))
-        .then((rows: any[]) => {
-          if (Array.isArray(rows)) setPendingReq(rows.filter((r: any) => r.status === "pending").map((r: any) => ({ section: r.section, status: r.status })));
-        })
-        .catch(() => {});
-    } catch {}
+    apiFetch<unknown>("/api/profile/requests")
+      .then((rows: any) => {
+        if (Array.isArray(rows)) setPendingReq(rows.filter((r: any) => r.status === "pending").map((r: any) => ({ section: r.section, status: r.status })));
+      })
+      .catch(() => {});
   }, []);
 
   async function downloadQrCard() {
@@ -81,6 +77,7 @@ export default function MemberProfilePage({ me, stat, kegiatan, onUpdate }: Prop
               <span className="member-profile-dot" aria-hidden />
               <span className="member-profile-cap">{me.kategoriMudaMudi}</span>
             </div>
+            {me.email && <div style={{ fontSize: 12, color: "var(--muted, #6b7280)", marginTop: 2 }}>{me.email}</div>}
             <div className="member-profile-pills">
               <span className="pill pill-slate"><Home size={10} /> {me.kelompok}</span>
               <span className="pill pill-slate"><MapPin size={10} /> Desa {me.desa}</span>
@@ -361,14 +358,10 @@ function AjukanPerubahan({
     setSaving(true);
     setErr(null);
     try {
-      const token = localStorage.getItem("token") ?? "";
-      const res = await fetch("/api/profile/request", {
+      await apiFetch("/api/profile/request", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ section, payload, reason: reason.trim() }),
       });
-      const data: any = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Gagal mengirim pengajuan");
       onSuccess(section);
     } catch (e: any) {
       setErr(e.message || "Gagal mengirim");

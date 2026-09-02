@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, ExternalLink, Save } from "lucide-react";
 import type { TentangJson } from "../../../../shared/validation";
+import { apiFetch } from "../../lib/api";
 import { PublicTentang } from "../../routes/public/PublicStatic";
 import ImageUploadInput from "../../components/admin/ImageUploadInput";
 import RichTextEditor from "../../components/admin/RichTextEditor";
@@ -112,8 +113,7 @@ export default function TentangTab() {
   const [openSection, setOpenSection] = useState<number | null>(0);
 
   useEffect(() => {
-    fetch("/api/cms/tentang")
-      .then((r) => (r.ok ? r.json() : null))
+    apiFetch<{ json?: string }>("/api/cms/tentang")
       .then((j) => {
         if (j?.json) {
           setData(j.json);
@@ -126,12 +126,7 @@ export default function TentangTab() {
   const save = async () => {
     setSaving(true);
     try {
-      const res = await fetch("/api/cms/tentang", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ json: data }),
-      });
-      if (!res.ok) throw new Error(await res.text());
+      await apiFetch("/api/cms/tentang", { method: "PUT", body: JSON.stringify({ json: data }) });
       alert("Perubahan halaman Tentang berhasil disimpan.");
     } catch (e: any) {
       alert(e.message || "Gagal menyimpan");
@@ -283,20 +278,18 @@ export default function TentangTab() {
               </button>
               {openSection === 1 && (
                 <div className="cms-section-card-body">
-                  <div className="form-grid-2">
-                    <ImageUploadInput
-                      label="Gambar Ilustrasi Narasi"
-                      value={data.letter.image}
-                      onChange={(val) => setData({ ...data, letter: { ...data.letter, image: val } })}
-                      placeholder="Pilih file gambar atau tempel URL..."
+                  <ImageUploadInput
+                    label="Gambar Ilustrasi Narasi"
+                    value={data.letter.image}
+                    onChange={(val) => setData({ ...data, letter: { ...data.letter, image: val } })}
+                    placeholder="Pilih file gambar atau tempel URL..."
+                  />
+                  <div className="field">
+                    <label>Keterangan Gambar (Caption)</label>
+                    <input
+                      value={data.letter.caption}
+                      onChange={(e) => setData({ ...data, letter: { ...data.letter, caption: e.target.value } })}
                     />
-                    <div className="field">
-                      <label>Keterangan Gambar (Caption)</label>
-                      <input
-                        value={data.letter.caption}
-                        onChange={(e) => setData({ ...data, letter: { ...data.letter, caption: e.target.value } })}
-                      />
-                    </div>
                   </div>
                   <div className="field">
                     <label>Judul Surat / Bagian</label>
@@ -458,8 +451,8 @@ export default function TentangTab() {
                     </div>
                   </div>
                   {data.chronicle.items.map((item, i) => (
-                    <div key={i} className="cms-sub-card">
-                      <div style={{ fontWeight: 800, fontSize: 13, color: "var(--primary)" }}>Pilar #{i + 1}</div>
+                    <div key={i} style={i > 0 ? { borderTop: "1px solid var(--line)", paddingTop: 14 } : {}}>
+                      <div style={{ fontWeight: 800, fontSize: 13, color: "var(--primary)", marginBottom: 10 }}>Pilar #{i + 1}</div>
                       <div className="form-grid-2">
                         <div className="field">
                           <label>Tag / Label Singkat</label>
@@ -496,17 +489,16 @@ export default function TentangTab() {
                           }}
                         />
                       </div>
-                      <div className="field">
-                        <label>Gambar Ilustrasi (URL)</label>
-                        <input
-                          value={item.image || ""}
-                          onChange={(e) => {
-                            const items = [...data.chronicle.items];
-                            items[i] = { ...items[i]!, image: e.target.value };
-                            setData({ ...data, chronicle: { ...data.chronicle, items } });
-                          }}
-                        />
-                      </div>
+                      <ImageUploadInput
+                        label="Gambar Ilustrasi"
+                        value={item.image || ""}
+                        onChange={(val) => {
+                          const items = [...data.chronicle.items];
+                          items[i] = { ...items[i]!, image: val };
+                          setData({ ...data, chronicle: { ...data.chronicle, items } });
+                        }}
+                        placeholder="Pilih file gambar atau tempel URL..."
+                      />
                     </div>
                   ))}
                 </div>
@@ -589,29 +581,26 @@ export default function TentangTab() {
                           }}
                         />
                       </div>
-                      <div className="form-grid-2">
-                        <div className="field">
-                          <label>Foto Profil (URL)</label>
-                          <input
-                            value={story.foto}
-                            onChange={(e) => {
-                              const stories = [...data.voices.stories];
-                              stories[i] = { ...stories[i]!, foto: e.target.value };
-                              setData({ ...data, voices: { ...data.voices, stories } });
-                            }}
-                          />
-                        </div>
-                        <div className="field">
-                          <label>Konteks Tambahan</label>
-                          <input
-                            value={story.konteks}
-                            onChange={(e) => {
-                              const stories = [...data.voices.stories];
-                              stories[i] = { ...stories[i]!, konteks: e.target.value };
-                              setData({ ...data, voices: { ...data.voices, stories } });
-                            }}
-                          />
-                        </div>
+                      <ImageUploadInput
+                        label="Foto Profil"
+                        value={story.foto}
+                        onChange={(val) => {
+                          const stories = [...data.voices.stories];
+                          stories[i] = { ...stories[i]!, foto: val };
+                          setData({ ...data, voices: { ...data.voices, stories } });
+                        }}
+                        placeholder="Pilih file foto atau tempel URL..."
+                      />
+                      <div className="field">
+                        <label>Konteks Tambahan</label>
+                        <input
+                          value={story.konteks}
+                          onChange={(e) => {
+                            const stories = [...data.voices.stories];
+                            stories[i] = { ...stories[i]!, konteks: e.target.value };
+                            setData({ ...data, voices: { ...data.voices, stories } });
+                          }}
+                        />
                       </div>
                     </div>
                   ))}
