@@ -101,8 +101,20 @@ app.get("/api/auth/magic/verify", async (c) => {
   if (!found) return c.json({ error: "Token tidak valid" }, 401);
   if (found.consumed_at) return c.json({ error: "Token sudah dipakai" }, 401);
   if (new Date(found.expires_at).getTime() < Date.now()) return c.json({ error: "Token kadaluarsa" }, 401);
-  // Verify only — do not consume yet; consumption happens on set-password
-  return c.json({ ok: true, generusId: found.generus_id, expiresAt: found.expires_at });
+
+  // Cari user & generus info
+  const generusId = String(found.generus_id);
+  const userRow: any = await (c.env.DB as any).prepare("SELECT email FROM users WHERE generus_id = ?").bind(generusId).first();
+  const generusRow: any = await (c.env.DB as any).prepare("SELECT nama, nomor_unik FROM generus WHERE id = ?").bind(generusId).first();
+
+  return c.json({
+    ok: true,
+    generusId: found.generus_id,
+    expiresAt: found.expires_at,
+    email: userRow?.email ?? null,
+    nama: generusRow?.nama ?? null,
+    nomorUnik: generusRow?.nomor_unik ?? null,
+  });
 });
 
 app.post("/api/auth/magic/set-password", async (c) => {

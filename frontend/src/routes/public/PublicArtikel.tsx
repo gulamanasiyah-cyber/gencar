@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams, Navigate } from "react-router-dom";
 import { ArrowLeft, Search, ChevronLeft, ChevronRight, CalendarDays, User2, Share2, ArrowRight, Sparkles } from "lucide-react";
-import { ARTIKEL_KATEGORI_LABEL, type ArtikelKategori, type PubArticle } from "./data";
+import { type PubArticle } from "./data";
 import { apiFetch, unwrapList } from "../../lib/api";
+import { labelKategori } from "../../lib/labelKategori";
 
 const PER_PAGE_ARTIKEL = 6;
 
@@ -72,38 +73,31 @@ function Pagination({
   );
 }
 
-const ARTIKEL_KATEGORI_OPTS: { value: ArtikelKategori | "semua"; label: string }[] = [
-  { value: "semua", label: "Semua" },
-  { value: "tuntunan_ibadah", label: "Tuntunan Ibadah" },
-  { value: "info_kesehatan", label: "Info Kesehatan" },
-  { value: "tafsir", label: "Tafsir" },
-  { value: "kisah", label: "Kisah" },
-  { value: "berita", label: "Berita" },
-];
-
-function normalizeKategori(raw?: string | null): ArtikelKategori {
-  if (!raw) return "tuntunan_ibadah";
-  const s = raw.toLowerCase().trim();
-  if (s.includes("kesehatan")) return "info_kesehatan";
-  if (s.includes("tafsir")) return "tafsir";
-  if (s.includes("kisah")) return "kisah";
-  if (s.includes("berita")) return "berita";
-  return "tuntunan_ibadah";
-}
-
 export function PublicArtikelList() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialKat = (searchParams.get("kategori") as ArtikelKategori | null) ?? "semua";
-  const validKat = (ARTIKEL_KATEGORI_OPTS.some((o) => o.value === initialKat) ? initialKat : "semua") as ArtikelKategori | "semua";
   const [q, setQ] = useState("");
-  const [kategori, setKategori] = useState<ArtikelKategori | "semua">(validKat);
+  const [kategori, setKategori] = useState<string>("semua");
   const [page, setPage] = useState(1);
   const [articles, setArticles] = useState<PubArticle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showMoreCats, setShowMoreCats] = useState(false);
+
+  // Derive categories from fetched articles
+  const dataCats = useMemo(() => {
+    const cats = new Set<string>();
+    for (const a of articles) {
+      if (a.kategori) cats.add(a.kategori);
+    }
+    return Array.from(cats);
+  }, [articles]);
+
+  const visibleCats = useMemo(() => dataCats.slice(0, 3), [dataCats]);
+  const overflowCats = useMemo(() => dataCats.slice(3), [dataCats]);
+  const isOverflowActive = useMemo(() => overflowCats.includes(kategori), [overflowCats, kategori]);
 
   useEffect(() => {
-    const urlKat = (searchParams.get("kategori") as ArtikelKategori | null) ?? "semua";
-    if (ARTIKEL_KATEGORI_OPTS.some((o) => o.value === urlKat) && urlKat !== kategori) setKategori(urlKat as ArtikelKategori | "semua");
+    const urlKat = searchParams.get("kategori") ?? "semua";
+    if (urlKat !== kategori) setKategori(urlKat);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
@@ -133,7 +127,7 @@ export function PublicArtikelList() {
           cover: r.coverImage ?? r.cover_image ?? "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=700&h=480&q=80",
           tanggal: (r.publishedAt ?? r.createdAt ?? "").slice(0, 10),
           author: r.authorName ?? "Pengurus",
-          kategori: normalizeKategori(r.kategori),
+          kategori: r.kategori ?? "Lainnya",
         }));
 
         setArticles(list);
@@ -149,7 +143,7 @@ export function PublicArtikelList() {
     return () => { cancel = true; };
   }, []);
 
-  const setKategoriAndUrl = (v: ArtikelKategori | "semua") => {
+  const setKategoriAndUrl = (v: string) => {
     setKategori(v);
     const next = new URLSearchParams(searchParams);
     if (v === "semua") next.delete("kategori");
@@ -161,7 +155,7 @@ export function PublicArtikelList() {
     let list = articles;
     if (kategori !== "semua") list = list.filter((a) => a.kategori === kategori);
     const s = q.trim().toLowerCase();
-    if (s) list = list.filter((a) => `${a.judul} ${a.excerpt} ${a.author} ${ARTIKEL_KATEGORI_LABEL[a.kategori]}`.toLowerCase().includes(s));
+    if (s) list = list.filter((a) => `${a.judul} ${a.excerpt} ${a.author} ${a.kategori}`.toLowerCase().includes(s));
     return list;
   }, [articles, q, kategori]);
 
@@ -204,7 +198,7 @@ export function PublicArtikelList() {
           </div>
           <div className="pub-artikel-hero-body">
             <span className="pub-kegiatan-hero-kicker">
-              <Sparkles size={12} /> Terbaru · {ARTIKEL_KATEGORI_LABEL[featured.kategori]}
+              <Sparkles size={12} /> Terbaru · {labelKategori(featured.kategori)}
             </span>
             <h3 className="pub-kegiatan-hero-title">{featured.judul}</h3>
             <p className="pub-kegiatan-hero-excerpt">{featured.excerpt}</p>
@@ -224,16 +218,37 @@ export function PublicArtikelList() {
       )}
 
       <div className="pub-kegiatan-catbar">
-        {ARTIKEL_KATEGORI_OPTS.map((o) => (
+        {/* Semua selalu ada */}
+        <button
+          type="button"
+          className={`pub-kegiatan-cat ${kategori === "semua" ? "is-active" : ""}`}
+          onClick={() => setKategoriAndUrl("semua")}
+        >
+          Semua
+        </button>
+
+        {/* Max 3 data kategori */}
+        {visibleCats.map((cat) => (
           <button
-            key={o.value}
+            key={cat}
             type="button"
-            className={`pub-kegiatan-cat ${kategori === o.value ? "is-active" : ""}`}
-            onClick={() => setKategoriAndUrl(o.value)}
+            className={`pub-kegiatan-cat ${kategori === cat ? "is-active" : ""}`}
+            onClick={() => setKategoriAndUrl(cat)}
           >
-            {o.label}
+            {labelKategori(cat)}
           </button>
         ))}
+
+        {/* Overflow: "+N" buka modal */}
+        {overflowCats.length > 0 && (
+          <button
+            type="button"
+            className={`pub-kegiatan-cat ${isOverflowActive ? "is-active" : ""}`}
+            onClick={() => setShowMoreCats(true)}
+          >
+            +{overflowCats.length} Lainnya
+          </button>
+        )}
       </div>
 
       <div className="pub-list-toolbar">
@@ -271,7 +286,7 @@ export function PublicArtikelList() {
                 </div>
                 <div className="pub-artikel-body">
                   <span className="pub-artikel-meta">
-                    <CalendarDays size={11} /> {a.tanggal} · <User2 size={11} /> {a.author} · {ARTIKEL_KATEGORI_LABEL[a.kategori]}
+                    <CalendarDays size={11} /> {a.tanggal} · <User2 size={11} /> {a.author} · {labelKategori(a.kategori)}
                   </span>
                   <strong className="pub-artikel-title">{a.judul}</strong>
                   <p className="pub-artikel-excerpt">{a.excerpt}</p>
@@ -282,6 +297,37 @@ export function PublicArtikelList() {
           </div>
           <Pagination page={safePage} totalPages={totalPages} onPage={goPage} />
         </>
+      )}
+
+      {/* MODAL KATEGORI LAINNYA */}
+      {showMoreCats && (
+        <div className="modal-backdrop" onClick={() => setShowMoreCats(false)} style={{ zIndex: 1200, display: "grid", placeItems: "center", padding: 16 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420, width: "100%", padding: 22, borderRadius: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Kategori Lainnya</h3>
+              <button type="button" style={{ padding: 6, background: "none", border: "none", cursor: "pointer", color: "var(--muted)" }} onClick={() => setShowMoreCats(false)}>✕</button>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {overflowCats.map((cat) => {
+                const active = kategori === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    className={`pub-kegiatan-cat ${active ? "is-active" : ""}`}
+                    style={{ fontSize: 13, padding: "8px 14px" }}
+                    onClick={() => {
+                      setKategoriAndUrl(cat);
+                      setShowMoreCats(false);
+                    }}
+                  >
+                    {labelKategori(cat)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -319,7 +365,7 @@ export function PublicArtikelDetail() {
                 cover: x.coverImage ?? x.cover_image ?? "",
                 tanggal: (x.publishedAt ?? x.createdAt ?? "").slice(0, 10),
                 author: x.authorName ?? "Pengurus",
-                kategori: normalizeKategori(x.kategori),
+                kategori: x.kategori ?? "Lainnya",
               }));
             setRelated(relList);
           })
@@ -374,7 +420,7 @@ export function PublicArtikelDetail() {
   const cover = item.coverImage ?? item.cover_image ?? "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=900&h=600&q=80";
   const dateStr = (item.publishedAt ?? item.createdAt ?? "").slice(0, 10);
   const author = item.authorName ?? "Pengurus";
-  const kat = normalizeKategori(item.kategori);
+  const kat = item.kategori ?? "Lainnya";
 
   return (
     <article className="pub-section" style={{ paddingTop: 24 }}>
@@ -386,7 +432,7 @@ export function PublicArtikelDetail() {
 
       <header className="pub-detail-head">
         <span className="pub-tag" style={{ width: "fit-content", marginBottom: 12 }}>
-          {ARTIKEL_KATEGORI_LABEL[kat]}
+          {labelKategori(kat)}
         </span>
         <h1 className="pub-detail-title">{item.judul}</h1>
         {item.ringkasan && <p className="pub-detail-lead">{item.ringkasan}</p>}

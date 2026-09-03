@@ -26,7 +26,7 @@ export type PubArticle = {
   cover: string;
   tanggal: string;
   author: string;
-  kategori: ArtikelKategori;
+  kategori: string;
 };
 
 const U = (id: string, w = 900, h = 700) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&h=${h}&q=80`;

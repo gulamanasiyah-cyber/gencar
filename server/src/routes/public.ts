@@ -35,6 +35,40 @@ r.get("/saran", async (c) => {
   return c.json(data);
 });
 
+r.get("/kegiatan-publik/kategori", async (c) => {
+  const db = getDb(c.env);
+  const { kegiatanPublik } = await import("../../../shared/schema");
+  const rows: any[] = await db
+    .select({
+      kategori: kegiatanPublik.kategori,
+      kategoriAcara: kegiatanPublik.kategoriAcara,
+      count: sql<number>`count(*)`,
+    })
+    .from(kegiatanPublik)
+    .where(eq(kegiatanPublik.status, "published"))
+    .groupBy(kegiatanPublik.kategori, kegiatanPublik.kategoriAcara)
+    .orderBy(desc(sql`count(*)`));
+
+  const list: { label: string; value: string; count: number }[] = [];
+  const seen = new Set<string>();
+
+  for (const r of rows) {
+    const rawLabel = (r.kategori || r.kategoriAcara || "").trim();
+    if (!rawLabel) continue;
+    const value = r.kategoriAcara || rawLabel.toLowerCase().replace(/\s+/g, "_");
+    if (seen.has(value)) continue;
+    seen.add(value);
+    list.push({
+      label: rawLabel,
+      value,
+      count: Number(r.count || 0),
+    });
+  }
+
+  c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=120");
+  return c.json(list);
+});
+
 r.get("/kegiatan-publik", async (c) => {
   const db = getDb(c.env);
   const { kegiatanPublik } = await import("../../../shared/schema");

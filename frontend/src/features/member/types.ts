@@ -1,9 +1,12 @@
+import { AVATARS } from "./avatarCatalog";
+
 export type MemberIdentity = {
   id: string;
   nama: string;
   desa: string;
   kelompok: string;
   pendidikan: string;
+  pekerjaan?: string | null;
   noTelp: string;
   kategoriMudaMudi: "pribumi" | "perantauan";
   asalDaerah: string | null;
@@ -24,8 +27,12 @@ export type MemberIdentity = {
   status: "aktif" | "pending";
   /** Hobi — JSON array stringified or comma-separated list of HobbyKey */
   hobi?: string | null;
+  /** Hobi custom teks bebas (untuk kategori "lainnya") */
+  hobiCustom?: string | null;
   /** Detail per-hobi — JSON stringified Record<HobbyKey, string> */
   hobiDetail?: string | null;
+  /** Timestamp terakhir kali hobi diubah */
+  hobiUpdatedAt?: string | null;
 };
 
 export type MemberKehadiran = {
@@ -255,7 +262,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   // ── Profil (8 + 8 hobby specific Duo) ──
   { id: "hobi_isi",       name: "Punya Hobi",       desc: "Isi minimal 1 hobi di profil",           icon: "mdi:heart",                category: "profil",     rarity: "common" },
   { id: "avatar_custom",  name: "Tampil Beda",       desc: "Ganti avatar dari default",              icon: "mdi:face-man",             category: "profil",     rarity: "common" },
-  { id: "avatar_legend",  name: "Kolektor Avatar",   desc: "Ganti avatar 5×",                        icon: "mdi:face-man-profile",     category: "profil",     rarity: "uncommon" },
+  { id: "avatar_legend",  name: "Kolektor Avatar",   desc: "Buka minimal 20 avatar",                 icon: "mdi:face-man-profile",     category: "profil",     rarity: "uncommon" },
   { id: "qr_download",    name: "QR Master",         desc: "Download QR identity card",              icon: "mdi:qrcode",               category: "profil",     rarity: "common" },
   { id: "domisili_match", name: "Setia Kampung",     desc: "Domisili anak = domisili ortu",          icon: "mdi:home-heart",           category: "profil",     rarity: "common" },
   { id: "penjelajah",     name: "Penjelajah",        desc: "Merantau jauh dari kampung halaman",    icon: "mdi:sail-boat",            category: "profil",     rarity: "common" },
@@ -396,8 +403,49 @@ export function computeAchievements(input: AchievementInput): AchievementState[]
 
       // Profil
       case "hobi_isi":       return eval_(def, hobiSet.size, 1);
-      case "avatar_custom":  return eval_(def, (me.avatarStyle && me.avatarStyle !== "initials") ? 1 : 0, 1);
-      case "avatar_legend":  return eval_(def, input.avatarChanges ?? 0, 5);
+      case "avatar_custom":  return eval_(def, (me.avatarId && me.avatarId !== "genta-base" && me.avatarId !== "caya-base") || (me.avatarStyle && me.avatarStyle !== "initials") ? 1 : 0, 1);
+      case "avatar_legend":  {
+        // Hitung total avatar yang terbuka untuk gender anggota
+        const gender = me.jenisKelamin === "cewek" || (me.avatarId && me.avatarId.startsWith("caya-")) ? "cewek" : "cowok";
+        const myAvatars = (AVATARS || []).filter((a: any) => a.gender === gender);
+        let unlockedCount = 0;
+        for (const av of myAvatars) {
+          if (!av.need) { unlockedCount++; }
+          else if (av.need === "pertama_kali" && k.hadir >= 1) { unlockedCount++; }
+          else if (av.need === "hadir_5" && k.hadir >= 5) { unlockedCount++; }
+          else if (av.need === "hadir_10" && k.hadir >= 10) { unlockedCount++; }
+          else if (av.need === "hadir_25" && k.hadir >= 25) { unlockedCount++; }
+          else if (av.need === "hadir_50" && k.hadir >= 50) { unlockedCount++; }
+          else if (av.need === "hadir_100" && k.hadir >= 100) { unlockedCount++; }
+          else if (av.need === "hadir_150" && k.hadir >= 150) { unlockedCount++; }
+          else if (av.need === "hadir_200" && k.hadir >= 200) { unlockedCount++; }
+          else if (av.need === "streak_5" && streak >= 5) { unlockedCount++; }
+          else if (av.need === "streak_10" && streak >= 10) { unlockedCount++; }
+          else if (av.need === "streak_20" && streak >= 20) { unlockedCount++; }
+          else if (av.need === "streak_40" && streak >= 40) { unlockedCount++; }
+          else if (av.need === "streak_75" && streak >= 75) { unlockedCount++; }
+          else if (av.need === "streak_100" && streak >= 100) { unlockedCount++; }
+          else if (av.need === "zero_telat" && (k.telat ?? 0) === 0 && k.hadir > 0) { unlockedCount++; }
+          else if (av.need === "zero_telat_25" && zeroLateCount >= 25) { unlockedCount++; }
+          else if (av.need === "zero_telat_50" && zeroLateCount >= 50) { unlockedCount++; }
+          else if (av.need === "zero_telat_100" && zeroLateCount >= 100) { unlockedCount++; }
+          else if (av.need === "hobi_isi" && hobiSet.size >= 1) { unlockedCount++; }
+          else if (av.need.startsWith("hobi_") && hobiSet.has(av.need.replace("hobi_", "") as HobbyKey)) { unlockedCount++; }
+          else if (av.need === "avatar_custom" && ((me.avatarId && me.avatarId !== "genta-base" && me.avatarId !== "caya-base") || (me.avatarStyle && me.avatarStyle !== "initials"))) { unlockedCount++; }
+          else if (av.need === "qr_download" && input.qrDownloaded) { unlockedCount++; }
+          else if (av.need === "domisili_match" && domisiliMatch) { unlockedCount++; }
+          else if (av.need === "penjelajah" && !domisiliMatch && me.kategoriMudaMudi === "perantauan") { unlockedCount++; }
+          else if (av.need === "tingkat_kelompok" && hasKelompok) { unlockedCount++; }
+          else if (av.need === "tingkat_desa" && hasDesa) { unlockedCount++; }
+          else if (av.need === "tingkat_daerah" && hasDaerah) { unlockedCount++; }
+          else if (av.need === "absen_weekend" && kg.some((g) => g.statusAbsen === "hadir" && isWeekend(g.tanggal))) { unlockedCount++; }
+          else if (av.need === "consec_3" && computeConsecDays(k) >= 3) { unlockedCount++; }
+          else if (av.need === "consec_7" && computeConsecDays(k) >= 7) { unlockedCount++; }
+          else if (av.need === "jelajah_lokasi" && lokasiSet.size >= 5) { unlockedCount++; }
+          else if (av.need === "legenda_waktu" && allSlots.size >= 4) { unlockedCount++; }
+        }
+        return eval_(def, unlockedCount, 20);
+      }
       case "qr_download":    return eval_(def, input.qrDownloaded ? 1 : 0, 1);
       case "domisili_match": return eval_(def, domisiliMatch ? 1 : 0, 1);
       case "penjelajah":     return eval_(def, !domisiliMatch && me.kategoriMudaMudi === "perantauan" ? 1 : 0, 1);

@@ -22,9 +22,9 @@ migrations_dir = "drizzle"
 # id = "REPLACE_ME"
 
 # R2 untuk upload gambar (buat via `wrangler r2 bucket create gencar-uploads`)
-# [[r2_buckets]]
-# binding = "R2_BUCKET"
-# bucket_name = "gencar-uploads"
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "gencar-uploads"
 
 [vars]
 DAERAH_NAMA = "Cengkareng"

@@ -10,6 +10,18 @@ r.use("/*", requireAuth());
 
 function toInt(v: string | null | undefined) { if (!v || v === "all" || v === "") return null; const n = Number(v); return Number.isNaN(n) ? null : n; }
 
+import { normalizePekerjaan } from "../../../shared/pekerjaan";
+
+function normalizePekerjaanList(rows: { pekerjaan: string | null }[]): { name: string; value: number }[] {
+  const counts: Record<string, number> = {};
+  for (const row of rows) {
+    const bucket = normalizePekerjaan(row.pekerjaan);
+    if (!bucket) continue;
+    counts[bucket] = (counts[bucket] ?? 0) + 1;
+  }
+  return Object.entries(counts).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+}
+
 r.get("/", async (c) => {
   const session = c.get("user" as any) as any;
   const from = c.req.query("from") || "";
@@ -57,6 +69,7 @@ r.get("/", async (c) => {
   const byKelompokQ = db.select({ name: sql<string>`COALESCE(${kelompok.nama}, 'Tanpa Kelompok')`, value: sql<number>`count(*)` }).from(generus).leftJoin(kelompok, eq(generus.kelompokId, kelompok.id)).where(generusWhere).groupBy(kelompok.nama).orderBy(sql`count(*) DESC`);
   const byDaerahQ = db.select({ name: sql<string>`'Cengkareng'`, value: sql<number>`count(*)` }).from(generus).where(generusWhere);
   const byPendidikanQ = db.select({ name: sql<string>`COALESCE(${generus.pendidikan}, 'Belum diisi')`, value: sql<number>`count(*)` }).from(generus).where(generusWhere).groupBy(generus.pendidikan).orderBy(sql`count(*) DESC`).limit(10);
+  const pekerjaanRawQ = db.select({ pekerjaan: generus.pekerjaan }).from(generus).where(generusWhere);
   const totalKegiatanQ = db.select({ count: sql<number>`count(*)` }).from(kegiatan).where(kegiatanWhere);
   const kegiatanByKategoriQ = db.select({ name: sql<string>`COALESCE(${kegiatan.kategoriAcara}, 'lainnya')`, value: sql<number>`count(*)` }).from(kegiatan).where(kegiatanWhere).groupBy(kegiatan.kategoriAcara);
   const kegiatanMonthlyQ = db.select({ name: sql<string>`substr(${kegiatan.tanggal},1,7)`, value: sql<number>`count(*)` }).from(kegiatan).where(kegiatanWhere).groupBy(sql`substr(${kegiatan.tanggal},1,7)`).orderBy(sql`substr(${kegiatan.tanggal},1,7) ASC`);
@@ -82,7 +95,7 @@ r.get("/", async (c) => {
   const absensiTimeSeriesQ = db.select({ date: kegiatan.tanggal, hadir: sql<number>`SUM(CASE WHEN ${absensi.keterangan}='hadir' THEN 1 ELSE 0 END)`, izin: sql<number>`SUM(CASE WHEN ${absensi.keterangan}='izin' THEN 1 ELSE 0 END)`, alpha: sql<number>`SUM(CASE WHEN ${absensi.keterangan}='alpha' THEN 1 ELSE 0 END)`, total: sql<number>`count(*)` }).from(absensi).innerJoin(generus, eq(absensi.generusId, generus.id)).innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id)).where(absensiWhere).groupBy(kegiatan.tanggal).orderBy(kegiatan.tanggal);
   const absensiByDesaQ = db.select({ name: sql<string>`COALESCE(${desa.nama}, 'Tanpa Desa')`, value: sql<number>`count(*)` }).from(absensi).innerJoin(generus, eq(absensi.generusId, generus.id)).innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id)).leftJoin(desa, eq(generus.desaId, desa.id)).where(absensiWhere).groupBy(desa.nama).orderBy(sql`count(*) DESC`).limit(10);
 
-  const [totalGenerusRes, byGenderRes, byUsiaRes, byMudaMudiRes, byDesaRes, byKelompokRes, byDaerahRes, byPendidikanRes, totalKegiatanRes, kegiatanByKategoriRes, kegiatanMonthlyRes, totalAbsensiRes, byKeteranganRes, absensiByGenderRes, absensiByUsiaRes, absensiByMudaMudiRes, absensiByKategoriAcaraRes, timeSeriesRes, absensiByDesaRes] = await Promise.all([totalGenerusQ, byGenderQ, byUsiaQ, byMudaMudiQ, byDesaQ, byKelompokQ, byDaerahQ, byPendidikanQ, totalKegiatanQ, kegiatanByKategoriQ, kegiatanMonthlyQ, totalAbsensiQ, byKeteranganQ, absensiByGenderQ, absensiByUsiaQ, absensiByMudaMudiQ, absensiByKategoriAcaraQ, absensiTimeSeriesQ, absensiByDesaQ]);
+  const [totalGenerusRes, byGenderRes, byUsiaRes, byMudaMudiRes, byDesaRes, byKelompokRes, byDaerahRes, byPendidikanRes, pekerjaanRawRes, totalKegiatanRes, kegiatanByKategoriRes, kegiatanMonthlyRes, totalAbsensiRes, byKeteranganRes, absensiByGenderRes, absensiByUsiaRes, absensiByMudaMudiRes, absensiByKategoriAcaraRes, timeSeriesRes, absensiByDesaRes] = await Promise.all([totalGenerusQ, byGenderQ, byUsiaQ, byMudaMudiQ, byDesaQ, byKelompokQ, byDaerahQ, byPendidikanQ, pekerjaanRawQ, totalKegiatanQ, kegiatanByKategoriQ, kegiatanMonthlyQ, totalAbsensiQ, byKeteranganQ, absensiByGenderQ, absensiByUsiaQ, absensiByMudaMudiQ, absensiByKategoriAcaraQ, absensiTimeSeriesQ, absensiByDesaQ]);
   const totalGenerus = Number((totalGenerusRes as any)[0]?.count || 0);
   const totalKegiatan = Number((totalKegiatanRes as any)[0]?.count || 0);
   const totalAbsensi = Number((totalAbsensiRes as any)[0]?.count || 0);
@@ -91,7 +104,8 @@ r.get("/", async (c) => {
   const izin = Number((byKeteranganRes as any[]).find((r: any) => r.name === "izin")?.value || 0);
   const alpha = Number((byKeteranganRes as any[]).find((r: any) => r.name === "alpha")?.value || 0);
   const hadirRate = totalAbsensi > 0 ? Math.round((hadir / totalAbsensi) * 100) : 0;
-  return c.json({ summary: { totalGenerus, totalKegiatan, totalAbsensi, hadir, izin, alpha, hadirRate }, member: { byGender: norm(byGenderRes as any), byUsia: norm(byUsiaRes as any), byMudaMudi: norm(byMudaMudiRes as any), byDesa: norm(byDesaRes as any), byKelompok: norm(byKelompokRes as any), byDaerah: norm(byDaerahRes as any), byPendidikan: norm(byPendidikanRes as any) }, kegiatan: { total: totalKegiatan, byKategori: norm(kegiatanByKategoriRes as any), monthly: (kegiatanMonthlyRes as any[]).map((r: any) => ({ name: r.name, value: Number(r.value) })) }, absensi: { total: totalAbsensi, byKeterangan: norm(byKeteranganRes as any), byGender: norm(absensiByGenderRes as any), byUsia: norm(absensiByUsiaRes as any), byMudaMudi: norm(absensiByMudaMudiRes as any), byKategoriAcara: norm(absensiByKategoriAcaraRes as any), byDesa: norm(absensiByDesaRes as any), timeSeries: (timeSeriesRes as any[]).map((r: any) => ({ date: r.date, hadir: Number(r.hadir || 0), izin: Number(r.izin || 0), alpha: Number(r.alpha || 0), total: Number(r.total || 0) })) }, filtersApplied: { from: from || null, to: to || null, kategoriAcara, desaId: effectiveDesaId, kelompokId: effectiveKelompokId, daerahId: _qDaerahId, mandiriDesaId: _qMandiriDesaId, mandiriKelompokId: _qMandiriKelompokId, kategoriMudaMudi, jenisKelamin, kategoriUsia } });
+  const byPekerjaan = normalizePekerjaanList(pekerjaanRawRes as any);
+  return c.json({ summary: { totalGenerus, totalKegiatan, totalAbsensi, hadir, izin, alpha, hadirRate }, member: { byGender: norm(byGenderRes as any), byUsia: norm(byUsiaRes as any), byMudaMudi: norm(byMudaMudiRes as any), byDesa: norm(byDesaRes as any), byKelompok: norm(byKelompokRes as any), byDaerah: norm(byDaerahRes as any), byPendidikan: norm(byPendidikanRes as any), byPekerjaan }, kegiatan: { total: totalKegiatan, byKategori: norm(kegiatanByKategoriRes as any), monthly: (kegiatanMonthlyRes as any[]).map((r: any) => ({ name: r.name, value: Number(r.value) })) }, absensi: { total: totalAbsensi, byKeterangan: norm(byKeteranganRes as any), byGender: norm(absensiByGenderRes as any), byUsia: norm(absensiByUsiaRes as any), byMudaMudi: norm(absensiByMudaMudiRes as any), byKategoriAcara: norm(absensiByKategoriAcaraRes as any), byDesa: norm(absensiByDesaRes as any), timeSeries: (timeSeriesRes as any[]).map((r: any) => ({ date: r.date, hadir: Number(r.hadir || 0), izin: Number(r.izin || 0), alpha: Number(r.alpha || 0), total: Number(r.total || 0) })) }, filtersApplied: { from: from || null, to: to || null, kategoriAcara, desaId: effectiveDesaId, kelompokId: effectiveKelompokId, daerahId: _qDaerahId, mandiriDesaId: _qMandiriDesaId, mandiriKelompokId: _qMandiriKelompokId, kategoriMudaMudi, jenisKelamin, kategoriUsia } });
 });
 
 r.get("/options", async (c) => {

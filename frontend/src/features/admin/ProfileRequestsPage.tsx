@@ -12,6 +12,9 @@ type TabKey = ReqStatus | "all";
 type Row = {
   id: string;
   generusId: string;
+  generusNama?: string | null;
+  generusNomorUnik?: string | null;
+  generusFoto?: string | null;
   section: ReqSection;
   payload: string; // JSON string
   reason: string;
@@ -27,6 +30,7 @@ type GenerusLite = { id: string; nama: string; nomorUnik: string; foto?: string 
 const FIELD_LABEL: Record<string, string> = {
   noTelp: "No. HP",
   pendidikan: "Pendidikan",
+  pekerjaan: "Pekerjaan",
   domisiliAnak: "Alamat Anak",
   domisiliOrtu: "Alamat Ortu",
   isDomisiliOrtuSama: "Ortu sama",
@@ -204,12 +208,15 @@ export default function ProfileRequestsPage() {
     return { pending, approved, rejected, total: rows.length };
   }, [rows]);
 
+  const [confirmApproveId, setConfirmApproveId] = useState<string | null>(null);
+
   async function act(id: string, kind: "approve" | "reject") {
-    if (kind === "approve") {
-      const ok = window.confirm("Setujui pengajuan ini? Data biodata akan diperbarui permanen.");
-      if (!ok) return;
+    if (kind === "approve" && confirmApproveId !== id) {
+      setConfirmApproveId(id);
+      return;
     }
     setBusyId(id);
+    setConfirmApproveId(null);
     try {
       await apiFetch(`/api/admin/profile-requests/${encodeURIComponent(id)}/${kind}`, {
         method: "POST",
@@ -312,16 +319,17 @@ export default function ProfileRequestsPage() {
       ) : isMobile ? (
         <div className="cards-grid">
           {filtered.map((r) => {
-            const g = generusMap[r.generusId];
+            const nama = r.generusNama || generusMap[r.generusId]?.nama || "Anggota";
+            const nomorUnik = r.generusNomorUnik || generusMap[r.generusId]?.nomorUnik;
             const payload = parsePayload(r.payload);
             const preview = Object.entries(payload).slice(0, 2).map(([k, v]) => `${FIELD_LABEL[k] ?? k}: ${String(v)}`).join(" · ");
             return (
               <div key={r.id} className="card member-card" role="button" tabIndex={0} onClick={() => setDetail(r)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetail(r); } }}>
                 <div className="member-card-head">
-                  <div className="avatar" style={{ width: 40, height: 40, fontSize: 12 }}>{(g?.nama ?? r.generusId).slice(0, 2).toUpperCase()}</div>
+                  <div className="avatar" style={{ width: 40, height: 40, fontSize: 12 }}>{(nama ?? "??").slice(0, 2).toUpperCase()}</div>
                   <div className="member-card-head-info">
-                    <div className="member-card-name">{g?.nama ?? r.generusId.slice(0, 8)}</div>
-                    <div className="muted" style={{ fontSize: 11 }}>{g?.nomorUnik ?? r.generusId} · {fmtDate(r.createdAt)}</div>
+                    <div className="member-card-name">{nama}</div>
+                    <div className="muted" style={{ fontSize: 11 }}>{nomorUnik ? `${nomorUnik} · ` : ""}{fmtDate(r.createdAt)}</div>
                   </div>
                   <span className={`pill ${r.status === "pending" ? "pill-amber" : r.status === "approved" ? "pill-emerald" : "pill-red"}`}>{r.status}</span>
                 </div>
@@ -352,17 +360,18 @@ export default function ProfileRequestsPage() {
             </thead>
             <tbody>
               {filtered.map((r) => {
-                const g = generusMap[r.generusId];
+                const nama = r.generusNama || generusMap[r.generusId]?.nama || "Anggota";
+                const nomorUnik = r.generusNomorUnik || generusMap[r.generusId]?.nomorUnik;
                 const payload = parsePayload(r.payload);
                 const keys = Object.keys(payload);
                 return (
                   <tr key={r.id}>
                     <td>
                       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <div className="avatar" style={{ width: 36, height: 36, fontSize: 11 }}>{(g?.nama ?? r.generusId).slice(0, 2).toUpperCase()}</div>
+                        <div className="avatar" style={{ width: 36, height: 36, fontSize: 11 }}>{(nama ?? "??").slice(0, 2).toUpperCase()}</div>
                         <div>
-                          <div style={{ fontWeight: 800, fontSize: 13 }}>{g?.nama ?? <span className="muted" style={{ fontWeight: 600 }}>{r.generusId.slice(0, 8)}…</span>}</div>
-                          <div className="muted" style={{ fontSize: 11 }}>{g?.nomorUnik ?? r.generusId}</div>
+                          <div style={{ fontWeight: 800, fontSize: 13 }}>{nama}</div>
+                          <div className="muted" style={{ fontSize: 11 }}>{nomorUnik ?? "—"}</div>
                         </div>
                       </div>
                     </td>
@@ -406,9 +415,45 @@ export default function ProfileRequestsPage() {
           wilayahNames={wilayahNames}
           busy={busyId === detail.id}
           onClose={() => setDetail(null)}
-          onApprove={() => void act(detail.id, "approve")}
+          onApprove={() => setConfirmApproveId(detail.id)}
           onReject={() => void act(detail.id, "reject")}
         />
+      )}
+
+      {/* MODAL KONFIRMASI APPROVE */}
+      {confirmApproveId && (
+        <div className="modal-backdrop" onClick={() => setConfirmApproveId(null)} style={{ zIndex: 1200, display: "grid", placeItems: "center", padding: 16 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400, width: "100%", padding: 22, borderRadius: 20, textAlign: "left" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#dcfce7", color: "#16a34a", display: "grid", placeItems: "center" }}>
+                <IcoCheck size={20} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: "var(--ink)" }}>Setujui Pengajuan?</h3>
+                <span className="muted" style={{ fontSize: 12 }}>Data biodata akan diperbarui permanen</span>
+              </div>
+            </div>
+
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5, margin: "0 0 16px" }}>
+              Apakah Anda yakin ingin menyetujui pengajuan perubahan data ini? Perubahan akan langsung disimpan ke data anggota terkait.
+            </p>
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setConfirmApproveId(null)} disabled={busyId === confirmApproveId}>
+                Batal
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ flex: 1 }}
+                disabled={busyId === confirmApproveId}
+                onClick={() => void act(confirmApproveId, "approve")}
+              >
+                {busyId === confirmApproveId ? "Memproses…" : "Ya, Setujui"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -446,21 +491,27 @@ function DetailModal({
   }, [row.generusId]);
 
   const isImageAttachment = row.attachmentUrl ? /\.(png|jpe?g|webp|gif)(\?|$)/i.test(row.attachmentUrl) : false;
+  const nama = row.generusNama || generus?.nama || (liveGenerus?.nama as string | undefined) || "Anggota";
+  const nomorUnik = row.generusNomorUnik || generus?.nomorUnik || (liveGenerus?.nomorUnik as string | undefined);
 
   return (
     <Modal title="Detail Pengajuan" onClose={onClose} maxWidth={640} className="modal--pengajuan">
       <div style={{ display: "grid", gap: 14 }}>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <div className="avatar" style={{ width: 44, height: 44, fontSize: 13 }}>{(generus?.nama ?? (liveGenerus?.nama as string | undefined) ?? row.generusId).slice(0, 2).toUpperCase()}</div>
+          <div className="avatar" style={{ width: 44, height: 44, fontSize: 13 }}>{(nama ?? "??").slice(0, 2).toUpperCase()}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 800, fontSize: 14 }}>{String(generus?.nama ?? (liveGenerus?.nama as string | undefined) ?? row.generusId)}</div>
+            <div style={{ fontWeight: 800, fontSize: 14 }}>{String(nama)}</div>
             <div className="muted" style={{ fontSize: 11, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-              <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}><IcoUser size={10} /> {String(generus?.nomorUnik ?? (liveGenerus?.nomorUnik as string | undefined) ?? row.generusId)}</span>
+              {Boolean(nomorUnik) && (
+                <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                  <IcoUser size={10} /> {String(nomorUnik)}
+                </span>
+              )}
               <span>·</span>
               <span className={`pill ${row.status === "pending" ? "pill-amber" : row.status === "approved" ? "pill-emerald" : "pill-red"}`} style={{ fontSize: 10 }}>{row.status}</span>
               <span className="pill pill-slate" style={{ fontSize: 10 }}>{row.section}</span>
             </div>
-            <div className="muted" style={{ fontSize: 11 }}>Diajukan {fmtDate(row.createdAt)} · ID {row.id.slice(0, 8)}</div>
+            <div className="muted" style={{ fontSize: 11 }}>Diajukan {fmtDate(row.createdAt)}</div>
           </div>
         </div>
 

@@ -26,17 +26,105 @@ r.get("/sholat", async (c) => {
   } catch { return c.json({ error: "Gagal mengambil jadwal sholat" }, 500); }
 });
 
-// upload - store to R2 if available, else echo
+async function signImageToken(key: string, exp: number, secret: string): Promise<string> {
+  const enc = new TextEncoder();
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signature = await crypto.subtle.sign("HMAC", cryptoKey, enc.encode(`${key}:${exp}`));
+  return Array.from(new Uint8Array(signature)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function verifyImageToken(key: string, exp: number, token: string, secret: string): Promise<boolean> {
+  if (exp < Date.now()) return false;
+  const expected = await signImageToken(key, exp, secret);
+  return expected === token;
+}
+
+// 1. Presign endpoint: Client requests permission/URL to upload directly to R2
+r.post("/upload/presign", requireAuth(), async (c) => {
+  const body: any = await c.req.json().catch(() => ({}));
+  const filename = String(body.filename || "image.jpg").replace(/[^a-zA-Z0-9._-]/g, "_");
+  const contentType = String(body.contentType || "image/jpeg");
+  const key = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${filename}`;
+  const secret = c.env.JWT_SECRET || "gencar-secret";
+
+  // Expiry 15 minutes for upload ticket
+  const uploadExpiry = Date.now() + 15 * 60 * 1000;
+  const uploadToken = await signImageToken(key, uploadExpiry, secret);
+
+  // Expiry 1 hour for first temporary view URL
+  const viewExpiry = Date.now() + 60 * 60 * 1000;
+  const viewToken = await signImageToken(key, viewExpiry, secret);
+
+  const directUploadUrl = `/api/upload/direct/${key}?token=${uploadToken}&exp=${uploadExpiry}`;
+  const temporaryViewUrl = `/api/images/${key}?token=${viewToken}&exp=${viewExpiry}`;
+
+  return c.json({
+    key,
+    uploadUrl: directUploadUrl,
+    contentType,
+    viewUrl: temporaryViewUrl,
+  });
+});
+
+// 2. Direct PUT to R2 from client
+r.put("/upload/direct/:key", async (c) => {
+  const key = c.req.param("key");
+  const token = c.req.query("token") || "";
+  const exp = Number(c.req.query("exp") || "0");
+  const secret = c.env.JWT_SECRET || "gencar-secret";
+
+  const valid = await verifyImageToken(key, exp, token, secret);
+  if (!valid) return c.json({ error: "Upload token tidak valid atau telah kadaluarsa" }, 403);
+
+  const contentType = c.req.header("content-type") || "application/octet-stream";
+  const data = await c.req.arrayBuffer();
+
+  if ((c.env as any).R2_BUCKET) {
+    await (c.env as any).R2_BUCKET.put(`uploads/${key}`, data, {
+      httpMetadata: { contentType },
+    });
+  }
+
+  return c.json({ success: true, key });
+});
+
+// 3. Request temporary signed view URL for any stored image key
+r.get("/images/sign", optionalAuth(), async (c) => {
+  const rawKey = c.req.query("key") || "";
+  if (!rawKey) return c.json({ error: "key diperlukan" }, 400);
+  const key = rawKey.startsWith("/api/images/") ? rawKey.replace("/api/images/", "").split("?")[0] : rawKey.split("?")[0];
+  const durationSeconds = Number(c.req.query("expiresIn") || 3600); // default 1 hour
+  const exp = Date.now() + durationSeconds * 1000;
+  const secret = c.env.JWT_SECRET || "gencar-secret";
+  const token = await signImageToken(key, exp, secret);
+
+  return c.json({
+    url: `/api/images/${key}?token=${token}&exp=${exp}`,
+    expiresAt: exp,
+  });
+});
+
+// Legacy fallback upload - store to R2 if available, else echo
 r.post("/upload", requireAuth(), async (c) => {
   const body: any = await c.req.parseBody().catch(() => ({}));
   const file = body.file as File | undefined;
   if (!file) { const json: any = await c.req.json().catch(() => ({})); if (json.url) return c.json({ url: json.url }); return c.json({ error: "file diperlukan" }, 400); }
-  const key = `uploads/${Date.now()}-${(file as any).name || "file"}`;
+  const filename = (file as any).name || "file.jpg";
+  const key = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${filename}`;
   if ((c.env as any).R2_BUCKET) {
-    await (c.env as any).R2_BUCKET.put(key, await (file as any).arrayBuffer(), { httpMetadata: { contentType: (file as any).type || "application/octet-stream" } });
-    return c.json({ url: `/api/images/${key.split("/").pop()}` });
+    await (c.env as any).R2_BUCKET.put(`uploads/${key}`, await (file as any).arrayBuffer(), { httpMetadata: { contentType: (file as any).type || "application/octet-stream" } });
+    const secret = c.env.JWT_SECRET || "gencar-secret";
+    const exp = Date.now() + 60 * 60 * 1000;
+    const token = await signImageToken(key, exp, secret);
+    return c.json({ url: `/api/images/${key}?token=${token}&exp=${exp}`, key });
   }
-  return c.json({ url: key });
+  return c.json({ url: key, key });
 });
 
 // download - generate CSV export
@@ -52,14 +140,37 @@ r.get("/download", requireAuth(), async (c) => {
   return c.json([]);
 });
 
-// images/[filename] - serve from R2
+// images/[filename] - serve from R2 (signed token required for private view)
 r.get("/images/:filename", async (c) => {
   const filename = c.req.param("filename");
+  const token = c.req.query("token");
+  const exp = Number(c.req.query("exp") || "0");
+  const secret = c.env.JWT_SECRET || "gencar-secret";
+
+  if (token) {
+    const valid = await verifyImageToken(filename, exp, token, secret);
+    if (!valid) return c.json({ error: "Link gambar tidak valid atau telah kadaluarsa" }, 403);
+  }
+
   if ((c.env as any).R2_BUCKET) {
     const obj = await (c.env as any).R2_BUCKET.get(`uploads/${filename}`);
-    if (obj) return new Response(obj.body, { headers: { "Content-Type": obj.httpMetadata?.contentType || "image/jpeg", "Cache-Control": "public, max-age=31536000, immutable" } });
+    if (obj) {
+      return new Response(obj.body, {
+        headers: {
+          "Content-Type": obj.httpMetadata?.contentType || "image/jpeg",
+          "Cache-Control": "private, max-age=3600",
+        },
+      });
+    }
     const obj2 = await (c.env as any).R2_BUCKET.get(filename);
-    if (obj2) return new Response(obj2.body, { headers: { "Content-Type": obj2.httpMetadata?.contentType || "image/jpeg" } });
+    if (obj2) {
+      return new Response(obj2.body, {
+        headers: {
+          "Content-Type": obj2.httpMetadata?.contentType || "image/jpeg",
+          "Cache-Control": "private, max-age=3600",
+        },
+      });
+    }
   }
   return c.json({ error: "Not found" }, 404);
 });
@@ -142,9 +253,26 @@ r.get("/admin/profile-requests", requireAuth(), async (c) => {
   const session = c.get("user" as any) as any;
   if (!["admin_daerah", "admin_desa", "admin_kelompok"].includes(session.role)) return c.json({ error: "Unauthorized" }, 401);
   const db = getDb(c.env);
-  const { profileChangeRequests } = await import("../../../shared/schema");
+  const { profileChangeRequests, generus } = await import("../../../shared/schema");
   const status = c.req.query("status") || "pending";
-  let q: any = db.select().from(profileChangeRequests);
+  let q: any = db
+    .select({
+      id: profileChangeRequests.id,
+      generusId: profileChangeRequests.generusId,
+      generusNama: sql<string>`COALESCE(${generus.nama}, (SELECT name FROM users WHERE id = ${profileChangeRequests.generusId} LIMIT 1), 'Anggota')`,
+      generusNomorUnik: generus.nomorUnik,
+      generusFoto: generus.foto,
+      section: profileChangeRequests.section,
+      payload: profileChangeRequests.payload,
+      reason: profileChangeRequests.reason,
+      attachmentUrl: profileChangeRequests.attachmentUrl,
+      status: profileChangeRequests.status,
+      reviewedBy: profileChangeRequests.reviewedBy,
+      reviewedAt: profileChangeRequests.reviewedAt,
+      createdAt: profileChangeRequests.createdAt,
+    })
+    .from(profileChangeRequests)
+    .leftJoin(generus, eq(profileChangeRequests.generusId, generus.id));
   if (status !== "all") q = q.where(eq(profileChangeRequests.status, status as any));
   const rows: any = await q.orderBy(sql`${profileChangeRequests.createdAt} DESC`).limit(100);
   return c.json(rows);
@@ -160,9 +288,9 @@ r.post("/admin/profile-requests/:id/approve", requireAuth(), async (c) => {
   if (row.status !== "pending") return c.json({ error: "Sudah diproses" }, 400);
   const payload = JSON.parse(row.payload);
   const allowed: Record<string, string[]> = {
-    kontak: ["noTelp", "pendidikan"],
+    kontak: ["noTelp", "pendidikan", "pekerjaan"],
     wilayah: ["domisiliAnak", "domisiliOrtu", "isDomisiliOrtuSama", "asalDaerah", "kategoriMudaMudi", "alamat", "desaId", "kelompokId"],
-    identitas: ["nama", "tempatLahir", "tanggalLahir", "suku", "foto", "avatarId"],
+    identitas: ["nama", "tempatLahir", "tanggalLahir", "suku", "pekerjaan", "foto", "avatarId"],
   };
   const keys = allowed[row.section] || [];
   const update: any = { updatedAt: new Date().toISOString() };
@@ -220,9 +348,36 @@ r.put("/profile", requireAuth(), async (c) => {
     if (body.nama) gUpdate.nama = body.nama;
     if (body.alamat !== undefined) gUpdate.alamat = body.alamat;
     if (body.noTelp !== undefined) gUpdate.noTelp = body.noTelp;
+    if (body.pekerjaan !== undefined) gUpdate.pekerjaan = body.pekerjaan;
     if (body.foto !== undefined) gUpdate.foto = body.foto;
-    if (body.hobi !== undefined) gUpdate.hobi = body.hobi;
-    if (body.hobiDetail !== undefined) gUpdate.hobiDetail = body.hobiDetail;
+    if (body.avatarId !== undefined) gUpdate.avatarId = body.avatarId;
+    if (body.avatarStyle !== undefined) gUpdate.avatarId = body.avatarStyle;
+    // Jika upload custom foto, kosongkan avatarId
+    if (body.foto && !body.avatarId) {
+      gUpdate.avatarId = null;
+    }
+    // Jika pilih avatar, kosongkan foto custom
+    if (body.avatarId && !body.foto) {
+      gUpdate.foto = null;
+    }
+    if (body.jenisKelamin !== undefined) {
+      gUpdate.jenisKelamin = body.jenisKelamin === "cowok" ? "L" : body.jenisKelamin === "cewek" ? "P" : body.jenisKelamin;
+    }
+    if (body.hobi !== undefined || body.hobiDetail !== undefined) {
+      // Check 30 days restriction
+      const currentGen: any = await db.query.generus.findFirst({ where: eq(generus.id, user.generusId) });
+      if (currentGen?.hobiUpdatedAt) {
+        const lastUpdated = new Date(currentGen.hobiUpdatedAt).getTime();
+        const diffDays = (Date.now() - lastUpdated) / (1000 * 60 * 60 * 24);
+        if (diffDays < 30) {
+          const remainingDays = Math.ceil(30 - diffDays);
+          return c.json({ error: `Hobi hanya bisa diubah sebulan sekali. Silakan tunggu ${remainingDays} hari lagi.` }, 400);
+        }
+      }
+      if (body.hobi !== undefined) gUpdate.hobi = body.hobi;
+      if (body.hobiDetail !== undefined) gUpdate.hobiDetail = body.hobiDetail;
+      gUpdate.hobiUpdatedAt = new Date().toISOString();
+    }
     if (Object.keys(gUpdate).length > 0) {
       gUpdate.updatedAt = new Date().toISOString();
       await db.update(generus).set(gUpdate).where(eq(generus.id, user.generusId));

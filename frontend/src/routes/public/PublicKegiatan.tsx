@@ -13,6 +13,7 @@ import {
   Timer,
 } from "lucide-react";
 import { apiFetch, unwrapList } from "../../lib/api";
+import { labelKategori } from "../../lib/labelKategori";
 import type { PubKegiatan } from "./data";
 
 const PER_PAGE = 6;
@@ -92,15 +93,19 @@ function formatTanggalIndo(iso: string): string {
   return `${d} ${bulan[m - 1] ?? m} ${y}`;
 }
 
+type CategoryItem = { label: string; value: string; count: number };
+
 export function PublicKegiatanList() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const cats = ["Semua", "Sambung Rutin", "Keakraban", "Pemantapan", "Lainnya"] as const;
-  const urlCat = searchParams.get("kategori");
+  const [serverCats, setServerCats] = useState<CategoryItem[]>([]);
+  const [showMoreModal, setShowMoreModal] = useState(false);
+
+  const urlCat = searchParams.get("kategori") ?? "Semua";
   const urlPage = parseInt(searchParams.get("page") ?? "1", 10);
   const urlQ = searchParams.get("q") ?? "";
-  const validCat = (cats as readonly string[]).includes(urlCat ?? "") ? (urlCat as typeof cats[number]) : "Semua";
+
   const [q, setQ] = useState(urlQ);
-  const [cat, setCat] = useState<typeof cats[number]>(validCat);
+  const [cat, setCat] = useState<string>(urlCat);
   const [page, setPage] = useState(Number.isFinite(urlPage) && urlPage >= 1 ? urlPage : 1);
   const qDebounceRef = useRef<number | null>(null);
 
@@ -108,13 +113,21 @@ export function PublicKegiatanList() {
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  // Fetch categories from backend
+  useEffect(() => {
+    apiFetch<CategoryItem[]>("/api/public/kegiatan-publik/kategori")
+      .then((data) => {
+        if (Array.isArray(data)) setServerCats(data);
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     const uq = searchParams.get("q") ?? "";
-    const uc = searchParams.get("kategori");
+    const uc = searchParams.get("kategori") ?? "Semua";
     const up = parseInt(searchParams.get("page") ?? "1", 10);
-    const vc = (cats as readonly string[]).includes(uc ?? "") ? (uc as typeof cats[number]) : "Semua";
     if (uq !== q) setQ(uq);
-    if (vc !== cat) setCat(vc);
+    if (uc !== cat) setCat(uc);
     const np = Number.isFinite(up) && up >= 1 ? up : 1;
     if (np !== page) setPage(np);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -127,13 +140,8 @@ export function PublicKegiatanList() {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
     if (cat !== "Semua") {
-      const acaraMap: Record<string, string> = {
-        "Sambung Rutin": "sambung_rutin",
-        "Keakraban": "keakraban",
-        "Pemantapan": "pemantapan",
-        "Lainnya": "lainnya",
-      };
-      params.set("kategoriAcara", acaraMap[cat] ?? cat);
+      const match = serverCats.find((c) => c.label === cat || c.value === cat);
+      params.set("kategoriAcara", match ? match.value : cat);
     }
     params.set("page", String(page));
     params.set("limit", String(PER_PAGE));
@@ -179,9 +187,9 @@ export function PublicKegiatanList() {
       });
 
     return () => { cancel = true; };
-  }, [q, cat, page]);
+  }, [q, cat, page, serverCats]);
 
-  const updateUrl = (newQ: string, newCat: typeof cats[number], newPage: number) => {
+  const updateUrl = (newQ: string, newCat: string, newPage: number) => {
     const nextParams = new URLSearchParams();
     if (newQ.trim()) nextParams.set("q", newQ.trim());
     if (newCat !== "Semua") nextParams.set("kategori", newCat);
@@ -198,7 +206,7 @@ export function PublicKegiatanList() {
     }, 250);
   };
 
-  const onCatChange = (c: typeof cats[number]) => {
+  const onCatChange = (c: string) => {
     setCat(c);
     setPage(1);
     updateUrl(q, c, 1);
@@ -209,6 +217,23 @@ export function PublicKegiatanList() {
     updateUrl(q, cat, np);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  const visibleCats = useMemo(() => {
+    return serverCats.slice(0, 3);
+  }, [serverCats]);
+
+  const overflowCats = useMemo(() => {
+    return serverCats.slice(5);
+  }, [serverCats]);
+
+  const isOverflowSelected = useMemo(() => {
+    return overflowCats.some((c) => c.label === cat || c.value === cat);
+  }, [overflowCats, cat]);
+
+  const overflowSelectedLabel = useMemo(() => {
+    const hit = overflowCats.find((c) => c.label === cat || c.value === cat);
+    return hit ? hit.label : null;
+  }, [overflowCats, cat]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PER_PAGE));
   const upcomingHero = useMemo(() => {
@@ -226,33 +251,37 @@ export function PublicKegiatanList() {
       {upcomingHero && (
         <div className="pub-kegiatan-hero">
           <div className="pub-kegiatan-hero-body">
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <span className="pub-tag">{upcomingHero.kategori}</span>
-              {isFuture && <span className="pub-tag" style={{ background: "#22c55e", color: "#fff" }}>Segera</span>}
-            </div>
-            <h1 className="pub-kegiatan-hero-title">{upcomingHero.judul}</h1>
-            <p className="pub-kegiatan-hero-excerpt">{upcomingHero.excerpt}</p>
-            <div className="pub-kegiatan-hero-meta">
-              <span><CalendarDays size={13} /> {formatTanggalIndo(upcomingHero.tanggal)}{upcomingHero.jam ? ` · ${upcomingHero.jam}` : ""}</span>
-              <span><MapPin size={13} /> {upcomingHero.lokasi}</span>
-            </div>
-
-            {isFuture && countdown && (
-              <div className="pub-countdown" aria-label={`Hitung mundur: ${countdown.days} hari ${countdown.hours} jam ${countdown.mins} menit ${countdown.secs} detik`}>
-                <div className="pub-countdown-item"><strong>{countdown.days}</strong><span>Hari</span></div>
-                <span className="pub-countdown-sep">:</span>
-                <div className="pub-countdown-item"><strong>{String(countdown.hours).padStart(2, "0")}</strong><span>Jam</span></div>
-                <span className="pub-countdown-sep">:</span>
-                <div className="pub-countdown-item"><strong>{String(countdown.mins).padStart(2, "0")}</strong><span>Menit</span></div>
-                <span className="pub-countdown-sep">:</span>
-                <div className="pub-countdown-item"><strong>{String(countdown.secs).padStart(2, "0")}</strong><span>Detik</span></div>
+            <div className="pub-kegiatan-hero-main">
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <span className="pub-tag">{labelKategori(upcomingHero.kategori)}</span>
+                {isFuture && <span className="pub-tag" style={{ background: "#22c55e", color: "#fff" }}>Segera</span>}
               </div>
-            )}
+              <h1 className="pub-kegiatan-hero-title">{upcomingHero.judul}</h1>
+              <p className="pub-kegiatan-hero-excerpt">{upcomingHero.excerpt}</p>
+              <div className="pub-kegiatan-hero-meta">
+                <span><CalendarDays size={13} /> {formatTanggalIndo(upcomingHero.tanggal)}{upcomingHero.jam ? ` · ${upcomingHero.jam}` : ""}</span>
+                <span><MapPin size={13} /> {upcomingHero.lokasi}</span>
+              </div>
+            </div>
 
-            <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
-              <Link to={`/kegiatan/${upcomingHero.slug}`} className="btn-lime">
-                Detail Kegiatan <ArrowRight size={14} />
-              </Link>
+            <div className="pub-kegiatan-hero-footer" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {isFuture && countdown && (
+                <div className="pub-countdown" aria-label={`Hitung mundur: ${countdown.days} hari ${countdown.hours} jam ${countdown.mins} menit ${countdown.secs} detik`}>
+                  <div className="pub-countdown-item"><strong>{countdown.days}</strong><span>Hari</span></div>
+                  <span className="pub-countdown-sep">:</span>
+                  <div className="pub-countdown-item"><strong>{String(countdown.hours).padStart(2, "0")}</strong><span>Jam</span></div>
+                  <span className="pub-countdown-sep">:</span>
+                  <div className="pub-countdown-item"><strong>{String(countdown.mins).padStart(2, "0")}</strong><span>Menit</span></div>
+                  <span className="pub-countdown-sep">:</span>
+                  <div className="pub-countdown-item"><strong>{String(countdown.secs).padStart(2, "0")}</strong><span>Detik</span></div>
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <Link to={`/kegiatan/${upcomingHero.slug}`} className="btn-lime">
+                  Detail Kegiatan <ArrowRight size={14} />
+                </Link>
+              </div>
             </div>
           </div>
           <div className="pub-kegiatan-hero-media">
@@ -275,20 +304,77 @@ export function PublicKegiatanList() {
         </label>
 
         <div className="pub-kegiatan-cats" role="tablist" aria-label="Kategori kegiatan">
-          {cats.map((c) => (
+          {/* Semua selalu ada */}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={cat === "Semua"}
+            className={`chip ${cat === "Semua" ? "active" : ""}`}
+            onClick={() => onCatChange("Semua")}
+          >
+            Semua
+          </button>
+
+          {/* Top 5 kategori dari backend */}
+          {visibleCats.map((c) => (
             <button
-              key={c}
+              key={c.value}
               type="button"
               role="tab"
-              aria-selected={cat === c}
-              className={`chip ${cat === c ? "active" : ""}`}
-              onClick={() => onCatChange(c)}
+              aria-selected={cat === c.label || cat === c.value}
+              className={`chip ${cat === c.label || cat === c.value ? "active" : ""}`}
+              onClick={() => onCatChange(c.label)}
             >
-              {c}
+              {c.label}
             </button>
           ))}
+
+          {/* "+ N Lainnya" bila ada overflow */}
+          {overflowCats.length > 0 && (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={isOverflowSelected}
+              className={`chip ${isOverflowSelected ? "active" : ""}`}
+              onClick={() => setShowMoreModal(true)}
+            >
+              {isOverflowSelected ? overflowSelectedLabel : `+${overflowCats.length} Lainnya`}
+            </button>
+          )}
         </div>
       </div>
+
+      {/* MODAL KATEGORI LAINNYA */}
+      {showMoreModal && (
+        <div className="modal-backdrop" onClick={() => setShowMoreModal(false)} style={{ zIndex: 1200, display: "grid", placeItems: "center", padding: 16 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420, width: "100%", padding: 22, borderRadius: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Kategori Lainnya</h3>
+              <button type="button" className="btn btn-ghost" style={{ padding: 6 }} onClick={() => setShowMoreModal(false)}>✕</button>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {overflowCats.map((c) => {
+                const active = cat === c.label || cat === c.value;
+                return (
+                  <button
+                    key={c.value}
+                    type="button"
+                    className={`chip ${active ? "active" : ""}`}
+                    style={{ fontSize: 13, padding: "8px 14px" }}
+                    onClick={() => {
+                      onCatChange(c.label);
+                      setShowMoreModal(false);
+                    }}
+                  >
+                    {c.label}
+                    <span className="muted" style={{ marginLeft: 4, fontSize: 11 }}>({c.count})</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="pub-kegiatan-meta-count">
         <span>Menampilkan <strong>{items.length}</strong> dari <strong>{totalCount}</strong> kegiatan</span>
@@ -334,7 +420,7 @@ export function PublicKegiatanList() {
             <article key={k.slug} className="pub-kegiatan-card">
               <Link to={`/kegiatan/${k.slug}`} className="pub-kegiatan-card-media" tabIndex={-1} aria-hidden="true">
                 <img src={k.cover} alt="" loading="lazy" />
-                <span className="pub-kegiatan-badge">{k.kategori}</span>
+                <span className="pub-kegiatan-badge">{labelKategori(k.kategori)}</span>
               </Link>
               <div className="pub-kegiatan-card-body">
                 <span className="pub-kegiatan-card-kicker">{formatTanggalIndo(k.tanggal)}</span>
@@ -468,7 +554,7 @@ export function PublicKegiatanDetail() {
 
       <header className="pub-detail-head">
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
-          <span className="pub-tag">{item.kategori}</span>
+                  <span className="pub-tag">{labelKategori(item.kategori)}</span>
           {isFuture && <span className="pub-tag" style={{ background: "#22c55e", color: "#fff" }}>Segera</span>}
         </div>
 
@@ -536,7 +622,7 @@ export function PublicKegiatanDetail() {
               <article key={r.slug} className="pub-kegiatan-card">
                 <Link to={`/kegiatan/${r.slug}`} className="pub-kegiatan-card-media" tabIndex={-1} aria-hidden="true">
                   <img src={r.cover} alt="" loading="lazy" />
-                  <span className="pub-kegiatan-badge">{r.kategori}</span>
+                  <span className="pub-kegiatan-badge">{labelKategori(r.kategori)}</span>
                 </Link>
                 <div className="pub-kegiatan-card-body">
                   <span className="pub-kegiatan-card-kicker">{formatTanggalIndo(r.tanggal)}</span>

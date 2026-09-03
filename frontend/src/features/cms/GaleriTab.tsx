@@ -5,6 +5,9 @@ import { apiFetch } from "../../lib/api";
 import AdminModal from "../../components/admin/Modal";
 import SearchInput from "../../components/admin/SearchInput";
 import ImageUploadInput from "../../components/admin/ImageUploadInput";
+import DeleteConfirmModal from "../../components/DeleteConfirmModal";
+import CategoryInput from "../../components/CategoryInput";
+import { labelKategori } from "../../lib/labelKategori";
 
 export type GaleriItem = {
   id: string;
@@ -47,12 +50,19 @@ export default function GaleriTab({ role, userId }: { role: AdminRole; userId?: 
     ? items.filter((a) => `${a.judul} ${a.kategori || ""} ${a.lokasi || ""}`.toLowerCase().includes(q.toLowerCase()))
     : items;
 
+  const [deleteTarget, setDeleteTarget] = useState<GaleriItem | null>(null);
+
   const canEditItem = (item: GaleriItem) => role === "admin_daerah" || item.authorId === userId;
 
-  const handleDelete = (id: string) => {
-    if (!confirm("Hapus foto galeri ini?")) return;
+  const handleDelete = (item: GaleriItem) => {
+    setDeleteTarget(item);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const id = deleteTarget.id;
     setItems((p) => p.filter((x) => x.id !== id));
-    void apiFetch(`/api/cms/galeri/${id}`, { method: "DELETE" }).catch(() => {});
+    await apiFetch(`/api/cms/galeri/${id}`, { method: "DELETE" });
   };
 
   const openCreate = () => {
@@ -106,7 +116,7 @@ export default function GaleriTab({ role, userId }: { role: AdminRole; userId?: 
 
             <div style={{ display: "grid", gap: 2 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
-                <span className="pill pill-slate" style={{ fontSize: 9, padding: "2px 6px" }}>{item.kategori}</span>
+                <span className="pill pill-slate" style={{ fontSize: 9, padding: "2px 6px" }}>{labelKategori(item.kategori)}</span>
                 <span className="pill pill-emerald" style={{ fontSize: 9, padding: "2px 6px" }}>{item.type}</span>
               </div>
               <strong style={{ fontSize: 13, lineHeight: 1.2, marginTop: 4 }}>{item.judul}</strong>
@@ -132,7 +142,7 @@ export default function GaleriTab({ role, userId }: { role: AdminRole; userId?: 
                 className="btn btn-danger row-icon-btn"
                 aria-label="Hapus"
                 title="Hapus"
-                onClick={() => handleDelete(item.id)}
+                onClick={() => handleDelete(item)}
               >
                 <IcoTrash size={16} />
               </button>
@@ -163,6 +173,15 @@ export default function GaleriTab({ role, userId }: { role: AdminRole; userId?: 
             setEditing(null);
             load();
           }}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteConfirmModal
+          itemName={deleteTarget.judul}
+          description={`Foto galeri "${deleteTarget.judul}" akan dihapus permanen.`}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={confirmDelete}
         />
       )}
     </div>
@@ -252,17 +271,12 @@ function GaleriSingleFotoModal({
 
             <div className="field">
               <label>Kategori</label>
-              <input
+              <CategoryInput
                 value={f.kategori}
-                onChange={(e) => setF({ ...f, kategori: e.target.value })}
-                placeholder="Kegiatan, Festival..."
-                list="kategori-list"
+                onChange={(v) => setF({ ...f, kategori: v })}
+                existingCategories={KATEGORI_OPTIONS}
+                placeholder="Ketik atau pilih kategori..."
               />
-              <datalist id="kategori-list">
-                {KATEGORI_OPTIONS.map((k) => (
-                  <option key={k} value={k} />
-                ))}
-              </datalist>
             </div>
 
             <div className="field">

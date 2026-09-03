@@ -113,10 +113,11 @@ export default function TentangTab() {
   const [openSection, setOpenSection] = useState<number | null>(0);
 
   useEffect(() => {
-    apiFetch<{ json?: string }>("/api/cms/tentang")
+    apiFetch<{ json?: any }>("/api/cms/tentang")
       .then((j) => {
         if (j?.json) {
-          setData(j.json);
+          const parsed = typeof j.json === "string" ? JSON.parse(j.json) : j.json;
+          setData(parsed);
         }
         setLoaded(true);
       })

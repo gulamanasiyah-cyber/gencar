@@ -62,7 +62,7 @@ const PNG_MAP: Record<string, string> = {
 
 function trophyUrl(id: string): string {
   const png = PNG_MAP[id];
-  if (png) return `/achievements/${png}.png`;
+  if (png) return `/achievements/${png}.webp`;
   return `/achievements/${id}.svg`;
 }
 function isPngAchievement(id: string): boolean {
@@ -203,10 +203,10 @@ export default function MemberTrophyCase({ achievements }: Props) {
           <div className="trophy-modal" onClick={(e) => e.stopPropagation()}>
             <button type="button" className="trophy-modal-close" onClick={() => setDetail(null)}><X size={18} /></button>
             {isPngAchievement(detail.id) ? (
-              <img src={trophyUrl(detail.id)} alt={detail.name} width={220} height={220} loading="eager" style={{ display: "block", width: 220, height: 220, objectFit: "contain", ...trophyStyle(RARITY_META[detail.rarity].color, detail.unlocked, true) }} />
+              <img src={trophyUrl(detail.id)} alt={detail.name} loading="eager" style={{ display: "block", width: "100%", maxWidth: 220, height: "auto", objectFit: "contain", borderRadius: 12, ...trophyStyle(RARITY_META[detail.rarity].color, detail.unlocked, true) }} />
             ) : (
               <div className="trophy-modal-icon" style={{ borderColor: RARITY_META[detail.rarity].border, background: RARITY_META[detail.rarity].bg }}>
-                <img src={trophyUrl(detail.id)} alt="" width={32} height={32} loading="eager" style={{ display: "block", ...trophyStyle(RARITY_META[detail.rarity].color, detail.unlocked, false) }} />
+                <img src={trophyUrl(detail.id)} alt="" loading="eager" style={{ display: "block", width: 32, height: 32, objectFit: "contain", ...trophyStyle(RARITY_META[detail.rarity].color, detail.unlocked, false) }} />
               </div>
             )}
             <div className="trophy-modal-name" style={{ color: RARITY_META[detail.rarity].color }}>{detail.name}</div>

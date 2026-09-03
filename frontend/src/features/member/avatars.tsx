@@ -7,7 +7,7 @@ export const AVATAR_BASE_PATH = "/avatars";
 export function avatarUrl(avatarId: string | null | undefined, fallbackGender: "cowok" | "cewek" | null = null): string {
   const id = avatarId && AVATARS.some((a) => a.id === avatarId) ? avatarId : defaultAvatarFor(fallbackGender);
   const def = AVATARS.find((a) => a.id === id);
-  return `${AVATAR_BASE_PATH}/${def?.file ?? "genta-base.png"}`;
+  return `${AVATAR_BASE_PATH}/${def?.file ?? "genta-base.webp"}`;
 }
 
 export function resolveAvatarId(me: Pick<MemberIdentity, "avatarId" | "jenisKelamin" | "nama" | "avatarStyle">): string {

@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import { Image as IcoImage, Loader2, Upload, X } from "lucide-react";
+import { uploadImageDirect } from "../../lib/storage";
 
 export default function ImageUploadInput({
   label = "Foto / Cover Image",
@@ -23,22 +24,10 @@ export default function ImageUploadInput({
       alert("Hanya file gambar (JPG, PNG, WebP) yang diperbolehkan.");
       return;
     }
-    // Client-side preview instant base64 or upload to server
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      if (data.url) {
-        onChange(data.url);
-      } else {
-        throw new Error("Gagal mengambil URL gambar");
-      }
+      const result = await uploadImageDirect(file);
+      onChange(result.viewUrl);
     } catch {
       // Fallback base64 data URL if R2/backend upload fails in local environment
       const reader = new FileReader();

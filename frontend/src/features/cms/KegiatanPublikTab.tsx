@@ -4,6 +4,11 @@ import { apiFetch } from "../../lib/api";
 import SearchInput from "../../components/admin/SearchInput";
 import ImageUploadInput from "../../components/admin/ImageUploadInput";
 import RichTextEditor from "../../components/admin/RichTextEditor";
+import DeleteConfirmModal from "../../components/DeleteConfirmModal";
+import CategoryInput from "../../components/CategoryInput";
+import MapPickerModal from "../../components/MapPickerModal";
+import MiniMapPreview from "../../components/MiniMapPreview";
+import { labelKategori } from "../../lib/labelKategori";
 import SplitPreviewLayout from "./SplitPreviewLayout";
 
 type Row = {
@@ -19,6 +24,8 @@ type Row = {
   tanggal: string;
   jam?: string | null;
   lokasi?: string | null;
+  lat?: number | null;
+  lng?: number | null;
   status: string;
   authorId?: string;
 };
@@ -31,6 +38,8 @@ export default function KegiatanPublikTab({ role, userId }: { role: AdminRole; u
   const [viewMode, setViewMode] = useState<"list" | "editor">("list");
   const [editing, setEditing] = useState<Row | null>(null);
 
+  const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
+
   const load = () => {
     apiFetch<unknown>(`/api/cms/kegiatan-publik?q=${encodeURIComponent(q)}`)
       .then((j: any) => setRows(j.data || j || []))
@@ -41,10 +50,15 @@ export default function KegiatanPublikTab({ role, userId }: { role: AdminRole; u
     if (viewMode === "list") load();
   }, [q, viewMode]);
 
-  const handleDelete = (id: string) => {
-    if (!confirm("Hapus kegiatan publik ini?")) return;
+  const handleDelete = (r: Row) => {
+    setDeleteTarget(r);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const id = deleteTarget.id;
     setRows((p) => p.filter((x) => x.id !== id));
-    void apiFetch(`/api/cms/kegiatan-publik/${id}`, { method: "DELETE" }).catch(() => {});
+    await apiFetch(`/api/cms/kegiatan-publik/${id}`, { method: "DELETE" });
   };
 
   const existingCategories = Array.from(
@@ -115,7 +129,7 @@ export default function KegiatanPublikTab({ role, userId }: { role: AdminRole; u
             )}
             <strong style={{ fontSize: 13, lineHeight: 1.3 }}>{r.judul}</strong>
             <span className="muted" style={{ fontSize: 11 }}>
-              {r.slug} &bull; {r.kategoriAcara} &bull; {r.tanggal} {r.jam || ""}
+              {r.slug} &bull; {labelKategori(r.kategoriAcara)} &bull; {r.tanggal} {r.jam || ""}
             </span>
             <span
               className={`pill ${r.status === "published" ? "pill-emerald" : r.status === "pending_review" ? "pill-amber" : "pill-slate"}`}
@@ -138,7 +152,7 @@ export default function KegiatanPublikTab({ role, userId }: { role: AdminRole; u
               >
                 <IcoEdit size={16} />
               </button>
-              <button type="button" className="btn btn-danger row-icon-btn" aria-label="Hapus" title="Hapus" onClick={() => handleDelete(r.id)}>
+              <button type="button" className="btn btn-danger row-icon-btn" aria-label="Hapus" title="Hapus" onClick={() => handleDelete(r)}>
                 <IcoTrash size={16} />
               </button>
               </>
@@ -157,6 +171,15 @@ export default function KegiatanPublikTab({ role, userId }: { role: AdminRole; u
           </div>
         ))}
       </div>
+
+      {deleteTarget && (
+        <DeleteConfirmModal
+          itemName={deleteTarget.judul}
+          description={`Kegiatan publik "${deleteTarget.judul}" akan dihapus permanen.`}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={confirmDelete}
+        />
+      )}
     </div>
   );
 }
@@ -185,8 +208,11 @@ function KegiatanPublikEditorPage({
     tanggal: initial?.tanggal ?? new Date().toISOString().slice(0, 10),
     jam: initial?.jam ?? "19:30",
     lokasi: initial?.lokasi ?? "Musala Al-Falah",
+    lat: initial?.lat ?? null,
+    lng: initial?.lng ?? null,
     status: initial?.status ?? "published",
   }));
+  const [showMap, setShowMap] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const valid = f.judul.trim().length >= 2 && f.tanggal;
@@ -212,6 +238,8 @@ function KegiatanPublikEditorPage({
           tanggal: f.tanggal,
           jam: f.jam || null,
           lokasi: f.lokasi || null,
+          lat: f.lat,
+          lng: f.lng,
           status: f.status,
         }),
       });
@@ -249,7 +277,7 @@ function KegiatanPublikEditorPage({
         storageKey="preview_kegiatan"
         defaultSplit={50}
         form={
-          <div className="cms-section-card" style={{ padding: 18, display: "grid", gap: 14 }}>
+          <div className="cms-section-card" style={{ padding: 18, display: "grid", gap: 14, overflow: "visible" }}>
             <div className="field">
               <label>Judul Kegiatan Publik *</label>
               <input
@@ -262,18 +290,13 @@ function KegiatanPublikEditorPage({
 
             <div className="form-grid-2">
               <div className="field">
-                <label>Kategori (Ketik bebas / Pilih dari list)</label>
-                <input
+                <label>Kategori</label>
+                <CategoryInput
                   value={f.kategori}
-                  onChange={(e) => setF({ ...f, kategori: e.target.value })}
-                  placeholder="Mis. Sambung Rutin, Keakraban, Festival, dll"
-                  list="kegiatan-kategori-list"
+                  onChange={(v) => setF({ ...f, kategori: v })}
+                  existingCategories={existingCategories}
+                  placeholder="Ketik atau pilih kategori..."
                 />
-                <datalist id="kegiatan-kategori-list">
-                  {existingCategories.map((k) => (
-                    <option key={k} value={k} />
-                  ))}
-                </datalist>
               </div>
 
               <div className="field">
@@ -301,23 +324,53 @@ function KegiatanPublikEditorPage({
               </div>
             </div>
 
-            <div className="form-grid-2">
-              <div className="field">
-                <label>Lokasi Acara</label>
-                <input
-                  value={f.lokasi}
-                  onChange={(e) => setF({ ...f, lokasi: e.target.value })}
-                  placeholder="Mis. Musala Al-Falah, Cengkareng"
-                />
+            <div className="field">
+              <label>Slug Custom (Opsional)</label>
+              <input
+                value={f.slug}
+                onChange={(e) => setF({ ...f, slug: e.target.value })}
+                placeholder="Auto-generate dari judul"
+              />
+            </div>
+
+            <div className="field">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <label style={{ margin: 0 }}>Lokasi &amp; Alamat Acara</label>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  style={{ display: "inline-flex", gap: 6, alignItems: "center", padding: "4px 8px", fontSize: 12 }}
+                  onClick={() => setShowMap(true)}
+                >
+                  <MapPin size={13} color="var(--primary)" />
+                  <span>Pilih dari Peta (GPS)</span>
+                </button>
               </div>
-              <div className="field">
-                <label>Slug Custom (Opsional)</label>
-                <input
-                  value={f.slug}
-                  onChange={(e) => setF({ ...f, slug: e.target.value })}
-                  placeholder="Auto-generate dari judul"
-                />
-              </div>
+              <textarea
+                rows={2}
+                value={f.lokasi}
+                onChange={(e) => setF({ ...f, lokasi: e.target.value })}
+                placeholder="Tulis nama gedung, musala, atau alamat lengkap kegiatan..."
+                style={{ resize: "vertical" }}
+              />
+              {f.lat != null && f.lng != null && (
+                <>
+                  <div className="muted" style={{ fontSize: 11, marginTop: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span>📍 Titik GPS: <b>{f.lat.toFixed(5)}, {f.lng.toFixed(5)}</b></span>
+                    <button
+                      type="button"
+                      className="btn btn-ghost row-icon-btn"
+                      style={{ color: "#dc2626", width: 28, height: 28, padding: 0 }}
+                      onClick={() => setF({ ...f, lat: null, lng: null })}
+                      title="Hapus Titik GPS"
+                      aria-label="Hapus Titik GPS"
+                    >
+                      <IcoTrash size={14} />
+                    </button>
+                  </div>
+                  <MiniMapPreview lat={f.lat} lng={f.lng} label={f.lokasi || f.judul} height={150} />
+                </>
+              )}
             </div>
 
             <ImageUploadInput
@@ -366,7 +419,7 @@ function KegiatanPublikEditorPage({
             </div>
 
                   <div className="pub-detail-meta" style={{ marginTop: 12 }}>
-                    <span className="pub-tag" style={{ textTransform: "capitalize" }}>{f.kategori || "Kegiatan"}</span>
+                    <span className="pub-tag">{labelKategori(f.kategori) || "Kegiatan"}</span>
                     <span>
                       <CalendarDays size={12} /> {f.tanggal || "Tanggal"} {f.jam ? `· ${f.jam} WIB` : ""}
                     </span>
@@ -402,6 +455,25 @@ function KegiatanPublikEditorPage({
           </div>
         }
       />
+
+      {showMap && (
+        <MapPickerModal
+          open={showMap}
+          initialLat={f.lat}
+          initialLng={f.lng}
+          radiusM={100}
+          onClose={() => setShowMap(false)}
+          onPick={(lat, lng, label) => {
+            setF((prev) => ({
+              ...prev,
+              lat,
+              lng,
+              lokasi: label && (!prev.lokasi || prev.lokasi === "Musala Al-Falah") ? label : prev.lokasi || label || "",
+            }));
+            setShowMap(false);
+          }}
+        />
+      )}
     </div>
   );
 }

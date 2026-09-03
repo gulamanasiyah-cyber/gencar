@@ -5,6 +5,7 @@ import { ArrowRight, CalendarDays, MapPin, ChevronLeft, ChevronRight } from "luc
 import { MOSQUE_PATH, MOSQUE_VIEWBOX } from "./mosquePath";
 import { DATE_TREE_VIEWBOX, DATE_TREE_PATHS } from "./decorPath";
 import { apiFetch, unwrapList } from "../../lib/api";
+import { labelKategori } from "../../lib/labelKategori";
 import type { PubKegiatan, PubArticle, PubPengurus } from "./data";
 
 const ABOUT_IMG = "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=900&h=700&q=80";
@@ -455,7 +456,7 @@ export default function PublicHome() {
               <motion.div className="pub-bento-featured" variants={FADE_UP_ITEM} whileHover={reduce ? undefined : { scale: 1.01 }} transition={SPRING_TRANSITION}>
                 <img src={featured.cover} alt={featured.judul} loading="lazy" />
                 <div className="pub-bento-featured-content">
-                  <span className="pub-tag">{featured.kategori}</span>
+                  <span className="pub-tag">{labelKategori(featured.kategori)}</span>
                   <h3>{featured.judul}</h3>
                   <div className="meta">
                     <span><CalendarDays size={12} /> {featured.tanggal}{featured.jam ? ` · ${featured.jam}` : ""}</span>
@@ -489,7 +490,7 @@ export default function PublicHome() {
                   <motion.div key={k.slug} variants={FADE_UP_ITEM}>
                     <Link to={`/kegiatan/${k.slug}`} className="pub-wide-card">
                       <div className="pub-wide-card-body">
-                        <span className="pub-tag" style={{ fontSize: 10, padding: "3px 8px" }}>{k.kategori}</span>
+                      <span className="pub-tag" style={{ fontSize: 10, padding: "3px 8px" }}>{labelKategori(k.kategori)}</span>
                         <h4>{k.judul}</h4>
                         <p>{k.excerpt}</p>
                         <span className="muted" style={{ fontSize: 12 }}><CalendarDays size={11} /> {k.tanggal} · <MapPin size={11} /> {k.lokasi}</span>

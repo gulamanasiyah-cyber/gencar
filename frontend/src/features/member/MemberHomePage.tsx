@@ -4,6 +4,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Html5Qrcode } from "html5-qrcode";
 import { haversineM } from "shared/validation";
+import { apiFetch } from "../../lib/api";
 import { DEMO_KEGIATAN_MEMBER, type MemberIdentity, type MemberKegiatan } from "./types";
 
 // Fix default marker icons for Vite bundling
@@ -33,15 +34,40 @@ function parseQrToken(raw: string): QrHit {
   return null;
 }
 
-export default function MemberHomePage({ me }: { me: MemberIdentity; go?: (k: any) => void }) {
-  const today = DEMO_KEGIATAN_MEMBER[0]!;
-  const next = DEMO_KEGIATAN_MEMBER.slice(0, 3);
+export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberIdentity; kegiatanList?: MemberKegiatan[]; go?: (k: any) => void }) {
+  const sourceList = kegiatanList.length > 0 ? kegiatanList : DEMO_KEGIATAN_MEMBER;
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  // Sorting & finding upcoming / closest event
+  const sortedKegiatan = useMemo(() => {
+    return [...sourceList].sort((a, b) => {
+      const d = a.tanggal.localeCompare(b.tanggal);
+      if (d !== 0) return d;
+      return (a.jam || "").localeCompare(b.jam || "");
+    });
+  }, [sourceList]);
+
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
+
+  const upcomingKegiatan = useMemo(() => {
+    return sortedKegiatan.filter((k) => k.tanggal >= todayStr);
+  }, [sortedKegiatan, todayStr]);
+
+  const todayKegiatan = upcomingKegiatan[0] || sortedKegiatan[0] || DEMO_KEGIATAN_MEMBER[0]!;
+  const next = useMemo(() => {
+    return upcomingKegiatan.length > 0 ? upcomingKegiatan.slice(0, 5) : sortedKegiatan.slice(0, 5);
+  }, [upcomingKegiatan, sortedKegiatan]);
+
   const [now, setNow] = useState(new Date());
 
   // GPS & QR State for Absen in Beranda
   const [gps, setGps] = useState<GpsState>(null);
   const [gpsLoading, setGpsLoading] = useState(true);
   const [showMapModal, setShowMapModal] = useState(false);
+  const [activeKegiatanModal, setActiveKegiatanModal] = useState<MemberKegiatan | null>(null);
   const [qr, setQr] = useState<QrHit>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [riwayat, setRiwayat] = useState<AbsenRow[]>(DEMO_RIWAYAT);
@@ -76,17 +102,35 @@ export default function MemberHomePage({ me }: { me: MemberIdentity; go?: (k: an
   useEffect(() => {
     ambilGps();
     startScan();
+    return () => {
+      void stopScan();
+    };
   }, []);
-
-  useEffect(() => () => void stopScan(), []);
 
   async function startScan() {
     if (scannerRef.current) return;
+    const el = document.getElementById("qr-reader");
+    if (el) el.innerHTML = "";
     try {
-      const s = new Html5Qrcode("qr-reader", { verbose: false });
+      const s = new Html5Qrcode("qr-reader", {
+        verbose: false,
+        formatsToSupport: [0], // QR Code only
+      });
       scannerRef.current = s;
       scannedRef.current = false;
-      await s.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 220, height: 220 } }, onScan, () => {});
+      await s.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            const edge = Math.floor(minEdge * 0.7);
+            return { width: edge, height: edge };
+          },
+        },
+        onScan,
+        () => {}
+      );
       setMsg(null);
     } catch {
       setMsg("Gagal buka kamera. Pastikan izin kamera diberikan & tidak dipakai app lain.");
@@ -104,7 +148,7 @@ export default function MemberHomePage({ me }: { me: MemberIdentity; go?: (k: an
     scannerRef.current = null;
   }
 
-  function onScan(decoded: string) {
+  async function onScan(decoded: string) {
     if (scannedRef.current) return;
     const hit = parseQrToken(decoded);
     scannedRef.current = true;
@@ -115,21 +159,40 @@ export default function MemberHomePage({ me }: { me: MemberIdentity; go?: (k: an
     }
     setQr(hit);
     setMsg(null);
-    // Langsung catat hadir otomatis setelah QR sukses discan (jika GPS valid)
-    if (gps != null && (today.lat == null || (dist != null && dist <= today.radiusM))) {
+
+    // Kirim absensi ke backend jika ID generus tersedia
+    try {
+      const targetKegiatanId = todayKegiatan.id;
+      if (me.id && targetKegiatanId) {
+        await apiFetch("/api/absensi", {
+          method: "POST",
+          body: JSON.stringify({
+            kegiatanId: targetKegiatanId,
+            generusId: me.id,
+            keterangan: "hadir",
+            lat: gps?.lat,
+            lng: gps?.lng,
+            accuracy: gps?.acc,
+            qrWilayahLevel: hit.level,
+          }),
+        });
+      }
       const nowTime = new Date();
       const jam = `${String(nowTime.getHours()).padStart(2, "0")}:${String(nowTime.getMinutes()).padStart(2, "0")}`;
-      setRiwayat((prev) => [{ id: `a_${Date.now()}`, tanggal: today.tanggal, judul: today.judul, status: "hadir", jam }, ...prev]);
-      setMsg(`Hadir tercatat pukul ${jam} via scan QR ${hit.nama}.`);
+      setRiwayat((prev) => [{ id: `a_${Date.now()}`, tanggal: todayKegiatan.tanggal, judul: todayKegiatan.judul, status: "hadir", jam }, ...prev]);
+      setMsg(`Hadir berhasil dicatat pukul ${jam} via scan QR ${hit.nama}.`);
+    } catch (e: any) {
+      const errTxt = e?.message || "Gagal mencatat absensi";
+      setMsg(errTxt);
     }
   }
 
   const dist = useMemo(() => {
-    if (gps == null || today.lat == null || today.lng == null) return null;
-    return Math.round(haversineM(gps.lat, gps.lng, today.lat, today.lng));
-  }, [gps, today.lat, today.lng]);
+    if (gps == null || todayKegiatan.lat == null || todayKegiatan.lng == null) return null;
+    return Math.round(haversineM(gps.lat, gps.lng, todayKegiatan.lat, todayKegiatan.lng));
+  }, [gps, todayKegiatan.lat, todayKegiatan.lng]);
 
-  // Calendar Data
+  // Calendar Data & Events Mapping
   const [calDate, setCalDate] = useState(() => new Date());
   const calInfo = useMemo(() => {
     const y = calDate.getFullYear(), m = calDate.getMonth();
@@ -140,11 +203,18 @@ export default function MemberHomePage({ me }: { me: MemberIdentity; go?: (k: an
       startDay: new Date(y, m, 1).getDay(),
     };
   }, [calDate]);
-  const agendaDates = useMemo(() => new Set(next.map((k) => k.tanggal)), [next]);
-  const todayStr = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }, []);
+
+  const kegiatanByDate = useMemo(() => {
+    const map: Record<string, MemberKegiatan[]> = {};
+    sourceList.forEach((k) => {
+      if (!map[k.tanggal]) map[k.tanggal] = [];
+      map[k.tanggal].push(k);
+    });
+    return map;
+  }, [sourceList]);
+
+  const agendaDates = useMemo(() => new Set(Object.keys(kegiatanByDate)), [kegiatanByDate]);
+  const selectedDateEvents = selectedDate ? (kegiatanByDate[selectedDate] ?? []) : [];
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 16, width: "100%", minWidth: 0 }}>
@@ -153,15 +223,15 @@ export default function MemberHomePage({ me }: { me: MemberIdentity; go?: (k: an
         <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--muted)" }}>Working Time</div>
         <div className="member-hero-clock-time">{timeStr}</div>
         <div className="member-hero-clock-sub">
-          <MapPin size={11} /> {today.lokasi} · Radius {today.radiusM}m
+          <MapPin size={11} /> {todayKegiatan.lokasi} · Radius {todayKegiatan.radiusM}m
         </div>
       </div>
 
       {/* 2. FITUR ABSEN UTAMA (Kamera Scanner QR dalam Card + Tombol Check Lokasi) */}
       <div className="card" style={{ padding: 18, display: "grid", gap: 14 }}>
         {/* Scanner QR */}
-        <div style={{ borderRadius: 16, overflow: "hidden", background: "#0f172a" }}>
-          <div id="qr-reader" style={{ borderRadius: 14, overflow: "hidden", border: "none !important", outline: "none", background: "#0f172a", minHeight: 240 }} />
+        <div style={{ borderRadius: 16, overflow: "hidden", background: "#0f172a", position: "relative" }}>
+          <div id="qr-reader" style={{ borderRadius: 14, overflow: "hidden", border: "none", outline: "none", background: "#0f172a", width: "100%", maxHeight: 280 }} />
           {!qr && <div style={{ textAlign: "center", fontSize: 11, color: "var(--muted)", padding: "8px 0 10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>Arahkan kamera ke QR wilayah</div>}
           {qr && (
             <div style={{ padding: "8px 0 12px", display: "grid", placeItems: "center" }}>
@@ -179,6 +249,7 @@ export default function MemberHomePage({ me }: { me: MemberIdentity; go?: (k: an
             className="btn btn-ghost btn-sm"
             onClick={() => {
               ambilGps();
+              setActiveKegiatanModal(todayKegiatan);
               setShowMapModal(true);
             }}
             style={{ borderRadius: 999 }}
@@ -199,10 +270,10 @@ export default function MemberHomePage({ me }: { me: MemberIdentity; go?: (k: an
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
           <div>
             <h3 style={{ fontSize: 14, fontWeight: 800, letterSpacing: "-0.02em" }}>Agenda Terdekat</h3>
-            <p className="muted" style={{ fontSize: 12 }}>Untuk {me.desa} · {me.kelompok}</p>
+            <p className="muted" style={{ fontSize: 12 }}>Untuk {me.desa || "Daerah"} {me.kelompok ? `· ${me.kelompok}` : ""}</p>
           </div>
           <span className="pill pill-slate">
-            <CalendarDays size={12} /> {next.length} agenda
+            <CalendarDays size={12} /> {sourceList.length} agenda
           </span>
         </div>
 
@@ -211,13 +282,28 @@ export default function MemberHomePage({ me }: { me: MemberIdentity; go?: (k: an
             <div
               key={k.id}
               className="card"
-              style={{ padding: 12, display: "grid", gap: 6, background: "#fff", borderRadius: 14 }}
+              onClick={() => {
+                setSelectedDate(k.tanggal);
+                const el = document.getElementById("kalender-section");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+              }}
+              style={{
+                padding: 12,
+                display: "grid",
+                gap: 6,
+                background: selectedDate === k.tanggal ? "var(--bg)" : "#fff",
+                borderRadius: 14,
+                cursor: "pointer",
+                border: selectedDate === k.tanggal ? "1.5px solid var(--primary)" : "1px solid var(--line)",
+                transition: "all 0.15s ease",
+              }}
             >
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <span className={`pill ${k.kategori === "sambung_rutin" ? "pill-emerald" : "pill-slate"}`} style={{ fontSize: 10 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <span className={`pill ${k.kategori === "sambung_rutin" ? "pill-emerald" : k.kategori === "keakraban" ? "pill-amber" : "pill-slate"}`} style={{ fontSize: 10 }}>
                   {k.kategori === "sambung_rutin" ? "Sambung Rutin" : (k.kategori ?? k.tingkat ?? "—")}
                 </span>
                 {k.tingkat && <span className="pill pill-slate" style={{ fontSize: 10 }}>{k.tingkat}</span>}
+                {k.tanggal === todayStr && <span className="pill pill-emerald" style={{ fontSize: 10 }}>Hari ini</span>}
               </div>
               <div style={{ fontWeight: 800, lineHeight: 1.25, fontSize: 13 }}>{k.judul}</div>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12, color: "var(--text-secondary)" }}>
@@ -233,14 +319,14 @@ export default function MemberHomePage({ me }: { me: MemberIdentity; go?: (k: an
         </div>
       </div>
 
-      {/* 6. KALENDER KEGIATAN */}
-      <div className="card" style={{ padding: 16 }}>
+      {/* 6. KALENDER KEGIATAN TERINTEGRASI */}
+      <div id="kalender-section" className="card" style={{ padding: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <h3 style={{ fontSize: 13, fontWeight: 800, letterSpacing: "-0.02em" }}>Kalender Kegiatan</h3>
           <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCalDate(new Date(calInfo.y, calInfo.m - 1, 1))} aria-label="Bulan sebelumnya" style={{ width: 32, height: 32, minHeight: 32, padding: 0, borderRadius: 8 }}><ChevronLeft size={14} /></button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setCalDate(new Date(calInfo.y, calInfo.m - 1, 1)); setSelectedDate(null); }} aria-label="Bulan sebelumnya" style={{ width: 32, height: 32, minHeight: 32, padding: 0, borderRadius: 8 }}><ChevronLeft size={14} /></button>
             <span style={{ fontSize: 12, fontWeight: 800, minWidth: 110, textAlign: "center", textTransform: "capitalize" }}>{calInfo.label}</span>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setCalDate(new Date(calInfo.y, calInfo.m + 1, 1))} aria-label="Bulan berikutnya" style={{ width: 32, height: 32, minHeight: 32, padding: 0, borderRadius: 8 }}><ChevronRight size={14} /></button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setCalDate(new Date(calInfo.y, calInfo.m + 1, 1)); setSelectedDate(null); }} aria-label="Bulan berikutnya" style={{ width: 32, height: 32, minHeight: 32, padding: 0, borderRadius: 8 }}><ChevronRight size={14} /></button>
           </div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
@@ -257,9 +343,12 @@ export default function MemberHomePage({ me }: { me: MemberIdentity; go?: (k: an
             const iso = `${calInfo.y}-${String(calInfo.m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
             const isToday = iso === todayStr;
             const hasAgenda = agendaDates.has(iso);
+            const isSelected = selectedDate === iso;
             return (
-              <div
+              <button
                 key={iso}
+                type="button"
+                onClick={() => setSelectedDate(isSelected ? null : iso)}
                 style={{
                   aspectRatio: "1",
                   borderRadius: 10,
@@ -267,33 +356,93 @@ export default function MemberHomePage({ me }: { me: MemberIdentity; go?: (k: an
                   placeItems: "center",
                   fontSize: 12,
                   fontWeight: 700,
-                  background: hasAgenda ? "var(--primary)" : isToday ? "var(--bg)" : "#fff",
-                  color: hasAgenda ? "#fff" : isToday ? "var(--ink)" : "var(--text)",
-                  border: hasAgenda ? "1px solid var(--primary)" : isToday ? "1px solid var(--line)" : "1px solid transparent",
+                  background: isSelected ? "var(--primary)" : hasAgenda ? "#fff" : isToday ? "var(--bg)" : "#fff",
+                  color: isSelected ? "#fff" : hasAgenda ? "var(--primary)" : isToday ? "var(--ink)" : "var(--text)",
+                  border: isSelected ? "2px solid var(--primary)" : hasAgenda ? "2px solid var(--primary)" : isToday ? "1px solid var(--line)" : "1px solid transparent",
                   position: "relative",
+                  cursor: "pointer",
+                  padding: 0,
                 }}
               >
                 {day}
-                {hasAgenda && <span style={{ position: "absolute", bottom: 3, width: 4, height: 4, borderRadius: 999, background: "#fff" }} />}
-              </div>
+                {hasAgenda && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      bottom: 3,
+                      width: 4,
+                      height: 4,
+                      borderRadius: 999,
+                      background: isSelected ? "#fff" : "var(--primary)",
+                    }}
+                  />
+                )}
+              </button>
             );
           })}
         </div>
         <div style={{ display: "flex", gap: 12, marginTop: 10, fontSize: 11, color: "var(--muted)", flexWrap: "wrap" }}>
           <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><span style={{ width: 8, height: 8, borderRadius: 999, background: "var(--primary)", display: "inline-block" }} /> Ada agenda</span>
           <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><span style={{ width: 8, height: 8, borderRadius: 4, border: "1px solid var(--line)", display: "inline-block" }} /> Hari ini</span>
+          <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><span style={{ width: 8, height: 8, borderRadius: 4, background: "var(--primary)", display: "inline-block" }} /> Dipilih</span>
         </div>
+
+        {/* Detail Acara Berdasarkan Tanggal yang Dipilih */}
+        {selectedDate && (
+          <div style={{ borderTop: "1px solid var(--line)", marginTop: 14, paddingTop: 14, display: "grid", gap: 8 }}>
+            <div style={{ fontWeight: 800, fontSize: 13, color: "var(--ink)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>Agenda {new Date(selectedDate + "T00:00:00").toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span>
+              <span className="pill pill-slate" style={{ fontSize: 10 }}>{selectedDateEvents.length} kegiatan</span>
+            </div>
+
+            {selectedDateEvents.length === 0 ? (
+              <div style={{ fontSize: 12, color: "var(--muted)", fontStyle: "italic", padding: "8px 0" }}>
+                Tidak ada agenda kegiatan pada tanggal ini.
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 8 }}>
+                {selectedDateEvents.map((ev) => (
+                  <div key={ev.id} style={{ padding: "10px 12px", background: "var(--bg)", borderRadius: 10, border: "1px solid var(--line)", display: "grid", gap: 4 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                      <span style={{ fontWeight: 800, fontSize: 13 }}>{ev.judul}</span>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => {
+                          ambilGps();
+                          setActiveKegiatanModal(ev);
+                          setShowMapModal(true);
+                        }}
+                        style={{ padding: "2px 8px", fontSize: 11, borderRadius: 999, height: "auto" }}
+                      >
+                        <MapPin size={11} /> Lokasi
+                      </button>
+                    </div>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 11, color: "var(--text-secondary)" }}>
+                      <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}><Clock3 size={11} /> {ev.jam}</span>
+                      <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}><MapPin size={11} /> {ev.lokasi}</span>
+                      {ev.tingkat && <span className="pill pill-slate" style={{ fontSize: 9, padding: "1px 6px" }}>{ev.tingkat}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 8. MODAL CHECK LOKASI / MAP */}
       {showMapModal && (
         <LocationModal
-          today={today}
+          today={activeKegiatanModal || todayKegiatan}
           gps={gps}
           gpsLoading={gpsLoading}
           dist={dist}
           onRefreshGps={ambilGps}
-          onClose={() => setShowMapModal(false)}
+          onClose={() => {
+            setShowMapModal(false);
+            setActiveKegiatanModal(null);
+          }}
         />
       )}
     </div>

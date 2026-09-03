@@ -31,6 +31,7 @@ const CSRF_SKIP_PREFIXES = [
   "/api/health",
   "/api/sholat",
   "/api/images",
+  "/api/upload/direct",
   "/api/public/",
   "/api/public",
   "/api/webhook",

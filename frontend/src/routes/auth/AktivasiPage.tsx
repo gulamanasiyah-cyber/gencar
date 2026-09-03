@@ -9,7 +9,7 @@ export default function AktivasiPage() {
   const token = (params.get("token") || "").trim();
 
   const [valid, setValid] = useState<boolean | null>(null);
-  const [generusId, setGenerusId] = useState<string | null>(null);
+  const [userInfo, setUserInfo] = useState<{ email?: string; nama?: string; nomorUnik?: string } | null>(null);
   const [verifyErr, setVerifyErr] = useState<string | null>(null);
 
   const [pw, setPw] = useState("");
@@ -26,11 +26,11 @@ export default function AktivasiPage() {
       return;
     }
     let cancel = false;
-    apiFetch<{ ok: boolean; generusId?: string }>(`/api/auth/magic/verify?token=${encodeURIComponent(token)}`, { method: "GET" })
+    apiFetch<{ ok: boolean; generusId?: string; email?: string; nama?: string; nomorUnik?: string }>(`/api/auth/magic/verify?token=${encodeURIComponent(token)}`, { method: "GET" })
       .then((j) => {
         if (cancel) return;
         setValid(true);
-        setGenerusId((j as { generusId?: string })?.generusId ?? null);
+        setUserInfo({ email: j.email, nama: j.nama, nomorUnik: j.nomorUnik });
       })
       .catch((e: unknown) => {
         if (cancel) return;
@@ -58,8 +58,10 @@ export default function AktivasiPage() {
       // Auto-login: persist token and redirect to member page
       if (res.token) {
         try { localStorage.setItem("token", res.token); } catch {}
+        navigate("/member", { replace: true });
+      } else {
+        setDone(true);
       }
-      navigate("/member", { replace: true });
     } catch (e2: unknown) {
       const msg = e2 instanceof Error ? e2.message : String(e2);
       if (msg.toLowerCase().includes("sudah dipakai")) setErr("Link sudah dipakai. Minta admin buat link baru.");
@@ -79,7 +81,7 @@ export default function AktivasiPage() {
             <h1 style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-0.02em" }}>Password berhasil dibuat</h1>
             <p className="muted" style={{ fontSize: 13, marginTop: 8, lineHeight: 1.5 }}>Akun kamu sudah aktif. Silakan login dengan password baru.</p>
             <button type="button" className="btn btn-primary" style={{ marginTop: 16, width: "100%", padding: "10px 14px", borderRadius: 12 }} onClick={() => navigate("/login", { replace: true })}>Ke halaman login</button>
-            {generusId && <p className="muted" style={{ fontSize: 11, marginTop: 10 }}>{generusId.slice(0, 8)}</p>}
+            {userInfo?.nomorUnik && <p className="muted" style={{ fontSize: 11, marginTop: 10 }}>{userInfo.nomorUnik}</p>}
           </div>
         </div>
       </div>
@@ -112,10 +114,39 @@ export default function AktivasiPage() {
 
           {valid === true && (
             <form onSubmit={onSubmit} style={{ marginTop: 16, display: "grid", gap: 12 }}>
+              {userInfo && (
+                <div style={{ padding: "10px 12px", borderRadius: 10, background: "var(--surface-sunken, #f8fafc)", border: "1px solid var(--line)", fontSize: 13, display: "grid", gap: 3 }}>
+                  <div style={{ fontWeight: 800 }}>{userInfo.nama || "Anggota"}</div>
+                  <div className="muted" style={{ fontSize: 12 }}>ID: <b>{userInfo.nomorUnik}</b> · Akun: <b>{userInfo.email}</b></div>
+                </div>
+              )}
+
+              <div className="field">
+                <label>Email akun *</label>
+                <input
+                  type="email"
+                  name="email"
+                  id="aktivasi-email"
+                  autoComplete="username"
+                  readOnly
+                  value={userInfo?.email || ""}
+                  style={{ background: "#f8fafc", cursor: "not-allowed" }}
+                />
+              </div>
+
               <div className="field">
                 <label>Password baru (min 8) *</label>
                 <div style={{ position: "relative" }}>
-                  <input type={showPw ? "text" : "password"} value={pw} onChange={(e) => setPw(e.target.value)} placeholder="••••••••" autoComplete="new-password" style={{ paddingRight: 40 }} />
+                  <input
+                    type={showPw ? "text" : "password"}
+                    name="password"
+                    id="aktivasi-password"
+                    value={pw}
+                    onChange={(e) => setPw(e.target.value)}
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                    style={{ paddingRight: 40 }}
+                  />
                   <button type="button" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? "Sembunyikan" : "Tampilkan"} style={{ position: "absolute", right: 6, top: 6, width: 32, height: 32, borderRadius: 8, border: "1px solid var(--line)", background: "#fff", display: "grid", placeItems: "center", cursor: "pointer" }}>
                     {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
@@ -123,13 +154,21 @@ export default function AktivasiPage() {
               </div>
               <div className="field">
                 <label>Ulangi password *</label>
-                <input type={showPw ? "text" : "password"} value={pw2} onChange={(e) => setPw2(e.target.value)} placeholder="••••••••" autoComplete="new-password" />
+                <input
+                  type={showPw ? "text" : "password"}
+                  name="password_confirm"
+                  id="aktivasi-password-confirm"
+                  value={pw2}
+                  onChange={(e) => setPw2(e.target.value)}
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                />
               </div>
               {err && <div style={{ padding: 10, borderRadius: 10, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontSize: 13 }}>{err}</div>}
               <button type="submit" className="btn btn-primary" disabled={busy} style={{ width: "100%", padding: "10px 14px", borderRadius: 12 }}>
                 {busy ? "Menyimpan…" : "Simpan password & aktifkan"}
               </button>
-              <p className="muted" style={{ fontSize: 11, textAlign: "center" }}>Setelah ini kamu akan diarahkan ke login.</p>
+              <p className="muted" style={{ fontSize: 11, textAlign: "center" }}>Setelah ini kamu langsung masuk ke akun.</p>
             </form>
           )}
         </div>

@@ -10,6 +10,7 @@ import { MemberAvatar } from "./avatars";
 import MemberTrophyCase from "./MemberTrophyCase";
 import AvatarPicker from "./AvatarPicker";
 import { defaultAvatarFor } from "./avatarCatalog";
+import { PEKERJAAN_GROUPS } from "../../../../shared/pekerjaan";
 
 type Props = {
   me: MemberIdentity;
@@ -220,9 +221,16 @@ export default function MemberProfilePage({ me, stat, kegiatan, onUpdate }: Prop
           initial={hobbySet}
           initialCustom={me.hobiCustom ?? ""}
           initialDetail={hobiDetail}
+          lastUpdated={me.hobiUpdatedAt}
           onClose={() => setHobiOpen(false)}
           onSave={(keys, custom, detail) => {
-            (onUpdate as any)?.({ ...me, hobi: keys.length ? serializeHobi(keys) : null, hobiCustom: custom || null, hobiDetail: serializeHobiDetail(detail) });
+            onUpdate?.({
+              ...me,
+              hobi: keys.length ? serializeHobi(keys) : null,
+              hobiCustom: custom || null,
+              hobiDetail: serializeHobiDetail(detail),
+              hobiUpdatedAt: new Date().toISOString(),
+            });
             setHobiOpen(false);
           }}
         />
@@ -260,8 +268,12 @@ export default function MemberProfilePage({ me, stat, kegiatan, onUpdate }: Prop
           me={me}
           achievements={achievements}
           onClose={() => setAvatarOpen(false)}
-          onPick={(avatarId, jenisKelamin) => {
-            (onUpdate as any)?.({ ...me, avatarId, jenisKelamin });
+          onPick={(avatarId, jenisKelamin, customFoto) => {
+            if (customFoto) {
+              onUpdate?.({ ...me, avatarId: null, foto: customFoto, jenisKelamin });
+            } else {
+              onUpdate?.({ ...me, avatarId, foto: null, jenisKelamin });
+            }
             setAvatarOpen(false);
           }}
         />
@@ -280,6 +292,58 @@ export default function MemberProfilePage({ me, stat, kegiatan, onUpdate }: Prop
   );
 }
 
+function PekerjaanField({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const [dropPos, setDropPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+  useEffect(() => {
+    if (!open || !ref.current) return;
+    const r = ref.current.getBoundingClientRect();
+    setDropPos({ top: r.bottom + 4, left: r.left, width: r.width });
+  }, [open]);
+  const q = value.toLowerCase().trim();
+  const groups = PEKERJAAN_GROUPS.map((g) => ({
+    ...g,
+    filtered: g.items.filter((it) => !q || it.toLowerCase().includes(q)),
+  })).filter((g) => g.filtered.length > 0 || !q);
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <div style={{ display: "flex", gap: 0 }}>
+        <input
+          value={value}
+          onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          placeholder={placeholder}
+          style={{ flex: 1, borderRadius: "10px 0 0 10px", borderRight: "none", padding: "9px 11px", border: "1.5px solid var(--line)", fontSize: 13 }}
+        />
+        <button type="button" onClick={() => setOpen((v) => !v)} style={{ padding: "0 10px", borderRadius: "0 10px 10px 0", border: "1.5px solid var(--line)", borderLeft: "none", background: "#f8fafc", cursor: "pointer", display: "grid", placeItems: "center", color: "var(--muted)" }}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+      </div>
+      {open && (
+        <div style={{ position: "fixed", top: dropPos.top, left: dropPos.left, width: dropPos.width, zIndex: 9999, background: "#fff", border: "1px solid var(--line)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,.08)", maxHeight: 220, overflowY: "auto" }}>
+          {groups.length === 0 && <div style={{ padding: "10px 14px", fontSize: 12, color: "var(--muted)" }}>Tidak ada yang cocok</div>}
+          {groups.map((g) => (
+            <div key={g.label}>
+              <div style={{ padding: "5px 14px 2px", fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)", background: "#f8fafc", position: "sticky", top: 0, zIndex: 1 }}>{g.label}</div>
+              {g.filtered.map((item) => (
+                <button key={item} type="button" onClick={() => { onChange(item); setOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 14px", fontSize: 13, background: value === item ? "#fff1e6" : "transparent", border: "none", cursor: "pointer", color: value === item ? "var(--primary)" : "var(--ink)" }}>{item}</button>
+              ))}
+              {!q && <button type="button" onClick={() => { onChange(""); setOpen(false); }} style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 14px", fontSize: 12, fontWeight: 600, background: "transparent", border: "none", color: "var(--muted)", fontStyle: "italic" }}>+ Lainnya (ketik sendiri)…</button>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AjukanPerubahan({
   me,
   onClose,
@@ -290,13 +354,28 @@ function AjukanPerubahan({
   onSuccess: (section: string) => void;
 }) {
   const [section, setSection] = useState<"kontak" | "wilayah" | "identitas">("kontak");
-  const [fields, setFields] = useState<Record<string, string>>({});
+  const [allSectionFields, setAllSectionFields] = useState<{
+    kontak: Record<string, string>;
+    wilayah: Record<string, string>;
+    identitas: Record<string, string>;
+  }>({
+    kontak: {},
+    wilayah: {},
+    identitas: {},
+  });
+  const fields = allSectionFields[section];
+  const setField = (key: string, value: string) => {
+    setAllSectionFields((prev) => ({
+      ...prev,
+      [section]: { ...prev[section], [key]: value },
+    }));
+  };
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const sections: { key: "kontak" | "wilayah" | "identitas"; label: string; desc: string }[] = [
-    { key: "kontak", label: "Kontak & Pendidikan", desc: "No HP, pendidikan" },
+    { key: "kontak", label: "Kontak & Pendidikan", desc: "No HP, pendidikan, pekerjaan" },
     { key: "wilayah", label: "Wilayah & Domisili", desc: "Alamat, desa/kelompok, domisili" },
     { key: "identitas", label: "Identitas", desc: "Nama, tempat/tgl lahir, suku" },
   ];
@@ -322,6 +401,7 @@ function AjukanPerubahan({
     kontak: [
       { key: "noTelp", label: "No. HP", placeholder: me.noTelp || "08...", max: 15 },
       { key: "pendidikan", label: "Pendidikan", placeholder: me.pendidikan || "SMA" },
+      { key: "pekerjaan", label: "Pekerjaan", placeholder: me.pekerjaan || "Tulis pekerjaan…", type: "pekerjaan" },
     ],
     wilayah: [
       { key: "domisiliAnak", label: "Alamat Tinggal (Anak)", placeholder: me.domisiliAnak || "" },
@@ -335,6 +415,7 @@ function AjukanPerubahan({
       { key: "nama", label: "Nama Lengkap", placeholder: me.nama },
       { key: "tempatLahir", label: "Tempat Lahir", placeholder: "—" },
       { key: "tanggalLahir", label: "Tanggal Lahir (YYYY-MM-DD)", placeholder: "—" },
+      { key: "pekerjaan", label: "Pekerjaan", placeholder: me.pekerjaan || "Tulis pekerjaan…", type: "pekerjaan" },
       { key: "suku", label: "Suku", placeholder: "—" },
     ],
   };
@@ -388,7 +469,6 @@ function AjukanPerubahan({
               type="button"
               onClick={() => {
                 setSection(s.key);
-                setFields({});
                 setErr(null);
               }}
               style={{
@@ -417,7 +497,7 @@ function AjukanPerubahan({
                   <input
                     type="checkbox"
                     checked={checked}
-                    onChange={(e) => setFields((prev) => ({ ...prev, [f.key]: e.target.checked ? "ya" : "tidak" }))}
+                    onChange={(e) => setField(f.key, e.target.checked ? "ya" : "tidak")}
                     style={{ width: 16, height: 16 }}
                   />
                   <span>{f.label}</span>
@@ -430,7 +510,7 @@ function AjukanPerubahan({
                   <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{f.label}</span>
                   <select
                     value={fields[f.key] ?? ""}
-                    onChange={(e) => setFields((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                    onChange={(e) => setField(f.key, e.target.value)}
                     style={{ width: "100%", padding: "9px 11px", borderRadius: 10, border: "1.5px solid var(--line)", fontSize: 13, background: "#fff" }}
                   >
                     <option value="">{f.placeholder || "Pilih desa"} — kosong = tidak ubah</option>
@@ -449,7 +529,7 @@ function AjukanPerubahan({
                   <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{f.label}</span>
                   <select
                     value={fields[f.key] ?? ""}
-                    onChange={(e) => setFields((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                    onChange={(e) => setField(f.key, e.target.value)}
                     style={{ width: "100%", padding: "9px 11px", borderRadius: 10, border: "1.5px solid var(--line)", fontSize: 13, background: "#fff" }}
                   >
                     <option value="">{f.placeholder || "Pilih kelompok"} — kosong = tidak ubah</option>
@@ -460,12 +540,20 @@ function AjukanPerubahan({
                 </label>
               );
             }
+            if ((f as any).type === "pekerjaan") {
+              return (
+                <label key={f.key} style={{ display: "grid", gap: 4, textAlign: "left" }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{f.label}</span>
+                  <PekerjaanField value={fields[f.key] ?? ""} onChange={(v) => setField(f.key, v)} placeholder={f.placeholder} />
+                </label>
+              );
+            }
             return (
               <label key={f.key} style={{ display: "grid", gap: 4, textAlign: "left" }}>
                 <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{f.label}</span>
                 <input
                   value={fields[f.key] ?? ""}
-                  onChange={(e) => setFields((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                  onChange={(e) => setField(f.key, e.target.value)}
                   placeholder={f.placeholder}
                   maxLength={(f as any).max}
                   style={{ width: "100%", padding: "9px 11px", borderRadius: 10, border: "1.5px solid var(--line)", fontSize: 13 }}
@@ -507,12 +595,38 @@ function AjukanPerubahan({
   );
 }
 
-function HobiEditor({ initial, initialCustom, initialDetail, onClose, onSave }: { initial: Set<HobbyKey>; initialCustom: string; initialDetail: Record<string, string>; onClose: () => void; onSave: (keys: HobbyKey[], custom: string, detail: Record<string, string>) => void }) {
+function HobiEditor({
+  initial,
+  initialCustom,
+  initialDetail,
+  lastUpdated,
+  onClose,
+  onSave,
+}: {
+  initial: Set<HobbyKey>;
+  initialCustom: string;
+  initialDetail: Record<string, string>;
+  lastUpdated?: string | null;
+  onClose: () => void;
+  onSave: (keys: HobbyKey[], custom: string, detail: Record<string, string>) => void;
+}) {
   const [sel, setSel] = useState<Set<HobbyKey>>(new Set(initial));
   const [custom, setCustom] = useState(initialCustom);
   const [detail, setDetail] = useState<Record<string, string>>(initialDetail);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  // Check 30 days restriction
+  const cooldownInfo = useMemo(() => {
+    if (!lastUpdated) return { isLocked: false, remainingDays: 0 };
+    const diff = (Date.now() - new Date(lastUpdated).getTime()) / (1000 * 60 * 60 * 24);
+    if (diff < 30) {
+      return { isLocked: true, remainingDays: Math.ceil(30 - diff) };
+    }
+    return { isLocked: false, remainingDays: 0 };
+  }, [lastUpdated]);
 
   function toggle(k: HobbyKey) {
+    if (cooldownInfo.isLocked) return;
     setSel((prev) => {
       const next = new Set(prev);
       if (next.has(k)) next.delete(k);
@@ -524,75 +638,135 @@ function HobiEditor({ initial, initialCustom, initialDetail, onClose, onSave }: 
     });
   }
 
+  const handlePreSave = () => {
+    setShowConfirm(true);
+  };
+
+  const handleConfirmSave = () => {
+    const filtered: Record<string, string> = {};
+    for (const k of sel) if (detail[k]?.trim()) filtered[k] = detail[k].trim();
+    if (custom.trim() && sel.has("lainnya" as HobbyKey)) filtered["lainnya_custom"] = custom.trim();
+    onSave([...sel], custom, filtered);
+    setShowConfirm(false);
+  };
+
   return (
-    <div className="trophy-modal-overlay hobi-editor-overlay" onClick={onClose} style={{ zIndex: 60 }}>
-      <div className="trophy-modal hobi-editor-modal" onClick={(e) => e.stopPropagation()}>
-        <button type="button" className="trophy-modal-close" onClick={onClose}><X size={18} /></button>
-        <div style={{ fontSize: 15, fontWeight: 900, color: "var(--ink)" }}>Pilih Hobi</div>
-        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)" }}>Pilih sampai 8 tipe — tiap tipe dapat badge warna-warni di profil.</div>
+    <>
+      <div className="trophy-modal-overlay hobi-editor-overlay" onClick={onClose} style={{ zIndex: 60 }}>
+        <div className="trophy-modal hobi-editor-modal" onClick={(e) => e.stopPropagation()}>
+          <button type="button" className="trophy-modal-close" onClick={onClose}><X size={18} /></button>
+          <div style={{ fontSize: 15, fontWeight: 900, color: "var(--ink)" }}>Pilih Hobi</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--muted)" }}>Pilih sampai 8 tipe — tiap tipe dapat badge warna-warni di profil.</div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
-          {HOBBY_KEYS.map((k) => {
-            const m = HOBBY_META[k];
-            const active = sel.has(k);
-            const Icon = ({ olahraga: Volleyball, traveling: Plane, seni: Palette, musik: Music, kuliner: ChefHat, teknologi: Laptop, literasi: BookOpen, gaming: Gamepad2, lainnya: Sparkles } as Record<string, typeof Volleyball>)[k] ?? Sparkles;
-            return (
-              <button
-                key={k}
-                type="button"
-                onClick={() => toggle(k)}
-                style={{
-                  display: "flex", alignItems: "center", gap: 10, padding: "11px 12px", borderRadius: 14,
-                  border: `1.5px solid ${active ? m.color : "var(--line)"}`,
-                  background: active ? m.bg : "#fff",
-                  color: active ? m.color : "var(--ink)",
-                  fontWeight: 800, fontSize: 13, textAlign: "left", cursor: "pointer",
-                  boxShadow: active ? `0 2px 10px ${m.color}22` : "none",
-                  position: "relative",
-                }}
-              >
-                <span style={{ width: 28, height: 28, borderRadius: 9, background: active ? m.color : `${m.color}14`, display: "grid", placeItems: "center", flexShrink: 0, color: active ? "#fff" : m.color }}>
-                  {active ? <Check size={14} /> : <Icon size={14} />}
-                </span>
-                <span style={{ flex: 1 }}>{m.label}</span>
-              </button>
-            );
-          })}
-        </div>
+          {cooldownInfo.isLocked && (
+            <div style={{ marginTop: 10, padding: "10px 12px", borderRadius: 12, background: "#fff7ed", border: "1.5px solid #fed7aa", color: "#c2410c", fontSize: 12, fontWeight: 700, display: "flex", gap: 8, alignItems: "center" }}>
+              <span>⏱️ Hobi baru saja diubah. Kamu bisa mengubah hobi lagi dalam <b>{cooldownInfo.remainingDays} hari</b>.</span>
+            </div>
+          )}
 
-        {sel.has("lainnya" as HobbyKey) && (
-          <div style={{ marginTop: 10 }}>
-            <label style={{ fontSize: 11, fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Hobi lainnya</label>
-            <input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="Contoh: Hadroh, Kaligrafi..." maxLength={40} style={{ width: "100%", marginTop: 6, padding: "10px 12px", borderRadius: 10, border: "1.5px solid var(--line)", fontSize: 13 }} />
-          </div>
-        )}
-
-        {[...sel].filter((k) => k !== "lainnya").length > 0 && (
-          <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Detail khusus tiap hobi</div>
-            {[...sel].filter((k) => k !== "lainnya").map((k) => {
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
+            {HOBBY_KEYS.map((k) => {
               const m = HOBBY_META[k];
+              const active = sel.has(k);
+              const Icon = ({ olahraga: Volleyball, traveling: Plane, seni: Palette, musik: Music, kuliner: ChefHat, teknologi: Laptop, literasi: BookOpen, gaming: Gamepad2, lainnya: Sparkles } as Record<string, typeof Volleyball>)[k] ?? Sparkles;
               return (
-                <label key={k} style={{ display: "grid", gap: 4 }}>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: m.color }}>{m.label}</span>
-                  <input
-                    value={detail[k] ?? ""}
-                    onChange={(e) => setDetail((prev) => ({ ...prev, [k]: e.target.value }))}
-                    placeholder={HOBBY_DETAIL_PLACEHOLDER[k]}
-                    maxLength={80}
-                    style={{ width: "100%", padding: "9px 11px", borderRadius: 10, border: "1.5px solid var(--line)", fontSize: 13 }}
-                  />
-                </label>
+                <button
+                  key={k}
+                  type="button"
+                  disabled={cooldownInfo.isLocked}
+                  onClick={() => toggle(k)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10, padding: "11px 12px", borderRadius: 14,
+                    border: `1.5px solid ${active ? m.color : "var(--line)"}`,
+                    background: active ? m.bg : "#fff",
+                    color: active ? m.color : "var(--ink)",
+                    fontWeight: 800, fontSize: 13, textAlign: "left", cursor: cooldownInfo.isLocked ? "not-allowed" : "pointer",
+                    boxShadow: active ? `0 2px 10px ${m.color}22` : "none",
+                    opacity: cooldownInfo.isLocked ? 0.6 : 1,
+                    position: "relative",
+                  }}
+                >
+                  <span style={{ width: 28, height: 28, borderRadius: 9, background: active ? m.color : `${m.color}14`, display: "grid", placeItems: "center", flexShrink: 0, color: active ? "#fff" : m.color }}>
+                    {active ? <Check size={14} /> : <Icon size={14} />}
+                  </span>
+                  <span style={{ flex: 1 }}>{m.label}</span>
+                </button>
               );
             })}
           </div>
-        )}
 
-        <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-          <button type="button" className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Batal</button>
-          <button type="button" className="btn btn-primary" onClick={() => { const filtered: Record<string,string> = {}; for (const k of sel) if (detail[k]?.trim()) filtered[k] = detail[k].trim(); if (custom.trim() && sel.has("lainnya" as HobbyKey)) filtered["lainnya_custom"] = custom.trim(); onSave([...sel], custom, filtered); }} style={{ flex: 1, fontWeight: 800 }}>Simpan ({sel.size})</button>
+          {sel.has("lainnya" as HobbyKey) && (
+            <div style={{ marginTop: 10 }}>
+              <label style={{ fontSize: 11, fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Hobi lainnya</label>
+              <input disabled={cooldownInfo.isLocked} value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="Contoh: Hadroh, Kaligrafi..." maxLength={40} style={{ width: "100%", marginTop: 6, padding: "10px 12px", borderRadius: 10, border: "1.5px solid var(--line)", fontSize: 13 }} />
+            </div>
+          )}
+
+          {[...sel].filter((k) => k !== "lainnya").length > 0 && (
+            <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Detail khusus tiap hobi</div>
+              {[...sel].filter((k) => k !== "lainnya").map((k) => {
+                const m = HOBBY_META[k];
+                return (
+                  <label key={k} style={{ display: "grid", gap: 4 }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, color: m.color }}>{m.label}</span>
+                    <input
+                      disabled={cooldownInfo.isLocked}
+                      value={detail[k] ?? ""}
+                      onChange={(e) => setDetail((prev) => ({ ...prev, [k]: e.target.value }))}
+                      placeholder={HOBBY_DETAIL_PLACEHOLDER[k]}
+                      maxLength={80}
+                      style={{ width: "100%", padding: "9px 11px", borderRadius: 10, border: "1.5px solid var(--line)", fontSize: 13 }}
+                    />
+                  </label>
+                );
+              })}
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            <button type="button" className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>Batal</button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={cooldownInfo.isLocked}
+              onClick={handlePreSave}
+              style={{ flex: 1, fontWeight: 800 }}
+            >
+              Simpan ({sel.size})
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* MODAL KONFIRMASI 30 HARI SEKALI */}
+      {showConfirm && (
+        <div className="modal-backdrop" onClick={() => setShowConfirm(false)} style={{ zIndex: 1200, display: "grid", placeItems: "center", padding: 16 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380, width: "100%", padding: 22, borderRadius: 20, textAlign: "center" }}>
+            <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#fff7ed", color: "#ea580c", display: "grid", placeItems: "center", margin: "0 auto 12px" }}>
+              <Sparkles size={24} />
+            </div>
+            <h3 style={{ fontSize: 17, fontWeight: 900, margin: "0 0 6px", color: "var(--ink)" }}>Simpan Pilihan Hobi?</h3>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5, margin: "0 0 16px" }}>
+              Perubahan hobi hanya bisa dilakukan <b>sebulan sekali (30 hari)</b>. Pastikan pilihan dan rincian hobimu sudah sesuai sebelum melanjutkan.
+            </p>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowConfirm(false)}>
+                Cek Lagi
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ flex: 1, fontWeight: 800 }}
+                onClick={handleConfirmSave}
+              >
+                Ya, Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

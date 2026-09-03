@@ -46,13 +46,30 @@ r.get("/", async (c) => {
   } else if (session.role === "admin_kelompok" && session.kelompokId) {
     const pRows = await db.select({ kegiatanId: kegiatanPeserta.kegiatanId }).from(kegiatanPeserta).where(or(eq(kegiatanPeserta.kelompokId, session.kelompokId), eq(kegiatanPeserta.desaId, session.desaId ?? 0)));
     pRows.forEach((r) => pesertaKegiatanIds.push(r.kegiatanId));
+  } else if (session.role === "generus") {
+    // Generus can see activities targeted to their kelompok, desa, direct generus ID, or open daerah activities
+    const orPeserta: any[] = [];
+    if (session.kelompokId) orPeserta.push(eq(kegiatanPeserta.kelompokId, session.kelompokId));
+    if (session.desaId) orPeserta.push(eq(kegiatanPeserta.desaId, session.desaId));
+    if (session.generusId) orPeserta.push(eq(kegiatanPeserta.generusId, session.generusId));
+    if (orPeserta.length > 0) {
+      const pRows = await db.select({ kegiatanId: kegiatanPeserta.kegiatanId }).from(kegiatanPeserta).where(or(...orPeserta));
+      pRows.forEach((r) => pesertaKegiatanIds.push(r.kegiatanId));
+    }
   }
+
   if (session.role === "admin_desa" && session.desaId) {
     const ors = [eq(kegiatan.desaId, session.desaId), and(isNull(kegiatan.desaId), isNull(kegiatan.kelompokId))];
     if (pesertaKegiatanIds.length > 0) ors.push(inList(kegiatan.id, pesertaKegiatanIds));
     conditions.push(or(...ors));
   } else if (session.role === "admin_kelompok" && session.kelompokId && session.desaId) {
     const ors = [eq(kegiatan.kelompokId, session.kelompokId), and(eq(kegiatan.desaId, session.desaId), isNull(kegiatan.kelompokId)), and(isNull(kegiatan.desaId), isNull(kegiatan.kelompokId))];
+    if (pesertaKegiatanIds.length > 0) ors.push(inList(kegiatan.id, pesertaKegiatanIds));
+    conditions.push(or(...ors));
+  } else if (session.role === "generus") {
+    const ors: any[] = [and(isNull(kegiatan.desaId), isNull(kegiatan.kelompokId))];
+    if (session.desaId) ors.push(and(eq(kegiatan.desaId, session.desaId), isNull(kegiatan.kelompokId)));
+    if (session.kelompokId) ors.push(eq(kegiatan.kelompokId, session.kelompokId));
     if (pesertaKegiatanIds.length > 0) ors.push(inList(kegiatan.id, pesertaKegiatanIds));
     conditions.push(or(...ors));
   }

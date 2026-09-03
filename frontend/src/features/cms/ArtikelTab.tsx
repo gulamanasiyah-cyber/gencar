@@ -4,7 +4,9 @@ import { apiFetch } from "../../lib/api";
 import SearchInput from "../../components/admin/SearchInput";
 import ImageUploadInput from "../../components/admin/ImageUploadInput";
 import RichTextEditor from "../../components/admin/RichTextEditor";
-import { ARTIKEL_KATEGORI_LABEL } from "../../routes/public/data";
+import DeleteConfirmModal from "../../components/DeleteConfirmModal";
+import CategoryInput from "../../components/CategoryInput";
+import { labelKategori } from "../../lib/labelKategori";
 import SplitPreviewLayout from "./SplitPreviewLayout";
 
 type Row = {
@@ -43,15 +45,22 @@ export default function ArtikelTab({ tipe = "artikel", role, userId }: { tipe?: 
       .catch(() => {});
   };
 
+  const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
+
   useEffect(() => {
     if (viewMode === "list") load();
   }, [q, viewMode, tipe]);
 
-  const handleDelete = (id: string) => {
-    if (!confirm(`Hapus ${tipe} ini?`)) return;
+  const handleDelete = (r: Row) => {
+    setDeleteTarget(r);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const id = deleteTarget.id;
     setRows((p) => p.filter((x) => x.id !== id));
     const url = tipe === "berita" ? `/api/berita/${id}` : `/api/artikel/${id}`;
-    void apiFetch(url, { method: "DELETE" }).catch(() => {});
+    await apiFetch(url, { method: "DELETE" });
   };
 
   const openCreate = () => {
@@ -141,7 +150,7 @@ export default function ArtikelTab({ tipe = "artikel", role, userId }: { tipe?: 
                 <span className={`pill ${r.status === "published" ? "pill-emerald" : "pill-amber"}`} style={{ fontSize: 10, padding: "2px 6px" }}>
                   {r.status}
                 </span>{" "}
-                &bull; {r.kategori ? ((ARTIKEL_KATEGORI_LABEL as any)[r.kategori] || r.kategori) : r.tipe}
+                &bull; {labelKategori(r.kategori) || r.tipe}
               </div>
             </div>
             <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
@@ -153,7 +162,7 @@ export default function ArtikelTab({ tipe = "artikel", role, userId }: { tipe?: 
               <button type="button" className="btn btn-ghost row-icon-btn" aria-label="Edit" title="Edit" onClick={() => openEdit(r)}>
                 <IcoEdit size={16} />
               </button>
-              <button type="button" className="btn btn-danger row-icon-btn" aria-label="Hapus" title="Hapus" onClick={() => handleDelete(r.id)}>
+              <button type="button" className="btn btn-danger row-icon-btn" aria-label="Hapus" title="Hapus" onClick={() => handleDelete(r)}>
                 <IcoTrash size={16} />
               </button>
               </>
@@ -162,6 +171,15 @@ export default function ArtikelTab({ tipe = "artikel", role, userId }: { tipe?: 
           </div>
         ))}
       </div>
+
+      {deleteTarget && (
+        <DeleteConfirmModal
+          itemName={deleteTarget.judul}
+          description={`${tipe === "berita" ? "Berita" : "Artikel"} "${deleteTarget.judul}" akan dihapus permanen.`}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={confirmDelete}
+        />
+      )}
     </div>
   );
 }
@@ -260,18 +278,13 @@ function ArtikelEditorPage({
 
             <div className="form-grid-2">
               <div className="field">
-                <label>Kategori (Ketik bebas / Pilih dari list)</label>
-                <input
+                <label>Kategori</label>
+                <CategoryInput
                   value={f.kategori}
-                  onChange={(e) => setF({ ...f, kategori: e.target.value })}
-                  placeholder="Mis. Tuntunan Ibadah, Info Kesehatan, dll"
-                  list="artikel-kategori-list"
+                  onChange={(v) => setF({ ...f, kategori: v })}
+                  existingCategories={existingCategories}
+                  placeholder="Ketik atau pilih kategori..."
                 />
-                <datalist id="artikel-kategori-list">
-                  {existingCategories.map((k) => (
-                    <option key={k} value={k} />
-                  ))}
-                </datalist>
               </div>
 
               <div className="field">
@@ -339,7 +352,7 @@ function ArtikelEditorPage({
               <span>
                 <User2 size={12} /> Tim Gencar
               </span>
-              <span className="pill pill-slate">{f.kategori || (tipe === "berita" ? "Berita" : "Artikel")}</span>
+              <span className="pill pill-slate">{labelKategori(f.kategori) || (tipe === "berita" ? "Berita" : "Artikel")}</span>
             </div>
 
             <h1 className="pub-detail-title" style={{ fontSize: 24, marginTop: 8 }}>

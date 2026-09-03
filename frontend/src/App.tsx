@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { sambungJudulTemplate } from "../../shared/validation";
+import { PEKERJAAN_GROUPS } from "../../shared/pekerjaan";
 import {
   ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
@@ -25,13 +26,11 @@ import {
   FileCheck as IcoFileCheck,
   SlidersHorizontal as IcoFilter,
   Eye as IcoEye,
-  Power as IcoPower,
   List as IcoList,
   LayoutGrid as IcoGrid,
   Trash2 as IcoTrash,
   Pencil as IcoEdit,
   LogOut as IcoLogOut,
-  Bell as IcoBell,
 } from "lucide-react";
 import MapPickerModal from "./components/MapPickerModal";
 import AdminModal from "./components/admin/Modal";
@@ -41,6 +40,99 @@ import SearchInput from "./components/admin/SearchInput";
 import { apiFetch, unwrapList } from "./lib/api";
 import { useAuth } from "./lib/auth";
 import { useNavigate } from "react-router-dom";
+import { computeAchievements, RARITY_META, HOBBY_META, parseHobiDetail, type HobbyKey } from "./features/member/types";
+
+const TROPHY_PNG_MAP: Record<string, string> = {
+  pertama_kali: "kehadiran_1",
+  hadir_5: "kehadiran_5",
+  hadir_10: "kehadiran_10",
+  hadir_25: "kehadiran_25",
+  hadir_50: "kehadiran_50",
+  hadir_100: "kehadiran_100",
+  hadir_150: "kehadiran_150",
+  hadir_200: "kehadiran_200",
+  streak_5: "streak_5",
+  streak_10: "streak_10",
+  streak_20: "streak_20",
+  streak_40: "streak_40",
+  streak_75: "streak_75",
+  streak_100: "streak_100",
+  streak_reset: "streak_reset",
+  streak_salvage: "streak_salvage",
+  penjelajah: "penjelajah",
+  domisili_match: "domisili_match",
+  zero_telat: "zero_telat",
+  zero_telat_25: "zero_telat_25",
+  zero_telat_50: "zero_telat_50",
+  zero_telat_100: "zero_telat_100",
+  first_late: "first_late",
+  telat_5: "telat_5",
+  telat_10: "telat_10",
+  overcome_late: "overcome_late",
+  double_duty: "double_duty",
+  siang_malam: "siang_malam",
+  tingkat_kelompok: "tingkat_kelompok",
+  tingkat_desa: "tingkat_desa",
+  tingkat_daerah: "tingkat_daerah",
+  izin_pertama: "izin_pertama",
+  absen_weekend: "absen_weekend",
+  consec_3: "consec_3",
+  consec_7: "consec_7",
+  pagi_early: "pagi_early",
+  jelajah_lokasi: "jelajah_lokasi",
+  legenda_waktu: "legenda_waktu",
+  avatar_custom: "avatar_custom",
+  avatar_legend: "avatar_legend",
+  qr_download: "qr_download",
+  tampil_kece: "tampil_kece",
+  hobi_isi: "hobi_isi",
+  hobi_kolektor: "hobi_kolektor",
+  hobi_olahraga: "hobi_olahraga",
+  hobi_traveling: "hobi_traveling",
+  hobi_seni: "hobi_seni",
+  hobi_musik: "hobi_musik",
+  hobi_kuliner: "hobi_kuliner",
+  hobi_teknologi: "hobi_teknologi",
+  hobi_literasi: "hobi_literasi",
+  hobi_gaming: "hobi_gaming",
+};
+
+function getTrophyIconPath(id: string): string {
+  const file = TROPHY_PNG_MAP[id] || id;
+  return `/achievements/${file}.webp`;
+}
+
+function MemberAvatarCircle({ member, size = 36 }: { member: { nama: string; foto?: string | null; avatarId?: string | null }; size?: number }) {
+  const initials = member.nama.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("") || "A";
+  if (member.foto && member.foto.trim()) {
+    return (
+      <img
+        src={member.foto}
+        alt={member.nama}
+        onError={(e) => {
+          (e.target as HTMLElement).style.display = "none";
+        }}
+        style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", display: "block" }}
+      />
+    );
+  }
+  if (member.avatarId) {
+    const file = member.avatarId.replace(/\.png$/, "") + ".webp";
+    return (
+      <div style={{ width: size, height: size, borderRadius: "50%", background: "var(--surface-sunken, #f1f5f9)", border: "1px solid var(--line, #e2e8f0)", display: "grid", placeItems: "center", overflow: "hidden", flexShrink: 0 }}>
+        <img
+          src={`/avatars/${file}`}
+          alt={member.nama}
+          onError={(e) => {
+            (e.target as HTMLElement).style.display = "none";
+          }}
+          style={{ width: "90%", height: "90%", objectFit: "contain", display: "block" }}
+        />
+      </div>
+    );
+  }
+  return <div className="avatar" style={{ width: size, height: size, fontSize: Math.max(10, Math.round(size * 0.35)) }}>{initials}</div>;
+}
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -216,10 +308,14 @@ type Member = {
   desa: string;
   kelompok: string;
   pendidikan: string;
+  pekerjaan?: string | null;
   noTelp: string;
   kategoriMudaMudi: "pribumi" | "perantauan";
   domisiliAnak: string;
   isOrtuSama: boolean;
+  foto?: string | null;
+  avatarId?: string | null;
+  jenisKelamin?: string | null;
   hobi?: string | null;
   hobiDetail?: string | null;
   status: "aktif" | "pending";
@@ -440,7 +536,7 @@ function StatistikPage({ role }: { role: AdminRole }) {
   const isMobile = useIsMobile();
   const [live, setLive] = useState<{
     summary: { totalGenerus: number; totalKegiatan: number; totalAbsensi: number; hadir: number; izin: number; alpha: number; hadirRate: number };
-    member: { byGender: { name: string; value: number }[]; byMudaMudi: { name: string; value: number }[]; byDesa: { name: string; value: number }[]; byPendidikan: { name: string; value: number }[] };
+    member: { byGender: { name: string; value: number }[]; byMudaMudi: { name: string; value: number }[]; byDesa: { name: string; value: number }[]; byPendidikan: { name: string; value: number }[]; byPekerjaan: { name: string; value: number }[] };
     absensi: { byKeterangan: { name: string; value: number }[]; timeSeries: { date: string; hadir: number; izin: number; alpha: number; total: number }[] };
     kegiatan: { total: number; byKategori: { name: string; value: number }[]; monthly: { name: string; value: number }[] };
   } | null>(null);
@@ -463,7 +559,7 @@ function StatistikPage({ role }: { role: AdminRole }) {
         if (cancel) return;
         const j = raw as {
           summary?: { totalGenerus: number; totalKegiatan: number; totalAbsensi: number; hadir: number; izin: number; alpha: number; hadirRate: number };
-          member?: { byGender: unknown[]; byMudaMudi: unknown[]; byDesa: unknown[]; byPendidikan: unknown[] };
+          member?: { byGender: unknown[]; byMudaMudi: unknown[]; byDesa: unknown[]; byPendidikan: unknown[]; byPekerjaan: unknown[] };
           absensi?: { byKeterangan: unknown[]; timeSeries: unknown[] };
           kegiatan?: { total: number; byKategori: unknown[]; monthly: unknown[] };
         };
@@ -475,6 +571,7 @@ function StatistikPage({ role }: { role: AdminRole }) {
               byMudaMudi: (j.member?.byMudaMudi as { name: string; value: number }[]) ?? [],
               byDesa: (j.member?.byDesa as { name: string; value: number }[]) ?? [],
               byPendidikan: (j.member?.byPendidikan as { name: string; value: number }[]) ?? [],
+              byPekerjaan: (j.member?.byPekerjaan as { name: string; value: number }[]) ?? [],
             },
             absensi: {
               byKeterangan: (j.absensi?.byKeterangan as { name: string; value: number }[]) ?? [],
@@ -690,6 +787,48 @@ function StatistikPage({ role }: { role: AdminRole }) {
             <div style={{ display: "grid", placeItems: "center", height: "100%", color: "var(--muted)", fontSize: 13 }}>Belum ada data</div>
           )}
         </div>
+      </div>
+
+      {/* ═══ SEKSI 3: SEBARAN PEKERJAAN (BUBBLE) ═══ */}
+      <div className="statistik-section-head">
+        <span className="kpi-icon kpi-icon--amber"><IcoBarChart size={18} /></span>
+        <div>
+          <h2>Sebaran Pekerjaan</h2>
+          <p>Distribusi pekerjaan anggota berdasarkan data teks bebas — dinormalisasi otomatis</p>
+        </div>
+      </div>
+
+      <div className="card" style={{ minWidth: 0 }}>
+        <div style={{ fontWeight: 800, marginBottom: 4 }}>Komposisi Pekerjaan</div>
+        <div className="muted" style={{ marginBottom: 8 }}>Top 8 pekerjaan terbanyak (plus &quot;Lainnya&quot;)</div>
+        {s.member.byPekerjaan.length ? (
+        (() => {
+          const top8 = s.member.byPekerjaan.slice(0, 8);
+          const lainnyaVal = s.member.byPekerjaan.slice(8).reduce((a, r) => a + r.value, 0);
+          const display = lainnyaVal > 0 ? [...top8, { name: "Lainnya", value: lainnyaVal }] : top8;
+          const maxVal = Math.max(...display.map((d) => d.value));
+          const colors = ["#16a34a", "#0ea5e9", "#8b5cf6", "#f59e0b", "#ec4899", "#06b6d4", "#6366f1", "#84cc16", "#94a3b8"];
+          const MIN_R = isMobile ? 22 : 28;
+          const MAX_R = isMobile ? 48 : 64;
+          return (
+            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", alignItems: "center", gap: isMobile ? 8 : 12, padding: isMobile ? "12px 0" : "16px 0", minHeight: isMobile ? 200 : 260 }}>
+              {display.map((d, i) => {
+                const r = Math.max(MIN_R, Math.min(MAX_R, Math.sqrt(d.value / maxVal) * MAX_R));
+                return (
+                  <div key={i} title={`${d.name}: ${d.value} anggota`} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                    <div style={{ width: r * 2, height: r * 2, borderRadius: "50%", background: colors[i % colors.length], opacity: 0.85, display: "grid", placeItems: "center", boxShadow: `0 2px 8px ${colors[i % colors.length]}33`, transition: "transform .15s", cursor: "default" }}>
+                      <span style={{ fontSize: isMobile ? 11 : 13, fontWeight: 800, color: "#fff", textShadow: "0 1px 2px rgba(0,0,0,.15)" }}>{d.value}</span>
+                    </div>
+                    <span style={{ fontSize: isMobile ? 9 : 10, fontWeight: 600, color: "var(--text-secondary)", maxWidth: r * 2 + 12, textAlign: "center", lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()
+        ) : (
+          <div style={{ display: "grid", placeItems: "center", height: isMobile ? 180 : 220, color: "var(--muted)", fontSize: 13 }}>Belum ada data pekerjaan</div>
+        )}
       </div>
       </>
       )}
@@ -962,10 +1101,14 @@ function AnggotaPage({ role: _role }: { role: AdminRole }) {
           desa: r.desaNama ?? "",
           kelompok: r.kelompokNama ?? "",
           pendidikan: (r.pendidikan as Member["pendidikan"]) ?? "SMA",
+          pekerjaan: (r as any).pekerjaan ?? null,
           noTelp: r.noTelp ?? "",
           kategoriMudaMudi: (r.kategoriMudaMudi as Member["kategoriMudaMudi"]) ?? "pribumi",
           domisiliAnak: (r as { domisiliAnak?: string }).domisiliAnak ?? (r as { alamat?: string }).alamat ?? "",
           isOrtuSama: r.isDomisiliOrtuSama == null ? true : Boolean(r.isDomisiliOrtuSama),
+          foto: (r as any).foto ?? null,
+          avatarId: (r as any).avatarId ?? null,
+          jenisKelamin: (r as any).jenisKelamin ?? null,
           hobi: (r as any).hobi ?? null,
           hobiDetail: (r as any).hobiDetail ?? null,
           status: "aktif",
@@ -1095,7 +1238,7 @@ function AnggotaPage({ role: _role }: { role: AdminRole }) {
                 <tr key={m.id}>
                   <td>
                     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                      <div className="avatar">{m.nama.split(" ").map((w) => w[0]).slice(0, 2).join("")}</div>
+                      <MemberAvatarCircle member={m} size={36} />
                       <div><div style={{ fontWeight: 700 }}>{m.nama}</div><div className="muted">{m.kategoriMudaMudi} · {m.pendidikan}</div></div>
                     </div>
                   </td>
@@ -1132,7 +1275,7 @@ function AnggotaPage({ role: _role }: { role: AdminRole }) {
           {filtered.map((m) => (
             <div key={m.id} className="member-card" role="button" tabIndex={0} onClick={() => setDetailMember(m)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetailMember(m); } }}>
               <div className="member-card-head">
-                <div className="avatar">{m.nama.split(" ").map((w) => w[0]).slice(0, 2).join("")}</div>
+                <MemberAvatarCircle member={m} size={40} />
                 <div className="member-card-head-info">
                   <div className="member-card-name">{m.nama}</div>
                   <div className="muted">{m.desa} / {m.kelompok}</div>
@@ -1200,7 +1343,9 @@ function AnggotaPage({ role: _role }: { role: AdminRole }) {
 
 function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; onClose: () => void; onMagicLink?: (link: string) => void }) {
   const [showQr, setShowQr] = useState(false);
+  const [showFullAvatar, setShowFullAvatar] = useState(false);
   const [statsData, setStatsData] = useState<{
+    total?: number;
     hadir: number;
     izin: number;
     alpha: number;
@@ -1215,12 +1360,13 @@ function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; o
   } | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
   const [activeModalTab, setActiveModalTab] = useState<"kehadiran" | "streak" | "trophy" | "telat" | null>(null);
+  const [selectedHobi, setSelectedHobi] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     let cancel = false;
     setLoadingStats(true);
-    apiFetch<{ stats?: { hadir: number; izin: number; alpha: number; rate: number; streak: number; trophiesCount: number; trophies?: string[]; telatCount?: number; avgTelatMenit?: number; riwayatTelat?: { id: string; judul?: string; tanggal: string; jamKegiatan: string; jamAbsen: string; menit: number }[]; riwayat?: { id: string; tanggal: string; jam?: string; keterangan: string; kategoriAcara?: string; tingkat?: string }[] } }>(`/api/generus/${member.id}`)
+    apiFetch<{ stats?: { total?: number; hadir: number; izin: number; alpha: number; rate: number; streak: number; trophiesCount: number; trophies?: string[]; telatCount?: number; avgTelatMenit?: number; riwayatTelat?: { id: string; judul?: string; tanggal: string; jamKegiatan: string; jamAbsen: string; menit: number }[]; riwayat?: { id: string; tanggal: string; jam?: string; keterangan: string; kategoriAcara?: string; tingkat?: string }[] } }>(`/api/generus/${member.id}`)
       .then((res) => {
         if (cancel) return;
         if (res && res.stats) {
@@ -1238,6 +1384,7 @@ function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; o
     { label: "Nama", value: member.nama },
     { label: "Desa / Kelompok", value: `${member.desa} / ${member.kelompok}` },
     { label: "Pendidikan", value: member.pendidikan },
+    { label: "Pekerjaan", value: member.pekerjaan || "—" },
     { label: "No Telp", value: member.noTelp },
     { label: "Kategori", value: member.kategoriMudaMudi === "pribumi" ? "Pribumi" : "Perantauan" },
     { label: "Domisili Anak", value: member.domisiliAnak },
@@ -1261,25 +1408,70 @@ function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; o
     { min: 40, label: "Legenda", flame: "#7c3aed", bg: "#f5f3ff", desc: "40× hadir beruntun" },
   ];
 
-  const allTrophies = [
-    { id: "pertama_kali", file: "kehadiran_1", name: "Langkah Pertama", desc: "Absen pertama kali", rarity: "Common" },
-    { id: "hadir_5", file: "kehadiran_5", name: "Rajin", desc: "Hadir 5× total", rarity: "Common" },
-    { id: "hadir_10", file: "kehadiran_10", name: "Penuh Semangat", desc: "Hadir 10× total", rarity: "Common" },
-    { id: "hadir_25", file: "kehadiran_25", name: "Sulung", desc: "Hadir 25× total", rarity: "Uncommon" },
-    { id: "hadir_50", file: "kehadiran_50", name: "Veteran", desc: "Hadir 50× total", rarity: "Rare" },
-    { id: "hadir_100", file: "kehadiran_100", name: "Centurion", desc: "Hadir 100× total", rarity: "Epic" },
-    { id: "streak_5", file: "streak_5", name: "Menyala", desc: "Streak beruntun 5×", rarity: "Common" },
-    { id: "streak_10", file: "streak_10", name: "Konsisten", desc: "Streak beruntun 10×", rarity: "Uncommon" },
-    { id: "streak_20", file: "streak_20", name: "On Fire", desc: "Streak beruntun 20×", rarity: "Rare" },
-    { id: "streak_40", file: "streak_40", name: "Legenda", desc: "Streak beruntun 40×", rarity: "Legendary" },
-    { id: "zero_telat", file: "zero_telat", name: "Tepat Waktu", desc: "0 keterlambatan", rarity: "Common" },
-  ];
+  const memberAchievements = useMemo(() => {
+    return computeAchievements({
+      kehadiran: {
+        total: statsData?.total ?? 0,
+        hadir: statsData?.hadir ?? 0,
+        izin: statsData?.izin ?? 0,
+        alpha: statsData?.alpha ?? 0,
+        hadirRate: statsData?.rate ?? 0,
+        telat: statsData?.telatCount ?? 0,
+        rataRataTelatMenit: statsData?.avgTelatMenit ?? 0,
+        riwayatTelat: (statsData?.riwayatTelat ?? []).map((r) => ({ tanggal: r.tanggal, judul: r.judul ?? "", menit: r.menit ?? 0 })),
+        tren: [],
+      },
+      identity: {
+        id: member.id,
+        nama: member.nama,
+        desa: member.desa,
+        kelompok: member.kelompok,
+        pendidikan: member.pendidikan,
+        noTelp: member.noTelp,
+        kategoriMudaMudi: member.kategoriMudaMudi,
+        asalDaerah: null,
+        domisiliAnak: member.domisiliAnak,
+        domisiliOrtu: member.domisiliAnak,
+        isOrtuSama: member.isOrtuSama,
+        foto: member.foto,
+        avatarId: member.avatarId,
+        jenisKelamin: (member.jenisKelamin as any) ?? null,
+        status: member.status,
+        hobi: member.hobi,
+        hobiDetail: member.hobiDetail,
+      },
+      kegiatan: (statsData?.riwayat ?? []).map((rk) => ({
+        id: rk.id,
+        judul: (rk as any).judul ?? "Kegiatan",
+        tanggal: rk.tanggal,
+        jam: rk.jam ?? "08:00",
+        lokasi: "Cengkareng",
+        lat: null,
+        lng: null,
+        radiusM: 100,
+        kategori: rk.kategoriAcara,
+        tingkat: rk.tingkat,
+        statusAbsen: (rk.keterangan as any) ?? "hadir",
+      })),
+    });
+  }, [statsData, member]);
+
+  const totalUnlockedTrophies = useMemo(() => {
+    return memberAchievements.filter((a) => a.unlocked).length;
+  }, [memberAchievements]);
 
   return (
     <>
     <AdminModal title="Detail Anggota" onClose={onClose}>
       <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16 }}>
-        <div className="avatar" style={{ width: 52, height: 52, fontSize: 16 }}>{member.nama.split(" ").map((w) => w[0]).slice(0, 2).join("")}</div>
+        <button
+          type="button"
+          onClick={() => setShowFullAvatar(true)}
+          style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", borderRadius: "50%", display: "inline-flex" }}
+          title="Klik untuk melihat foto/avatar ukuran penuh"
+        >
+          <MemberAvatarCircle member={member} size={52} />
+        </button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 800, fontSize: 16 }}>{member.nama}</div>
           <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
@@ -1397,7 +1589,7 @@ function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; o
         >
           <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", color: "var(--muted, #64748b)" }}>🏆 Trophy</span>
           <div style={{ fontSize: 15, fontWeight: 900, color: "#d97706" }}>
-            {loadingStats ? "…" : `${statsData?.trophiesCount ?? 0}`}
+            {loadingStats ? "…" : `${totalUnlockedTrophies}`}
           </div>
           <span style={{ fontSize: 9, color: "var(--muted, #64748b)" }}>List ↗</span>
         </button>
@@ -1415,11 +1607,42 @@ function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; o
         let hobbyNames: string[] = [];
         try { hobbyNames = JSON.parse(member.hobi); } catch { hobbyNames = []; }
         if (hobbyNames.length === 0) return null;
+        const details = parseHobiDetail(member.hobiDetail);
         return (
           <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted, #6b7280)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Hobi</div>
-            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-              {hobbyNames.map((h) => <span key={h} className="pill pill-slate" style={{ fontSize: 11 }}>{h}</span>)}
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted, #6b7280)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Hobi (klik untuk detail)</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {hobbyNames.map((h) => {
+                const key = h.toLowerCase().trim() as HobbyKey;
+                const meta = HOBBY_META[key] || { label: h, color: "#64748b", bg: "#f1f5f9" };
+                return (
+                  <button
+                    key={h}
+                    type="button"
+                    onClick={() => setSelectedHobi(h)}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      border: `1px solid ${meta.color}33`,
+                      background: meta.bg,
+                      color: meta.color,
+                      fontSize: 11,
+                      fontWeight: 800,
+                      cursor: "pointer",
+                      textTransform: "capitalize",
+                      transition: "transform 0.12s, box-shadow 0.12s",
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = "none"; }}
+                  >
+                    <span>{meta.label}</span>
+                    {details[key] && <span style={{ width: 5, height: 5, borderRadius: "50%", background: meta.color }} />}
+                  </button>
+                );
+              })}
             </div>
           </div>
         );
@@ -1527,47 +1750,54 @@ function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; o
         <div className="modal-backdrop" onClick={() => setActiveModalTab(null)} style={{ zIndex: 1100 }}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460, width: "calc(100% - 24px)", padding: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Daftar Trophy ({member.nama})</h3>
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Daftar Trophy ({member.nama})</h3>
+                <span style={{ fontSize: 12, color: "var(--muted)" }}>{totalUnlockedTrophies} dari {memberAchievements.length} piala terbuka</span>
+              </div>
               <button type="button" className="btn btn-ghost" style={{ padding: 6 }} onClick={() => setActiveModalTab(null)}>✕</button>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 12, maxHeight: 380, overflowY: "auto", padding: 4 }}>
-              {allTrophies.map((tr) => {
-                const unlocked = statsData?.trophies?.includes(tr.id) || (tr.id === "pertama_kali" && (statsData?.hadir ?? 0) >= 1) || (tr.id === "hadir_5" && (statsData?.hadir ?? 0) >= 5) || (tr.id === "streak_5" && streak >= 5);
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 10, maxHeight: 380, overflowY: "auto", padding: 4 }}>
+              {memberAchievements.map((tr) => {
+                const unlocked = tr.unlocked;
+                const rMeta = RARITY_META[tr.rarity] || { color: "#64748b", bg: "#f8fafc", border: "#cbd5e1" };
                 return (
                   <div
                     key={tr.id}
                     style={{
-                      padding: "14px 10px",
-                      borderRadius: 16,
-                      background: unlocked ? "#fffbeb" : "#f8fafc",
-                      border: `1.5px solid ${unlocked ? "#fcd34d" : "#e2e8f0"}`,
+                      padding: "12px 8px",
+                      borderRadius: 14,
+                      background: unlocked ? rMeta.bg : "#f8fafc",
+                      border: `1.5px solid ${unlocked ? rMeta.border : "#e2e8f0"}`,
                       textAlign: "center",
                       opacity: unlocked ? 1 : 0.6,
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
-                      gap: 6
+                      gap: 4
                     }}
                   >
-                    <div style={{ width: 68, height: 68, display: "grid", placeItems: "center", filter: unlocked ? "drop-shadow(0 4px 10px rgba(217, 119, 6, 0.25))" : "none" }}>
+                    <div style={{ width: 56, height: 56, display: "grid", placeItems: "center" }}>
                       <img
-                        src={`/achievements/${tr.file}.png`}
+                        src={getTrophyIconPath(tr.id)}
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = "none";
+                        }}
                         alt={tr.name}
-                        width={60}
-                        height={60}
+                        width={52}
+                        height={52}
                         loading="lazy"
                         style={{
                           display: "block",
-                          filter: unlocked ? "none" : "grayscale(1) opacity(0.45)",
+                          filter: unlocked ? "none" : "grayscale(1) opacity(0.4)",
                           objectFit: "contain",
                         }}
                       />
                     </div>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: unlocked ? "#92400e" : "var(--muted)" }}>{tr.name}</span>
-                    <span style={{ fontSize: 11, color: "var(--muted)", lineHeight: 1.25 }}>{tr.desc}</span>
-                    <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", padding: "2px 8px", borderRadius: 999, background: unlocked ? "#fde68a" : "#e2e8f0", color: unlocked ? "#78350f" : "#64748b", marginTop: 2 }}>
-                      {unlocked ? "Terbuka" : "Terkunci"}
+                    <span style={{ fontSize: 12, fontWeight: 800, color: unlocked ? rMeta.color : "var(--muted)", lineHeight: 1.2 }}>{tr.name}</span>
+                    <span style={{ fontSize: 10, color: "var(--muted)", lineHeight: 1.2 }}>{tr.desc}</span>
+                    <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", padding: "2px 6px", borderRadius: 999, background: unlocked ? rMeta.border : "#e2e8f0", color: unlocked ? rMeta.color : "#64748b", marginTop: 2 }}>
+                      {unlocked ? "Terbuka" : `${tr.current}/${tr.target}`}
                     </span>
                   </div>
                 );
@@ -1580,6 +1810,44 @@ function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; o
           </div>
         </div>
       )}
+
+      {/* POPUP SUB-MODAL HOBI DETAIL */}
+      {selectedHobi && (() => {
+        const key = selectedHobi.toLowerCase().trim() as HobbyKey;
+        const meta = HOBBY_META[key] || { label: selectedHobi, color: "#64748b", bg: "#f1f5f9" };
+        const details = parseHobiDetail(member.hobiDetail);
+        const specificNote = details[key];
+        return (
+          <div className="modal-backdrop" onClick={() => setSelectedHobi(null)} style={{ zIndex: 1100 }}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380, width: "calc(100% - 24px)", padding: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ display: "inline-block", width: 12, height: 12, borderRadius: "50%", background: meta.color }} />
+                  <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: "var(--ink)" }}>Hobi: {meta.label}</h3>
+                </div>
+                <button type="button" className="btn btn-ghost" style={{ padding: 6 }} onClick={() => setSelectedHobi(null)}>✕</button>
+              </div>
+
+              <div style={{ padding: 14, borderRadius: 12, background: meta.bg, border: `1.5px solid ${meta.color}33`, marginBottom: 14 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: meta.color, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>
+                  Catatan / Rincian Hobi
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)", lineHeight: 1.4 }}>
+                  {specificNote && specificNote.trim() ? specificNote : `Anggota ini menyukai ${meta.label.toLowerCase()} (belum ada catatan tambahan).`}
+                </div>
+              </div>
+
+              <div style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.4 }}>
+                Diisi langsung oleh <b>{member.nama}</b> di halaman profil generus.
+              </div>
+
+              <div style={{ marginTop: 16 }}>
+                <button type="button" className="btn btn-primary" style={{ width: "100%" }} onClick={() => setSelectedHobi(null)}>Tutup</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* POPUP SUB-MODAL TELAT */}
       {activeModalTab === "telat" && (
@@ -1629,6 +1897,59 @@ function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; o
         </div>
       )}
     </AdminModal>
+
+      {/* MODAL PREVIEW FULL AVATAR / FOTO */}
+      {showFullAvatar && (
+        <div className="modal-backdrop" onClick={() => setShowFullAvatar(false)} style={{ zIndex: 1200, background: "rgba(0,0,0,0.75)", display: "grid", placeItems: "center", padding: 16 }}>
+          <div
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 420,
+              width: "100%",
+              padding: 20,
+              textAlign: "center",
+              borderRadius: 20,
+              background: "#fff",
+              position: "relative",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontWeight: 800, fontSize: 16, textAlign: "left" }}>Foto Profil ({member.nama})</div>
+              <button type="button" className="btn btn-ghost" style={{ padding: 6 }} onClick={() => setShowFullAvatar(false)}>✕</button>
+            </div>
+
+            <div style={{ width: "100%", aspectRatio: "1 / 1", borderRadius: 16, overflow: "hidden", background: "var(--surface-sunken, #f8fafc)", border: "1px solid var(--line)", display: "grid", placeItems: "center", marginBottom: 14 }}>
+              {member.foto ? (
+                <img
+                  src={member.foto}
+                  alt={member.nama}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : member.avatarId ? (
+                <img
+                  src={`/avatars/${member.avatarId.replace(/\.png$/, "")}.webp`}
+                  alt={member.nama}
+                  style={{ width: "80%", height: "80%", objectFit: "contain" }}
+                />
+              ) : (
+                <div style={{ fontSize: 64, fontWeight: 900, color: "var(--primary)" }}>
+                  {member.nama.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("") || "A"}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span className="muted" style={{ fontSize: 12 }}>
+                {member.foto ? "Foto Kustom R2" : member.avatarId ? `Avatar: ${member.avatarId}` : "Inisial"}
+              </span>
+              <button type="button" className="btn btn-primary" onClick={() => setShowFullAvatar(false)}>
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showDeleteConfirm && (
         <DeleteAnggotaConfirmModal
@@ -1837,11 +2158,14 @@ function AddMemberModal({ onClose, onSave }: { onClose: () => void; onSave: (m: 
   const [s, setS] = useState(1);
   const [form, setForm] = useState({
     nama: "", tempatLahir: "", tanggalLahir: "", noTelp: "", pendidikan: "SMA" as Member["pendidikan"],
-    jenisKelamin: "L" as "L" | "P", kategoriMudaMudi: "pribumi" as Member["kategoriMudaMudi"], asalDaerah: "",
+    pekerjaan: "", jenisKelamin: "L" as "L" | "P", kategoriMudaMudi: "pribumi" as Member["kategoriMudaMudi"], asalDaerah: "",
     domisiliAnak: "", isOrtuSama: true, domisiliOrtu: "", desa: "", kelompok: "",
   });
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
+  const [pekerjaanOpen, setPekerjaanOpen] = useState(false);
+  const [pekerjaanFreeMode, setPekerjaanFreeMode] = useState(false);
+  const pekerjaanRef = useRef<HTMLDivElement>(null);
   const [desaOpts, setDesaOpts] = useState<{ id: number; nama: string }[]>([]);
   const [kelompokOpts, setKelompokOpts] = useState<{ id: number; nama: string; desaId: number }[]>([]);
 
@@ -1863,6 +2187,15 @@ function AddMemberModal({ onClose, onSave }: { onClose: () => void; onSave: (m: 
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!pekerjaanOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (pekerjaanRef.current && !pekerjaanRef.current.contains(e.target as Node)) setPekerjaanOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [pekerjaanOpen]);
 
   const filteredKelompok = kelompokOpts.filter((k) => {
     const desa = desaOpts.find((d) => d.nama === form.desa);
@@ -1915,6 +2248,7 @@ function AddMemberModal({ onClose, onSave }: { onClose: () => void; onSave: (m: 
           jenisKelamin: form.jenisKelamin,
           noTelp: form.noTelp.trim(),
           pendidikan: form.pendidikan,
+          pekerjaan: form.pekerjaan.trim() || undefined,
           hobi: form.kategoriMudaMudi === "perantauan" ? form.asalDaerah.trim() : undefined,
           // server expects: nama, tempatLahir, tanggalLahir, jenisKelamin, kategoriUsia, etc — map minimally
           kategoriUsia: "Pra-remaja" as string,
@@ -1934,6 +2268,7 @@ function AddMemberModal({ onClose, onSave }: { onClose: () => void; onSave: (m: 
         desa: form.desa,
         kelompok: form.kelompok,
         pendidikan: form.pendidikan,
+        pekerjaan: form.pekerjaan.trim() || null,
         noTelp: form.noTelp.trim(),
         kategoriMudaMudi: form.kategoriMudaMudi,
         domisiliAnak: form.domisiliAnak.trim(),
@@ -1947,14 +2282,14 @@ function AddMemberModal({ onClose, onSave }: { onClose: () => void; onSave: (m: 
     }
   }
 
-  const canNext1 = form.nama.trim().length >= 2 && form.tempatLahir.trim() && form.tanggalLahir && form.noTelp.trim().length >= 10;
+  const canNext1 = form.nama.trim().length >= 2 && form.tempatLahir.trim() && form.tanggalLahir && form.noTelp.trim().length >= 10 && form.pekerjaan.trim().length > 0;
   const canNext2 = form.domisiliAnak.trim().length >= 3 && (form.isOrtuSama || form.domisiliOrtu.trim().length >= 3);
   const needAsal = form.kategoriMudaMudi === "perantauan" && !form.asalDaerah.trim();
 
   return (
     <AdminModal title="Tambah Anggota (oleh Admin)" onClose={onClose}>
         <div className="stepper" style={{ marginBottom: 12 }}>{[1, 2, 3].map((n) => <div key={n} className={`step-dot ${s >= n ? "on" : ""}`} />)}</div>
-        <div className="muted" style={{ marginBottom: 16 }}>Langkah {s}/3 &bull; Wajib: nama, pendidikan, tanggal lahir, no telp, tempat lahir, domisili anak.</div>
+        <div className="muted" style={{ marginBottom: 16 }}>Langkah {s}/3 &bull; Wajib: nama, pendidikan, pekerjaan, tanggal lahir, no telp, tempat lahir, domisili anak.</div>
 
         {s === 1 && (
           <div style={{ display: "grid", gap: 12 }}>
@@ -1980,11 +2315,69 @@ function AddMemberModal({ onClose, onSave }: { onClose: () => void; onSave: (m: 
                 />
               </div>
             </div>
+            <div className="field" style={{ position: "relative" }} ref={(el) => { if (el) pekerjaanRef.current = el; }}>
+              <label>Pekerjaan *</label>
+              <div style={{ display: "flex", gap: 0 }}>
+                <input
+                  data-pekerjaan-input
+                  value={form.pekerjaan}
+                  onChange={(e) => { setForm({ ...form, pekerjaan: e.target.value }); setPekerjaanOpen(true); setPekerjaanFreeMode(true); }}
+                  onFocus={() => setPekerjaanOpen(true)}
+                  placeholder={pekerjaanFreeMode ? "Tulis pekerjaan…" : "Ketik atau pilih…"}
+                  style={{ flex: 1, borderRadius: "12px 0 0 12px", borderRight: "none" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => { setPekerjaanOpen((v) => !v); setPekerjaanFreeMode(true); }}
+                  style={{ padding: "0 10px", borderRadius: "0 12px 12px 0", border: "1px solid var(--line)", background: "#f8fafc", cursor: "pointer", display: "grid", placeItems: "center", color: "var(--muted)" }}
+                  aria-label="Tampilkan pekerjaan"
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </button>
+              </div>
+              {pekerjaanOpen && (() => {
+                const q = form.pekerjaan.toLowerCase().trim();
+                const groups = PEKERJAAN_GROUPS.map((g) => ({
+                  ...g,
+                  filtered: g.items.filter((it) => !q || it.toLowerCase().includes(q)),
+                })).filter((g) => g.filtered.length > 0 || !q);
+                return (
+                  <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "#fff", border: "1px solid var(--line)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,.08)", maxHeight: 280, overflowY: "auto", marginTop: 4 }}>
+                    {groups.length === 0 && (
+                      <div style={{ padding: "12px 14px", fontSize: 12, color: "var(--muted)" }}>Tidak ada yang cocok — lanjut ketik bebas</div>
+                    )}
+                    {groups.map((g) => (
+                      <div key={g.label}>
+                        <div style={{ padding: "6px 14px 2px", fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)", background: "#f8fafc", position: "sticky", top: 0, zIndex: 1 }}>{g.label}</div>
+                        {g.filtered.map((item) => (
+                          <button
+                            key={item}
+                            type="button"
+                            onClick={() => { setForm({ ...form, pekerjaan: item }); setPekerjaanOpen(false); setPekerjaanFreeMode(false); }}
+                            style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 14px", fontSize: 13, background: form.pekerjaan === item ? "#fff1e6" : "transparent", border: "none", cursor: "pointer", color: form.pekerjaan === item ? "var(--primary)" : "var(--ink)" }}
+                          >{item}</button>
+                        ))}
+                        {!q && (
+                          <button
+                            type="button"
+                            onClick={() => { setForm({ ...form, pekerjaan: "" }); setPekerjaanOpen(false); setPekerjaanFreeMode(true); setTimeout(() => { const inp = document.querySelector<HTMLInputElement>("[data-pekerjaan-input]"); inp?.focus(); }, 50); }}
+                            style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 14px", fontSize: 12, fontWeight: 600, background: "transparent", border: "none", color: "var(--muted)", fontStyle: "italic" }}
+                          >+ Lainnya (ketik sendiri)…</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+              {pekerjaanFreeMode && form.pekerjaan.trim().length === 0 && (
+                <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>Ketik pekerjaan jika tidak ada di daftar</div>
+              )}
+            </div>
             <div className="form-grid-2">
               <div className="field"><label>Jenis Kelamin *</label>
                 <Select
                   value={form.jenisKelamin}
-                  onChange={(v) => setForm({ ...form, jenisKelamin: v as any })}
+                  onChange={(v) => setForm({ ...form, jenisKelamin: v as "L" | "P" })}
                   ariaLabel="Jenis kelamin"
                   options={[
                     { value: "L", label: "Laki-laki" },
@@ -2006,6 +2399,7 @@ function AddMemberModal({ onClose, onSave }: { onClose: () => void; onSave: (m: 
             </div>
             {form.kategoriMudaMudi === "perantauan" && <div className="field"><label>Asal Daerah *</label><input value={form.asalDaerah} onChange={(e) => setForm({ ...form, asalDaerah: e.target.value })} placeholder="Kabupaten / kota asal" /></div>}
             {needAsal && <div className="pill pill-amber">Asal daerah wajib jika perantauan</div>}
+            {pekerjaanFreeMode && form.pekerjaan.trim().length === 0 && <div className="pill pill-amber">Tulis nama pekerjaan</div>}
             <div className="form-grid-2">
               <div className="field"><label>Desa</label>
                 <Select
@@ -2048,7 +2442,7 @@ function AddMemberModal({ onClose, onSave }: { onClose: () => void; onSave: (m: 
             <div className="card" style={{ background: "var(--bg)" }}>
               <div style={{ fontWeight: 700 }}>{form.nama || "(nama)"} &bull; {form.pendidikan} &bull; {form.jenisKelamin}</div>
               <div className="muted">{form.tempatLahir} &bull; {form.tanggalLahir} &bull; {form.noTelp}</div>
-              <div className="muted">{form.kategoriMudaMudi}{form.asalDaerah ? ` &bull; asal ${form.asalDaerah}` : ""} &bull; {form.desa}/{form.kelompok}</div>
+              <div className="muted">{form.pekerjaan} &bull; {form.kategoriMudaMudi}{form.asalDaerah ? ` &bull; asal ${form.asalDaerah}` : ""} &bull; {form.desa}/{form.kelompok}</div>
               <div className="muted">Domisili anak: {form.domisiliAnak || "-"} {form.isOrtuSama ? "(ortu sama)" : `&bull; ortu: ${form.domisiliOrtu || "-"}`}</div>
             </div>
             <p className="muted">Shift JSON fleksibel &amp; status ortu jamaah. P1 (kolom D1 sudah siap, UI hide).</p>
@@ -2297,7 +2691,7 @@ function PesertaKelompokPicker({ kelompokList, selectedIds, onChange, desaList }
   );
 }
 
-function PesertaAnggotaPicker({ generusList, selectedIds, onChange, role, userKelompokId, desaList, kelompokList }: {
+function PesertaAnggotaPicker({ generusList, selectedIds, onChange, role, userKelompokId }: {
   generusList: { id: string; nama: string; kelompokId?: number | null; desaNama?: string | null; kelompokNama?: string | null }[];
   selectedIds: string[];
   onChange: (ids: string[]) => void;
@@ -2475,7 +2869,6 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
   const [kategori, setKategori] = useState<Kategori>("sambung_rutin");
   const [tingkat, setTingkat] = useState<Tingkat>(role === "admin_kelompok" ? "kelompok" : role === "admin_desa" ? "desa" : "daerah");
   const [namaWilayah, setNamaWilayah] = useState(role === "admin_kelompok" ? "" : role === "admin_desa" ? "" : "Cengkareng");
-  const lockTingkat = role === "admin_kelompok" || role === "admin_desa";
   const lockWilayah = role === "admin_kelompok" || role === "admin_desa";
 
   useEffect(() => {
@@ -3189,73 +3582,7 @@ function RejectPesertaModal({
   );
 }
 
-function UndanganMasukPage() {
-  const [rows, setRows] = useState<{
-    pesertaId: string; kegiatanId: string; desaId?: number; kelompokId?: number;
-    kegiatanJudul: string; kegiatanTanggal: string; kegiatanJam?: string; kegiatanLokasi?: string;
-    desaNama?: string; kelompokNama?: string; createdAt?: string;
-  }[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
-
-  const load = async () => {
-    setLoading(true);
-    setErr(null);
-    try {
-      const raw = await apiFetch<unknown>("/api/kegiatan/undangan-masuk");
-      setRows(Array.isArray(raw) ? raw as typeof rows : []);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { void load(); }, []);
-
-  const handleAction = async (pesertaId: string, kegiatanId: string, action: "approve" | "reject") => {
-    try {
-      await apiFetch(`/api/kegiatan/${kegiatanId}/peserta/${pesertaId}/${action}`, { method: "PUT" });
-      setRows((prev) => prev.filter((r) => r.pesertaId !== pesertaId));
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-    }
-  };
-
-  return (
-    <div>
-      <PageHeader title="Undangan Masuk" sub="Undangan kegiatan dari wilayah lain yang menunggu persetujuan kamu" />
-      {err && <div className="card" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#991b1b", display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}><span style={{ fontSize: 13, fontWeight: 700 }}>{err}</span><button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: "auto" }} onClick={() => void load()}>Retry</button></div>}
-      {loading ? (
-        <div className="lp-empty-card">Memuat undangan…</div>
-      ) : rows.length === 0 ? (
-        <div className="lp-empty-card">Tidak ada undangan masuk saat ini.</div>
-      ) : (
-        <div style={{ display: "grid", gap: 10 }}>
-          {rows.map((r) => (
-            <div key={r.pesertaId} className="card" style={{ padding: 14, display: "grid", gap: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 12 }}>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <strong style={{ fontSize: 14 }}>{r.kegiatanJudul}</strong>
-                  <span className="muted" style={{ fontSize: 12 }}>
-                    {r.kegiatanTanggal}{r.kegiatanJam ? ` • ${r.kegiatanJam}` : ""} • {r.kegiatanLokasi || "—"}
-                  </span>
-                  <span className="pill pill-amber" style={{ width: "fit-content", fontSize: 10, padding: "2px 8px" }}>
-                    {r.desaNama ? `Desa ${r.desaNama}` : ""}{r.kelompokNama ? `Kelompok ${r.kelompokNama}` : ""}
-                  </span>
-                </div>
-                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                  <button className="btn btn-primary btn-sm" onClick={() => void handleAction(r.pesertaId, r.kegiatanId, "approve")}>Terima</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => void handleAction(r.pesertaId, r.kegiatanId, "reject")}>Tolak</button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+// UndanganMasukPage removed
 
 function UsersManage({ role }: { role: AdminRole }) {
   const { user } = useAuth();
@@ -3349,15 +3676,6 @@ function UsersManage({ role }: { role: AdminRole }) {
     try {
       await apiFetch("/api/admin/users", { method: "PUT", body: JSON.stringify({ id, ...data }) });
       setEditingUser(null);
-      void loadUsers();
-    } catch (e: unknown) {
-      setUsersErr(e instanceof Error ? e.message : String(e));
-    }
-  };
-
-  const handleToggle = async (u: { id: string; status: string; role: string }) => {
-    try {
-      await apiFetch("/api/admin/users", { method: "PUT", body: JSON.stringify({ id: u.id, role: u.status === "aktif" ? "generus" : u.role }) });
       void loadUsers();
     } catch (e: unknown) {
       setUsersErr(e instanceof Error ? e.message : String(e));
@@ -4201,7 +4519,7 @@ import type { MemberPageKey } from "./features/member/MemberShell";
 import MemberHomePage from "./features/member/MemberHomePage";
 import MemberProfilePage from "./features/member/MemberProfilePage";
 import MemberStatPage from "./features/member/MemberStatPage";
-import { DEMO_KEGIATAN_MEMBER, type MemberIdentity, type MemberKehadiran } from "./features/member/types";
+import { DEMO_KEGIATAN_MEMBER, type MemberIdentity, type MemberKehadiran, type MemberKegiatan } from "./features/member/types";
 
 export default function App({ initialMode }: { initialMode?: "admin" | "member" } = {}) {
   const { user, logout } = useAuth();
@@ -4213,8 +4531,39 @@ export default function App({ initialMode }: { initialMode?: "admin" | "member" 
   const [memberPage, setMemberPage] = useState<MemberPageKey>("beranda");
   const [me, setMe] = useState<MemberIdentity | null>(null);
   const [stat, setStat] = useState<MemberKehadiran | null>(null);
+  const [memberKegiatanList, setMemberKegiatanList] = useState<MemberKegiatan[]>([]);
 
   const isAdmin = ["admin_daerah", "admin_desa", "admin_kelompok"].includes(String(role));
+
+  // Load real kegiatan data for member mode
+  useEffect(() => {
+    if (initialMode !== "member" && isAdmin) return;
+    apiFetch<unknown>("/api/kegiatan")
+      .then((raw) => {
+        const u = unwrapList<any>(raw);
+        const arr = Array.isArray(raw) ? (raw as any[]) : u.data;
+        if (!Array.isArray(arr)) return;
+        const mapped: MemberKegiatan[] = arr.map((k) => {
+          const isKel = Boolean(k.kelompokNama || k.kelompokId);
+          const isDesa = !isKel && Boolean(k.desaNama || k.desaId);
+          const tk = isKel ? "kelompok" : isDesa ? "desa" : "daerah";
+          return {
+            id: String(k.id),
+            judul: String(k.judul || ""),
+            kategori: k.kategoriAcara ?? "sambung_rutin",
+            tingkat: tk,
+            tanggal: String(k.tanggal || ""),
+            jam: String(k.jam || "00:00"),
+            lokasi: String(k.lokasi || "—"),
+            lat: k.lat != null ? Number(k.lat) : null,
+            lng: k.lng != null ? Number(k.lng) : null,
+            radiusM: Number(k.radiusM) || 100,
+          };
+        });
+        setMemberKegiatanList(mapped);
+      })
+      .catch(() => {});
+  }, [initialMode, isAdmin]);
 
   // Load real profile data for member mode
   useEffect(() => {
@@ -4243,6 +4592,7 @@ export default function App({ initialMode }: { initialMode?: "admin" | "member" 
         status: "aktif",
         hobi: generus.hobi ?? null,
         hobiDetail: generus.hobiDetail ?? null,
+        hobiUpdatedAt: generus.hobiUpdatedAt ?? null,
       };
       setMe(mapped);
       // Load stats
@@ -4265,19 +4615,30 @@ export default function App({ initialMode }: { initialMode?: "admin" | "member" 
   }, [initialMode, user]);
 
   // Persist profile changes to backend
-  const handleProfileUpdate = (m: MemberIdentity) => {
+  const handleProfileUpdate = async (m: MemberIdentity) => {
     setMe(m);
     if (m.id) {
-      apiFetch("/api/profile", {
-        method: "PUT",
-        body: JSON.stringify({ hobi: m.hobi, hobiDetail: m.hobiDetail, foto: m.foto }),
-      }).catch(() => {});
+      try {
+        await apiFetch("/api/profile", {
+          method: "PUT",
+          body: JSON.stringify({
+            hobi: m.hobi,
+            hobiDetail: m.hobiDetail,
+            foto: m.foto,
+            avatarId: m.avatarId,
+            jenisKelamin: m.jenisKelamin,
+          }),
+        });
+      } catch (e) {
+        console.error("Gagal update profil:", e);
+      }
     }
   };
 
   if (initialMode === "member") {
-    const fallbackMe: MemberIdentity = me ?? { id: "", nama: "Memuat…", desa: "", kelompok: "", pendidikan: "", noTelp: "", kategoriMudaMudi: "pribumi", status: "aktif" };
+    const fallbackMe: MemberIdentity = me ?? { id: "", nama: "Memuat…", desa: "", kelompok: "", pendidikan: "", pekerjaan: null, noTelp: "", kategoriMudaMudi: "pribumi", asalDaerah: null, domisiliAnak: "", domisiliOrtu: null, isOrtuSama: true, status: "aktif" };
     const fallbackStat: MemberKehadiran = stat ?? { total: 0, hadir: 0, izin: 0, alpha: 0, hadirRate: 0, tren: [] };
+    const effectiveKegiatan = memberKegiatanList.length > 0 ? memberKegiatanList : DEMO_KEGIATAN_MEMBER;
     return (
       <MemberShell
         page={memberPage}
@@ -4286,16 +4647,17 @@ export default function App({ initialMode }: { initialMode?: "admin" | "member" 
         onExit={async () => { await logout(); navigate("/login", { replace: true }); }}
         onLogout={async () => { await logout(); navigate("/login", { replace: true }); }}
       >
-        {memberPage === "beranda" && <MemberHomePage me={fallbackMe} />}
-        {memberPage === "profil" && <MemberProfilePage me={fallbackMe} stat={fallbackStat} kegiatan={DEMO_KEGIATAN_MEMBER} onUpdate={handleProfileUpdate} />}
+        {memberPage === "beranda" && <MemberHomePage me={fallbackMe} kegiatanList={memberKegiatanList} />}
+        {memberPage === "profil" && <MemberProfilePage me={fallbackMe} stat={fallbackStat} kegiatan={effectiveKegiatan} onUpdate={handleProfileUpdate} />}
         {memberPage === "statistik" && <MemberStatPage me={fallbackMe} stat={fallbackStat} />}
       </MemberShell>
     );
   }
 
   if (!isAdmin) {
-    const fallbackMe: MemberIdentity = me ?? { id: "", nama: "Memuat…", desa: "", kelompok: "", pendidikan: "", noTelp: "", kategoriMudaMudi: "pribumi", status: "aktif" };
+    const fallbackMe: MemberIdentity = me ?? { id: "", nama: "Memuat…", desa: "", kelompok: "", pendidikan: "", pekerjaan: null, noTelp: "", kategoriMudaMudi: "pribumi", asalDaerah: null, domisiliAnak: "", domisiliOrtu: null, isOrtuSama: true, status: "aktif" };
     const fallbackStat: MemberKehadiran = stat ?? { total: 0, hadir: 0, izin: 0, alpha: 0, hadirRate: 0, tren: [] };
+    const effectiveKegiatan = memberKegiatanList.length > 0 ? memberKegiatanList : DEMO_KEGIATAN_MEMBER;
     return (
       <MemberShell
         page={memberPage}
@@ -4304,8 +4666,8 @@ export default function App({ initialMode }: { initialMode?: "admin" | "member" 
         onExit={async () => { await logout(); navigate("/login", { replace: true }); }}
         onLogout={async () => { await logout(); navigate("/login", { replace: true }); }}
       >
-        {memberPage === "beranda" && <MemberHomePage me={fallbackMe} />}
-        {memberPage === "profil" && <MemberProfilePage me={fallbackMe} stat={fallbackStat} kegiatan={DEMO_KEGIATAN_MEMBER} onUpdate={handleProfileUpdate} />}
+        {memberPage === "beranda" && <MemberHomePage me={fallbackMe} kegiatanList={memberKegiatanList} />}
+        {memberPage === "profil" && <MemberProfilePage me={fallbackMe} stat={fallbackStat} kegiatan={effectiveKegiatan} onUpdate={handleProfileUpdate} />}
         {memberPage === "statistik" && <MemberStatPage me={fallbackMe} stat={fallbackStat} />}
       </MemberShell>
     );

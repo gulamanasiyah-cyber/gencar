@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { eq, and, or, like, sql, not, isNull, isNotNull, notInArray } from "drizzle-orm";
-import { generus, desa, kelompok, users, settings } from "../../../shared/schema";
+import { generus, desa, kelompok, users, settings, absensi, kegiatan } from "../../../shared/schema";
 import { getDb } from "../utils/db";
 import { requireAuth } from "../middleware/auth";
 import { decryptPasswordSymmetric, encryptPasswordSymmetric } from "../services/crypto";
@@ -163,12 +163,18 @@ r.get("/:id", async (c) => {
       tanggal: kegiatan.tanggal,
       jam: kegiatan.jam,
       kategoriAcara: kegiatan.kategoriAcara,
-      tingkat: kegiatan.tingkat,
+      desaId: kegiatan.desaId,
+      kelompokId: kegiatan.kelompokId,
     })
     .from(absensi)
     .innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id))
     .where(eq(absensi.generusId, id))
     .orderBy(sql`${kegiatan.tanggal} DESC, ${kegiatan.jam} DESC`);
+
+  const mappedAbsensiRows = absensiRows.map((a) => ({
+    ...a,
+    tingkat: a.kelompokId ? "kelompok" : a.desaId ? "desa" : "daerah",
+  }));
 
   const hadirList = absensiRows.filter((a) => a.keterangan === "hadir");
   const izinList = absensiRows.filter((a) => a.keterangan === "izin");
@@ -199,6 +205,7 @@ r.get("/:id", async (c) => {
   if (currentStreak >= 10) trophiesUnlocked.push("streak_10");
   if (currentStreak >= 20) trophiesUnlocked.push("streak_20");
   if (currentStreak >= 40) trophiesUnlocked.push("streak_40");
+  if (hadirCount > 0 && riwayatTelat.length === 0) trophiesUnlocked.push("zero_telat");
 
   // Perhitungan keterlambatan: bandingkan jam kegiatan dengan timestamp absensi
   const riwayatTelat: { id: string; judul?: string; tanggal: string; jamKegiatan: string; jamAbsen: string; menit: number }[] = [];
@@ -253,7 +260,7 @@ r.get("/:id", async (c) => {
       telatCount,
       avgTelatMenit,
       riwayatTelat,
-      riwayat: absensiRows.slice(0, 10),
+      riwayat: mappedAbsensiRows.slice(0, 10),
     },
   });
 });

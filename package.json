@@ -11,6 +11,8 @@
     "deploy": "npm run build --prefix frontend && wrangler deploy",
     "lint": "oxlint --config frontend/.oxlintrc.json",
     "db:push": "drizzle-kit push",
+    "db:seed": "node --import tsx/esm server/seed.ts",
+    "db:seed:remote": "node --import tsx/esm server/seed.ts --remote",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

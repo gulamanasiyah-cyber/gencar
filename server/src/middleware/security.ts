@@ -23,13 +23,18 @@ export function rateLimitAuth(limit = 10, windowMs = 60_000) {
   };
 }
 
-export function bodyLimit(maxBytes = 1 * 1024 * 1024) {
+export function bodyLimit(maxBytes = 10 * 1024 * 1024) {
   return async (c: Context, next: Next) => {
+    const path = new URL(c.req.url).pathname;
+    // Allow up to 10MB for file upload routes, 1MB for regular JSON APIs
+    const isUploadRoute = path.startsWith("/api/upload") || path.startsWith("/api/import");
+    const allowedLimit = isUploadRoute ? 10 * 1024 * 1024 : 1 * 1024 * 1024;
+
     const len = c.req.header("content-length");
     if (len) {
       const n = parseInt(len, 10);
-      if (Number.isFinite(n) && n > maxBytes) {
-        return c.json({ error: "Payload terlalu besar (maks 1MB)" }, 413);
+      if (Number.isFinite(n) && n > allowedLimit) {
+        return c.json({ error: `Payload terlalu besar (maks ${isUploadRoute ? "10MB" : "1MB"})` }, 413);
       }
     }
     // Note: chunked / no content-length is enforced by Workerd runtime limit;

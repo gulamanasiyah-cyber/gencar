@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { Play, Sparkles, X, MapPin, CalendarDays, Share2, Tag, Layers, Shuffle, ChevronLeft, ChevronRight } from "lucide-react";
 import { apiFetch } from "../../lib/api";
+import { labelKategori } from "../../lib/labelKategori";
 
 export type GaleriItem = {
   id: string;
@@ -17,8 +18,6 @@ export type GaleriItem = {
   durasi?: string;
   deskripsi?: string;
 };
-
-const CATEGORIES = ["Semua", "Reels", "Foto Kegiatan", "Sambung Rutin", "Festival", "Olahraga"];
 
 type PolaroidTransform = { rotate: number; y: number; x: number; marginTop: string; zIndex: number };
 
@@ -184,7 +183,7 @@ function PolaroidLightbox({ item, onClose }: { item: GaleriItem; onClose: () => 
                 </div>
               )}
               <div className="swiss-polaroid-caption">
-                <span>{item.kategori}</span>
+                <span>{labelKategori(item.kategori)}</span>
                 <strong>{item.judul}</strong>
               </div>
             </div>
@@ -362,7 +361,7 @@ function MobilePolaroidDeck({
                   <div className="pub-galeri-card-overlay">
                     <div className="pub-galeri-card-top">
                       <span className="pub-galeri-tag">
-                        <Tag size={10} /> {item.kategori}
+                        <Tag size={10} /> {labelKategori(item.kategori)}
                       </span>
                       {item.type === "reel" && (
                         <span className="pub-galeri-reel-badge">
@@ -415,7 +414,23 @@ export function PublicGaleri() {
   const [topCardId, setTopCardId] = useState<string | null>(null);
   const [items, setItems] = useState<GaleriItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showMoreCats, setShowMoreCats] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
+
+  // Derive categories from fetched items (skip "Semua", "Reels", "Foto Kegiatan" as special)
+  const dataCats = useMemo(() => {
+    const cats = new Set<string>();
+    for (const item of items) {
+      if (item.kategori && !["Reels", "Foto Kegiatan"].includes(item.kategori)) {
+        cats.add(item.kategori);
+      }
+    }
+    return Array.from(cats);
+  }, [items]);
+
+  const visibleCats = useMemo(() => dataCats.slice(0, 3), [dataCats]);
+  const overflowCats = useMemo(() => dataCats.slice(3), [dataCats]);
+  const isOverflowActive = useMemo(() => overflowCats.includes(activeTab), [overflowCats, activeTab]);
 
   useEffect(() => {
     let cancel = false;
@@ -524,20 +539,30 @@ export function PublicGaleri() {
         {/* CATEGORY FILTER TABS + SHUFFLE ACTION (shuffle hidden on mobile — shake only) */}
         <div className="pub-galeri-tabs-row">
           <div className="pub-galeri-tabs" role="tablist">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === cat}
-                className={`pub-galeri-tab${activeTab === cat ? " is-active" : ""}`}
-                onClick={() => setActiveTab(cat)}
-              >
-                {cat === "Reels" && <Play size={12} fill="currentColor" />}
-                {cat === "Foto Kegiatan" && <Layers size={12} />}
+            {/* Semua selalu ada */}
+            <button type="button" role="tab" aria-selected={activeTab === "Semua"} className={`pub-galeri-tab${activeTab === "Semua" ? " is-active" : ""}`} onClick={() => setActiveTab("Semua")}>
+              Semua
+            </button>
+            <button type="button" role="tab" aria-selected={activeTab === "Reels"} className={`pub-galeri-tab${activeTab === "Reels" ? " is-active" : ""}`} onClick={() => setActiveTab("Reels")}>
+              <Play size={12} fill="currentColor" /> Reels
+            </button>
+            <button type="button" role="tab" aria-selected={activeTab === "Foto Kegiatan"} className={`pub-galeri-tab${activeTab === "Foto Kegiatan" ? " is-active" : ""}`} onClick={() => setActiveTab("Foto Kegiatan")}>
+              <Layers size={12} /> Foto Kegiatan
+            </button>
+
+            {/* Max 3 data kategori langsung */}
+            {visibleCats.map((cat) => (
+              <button key={cat} type="button" role="tab" aria-selected={activeTab === cat} className={`pub-galeri-tab${activeTab === cat ? " is-active" : ""}`} onClick={() => setActiveTab(cat)}>
                 {cat}
               </button>
             ))}
+
+            {/* Overflow: "+N" buka modal */}
+            {overflowCats.length > 0 && (
+              <button type="button" role="tab" aria-selected={isOverflowActive} className={`pub-galeri-tab${isOverflowActive ? " is-active" : ""}`} onClick={() => setShowMoreCats(true)}>
+                +{overflowCats.length} Lainnya
+              </button>
+            )}
           </div>
 
           {!isMobile && (
@@ -596,7 +621,7 @@ export function PublicGaleri() {
                       <div className="pub-galeri-card-overlay">
                         <div className="pub-galeri-card-top">
                           <span className="pub-galeri-tag">
-                            <Tag size={10} /> {item.kategori}
+                            <Tag size={10} /> {labelKategori(item.kategori)}
                           </span>
                           {item.type === "reel" && (
                             <span className="pub-galeri-reel-badge">
@@ -649,6 +674,37 @@ export function PublicGaleri() {
           />
         )}
       </AnimatePresence>
+
+      {/* MODAL KATEGORI LAINNYA */}
+      {showMoreCats && (
+        <div className="modal-backdrop" onClick={() => setShowMoreCats(false)} style={{ zIndex: 1200, display: "grid", placeItems: "center", padding: 16 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420, width: "100%", padding: 22, borderRadius: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Kategori Lainnya</h3>
+              <button type="button" style={{ padding: 6, background: "none", border: "none", cursor: "pointer", color: "var(--muted)" }} onClick={() => setShowMoreCats(false)}>✕</button>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {overflowCats.map((cat) => {
+                const active = activeTab === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    className={`pub-galeri-tab${active ? " is-active" : ""}`}
+                    style={{ fontSize: 13, padding: "8px 14px" }}
+                    onClick={() => {
+                      setActiveTab(cat);
+                      setShowMoreCats(false);
+                    }}
+                  >
+                    {labelKategori(cat)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

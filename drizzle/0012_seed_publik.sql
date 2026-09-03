@@ -25,6 +25,10 @@ INSERT OR IGNORE INTO `kegiatan_publik` (`id`, `slug`, `judul`, `excerpt`, `kont
 ('kp_11', 'kelas-kreatif-desain-poster', 'Kelas Kreatif: Desain Poster Dakwah yang Nggak Ngebosenin', 'Belajar Canva, tipografi, dan hierarki visual. Output langsung jadi poster kegiatan.', '<p>Workshop desain grafis untuk tim publikasi media sosial.</p>', 'https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&w=900&h=700&q=80', 'Lainnya', 'lainnya', '2026-02-12', '10:00', 'Ruang Kreatif', 'published', datetime('now')),
 ('kp_12', 'bakti-sosial-ramadhan-berbagi', 'Bakti Sosial Ramadhan — paket sembako & takjil on the road', 'Distribusi 200 paket + takjil keliling. Donasi transparan, laporan publik.', '<p>Berbagi kebahagiaan di bulan suci bersama kaum dhuafa dan musafir.</p>', 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=900&h=700&q=80', 'Keakraban', 'keakraban', '2026-02-02', '16:00', 'Cengkareng Barat', 'published', datetime('now'));--> statement-breakpoint
 
+-- 2.5) Ensure default system author user exists for seed articles
+INSERT OR IGNORE INTO `users` (`id`, `name`, `email`, `password_hash`, `role`) VALUES
+('d2c461fc-b1b8-4320-86b6-c6d2b0e7b2f1', 'Admin Publik', 'admin-publik@gencar.local', '$2a$10$w09ZlMh9F.7xU4h947G8bOK3p9r5fG6F6z9iFz7wG3k9N2u3s4q6e', 'admin_daerah');--> statement-breakpoint
+
 -- 3) artikel & berita (12 artikel publik)
 INSERT OR IGNORE INTO `artikel` (`id`, `slug`, `judul`, `ringkasan`, `konten`, `cover_image`, `kategori`, `tipe`, `status`, `author_id`, `published_at`) VALUES
 ('art_1', 'cara-bikin-kegiatan-yang-orang-mau-datang', 'Cara bikin kegiatan yang orang mau datang (tanpa spam broadcast)', 'Rumus sederhana: janji jelas, tempat jelas, pulang bawa cerita.', '<p>Kegiatan yang bermakna berakar dari niat ikhlas dan persiapan matang. Jangan hanya broadcast berulang-ulang, buatlah agenda yang menjawab kebutuhan jamaah muda-mudi.</p>', 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=700&h=480&q=80', 'Tuntunan Ibadah', 'artikel', 'published', 'd2c461fc-b1b8-4320-86b6-c6d2b0e7b2f1', datetime('now')),

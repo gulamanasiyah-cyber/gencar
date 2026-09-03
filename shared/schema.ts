@@ -49,6 +49,7 @@ export const generus = sqliteTable("generus", {
   noTelpOrtu: text("no_telp_ortu"),
   hobi: text("hobi"),
   hobiDetail: text("hobi_detail"),
+  hobiUpdatedAt: text("hobi_updated_at"),
   makananMinumanFavorit: text("makanan_minuman_favorit"),
   suku: text("suku"),
   foto: text("foto"),
