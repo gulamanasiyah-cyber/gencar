@@ -1021,6 +1021,8 @@ function AnggotaPage({ role: _role }: { role: AdminRole }) {
   const [desaFilter, setDesaFilter] = useState("Semua");
   const [kelompokFilter, setKelompokFilter] = useState("semua");
   const [showAdd, setShowAdd] = useState(false);
+  const [editMember, setEditMember] = useState<Member | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [magicLinkModal, setMagicLinkModal] = useState<string | null>(null);
   const [detailMember, setDetailMember] = useState<Member | null>(null);
   const [qrMember, setQrMember] = useState<Member | null>(null);
@@ -1135,7 +1137,7 @@ function AnggotaPage({ role: _role }: { role: AdminRole }) {
       })
       .finally(() => { if (!cancel) setLoadingMembers(false); });
     return () => { cancel = true; };
-  }, [qDebounced, desaFilter, kelompokFilter, statusFilter, page, limit, desaFilterOpts, kelompokFilterOpts, kategoriFilter]);
+  }, [qDebounced, desaFilter, kelompokFilter, statusFilter, page, limit, desaFilterOpts, kelompokFilterOpts, kategoriFilter, refreshKey]);
 
   // Signal from MemberDetailModal after DELETE — force members reload
   useEffect(() => {
@@ -1252,6 +1254,7 @@ function AnggotaPage({ role: _role }: { role: AdminRole }) {
                   <td>
                     <div style={{ display: "flex", gap: 6 }}>
                       <button className="btn btn-ghost row-icon-btn" aria-label="Lihat detail" title="Detail" onClick={() => setDetailMember(m)}><IcoEye size={16} /></button>
+                      <button className="btn btn-ghost row-icon-btn" aria-label="Edit" title="Edit" onClick={() => setEditMember(m)}><IcoEdit size={16} /></button>
                       <InlineMagicLinkBtn generusId={m.id} onLink={setMagicLinkModal} />
                       <button className="btn btn-ghost row-icon-btn" aria-label="Buat QR" title="Buat QR" onClick={() => setQrMember(m)}><IcoQr size={16} /></button>
                       <button
@@ -1301,6 +1304,7 @@ function AnggotaPage({ role: _role }: { role: AdminRole }) {
 
               <div className="member-card-actions" onClick={(e) => e.stopPropagation()}>
                 <button className="btn btn-ghost row-icon-btn" aria-label="Lihat detail" title="Detail" onClick={() => setDetailMember(m)}><IcoEye size={16} /></button>
+                <button className="btn btn-ghost row-icon-btn" aria-label="Edit" title="Edit" onClick={() => setEditMember(m)}><IcoEdit size={16} /></button>
                 <button className="btn btn-primary row-icon-btn" aria-label="Buat QR" title="Buat QR" style={{ background: "var(--primary)", borderColor: "var(--primary)", color: "#fff" }} onClick={() => setQrMember(m)}><IcoQr size={16} /></button>
               </div>
             </div>
@@ -1310,6 +1314,7 @@ function AnggotaPage({ role: _role }: { role: AdminRole }) {
       )}
 
       {showAdd && <AddMemberModal onClose={() => setShowAdd(false)} onSave={(m) => { setMembers((prev) => [m, ...prev]); setShowAdd(false); }} />}
+      {editMember && <EditMemberModal member={editMember} onClose={() => setEditMember(null)} onSaved={() => { setEditMember(null); setRefreshKey((k) => k + 1); }} />}
       {detailMember && (
         <MemberDetailModal
           member={detailMember}
@@ -2511,6 +2516,226 @@ function DeleteKegiatanModal({ kegiatan, onClose, onDeleted }: { kegiatan: Kegia
           <button className="btn btn-danger" style={{ flex: 1, minWidth: 0 }} disabled={!isMatch || busy} aria-busy={busy} onClick={() => void handleDelete()}>
             {busy ? "Menghapus…" : "Hapus"}
           </button>
+        </div>
+      </div>
+    </AdminModal>
+  );
+}
+
+function EditMemberModal({ member, onClose, onSaved }: { member: Member; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState({
+    nama: member.nama,
+    namaOrtu: "",
+    tempatLahir: "",
+    tanggalLahir: "",
+    noTelp: member.noTelp,
+    noTelpOrtu: "",
+    pendidikan: member.pendidikan,
+    pekerjaan: member.pekerjaan || "",
+    jenisKelamin: (member.jenisKelamin || "L") as "L" | "P",
+    kategoriMudaMudi: (member.kategoriMudaMudi || "pribumi") as "pribumi" | "perantauan",
+    asalDaerah: "",
+    domisiliAnak: member.domisiliAnak,
+    isOrtuSama: member.isOrtuSama,
+    domisiliOrtu: "",
+    statusNikah: "Belum Menikah" as "Belum Menikah" | "Menikah",
+    desa: member.desa,
+    kelompok: member.kelompok,
+  });
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
+  const [desaOpts, setDesaOpts] = useState<{ id: number; nama: string }[]>([]);
+  const [kelompokOpts, setKelompokOpts] = useState<{ id: number; nama: string; desaId: number }[]>([]);
+  const [pekerjaanOpen, setPekerjaanOpen] = useState(false);
+  const [pekerjaanFreeMode, setPekerjaanFreeMode] = useState(false);
+  const pekerjaanRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!pekerjaanOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (pekerjaanRef.current && !pekerjaanRef.current.contains(e.target as Node)) setPekerjaanOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [pekerjaanOpen]);
+
+  useEffect(() => {
+    void apiFetch<unknown>("/api/auth/desa").then((j: unknown) => {
+      const arr = Array.isArray(j) ? j as { id: number; nama: string }[] : (j && typeof j === "object" && Array.isArray((j as { desa?: unknown[] }).desa) ? (j as { desa: { id: number; nama: string }[] }).desa : []);
+      setDesaOpts(arr);
+    }).catch(() => {});
+    void apiFetch<unknown>("/api/auth/kelompok").then((j: unknown) => {
+      if (Array.isArray(j)) setKelompokOpts(j as { id: number; nama: string; desaId: number }[]);
+    }).catch(() => {});
+    void apiFetch<any>(`/api/generus/${member.id}`).then((d) => {
+      if (!d) return;
+      setForm((prev) => ({
+        ...prev,
+        nama: d.nama ?? prev.nama,
+        namaOrtu: d.namaOrtu ?? "",
+        tempatLahir: d.tempatLahir ?? "",
+        tanggalLahir: d.tanggalLahir ?? "",
+        noTelp: d.noTelp ?? prev.noTelp,
+        noTelpOrtu: d.noTelpOrtu ?? "",
+        pendidikan: d.pendidikan ?? prev.pendidikan,
+        pekerjaan: d.pekerjaan ?? prev.pekerjaan,
+        jenisKelamin: d.jenisKelamin === "P" ? "P" : "L",
+        kategoriMudaMudi: d.kategoriMudaMudi === "perantauan" ? "perantauan" : "pribumi",
+        asalDaerah: d.asalDaerah ?? "",
+        domisiliAnak: d.domisiliAnak ?? "",
+        isOrtuSama: d.isDomisiliOrtuSama == null ? true : Boolean(d.isDomisiliOrtuSama),
+        domisiliOrtu: d.domisiliOrtu ?? "",
+        statusNikah: (d.statusNikah as "Belum Menikah" | "Menikah") ?? "Belum Menikah",
+        desa: d.desaNama ?? prev.desa,
+        kelompok: d.kelompokNama ?? prev.kelompok,
+      }));
+    }).catch(() => {});
+  }, [member.id]);
+
+  async function handleSave() {
+    if (saving) return;
+    if (!form.nama.trim()) { setSaveErr("Nama wajib diisi."); return; }
+    if (form.kategoriMudaMudi === "perantauan" && !form.asalDaerah.trim()) {
+      setSaveErr("Asal daerah wajib jika kategori perantauan.");
+      return;
+    }
+    setSaveErr(null);
+    setSaving(true);
+    try {
+      const body: Record<string, unknown> = { nama: form.nama.trim() };
+      if (form.tempatLahir) body.tempatLahir = form.tempatLahir.trim();
+      if (form.tanggalLahir) body.tanggalLahir = form.tanggalLahir;
+      if (form.noTelp) body.noTelp = form.noTelp.trim();
+      if (form.pendidikan) body.pendidikan = form.pendidikan;
+      if (form.pekerjaan) body.pekerjaan = form.pekerjaan.trim();
+      if (form.jenisKelamin) body.jenisKelamin = form.jenisKelamin;
+      if (form.domisiliAnak) body.domisiliAnak = form.domisiliAnak.trim();
+      if (form.kategoriMudaMudi) body.kategoriMudaMudi = form.kategoriMudaMudi;
+      if (form.asalDaerah) body.asalDaerah = form.asalDaerah.trim();
+      if (form.namaOrtu) body.namaOrtu = form.namaOrtu.trim();
+      if (form.noTelpOrtu) body.noTelpOrtu = form.noTelpOrtu.trim();
+      if (!form.isOrtuSama && form.domisiliOrtu) body.domisiliOrtu = form.domisiliOrtu.trim();
+      if (form.statusNikah) body.statusNikah = form.statusNikah;
+      body.isDomisiliOrtuSama = form.isOrtuSama ? 1 : 0;
+      const hitD = desaOpts.find((d) => d.nama === form.desa);
+      if (hitD) { body.desaId = hitD.id; }
+      const filteredKel = kelompokOpts.filter((k) => hitD ? k.desaId === hitD.id : true);
+      const hitK = filteredKel.find((k) => k.nama === form.kelompok);
+      if (hitK) { body.kelompokId = hitK.id; }
+      await apiFetch(`/api/generus/${member.id}`, { method: "PATCH", body: JSON.stringify(body) });
+      onSaved();
+    } catch (e: unknown) {
+      setSaveErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <AdminModal title="Edit Anggota" onClose={onClose}>
+      <div style={{ display: "grid", gap: 12 }}>
+        <div className="field"><label>Nama</label><input value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} /></div>
+        <div className="form-grid-2">
+          <div className="field"><label>Tempat Lahir</label><input value={form.tempatLahir} onChange={(e) => setForm({ ...form, tempatLahir: e.target.value })} /></div>
+          <div className="field"><label>Tanggal Lahir</label><input type="date" value={form.tanggalLahir} onChange={(e) => setForm({ ...form, tanggalLahir: e.target.value })} /></div>
+        </div>
+        <div className="form-grid-2">
+          <div className="field"><label>Jenis Kelamin</label>
+            <Select value={form.jenisKelamin} onChange={(v) => setForm({ ...form, jenisKelamin: v as "L" | "P" })} options={[{ value: "L", label: "Laki-laki" }, { value: "P", label: "Perempuan" }]} ariaLabel="Jenis Kelamin" />
+          </div>
+          <div className="field"><label>Status Nikah</label>
+            <Select value={form.statusNikah} onChange={(v) => setForm({ ...form, statusNikah: v as "Belum Menikah" | "Menikah" })} options={[{ value: "Belum Menikah", label: "Belum Menikah" }, { value: "Menikah", label: "Menikah" }]} ariaLabel="Status Nikah" />
+          </div>
+        </div>
+        <div className="form-grid-2">
+          <div className="field"><label>No Telp</label><input value={form.noTelp} onChange={(e) => setForm({ ...form, noTelp: e.target.value })} /></div>
+          <div className="field"><label>No Telp Ortu</label><input value={form.noTelpOrtu} onChange={(e) => setForm({ ...form, noTelpOrtu: e.target.value })} /></div>
+        </div>
+        <div className="form-grid-2">
+          <div className="field"><label>Nama Ortu</label><input value={form.namaOrtu} onChange={(e) => setForm({ ...form, namaOrtu: e.target.value })} /></div>
+          <div className="field"><label>Pendidikan</label>
+            <Select value={form.pendidikan} onChange={(v) => setForm({ ...form, pendidikan: v })} options={["SD", "SMP", "SMA", "Sedang menempuh perguruan tinggi", "Sarjana"].map((o) => ({ value: o, label: o }))} ariaLabel="Pendidikan" />
+          </div>
+        </div>
+        <div className="field" style={{ position: "relative" }} ref={(el) => { if (el) pekerjaanRef.current = el; }}>
+          <label>Pekerjaan</label>
+          <div style={{ display: "flex", gap: 0 }}>
+            <input
+              data-pekerjaan-input
+              value={form.pekerjaan}
+              onChange={(e) => { setForm({ ...form, pekerjaan: e.target.value }); setPekerjaanOpen(true); setPekerjaanFreeMode(true); }}
+              onFocus={() => setPekerjaanOpen(true)}
+              placeholder={pekerjaanFreeMode ? "Tulis pekerjaan…" : "Ketik atau pilih…"}
+              style={{ flex: 1, borderRadius: "12px 0 0 12px", borderRight: "none" }}
+            />
+            <button
+              type="button"
+              onClick={() => { setPekerjaanOpen((v) => !v); setPekerjaanFreeMode(true); }}
+              style={{ padding: "0 10px", borderRadius: "0 12px 12px 0", border: "1px solid var(--line)", background: "#f8fafc", cursor: "pointer", display: "grid", placeItems: "center", color: "var(--muted)" }}
+              aria-label="Tampilkan pekerjaan"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+          </div>
+          {pekerjaanOpen && (() => {
+            const q = form.pekerjaan.toLowerCase().trim();
+            const groups = PEKERJAAN_GROUPS.map((g) => ({
+              ...g,
+              filtered: g.items.filter((it) => !q || it.toLowerCase().includes(q)),
+            })).filter((g) => g.filtered.length > 0 || !q);
+            return (
+              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "#fff", border: "1px solid var(--line)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,.08)", maxHeight: 280, overflowY: "auto", marginTop: 4 }}>
+                {groups.length === 0 && (
+                  <div style={{ padding: "12px 14px", fontSize: 12, color: "var(--muted)" }}>Tidak ada yang cocok — lanjut ketik bebas</div>
+                )}
+                {groups.map((g) => (
+                  <div key={g.label}>
+                    <div style={{ padding: "6px 14px 2px", fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)", background: "#f8fafc", position: "sticky", top: 0, zIndex: 1 }}>{g.label}</div>
+                    {g.filtered.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => { setForm({ ...form, pekerjaan: item }); setPekerjaanOpen(false); setPekerjaanFreeMode(false); }}
+                        style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 14px", fontSize: 13, background: form.pekerjaan === item ? "#fff1e6" : "transparent", border: "none", cursor: "pointer", color: form.pekerjaan === item ? "var(--primary)" : "var(--ink)" }}
+                      >{item}</button>
+                    ))}
+                    {!q && (
+                      <button
+                        type="button"
+                        onClick={() => { setForm({ ...form, pekerjaan: "" }); setPekerjaanOpen(false); setPekerjaanFreeMode(true); setTimeout(() => { const inp = document.querySelector<HTMLInputElement>("[data-pekerjaan-input]"); inp?.focus(); }, 50); }}
+                        style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 14px", fontSize: 12, fontWeight: 600, background: "transparent", border: "none", color: "var(--muted)", fontStyle: "italic" }}
+                      >+ Lainnya (ketik sendiri)…</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+        <div className="form-grid-2">
+          <div className="field"><label>Kategori Muda-Mudi</label>
+            <Select value={form.kategoriMudaMudi} onChange={(v) => setForm({ ...form, kategoriMudaMudi: v as any })} options={[{ value: "pribumi", label: "Pribumi" }, { value: "perantauan", label: "Perantauan" }]} ariaLabel="Kategori Muda-Mudi" />
+          </div>
+          {form.kategoriMudaMudi === "perantauan" && <div className="field"><label>Asal Daerah</label><input value={form.asalDaerah} onChange={(e) => setForm({ ...form, asalDaerah: e.target.value })} /></div>}
+        </div>
+        <div className="field"><label>Domisili Anak</label><textarea rows={2} value={form.domisiliAnak} onChange={(e) => setForm({ ...form, domisiliAnak: e.target.value })} placeholder="Alamat domisili anak" /></div>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700 }}>
+          <input type="checkbox" checked={form.isOrtuSama} onChange={(e) => setForm({ ...form, isOrtuSama: e.target.checked, domisiliOrtu: e.target.checked ? "" : form.domisiliOrtu })} />
+          Domisili ortu sama dengan anak
+        </label>
+        {!form.isOrtuSama && <div className="field"><label>Domisili Ortu</label><textarea rows={2} value={form.domisiliOrtu} onChange={(e) => setForm({ ...form, domisiliOrtu: e.target.value })} placeholder="Alamat ortu jika berbeda" /></div>}
+        <div className="form-grid-2">
+          <div className="field"><label>Desa</label>
+            <Select value={form.desa} onChange={(v) => setForm({ ...form, desa: v, kelompok: "" })} options={desaOpts.map((d) => ({ value: d.nama, label: d.nama }))} ariaLabel="Desa" />
+          </div>
+          <div className="field"><label>Kelompok</label>
+            <Select value={form.kelompok} onChange={(v) => setForm({ ...form, kelompok: v })} options={kelompokOpts.filter((k) => { const d = desaOpts.find((x) => x.nama === form.desa); return d ? k.desaId === d.id : true; }).map((k) => ({ value: k.nama, label: k.nama }))} ariaLabel="Kelompok" />
+          </div>
+        </div>
+        {saveErr && <div style={{ color: "var(--red, #dc2626)", fontSize: 13 }}>{saveErr}</div>}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Batal</button>
+          <button className="btn btn-primary" style={{ flex: 1 }} disabled={saving} aria-busy={saving} onClick={() => void handleSave()}>{saving ? "Menyimpan…" : "Simpan"}</button>
         </div>
       </div>
     </AdminModal>
