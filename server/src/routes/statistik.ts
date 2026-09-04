@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { eq, and, or, sql } from "drizzle-orm";
-import { generus, kegiatan, absensi, desa, kelompok } from "../../../shared/schema";
+import { eq, and, or, sql, isNull } from "drizzle-orm";
+import { generus, kegiatan, absensi, desa, kelompok, kegiatanPeserta } from "../../../shared/schema";
 import { getDb } from "../utils/db";
 import { requireAuth } from "../middleware/auth";
 
@@ -9,6 +9,22 @@ const r = new Hono<{ Bindings: Env }>();
 r.use("/*", requireAuth());
 
 function toInt(v: string | null | undefined) { if (!v || v === "all" || v === "") return null; const n = Number(v); return Number.isNaN(n) ? null : n; }
+
+/**
+ * EXISTS acara gabungan: kegiatan yang mengundang wilayah (undangan approved saja).
+ * Dipakai agar statistik desa/kelompok yang DIAJAK tetap memuat datanya,
+ * tanpa mengubah kepemilikan (byDesa tetap dikelompok ke pemilik).
+ */
+function undanganKegiatanExists(desaId: number | null, kelompokId: number | null) {
+  const targets: any[] = [];
+  if (desaId != null) {
+    targets.push(sql`${kegiatanPeserta.desaId} = ${desaId}`);
+    targets.push(sql`${kegiatanPeserta.kelompokId} IN (SELECT ${kelompok.id} FROM ${kelompok} WHERE ${kelompok.desaId} = ${desaId})`);
+  }
+  if (kelompokId != null) targets.push(sql`${kegiatanPeserta.kelompokId} = ${kelompokId}`);
+  if (targets.length === 0) return null;
+  return sql`EXISTS (SELECT 1 FROM ${kegiatanPeserta} WHERE ${kegiatanPeserta.kegiatanId} = ${kegiatan.id} AND ${kegiatanPeserta.status} = 'approved' AND (${sql.join(targets, sql` OR `)}))`;
+}
 
 import { normalizePekerjaan } from "../../../shared/pekerjaan";
 
@@ -54,8 +70,14 @@ r.get("/", async (c) => {
 
   const kegiatanConds: any[] = [];
   if (kategoriAcara !== "all") kegiatanConds.push(eq(kegiatan.kategoriAcara, kategoriAcara as any));
-  if (effectiveDesaId != null) kegiatanConds.push(eq(kegiatan.desaId, effectiveDesaId));
-  if (effectiveKelompokId != null) kegiatanConds.push(eq(kegiatan.kelompokId, effectiveKelompokId));
+  const ownerWilayah: any[] = [];
+  if (effectiveDesaId != null) ownerWilayah.push(eq(kegiatan.desaId, effectiveDesaId));
+  if (effectiveKelompokId != null) ownerWilayah.push(eq(kegiatan.kelompokId, effectiveKelompokId));
+  if (ownerWilayah.length > 0) {
+    // Milik wilayah ini ATAU mengundang wilayah ini (approved) — acara gabungan ikut muncul
+    const invited = undanganKegiatanExists(effectiveDesaId, effectiveKelompokId);
+    kegiatanConds.push(invited ? or(and(...ownerWilayah), invited) : and(...ownerWilayah));
+  }
   if (from) kegiatanConds.push(sql`${kegiatan.tanggal} >= ${from}`);
   if (to) kegiatanConds.push(sql`${kegiatan.tanggal} <= ${to}`);
   const kegiatanWhere = kegiatanConds.length ? and(...kegiatanConds) : undefined;
@@ -78,8 +100,19 @@ r.get("/", async (c) => {
   if (from) absensiBaseConds.push(sql`${kegiatan.tanggal} >= ${from}`);
   if (to) absensiBaseConds.push(sql`${kegiatan.tanggal} <= ${to}`);
   if (kategoriAcara !== "all") absensiBaseConds.push(eq(kegiatan.kategoriAcara, kategoriAcara as any));
-  if (effectiveDesaId != null) absensiBaseConds.push(eq(generus.desaId, effectiveDesaId));
-  if (effectiveKelompokId != null) absensiBaseConds.push(eq(generus.kelompokId, effectiveKelompokId));
+  // Atribusi tempat via kegiatan (milik ATAU mengundang, approved), bukan via generus —
+  // generus pindah sambung tidak menggeser histori. Acara daerah (tanpa pemilik)
+  // tetap dihitung seperti sebelumnya agar tidak ada regresi.
+  const absOwnerWilayah: any[] = [];
+  if (effectiveDesaId != null) absOwnerWilayah.push(eq(kegiatan.desaId, effectiveDesaId));
+  if (effectiveKelompokId != null) absOwnerWilayah.push(eq(kegiatan.kelompokId, effectiveKelompokId));
+  if (absOwnerWilayah.length > 0) {
+    const invited = undanganKegiatanExists(effectiveDesaId, effectiveKelompokId);
+    const daerahOpen = and(isNull(kegiatan.desaId), isNull(kegiatan.kelompokId));
+    const opts: any[] = [and(...absOwnerWilayah), daerahOpen];
+    if (invited) opts.push(invited);
+    absensiBaseConds.push(or(...opts));
+  }
   // legacy mandiri absensi filters removed
   if (kategoriMudaMudi !== "all") absensiBaseConds.push(eq(generus.kategoriMudaMudi, kategoriMudaMudi as any));
   if (jenisKelamin === "L" || jenisKelamin === "P") absensiBaseConds.push(eq(generus.jenisKelamin, jenisKelamin as any));

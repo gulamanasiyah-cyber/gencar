@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { eq, and, like, or } from "drizzle-orm";
 import { absensi, generus, kegiatan, desa, kelompok } from "../../../shared/schema";
 import { getDb } from "../utils/db";
+import { isDiundang } from "../utils/undangan";
 import { requireAuth } from "../middleware/auth";
 
 type Env = { DB: D1Database; JWT_SECRET: string; [k: string]: unknown };
@@ -53,8 +54,14 @@ r.post("/", async (c) => {
   let resolvedGenerus: any = await db.query.generus.findFirst({ where: eq(generus.id, rawGenerusId) });
   if (!resolvedGenerus) resolvedGenerus = await db.query.generus.findFirst({ where: eq(generus.nomorUnik, rawGenerusId) });
   if (!resolvedGenerus) return c.json({ error: "Generus tidak ditemukan" }, 404);
-  if (kegiatanExists.kelompokId && resolvedGenerus.kelompokId != kegiatanExists.kelompokId) return c.json({ error: "Generus bukan bagian dari kelompok ini" }, 403);
-  else if (kegiatanExists.desaId && !kegiatanExists.kelompokId && resolvedGenerus.desaId != kegiatanExists.desaId) return c.json({ error: "Generus bukan bagian dari desa ini" }, 403);
+  if (kegiatanExists.kelompokId && resolvedGenerus.kelompokId != kegiatanExists.kelompokId) {
+    // Di luar scope pemilik — beri kesempatan lewat undangan approved (acara gabungan)
+    const diundang = await isDiundang(db, kegiatanId, resolvedGenerus);
+    if (!diundang) return c.json({ error: "Generus bukan bagian dari kelompok ini" }, 403);
+  } else if (kegiatanExists.desaId && !kegiatanExists.kelompokId && resolvedGenerus.desaId != kegiatanExists.desaId) {
+    const diundang = await isDiundang(db, kegiatanId, resolvedGenerus);
+    if (!diundang) return c.json({ error: "Generus bukan bagian dari desa ini" }, 403);
+  }
   const resolvedGenerusId = resolvedGenerus.id;
   const existing: any = await db.query.absensi.findFirst({ where: and(eq(absensi.kegiatanId, kegiatanId), eq(absensi.generusId, resolvedGenerusId)) });
   if (existing) return c.json({ error: "Sudah diabsen", existing }, 409);

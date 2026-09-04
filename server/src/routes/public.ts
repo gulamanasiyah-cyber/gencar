@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { eq, and, sql, like, or, desc } from "drizzle-orm";
 import { absensi, kegiatan, generus, desa, kelompok, saranMasukan, settings } from "../../../shared/schema";
 import { getDb } from "../utils/db";
+import { isDiundang } from "../utils/undangan";
 import { optionalAuth } from "../middleware/auth";
 
 type Env = { DB: D1Database; JWT_SECRET: string; [k: string]: unknown };
@@ -13,6 +14,18 @@ r.post("/absensi", async (c) => {
   const { kegiatanId, generusId, keterangan } = body;
   if (!kegiatanId || !generusId) return c.json({ error: "kegiatanId dan generusId diperlukan" }, 400);
   const db = getDb(c.env);
+  const keg: any = await db.query.kegiatan.findFirst({ where: eq(kegiatan.id, kegiatanId) });
+  if (!keg) return c.json({ error: "Kegiatan tidak ditemukan" }, 404);
+  const gen: any = await db.query.generus.findFirst({ where: eq(generus.id, generusId) });
+  if (!gen) return c.json({ error: "Generus tidak ditemukan" }, 404);
+  // Gate sama dengan jalur utama: scope pemilik ATAU undangan approved (acara gabungan)
+  let allowed = true;
+  if (keg.kelompokId && gen.kelompokId != keg.kelompokId) allowed = false;
+  else if (keg.desaId && !keg.kelompokId && gen.desaId != keg.desaId) allowed = false;
+  if (!allowed) {
+    const diundang = await isDiundang(db, kegiatanId, gen);
+    if (!diundang) return c.json({ error: "Generus bukan bagian dari kegiatan ini" }, 403);
+  }
   const existing: any = await db.query.absensi.findFirst({ where: and(eq(absensi.kegiatanId, kegiatanId), eq(absensi.generusId, generusId)) });
   if (existing) return c.json({ error: "Sudah diabsen" }, 409);
   const id = crypto.randomUUID();

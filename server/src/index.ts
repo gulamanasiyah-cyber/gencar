@@ -162,6 +162,30 @@ app.post("/api/absensi/scan", async (c) => {
   if (qr.level === "daerah") kegs = await (c.env.DB as any).prepare("SELECT * FROM kegiatan WHERE tanggal = ? AND desa_id IS NULL AND kelompok_id IS NULL").bind(today).all().then((r: any) => r.results || []);
   else if (qr.level === "desa") kegs = await (c.env.DB as any).prepare("SELECT * FROM kegiatan WHERE tanggal = ? AND desa_id = ? AND kelompok_id IS NULL").bind(today, qr.desa_id).all().then((r: any) => r.results || []);
   else kegs = await (c.env.DB as any).prepare("SELECT * FROM kegiatan WHERE tanggal = ? AND kelompok_id = ?").bind(today, qr.kelompok_id).all().then((r: any) => r.results || []);
+  // Acara gabungan: sertakan acara yang mengundang scope QR ini (undangan approved saja).
+  // Tanpa ini, tamu undangan scan QR wilayahnya sendiri selalu 404.
+  try {
+    const ownedIds = new Set(kegs.map((k: any) => k.id));
+    const scopeOrs: string[] = [];
+    const scopeArgs: any[] = [];
+    if (generusId) { scopeOrs.push("p.generus_id = ?"); scopeArgs.push(String(generusId)); }
+    if (qr.level === "desa" && qr.desa_id != null) { scopeOrs.push("p.desa_id = ?"); scopeArgs.push(qr.desa_id); }
+    else if (qr.level === "kelompok" && qr.kelompok_id != null) {
+      scopeOrs.push("p.kelompok_id = ?"); scopeArgs.push(qr.kelompok_id);
+      let parentDesa = qr.desa_id;
+      if (parentDesa == null) {
+        const krow: any = await (c.env.DB as any).prepare("SELECT desa_id FROM kelompok WHERE id = ?").bind(qr.kelompok_id).first();
+        parentDesa = krow?.desa_id ?? null;
+      }
+      if (parentDesa != null) { scopeOrs.push("p.desa_id = ?"); scopeArgs.push(parentDesa); }
+    }
+    if (scopeOrs.length > 0) {
+      const invited: any[] = await (c.env.DB as any).prepare(
+        `SELECT DISTINCT k.* FROM kegiatan k JOIN kegiatan_peserta p ON p.kegiatan_id = k.id WHERE k.tanggal = ? AND p.status = 'approved' AND (${scopeOrs.join(" OR ")})`
+      ).bind(today, ...scopeArgs).all().then((r: any) => r.results || []);
+      for (const k of invited) if (!ownedIds.has(k.id)) { ownedIds.add(k.id); kegs.push(k); }
+    }
+  } catch {}
   if (kegs.length === 0) return c.json({ error: "Tidak ada kegiatan aktif di wilayah ini", kegiatan: [] }, 404);
   if (kegs.length === 1) {
     const k = kegs[0];
