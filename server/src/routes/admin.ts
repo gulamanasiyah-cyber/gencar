@@ -271,6 +271,8 @@ r.delete("/users", async (c) => {
   const db = getDb(c.env);
   const target: any = await db.query.users.findFirst({ where: eq(users.id, id) });
   if (!target) return c.json({ error: "User tidak ditemukan" }, 404);
+  // Self-delete prevention
+  if (id === session.id) return c.json({ error: "Tidak bisa hapus akun sendiri" }, 400);
   // Scope enforcement
   if (session.role === "admin_desa") {
     const allowed = (target.role === "admin_desa" && target.desaId === session.desaId)

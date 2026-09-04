@@ -3,6 +3,7 @@ import { AVATARS } from "./avatarCatalog";
 export type MemberIdentity = {
   id: string;
   nama: string;
+  namaOrtu?: string | null;
   desa: string;
   kelompok: string;
   pendidikan: string;

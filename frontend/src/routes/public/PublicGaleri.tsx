@@ -3,6 +3,7 @@ import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { Play, Sparkles, X, MapPin, CalendarDays, Share2, Tag, Layers, Shuffle, ChevronLeft, ChevronRight } from "lucide-react";
 import { apiFetch } from "../../lib/api";
 import { labelKategori } from "../../lib/labelKategori";
+import { SkeletonGaleriCanvas } from "../../components/Skeleton";
 
 export type GaleriItem = {
   id: string;
@@ -580,9 +581,7 @@ export function PublicGaleri() {
 
         {/* DESKTOP: scattered draggable canvas — Mobile: single stacked deck with swipe */}
         {loading ? (
-          <div style={{ textAlign: "center", padding: "4rem 1rem", color: "var(--pub-ink-muted, #64748b)" }}>
-            Memuat galeri kegiatan...
-          </div>
+          <SkeletonGaleriCanvas />
         ) : !isMobile ? (
           <div className="pub-galeri-canvas-wrap" ref={canvasRef}>
             <div className="pub-galeri-bento pub-galeri-scatter">

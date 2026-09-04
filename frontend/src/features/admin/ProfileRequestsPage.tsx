@@ -40,6 +40,7 @@ const FIELD_LABEL: Record<string, string> = {
   desaId: "Desa",
   kelompokId: "Kelompok",
   nama: "Nama",
+  namaOrtu: "Nama Ortu",
   tempatLahir: "Tempat Lahir",
   tanggalLahir: "Tanggal Lahir",
   suku: "Suku",

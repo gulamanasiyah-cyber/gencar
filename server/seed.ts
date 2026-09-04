@@ -27,7 +27,36 @@ INSERT OR IGNORE INTO kelompok (id, nama, desa_id) VALUES
   (3, 'Kelompok Timur 1', 2),
   (4, 'Kelompok Timur 2', 2),
   (5, 'Kelompok Kosambi 1', 3),
-  (6, 'Kelompok Kapuk 1', 4);
+  (6, 'Kelompok Kapuk 1', 4),
+  -- desa 7-11 (sudah ada di DB via CMS)
+  (7, 'Fajar A', 7),
+  (8, 'Fajar B', 7),
+  (9, 'Fajar C', 7),
+  (10, 'BGN', 8),
+  (11, 'Melati A', 8),
+  (12, 'Melati B', 8),
+  (13, 'Prima', 9),
+  (14, 'Rawa Lele A', 9),
+  (15, 'Rawa Lele B', 9),
+  (16, 'Kampung Duri', 9),
+  (17, 'Tegalalur A', 10),
+  (18, 'Tegalalur B', 10),
+  (19, 'Prepedan A', 10),
+  (20, 'Prepedan B', 10),
+  (21, 'Kebon Jahe A', 11),
+  (22, 'Kebon Jahe B', 11),
+  (23, 'Garikas', 11),
+  (24, 'Pondok Kelapa', 10),
+  (25, 'Taniwan', 11),
+  -- desa 12: Jelambar (baru)
+  (26, 'Jelambar A', 12),
+  (27, 'Jelambar B', 12),
+  -- desa 13: Taman Kota (baru)
+  (28, 'Taman Kota A', 13),
+  (29, 'Taman Kota B', 13),
+  -- desa 14: Cipondoh (baru)
+  (30, 'Cipondoh A', 14),
+  (31, 'Cipondoh B', 14);
 
 -- 2. User Admin
 INSERT OR IGNORE INTO users (id, name, email, password_hash, password_plain, role, desa_id, kelompok_id) VALUES 

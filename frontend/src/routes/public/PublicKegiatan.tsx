@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { apiFetch, unwrapList } from "../../lib/api";
 import { labelKategori } from "../../lib/labelKategori";
+import { Skeleton, SkeletonKegiatanCard, SkeletonDetailPage } from "../../components/Skeleton";
 import type { PubKegiatan } from "./data";
 
 const PER_PAGE = 6;
@@ -248,7 +249,25 @@ export function PublicKegiatanList() {
   return (
     <div className="pub-section" style={{ paddingTop: 32 }}>
       {/* ── Hero: upcoming highlight ── */}
-      {upcomingHero && (
+      {loading ? (
+        <div className="pub-kegiatan-hero" aria-busy="true" aria-label="Memuat kegiatan…">
+          <div className="pub-kegiatan-hero-body">
+            <div className="pub-kegiatan-hero-main" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", gap: 8 }}>
+                <Skeleton width={80} height={22} radius={999} />
+                <Skeleton width={50} height={22} radius={999} />
+              </div>
+              <Skeleton width="85%" height={28} radius={6} />
+              <Skeleton width="100%" height={16} radius={4} />
+              <Skeleton width="60%" height={14} radius={4} />
+              <Skeleton width={140} height={36} radius={999} style={{ marginTop: 4 }} />
+            </div>
+          </div>
+          <div className="pub-kegiatan-hero-media" style={{ position: "relative", overflow: "hidden" }}>
+            <Skeleton width="100%" height="100%" radius={0} style={{ position: "absolute", inset: 0 }} />
+          </div>
+        </div>
+      ) : upcomingHero ? (
         <div className="pub-kegiatan-hero">
           <div className="pub-kegiatan-hero-body">
             <div className="pub-kegiatan-hero-main">
@@ -288,7 +307,7 @@ export function PublicKegiatanList() {
             <img src={upcomingHero.cover} alt={upcomingHero.judul} loading="eager" />
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* ── Toolbar: search & category filter ── */}
       <div className="pub-kegiatan-toolbar">
@@ -396,7 +415,11 @@ export function PublicKegiatanList() {
 
       {/* ── Grid Cards ── */}
       {loading ? (
-        <div className="lp-empty-card" style={{ marginTop: 24 }}>Memuat daftar kegiatan…</div>
+        <div className="pub-kegiatan-grid" style={{ marginTop: 24 }} aria-busy="true" aria-label="Memuat daftar kegiatan…">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <SkeletonKegiatanCard key={i} />
+          ))}
+        </div>
       ) : items.length === 0 ? (
         <div className="pub-empty">
           <h3>Tidak ada kegiatan yang cocok</h3>
@@ -525,7 +548,7 @@ export function PublicKegiatanDetail() {
   if (loading) {
     return (
       <div className="pub-section" style={{ paddingTop: 32 }}>
-        <div className="lp-empty-card">Memuat detail kegiatan…</div>
+        <SkeletonDetailPage />
       </div>
     );
   }

@@ -413,6 +413,7 @@ function AjukanPerubahan({
     ],
     identitas: [
       { key: "nama", label: "Nama Lengkap", placeholder: me.nama },
+      { key: "namaOrtu", label: "Nama Ortu", placeholder: me.namaOrtu || "—" },
       { key: "tempatLahir", label: "Tempat Lahir", placeholder: "—" },
       { key: "tanggalLahir", label: "Tanggal Lahir (YYYY-MM-DD)", placeholder: "—" },
       { key: "pekerjaan", label: "Pekerjaan", placeholder: me.pekerjaan || "Tulis pekerjaan…", type: "pekerjaan" },

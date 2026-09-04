@@ -5,6 +5,7 @@ import { ArrowRight, MapPin, Quote, Sparkles, Users, CalendarDays, MessageCircle
 import { type PubPengurus, type PengurusLevel } from "./data";
 import type { TentangJson } from "../../../../shared/validation";
 import { apiFetch } from "../../lib/api";
+import { SkeletonPengurusGrid, SkeletonTentangHero } from "../../components/Skeleton";
 
 function CountUp({ target, prefix = "", suffix = "", decimals = 0 }: { target: number; prefix?: string; suffix?: string; decimals?: number }) {
   const [val, setVal] = useState(0);
@@ -149,7 +150,7 @@ export function PublicPengurus() {
       </div>
 
       {loading ? (
-        <div className="lp-empty-card" style={{ maxWidth: 640, margin: "20px auto" }}>Memuat bagan kepengurusan…</div>
+        <SkeletonPengurusGrid />
       ) : ordered.length === 0 ? (
         <div className="pub-empty">
           <h3>Bagan Belum Dipublikasikan</h3>
@@ -316,11 +317,7 @@ export function PublicTentang({ data: propData }: { data?: TentangJson | null } 
   }, [propData]);
 
   if (loading) {
-    return (
-      <div className="pub-section" style={{ paddingTop: 40, textAlign: "center" }}>
-        <div className="lp-empty-card">Memuat informasi profil…</div>
-      </div>
-    );
+    return <SkeletonTentangHero />;
   }
 
   if (!dyn) {

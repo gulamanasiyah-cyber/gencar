@@ -6,6 +6,7 @@ import { MOSQUE_PATH, MOSQUE_VIEWBOX } from "./mosquePath";
 import { DATE_TREE_VIEWBOX, DATE_TREE_PATHS } from "./decorPath";
 import { apiFetch, unwrapList } from "../../lib/api";
 import { labelKategori } from "../../lib/labelKategori";
+import { SkeletonHeroBento, SkeletonEditorial, SkeletonReelsTrack, SkeletonMarquee } from "../../components/Skeleton";
 import type { PubKegiatan, PubArticle, PubPengurus } from "./data";
 
 const ABOUT_IMG = "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=900&h=700&q=80";
@@ -441,7 +442,7 @@ export default function PublicHome() {
         </div>
 
         {loading ? (
-          <div className="lp-empty-card">Memuat agenda kegiatan…</div>
+          <SkeletonHeroBento />
         ) : kegiatanList.length === 0 ? (
           <div className="lp-empty-card">Belum ada agenda yang dipublikasikan.</div>
         ) : (
@@ -516,7 +517,7 @@ export default function PublicHome() {
         </div>
 
         {loading ? (
-          <div className="lp-empty-card">Memuat artikel…</div>
+          <SkeletonEditorial />
         ) : artikelList.length === 0 ? (
           <div className="lp-empty-card">Belum ada artikel yang dipublikasikan.</div>
         ) : (
@@ -552,50 +553,56 @@ export default function PublicHome() {
       </section>
 
       {/* ═══ SECTION 4: KILAS REELS ═══ */}
-      {kegiatanList.length > 0 && (
+      {(loading || kegiatanList.length > 0) && (
         <section className="pub-section pub-reels">
           <div className="pub-section-head-row">
             <div className="pub-section-head">
               <h2>Momen &amp; Dokumentasi Visual</h2>
               <p>Cuplikan dinamika kebersamaan dan kegiatan rutin muda-mudi di lapangan.</p>
             </div>
-            <div className="pub-reels-actions">
-              <button type="button" className="pub-reels-arrow" aria-label="Geser ke kiri" onClick={() => scrollReels("left")}>
-                <ChevronLeft size={18} />
-              </button>
-              <button type="button" className="pub-reels-arrow" aria-label="Geser ke kanan" onClick={() => scrollReels("right")}>
-                <ChevronRight size={18} />
-              </button>
-              <Link to="/galeri" className="pub-link">Buka Galeri →</Link>
-            </div>
+            {!loading && (
+              <div className="pub-reels-actions">
+                <button type="button" className="pub-reels-arrow" aria-label="Geser ke kiri" onClick={() => scrollReels("left")}>
+                  <ChevronLeft size={18} />
+                </button>
+                <button type="button" className="pub-reels-arrow" aria-label="Geser ke kanan" onClick={() => scrollReels("right")}>
+                  <ChevronRight size={18} />
+                </button>
+                <Link to="/galeri" className="pub-link">Buka Galeri →</Link>
+              </div>
+            )}
           </div>
 
-          <div className="pub-reels-track" ref={reelsTrackRef}>
-            {kegiatanList.slice(0, 6).map((k) => (
-              <Link key={`reel-${k.slug}`} to={`/kegiatan/${k.slug}`} className="pub-reel">
-                <img src={k.cover} alt={k.judul} loading="lazy" />
-                <div className="pub-reel-overlay">
-                  <span className="pub-reel-play">▶</span>
-                  <strong>{k.judul}</strong>
-                  <span style={{ fontSize: 11, opacity: 0.85 }}><CalendarDays size={11} /> {k.tanggal}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
+          {loading ? (
+            <SkeletonReelsTrack />
+          ) : (
+            <div className="pub-reels-track" ref={reelsTrackRef}>
+              {kegiatanList.slice(0, 6).map((k) => (
+                <Link key={`reel-${k.slug}`} to={`/kegiatan/${k.slug}`} className="pub-reel">
+                  <img src={k.cover} alt={k.judul} loading="lazy" />
+                  <div className="pub-reel-overlay">
+                    <span className="pub-reel-play">▶</span>
+                    <strong>{k.judul}</strong>
+                    <span style={{ fontSize: 11, opacity: 0.85 }}><CalendarDays size={11} /> {k.tanggal}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </section>
       )}
 
       {/* ═══ SECTION 5: MARQUEE PENGURUS ═══ */}
-      {pengurusList.length > 0 && (
+      {(loading || pengurusList.length > 0) && (
         <section className="pub-section" style={{ paddingBottom: 0 }}>
           <div className="pub-section-head-row">
             <div className="pub-section-head">
               <h2>Pengurus &amp; Pembina</h2>
               <p>Struktur kepengurusan muda-mudi se-Daerah Cengkareng masa bakti aktif.</p>
             </div>
-            <Link to="/pengurus" className="pub-link">Bagan Organisasi →</Link>
+            {!loading && <Link to="/pengurus" className="pub-link">Bagan Organisasi →</Link>}
           </div>
-          <TrainMarquee items={pengurusList} />
+          {loading ? <SkeletonMarquee /> : <TrainMarquee items={pengurusList} />}
         </section>
       )}
 

@@ -290,7 +290,7 @@ r.post("/admin/profile-requests/:id/approve", requireAuth(), async (c) => {
   const allowed: Record<string, string[]> = {
     kontak: ["noTelp", "pendidikan", "pekerjaan"],
     wilayah: ["domisiliAnak", "domisiliOrtu", "isDomisiliOrtuSama", "asalDaerah", "kategoriMudaMudi", "alamat", "desaId", "kelompokId"],
-    identitas: ["nama", "tempatLahir", "tanggalLahir", "suku", "pekerjaan", "foto", "avatarId"],
+    identitas: ["nama", "namaOrtu", "tempatLahir", "tanggalLahir", "suku", "pekerjaan", "foto", "avatarId"],
   };
   const keys = allowed[row.section] || [];
   const update: any = { updatedAt: new Date().toISOString() };

@@ -40,3 +40,4 @@ diff.txt
 *.mjs.bak
 scratch/
 pages_list.txt
+.gstack/

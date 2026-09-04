@@ -4,6 +4,7 @@ import { ArrowLeft, Search, ChevronLeft, ChevronRight, CalendarDays, User2, Shar
 import { type PubArticle } from "./data";
 import { apiFetch, unwrapList } from "../../lib/api";
 import { labelKategori } from "../../lib/labelKategori";
+import { SkeletonArtikelCard, SkeletonDetailPage, Skeleton } from "../../components/Skeleton";
 
 const PER_PAGE_ARTIKEL = 6;
 
@@ -190,7 +191,20 @@ export function PublicArtikelList() {
         </span>
       </div>
 
-      {featured && (
+      {loading ? (
+        <div className="pub-artikel-hero" aria-busy="true" aria-label="Memuat artikel unggulan…">
+          <div className="pub-artikel-hero-media">
+            <Skeleton width="100%" height={320} radius={0} />
+          </div>
+          <div className="pub-artikel-hero-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <Skeleton width={160} height={14} radius={999} />
+            <Skeleton width="85%" height={24} radius={6} />
+            <Skeleton width="100%" height={14} radius={4} />
+            <Skeleton width="60%" height={14} radius={4} />
+            <Skeleton width={120} height={16} radius={999} />
+          </div>
+        </div>
+      ) : featured ? (
         <Link to={`/artikel/${featured.slug}`} className="pub-artikel-hero">
           <div className="pub-artikel-hero-media">
             <img src={featured.cover} alt={featured.judul} loading="eager" />
@@ -215,7 +229,7 @@ export function PublicArtikelList() {
             </span>
           </div>
         </Link>
-      )}
+      ) : null}
 
       <div className="pub-kegiatan-catbar">
         {/* Semua selalu ada */}
@@ -267,7 +281,11 @@ export function PublicArtikelList() {
       </div>
 
       {loading ? (
-        <div className="lp-empty-card" style={{ marginTop: 20 }}>Memuat artikel…</div>
+        <div className="pub-artikel-grid" style={{ marginTop: 20 }} aria-busy="true" aria-label="Memuat artikel…">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <SkeletonArtikelCard key={i} />
+          ))}
+        </div>
       ) : filtered.length === 0 ? (
         <div className="pub-empty">
           <p style={{ fontWeight: 800 }}>Nggak ketemu.</p>
@@ -398,7 +416,7 @@ export function PublicArtikelDetail() {
   if (loading) {
     return (
       <div className="pub-section" style={{ paddingTop: 32 }}>
-        <div className="lp-empty-card">Memuat artikel…</div>
+        <SkeletonDetailPage />
       </div>
     );
   }

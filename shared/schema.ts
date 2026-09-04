@@ -210,8 +210,7 @@ export const artikel = sqliteTable("artikel", {
     .notNull()
     .default("artikel"),
   authorId: text("author_id")
-    .notNull()
-    .references(() => users.id),
+    .references(() => users.id, { onDelete: "set null" }),
   publishedAt: text("published_at"),
   ratingSum: integer("rating_sum").default(0),
   ratingCount: integer("rating_count").default(0),
@@ -266,9 +265,8 @@ export const kegiatanPublik = sqliteTable("kegiatan_publik", {
   lat: real("lat"),
   lng: real("lng"),
   status: text("status", { enum: ["draft", "pending_review", "published", "rejected"] }).notNull().default("draft"),
-  authorId: text("author_id").references(() => users.id),
+  authorId: text("author_id").references(() => users.id, { onDelete: "set null" }),
   publishedAt: text("published_at"),
-  createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 }, (t) => ({
   slugIdx: index("kegiatan_publik_slug_idx").on(t.slug),
@@ -290,7 +288,7 @@ export const galeri = sqliteTable("galeri", {
   tanggal: text("tanggal"),
   lokasi: text("lokasi"),
   status: text("status", { enum: ["draft", "published"] }).notNull().default("published"),
-  authorId: text("author_id").references(() => users.id),
+  authorId: text("author_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 }, (t) => ({

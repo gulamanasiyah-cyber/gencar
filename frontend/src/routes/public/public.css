@@ -3496,3 +3496,23 @@ section:has(.pub-marquee) .pub-section-head-row { max-width: var(--pub-max); mar
     aspect-ratio: auto;
   }
 }
+
+/* ── Skeleton shimmer ── */
+.skel {
+  background: linear-gradient(
+    110deg,
+    var(--pub-paper-2) 30%,
+    var(--pub-paper-3) 50%,
+    var(--pub-paper-2) 70%
+  );
+  background-size: 200% 100%;
+  animation: skel-shimmer 1.5s ease-in-out infinite;
+}
+@keyframes skel-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skel:focus-within,
+.skel[aria-busy="true"] {
+  animation: skel-shimmer 1.5s ease-in-out infinite;
+}

@@ -2162,7 +2162,7 @@ function OpenAccessButton({ memberId, memberName: _memberName, onCopied }: { mem
 function AddMemberModal({ onClose, onSave }: { onClose: () => void; onSave: (m: Member) => void }) {
   const [s, setS] = useState(1);
   const [form, setForm] = useState({
-    nama: "", tempatLahir: "", tanggalLahir: "", noTelp: "", pendidikan: "SMA" as Member["pendidikan"],
+    nama: "", namaOrtu: "", tempatLahir: "", tanggalLahir: "", noTelp: "", pendidikan: "SMA" as Member["pendidikan"],
     pekerjaan: "", jenisKelamin: "L" as "L" | "P", kategoriMudaMudi: "pribumi" as Member["kategoriMudaMudi"], asalDaerah: "",
     domisiliAnak: "", isOrtuSama: true, domisiliOrtu: "", desa: "", kelompok: "",
   });
@@ -2248,6 +2248,7 @@ function AddMemberModal({ onClose, onSave }: { onClose: () => void; onSave: (m: 
         method: "POST",
         body: JSON.stringify({
           nama: form.nama.trim(),
+          namaOrtu: form.namaOrtu.trim() || undefined,
           tempatLahir: form.tempatLahir.trim(),
           tanggalLahir: form.tanggalLahir,
           jenisKelamin: form.jenisKelamin,
@@ -2299,6 +2300,7 @@ function AddMemberModal({ onClose, onSave }: { onClose: () => void; onSave: (m: 
         {s === 1 && (
           <div style={{ display: "grid", gap: 12 }}>
             <div className="field"><label>Nama *</label><input value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} placeholder="Nama lengkap" /></div>
+            <div className="field"><label>Nama Ortu</label><input value={form.namaOrtu} onChange={(e) => setForm({ ...form, namaOrtu: e.target.value })} placeholder="Nama orang tua" /></div>
             <div className="form-grid-2">
               <div className="field"><label>Tempat Lahir *</label><input value={form.tempatLahir} onChange={(e) => setForm({ ...form, tempatLahir: e.target.value })} /></div>
               <div className="field"><label>Tanggal Lahir *</label><input type="date" value={form.tanggalLahir} onChange={(e) => setForm({ ...form, tanggalLahir: e.target.value })} /></div>
@@ -4801,6 +4803,7 @@ export default function App({ initialMode }: { initialMode?: "admin" | "member" 
         email: authUser?.email ?? "",
         id: generus.id,
         nama: generus.nama,
+        namaOrtu: generus.namaOrtu ?? null,
         desa: genDesaNama,
         kelompok: genKelompokNama,
         pendidikan: generus.pendidikan ?? "SMA",
