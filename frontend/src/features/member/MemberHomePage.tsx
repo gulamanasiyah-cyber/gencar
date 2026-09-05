@@ -1001,31 +1001,65 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
   );
 }
 
-function isEventAvailableForAbsen(tanggal: string, jam: string): {
+function isEventAvailableForAbsen(k: {
+  tanggal: string;
+  tanggalSelesai?: string | null;
+  jam?: string;
+  jamMulai?: string | null;
+  jamSelesai?: string | null;
+}): {
   available: boolean;
   statusText: string;
   statusType: "open" | "upcoming" | "ended";
 } {
   try {
-    // format: YYYY-MM-DD dan HH:mm
-    const [year, month, day] = tanggal.split("-").map(Number);
-    const [hours, minutes] = jam.split(":").map(Number);
-    if (!year || !month || !day || isNaN(hours) || isNaN(minutes)) {
+    const startTimeStr = k.jamMulai || k.jam || "00:00";
+    const [sH = 0, sM = 0] = startTimeStr.split(":").map(Number);
+    const [year, month, day] = k.tanggal.split("-").map(Number);
+    if (!year || !month || !day) {
       return { available: true, statusText: "Bisa absen sekarang", statusType: "open" };
     }
 
-    const eventStart = new Date(year, month - 1, day, hours, minutes, 0);
-    const openTime = new Date(eventStart.getTime() - 30 * 60 * 1000); // 30 menit sebelum
-    const endTime = new Date(eventStart.getTime() + 3 * 60 * 60 * 1000); // estimasi akhir acara +3 jam
+    const start = new Date(year, month - 1, day, sH, sM, 0);
+    let end: Date;
+    if (k.tanggalSelesai && k.jamSelesai) {
+      const [eH = 23, eM = 59] = k.jamSelesai.split(":").map(Number);
+      const [eY, eMo, eD] = k.tanggalSelesai.split("-").map(Number);
+      end = new Date(eY!, eMo! - 1, eD!, eH, eM, 0);
+    } else if (k.jamSelesai) {
+      const [eH = 0, eM = 0] = k.jamSelesai.split(":").map(Number);
+      if (k.jamSelesai < startTimeStr) {
+        const nextDay = new Date(start);
+        nextDay.setDate(nextDay.getDate() + 1);
+        end = new Date(nextDay.getFullYear(), nextDay.getMonth(), nextDay.getDate(), eH, eM, 0);
+      } else {
+        end = new Date(year, month - 1, day, eH, eM, 0);
+      }
+    } else {
+      end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+    }
+
+    const windowOpen = new Date(start.getTime() - 30 * 60 * 1000);
+    const windowClose = end;
     const now = new Date();
 
-    if (now < openTime) {
-      const diffMin = Math.ceil((openTime.getTime() - now.getTime()) / (60 * 1000));
-      const text = diffMin > 60 
-        ? `Dibuka ${Math.ceil(diffMin / 60)} jam lagi (30 mnt sebelum acara)` 
-        : `Dibuka ${diffMin} menit lagi`;
+    if (now < windowOpen) {
+      const diffMs = windowOpen.getTime() - now.getTime();
+      const diffMin = Math.ceil(diffMs / (60 * 1000));
+      const diffHours = Math.floor(diffMin / 60);
+      const diffDays = Math.floor(diffHours / 24);
+
+      let text: string;
+      if (diffDays >= 1) {
+        text = `Dibuka ${diffDays} hari lagi (${diffHours % 24 > 0 ? `${diffHours % 24} jam ` : ""}sebelum acara)`;
+      } else if (diffHours >= 1) {
+        const remMin = diffMin % 60;
+        text = `Dibuka ${diffHours} jam ${remMin > 0 ? `${remMin} mnt ` : ""}lagi`;
+      } else {
+        text = `Dibuka ${diffMin} menit lagi`;
+      }
       return { available: false, statusText: text, statusType: "upcoming" };
-    } else if (now > endTime) {
+    } else if (now > windowClose) {
       return { available: false, statusText: "Waktu absensi telah berakhir", statusType: "ended" };
     } else {
       return { available: true, statusText: "Absensi sedang dibuka (aktif)", statusType: "open" };
@@ -1052,7 +1086,25 @@ function LocationModal({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const inRadius = dist != null ? dist <= today.radiusM : false;
-  const timeAvail = useMemo(() => isEventAvailableForAbsen(today.tanggal, today.jam), [today.tanggal, today.jam]);
+  const timeAvail = useMemo(() => isEventAvailableForAbsen(today), [today]);
+
+  // Format tanggal Indonesia
+  const jadwalStr = useMemo(() => {
+    try {
+      const d = new Date(today.tanggal + "T00:00:00");
+      const dayName = d.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "short", year: "numeric" });
+      const jam = today.jamMulai || today.jam || "—";
+      const selesai = today.jamSelesai ? ` – ${today.jamSelesai}` : "";
+      return `${dayName} · ${jam}${selesai} WIB`;
+    } catch {
+      return `${today.tanggal} · ${today.jamMulai || today.jam}`;
+    }
+  }, [today]);
+
+  const distFormatted = useMemo(() => {
+    if (dist == null) return null;
+    return dist >= 1000 ? `${(dist / 1000).toFixed(1)} km` : `${dist}m`;
+  }, [dist]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -1099,7 +1151,7 @@ function LocationModal({
 
       L.marker([gps.lat, gps.lng], { icon: userIcon })
         .addTo(map)
-        .bindPopup(`<b>Posisi Kamu</b><br/>Akurasi ±${gps.acc ? Math.round(gps.acc) : "?"}m<br/>${dist != null ? `Jarak ke acara: ${dist}m` : ""}`);
+        .bindPopup(`<b>Posisi Kamu</b><br/>Akurasi ±${gps.acc ? Math.round(gps.acc) : "?"}m<br/>${distFormatted ? `Jarak ke acara: ${distFormatted}` : ""}`);
     }
 
     // Adjust view agar kedua posisi (acara + user) muat pas di layar peta
@@ -1115,63 +1167,84 @@ function LocationModal({
       map.remove();
       mapRef.current = null;
     };
-  }, [today, gps, inRadius, dist]);
+  }, [today, gps, inRadius, dist, distFormatted]);
 
   return (
     <div className="modal-backdrop modal-backdrop--map" onClick={onClose}>
-      <div className="modal modal--map" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560, padding: 18, gap: 14 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <strong className="modal-title" style={{ fontSize: 16 }}>Status Lokasi & Waktu Absensi</strong>
-            <p className="muted" style={{ fontSize: 12, margin: 0 }}>{today.judul}</p>
+      <div className="modal modal--map" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 540, padding: 18, gap: 12, borderRadius: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+          <div style={{ minWidth: 0 }}>
+            <strong className="modal-title" style={{ fontSize: 16, fontWeight: 900, color: "var(--ink)", display: "block" }}>
+              Status Lokasi &amp; Waktu
+            </strong>
+            <p className="muted" style={{ fontSize: 12, margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {today.judul}
+            </p>
           </div>
-          <button className="btn-close" aria-label="Tutup" onClick={onClose}><IcoX size={16} /></button>
+          <button type="button" className="trophy-modal-close" aria-label="Tutup" onClick={onClose} style={{ position: "static", flexShrink: 0 }}>
+            <IcoX size={16} />
+          </button>
         </div>
 
         {/* Map Container */}
-        <div style={{ height: 280, borderRadius: 14, overflow: "hidden", border: "1px solid var(--line)", position: "relative" }}>
+        <div style={{ height: 260, borderRadius: 14, overflow: "hidden", border: "1px solid var(--line)", position: "relative" }}>
           <div ref={containerRef} style={{ height: "100%", width: "100%" }} />
           {/* Legend overlay on top of map */}
-          <div style={{ position: "absolute", top: 10, right: 10, zIndex: 1000, background: "rgba(255,255,255,0.92)", backdropFilter: "blur(4px)", padding: "6px 10px", borderRadius: 8, border: "1px solid var(--line)", fontSize: 10, display: "grid", gap: 4 }}>
-            <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><span style={{ width: 8, height: 8, borderRadius: 999, background: "#d03804" }} /> Titik Acara & Radius ({today.radiusM}m)</span>
+          <div style={{ position: "absolute", top: 8, right: 8, zIndex: 1000, background: "rgba(255,255,255,0.92)", backdropFilter: "blur(4px)", padding: "6px 10px", borderRadius: 8, border: "1px solid var(--line)", fontSize: 10, display: "grid", gap: 3, fontWeight: 700 }}>
+            <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><span style={{ width: 8, height: 8, borderRadius: 999, background: "#d03804" }} /> Acara ({today.radiusM}m)</span>
             <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><span style={{ width: 8, height: 8, borderRadius: 999, background: "#2563eb" }} /> Posisi Kamu</span>
           </div>
         </div>
 
-        {/* Status Window: Ketersediaan Waktu (30 Menit Sebelum Acara) + Jarak GPS */}
-        <div style={{ display: "grid", gap: 8, padding: 12, background: "var(--bg)", borderRadius: 12, border: "1px solid var(--line)" }}>
-          {/* Row 1: Time availability & GPS Distance */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
-            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-              {/* Window time status */}
-              <span className={`pill ${timeAvail.statusType === "open" ? "pill-emerald" : timeAvail.statusType === "upcoming" ? "pill-amber" : "pill-slate"}`}>
+        {/* Status Window: Ketersediaan Waktu & Jarak */}
+        <div style={{ display: "grid", gap: 10, padding: 12, background: "var(--bg)", borderRadius: 14, border: "1px solid var(--line)" }}>
+          {/* Row 1: Badges & Refresh button */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", minWidth: 0, flex: 1 }}>
+              <span className={`pill ${timeAvail.statusType === "open" ? "pill-emerald" : timeAvail.statusType === "upcoming" ? "pill-amber" : "pill-slate"}`} style={{ fontSize: 11, fontWeight: 800 }}>
                 <Clock3 size={12} /> {timeAvail.statusText}
               </span>
-
-              {/* Radius status */}
-              {dist != null && (
-                <span className={`pill ${inRadius ? "pill-emerald" : "pill-amber"}`}>
-                  {inRadius ? <ShieldCheck size={12} /> : <AlertTriangle size={12} />} {inRadius ? `Dalam Radius (${dist}m)` : `Di Luar Radius (${dist}m)`}
+              {distFormatted != null && (
+                <span className={`pill ${inRadius ? "pill-emerald" : "pill-amber"}`} style={{ fontSize: 11, fontWeight: 800 }}>
+                  {inRadius ? <ShieldCheck size={12} /> : <AlertTriangle size={12} />} {inRadius ? `Dalam Radius` : `Jarak ~${distFormatted}`}
                 </span>
               )}
             </div>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={onRefreshGps} disabled={gpsLoading} style={{ borderRadius: 999 }}>
-              <LocateFixed size={13} /> Refresh GPS
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={onRefreshGps}
+              disabled={gpsLoading}
+              style={{ width: "auto", minHeight: 30, padding: "4px 10px", fontSize: 11, borderRadius: 8, fontWeight: 700, flexShrink: 0 }}
+            >
+              <LocateFixed size={12} /> Refresh GPS
             </button>
           </div>
 
-          {/* Row 2: Explanatory note */}
-          <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.45, borderTop: "1px solid rgba(0,0,0,0.06)", paddingTop: 8, marginTop: 2 }}>
-            <div><b>Jadwal Acara:</b> {today.tanggal} pukul {today.jam} WIB (Mulai dibuka 30 menit sebelum hingga akhir acara).</div>
-            <div><b>Status Kamu:</b> {gps ? `${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)} · ${inRadius && timeAvail.available ? "Siap absen sekarang" : "Mendekat ke radius acara saat waktu dibuka"}` : "Izin lokasi diperlukan untuk verifikasi kehadiran."}</div>
+          {/* Row 2: Detail Info */}
+          <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.55, borderTop: "1px solid rgba(0,0,0,0.06)", paddingTop: 8 }}>
+            <div><b>Jadwal:</b> {jadwalStr}</div>
+            {today.lokasi && <div><b>Lokasi:</b> {today.lokasi} · radius {today.radiusM}m</div>}
+            <div style={{ marginTop: 2 }}>
+              <b>Status Kamu:</b>{" "}
+              {gps ? (
+                inRadius && timeAvail.available ? (
+                  <span style={{ color: "#16a34a", fontWeight: 800 }}>Siap absen saat ini</span>
+                ) : (
+                  <span>
+                    {inRadius ? "Di dalam lokasi acara" : `Di luar radius (${distFormatted} dari titik acara)`} &bull; mendekat saat waktu absen dibuka
+                  </span>
+                )
+              ) : (
+                <span style={{ color: "#d97706", fontWeight: 700 }}>Izin lokasi belum aktif &bull; tap Refresh GPS</span>
+              )}
+            </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <button type="button" className="btn btn-primary" onClick={onClose} style={{ width: "100%", borderRadius: 12 }}>
-            Selesai
-          </button>
-        </div>
+        <button type="button" className="btn btn-primary" onClick={onClose} style={{ width: "100%", borderRadius: 12, fontWeight: 800, minHeight: 40 }}>
+          Selesai
+        </button>
       </div>
     </div>
   );
