@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check as IcoCheck, X as IcoX, Clock3 as IcoClock, AlertCircle as IcoAlert, User as IcoUser, CalendarDays as IcoCal, Search as IcoSearch, Filter as IcoFilter, ChevronDown as IcoChevron } from "lucide-react";
+import { Check as IcoCheck, X as IcoX, Clock3 as IcoClock, AlertCircle as IcoAlert, User as IcoUser, CalendarDays as IcoCal, Search as IcoSearch, Filter as IcoFilter } from "lucide-react";
 import KpiCard from "../../components/admin/KpiCard";
+import { Select } from "../../components/Select";
 import { apiFetch, unwrapList } from "../../lib/api";
 
 type IzinRow = {
@@ -28,33 +29,6 @@ function fmtDate(s?: string | null) {
   } catch { return s; }
 }
 
-// Select custom ringan dengan styling konsisten
-function FilterSelect<T extends string>({ value, onChange, options, placeholder }: {
-  value: string;
-  onChange: (v: T) => void;
-  options: { value: string; label: string }[];
-  placeholder?: string;
-}) {
-  return (
-    <div style={{ position: "relative", display: "inline-flex", alignItems: "center", background: "#fff", border: "1px solid var(--line)", borderRadius: 10, padding: "0 6px 0 12px", minHeight: 36, minWidth: 150 }}>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value as T)}
-        style={{ appearance: "none", border: "none", outline: "none", background: "transparent", padding: "8px 18px 8px 0", fontSize: 13, fontWeight: 600, color: "var(--ink)", cursor: "pointer", width: "100%" }}
-        aria-label={placeholder || "Filter"}
-      >
-        <option value="">{placeholder || "Semua"}</option>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
-      <span style={{ position: "absolute", right: 8, pointerEvents: "none", color: "var(--muted)", display: "grid", placeItems: "center" }}>
-        <IcoChevron size={14} />
-      </span>
-    </div>
-  );
-}
-
 export default function IzinAdminPanel() {
   const [rows, setRows] = useState<IzinRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,6 +40,13 @@ export default function IzinAdminPanel() {
   const [filterKegiatan, setFilterKegiatan] = useState("");
   const [filterDesa, setFilterDesa] = useState("");
   const [filterKelompok, setFilterKelompok] = useState("");
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  const activeFilterCount =
+    (tab !== "all" ? 1 : 0) +
+    (filterKegiatan ? 1 : 0) +
+    (filterDesa ? 1 : 0) +
+    (filterKelompok ? 1 : 0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -168,7 +149,7 @@ export default function IzinAdminPanel() {
       )}
 
       {/* Toolbar filter */}
-      <div className="admin-toolbar" style={{ marginBottom: 8, flexWrap: "wrap" }}>
+      <div className="admin-toolbar" style={{ marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
         <label className="search" style={{ flex: 1, minWidth: 220 }}>
           <IcoSearch size={14} />
           <input placeholder="Cari anggota / kegiatan / alasan…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Cari ajuan izin" />
@@ -178,42 +159,99 @@ export default function IzinAdminPanel() {
             </button>
           )}
         </label>
-        <div className="filter-chips" style={{ flexShrink: 0, display: "flex", gap: 6 }}>
-          {([["all", "Semua"], ["upcoming", "Mendatang"], ["past", "Sudah lewat"]] as const).map(([val, label]) => (
-            <button key={val} type="button" className={`chip ${tab === val ? "active" : ""}`} onClick={() => setTab(val)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <button
+          type="button"
+          className={`btn btn-sm ${activeFilterCount > 0 ? "btn-primary" : "btn-ghost"}`}
+          style={{ width: "auto", minHeight: 34, padding: "6px 12px", fontSize: 12, borderRadius: 10, fontWeight: 700 }}
+          onClick={() => setFilterOpen(true)}
+        >
+          <IcoFilter size={13} />
+          Filter
+          {activeFilterCount > 0 && (
+            <span style={{ marginLeft: 4, fontSize: 10, background: activeFilterCount > 0 ? "#fff" : "var(--primary)", color: activeFilterCount > 0 ? "var(--primary)" : "#fff", borderRadius: 99, padding: "0 6px", fontWeight: 800 }}>
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+        {activeFilterCount > 0 && (
+          <span className="pill pill-emerald" style={{ fontSize: 10 }}>{filtered.length} dari {rows.length}</span>
+        )}
       </div>
 
-      {/* Baris filter lanjutan */}
-      <div className="admin-toolbar" style={{ marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-        <FilterSelect
-          value={filterKegiatan}
-          onChange={setFilterKegiatan}
-          placeholder="Semua kegiatan"
-          options={kegiatanOptions}
-        />
-        <FilterSelect
-          value={filterDesa}
-          onChange={(v) => { setFilterDesa(v); setFilterKelompok(""); }}
-          placeholder="Semua desa"
-          options={desaOptions}
-        />
-        <FilterSelect
-          value={filterKelompok}
-          onChange={setFilterKelompok}
-          placeholder="Semua kelompok"
-          options={kelompokOptions}
-        />
-        {(filterKegiatan || filterDesa || filterKelompok) && (
-          <button type="button" className="btn btn-ghost btn-sm" style={{ fontSize: 12, width: "auto", minHeight: 30 }} onClick={() => { setFilterKegiatan(""); setFilterDesa(""); setFilterKelompok(""); }}>
-            <IcoFilter size={13} /> Reset Filter
-          </button>
-        )}
-        <span className="muted" style={{ fontSize: 11, marginLeft: "auto" }}>{filtered.length} dari {rows.length} ajuan</span>
-      </div>
+      {/* Modal filter lanjutan */}
+      {filterOpen && (
+        <div className="modal-backdrop" onClick={() => setFilterOpen(false)} style={{ zIndex: 1300, display: "grid", placeItems: "center", padding: 16 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480, width: "100%", padding: 20, borderRadius: 20, position: "relative" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 900, color: "var(--ink)", margin: 0 }}>Filter Ajuan Izin</h3>
+              <button type="button" className="trophy-modal-close" style={{ position: "static", flexShrink: 0 }} onClick={() => setFilterOpen(false)} aria-label="Tutup">
+                <IcoX size={16} />
+              </button>
+            </div>
+
+            <div style={{ display: "grid", gap: 14 }}>
+              {/* Status */}
+              <div style={{ display: "grid", gap: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Status Kegiatan</span>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {([["all", "Semua"], ["upcoming", "Mendatang"], ["past", "Sudah lewat"]] as const).map(([val, label]) => (
+                    <button key={val} type="button" className={`chip ${tab === val ? "active" : ""}`} onClick={() => setTab(val)}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Kegiatan */}
+              <div style={{ display: "grid", gap: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Kegiatan</span>
+                <Select
+                  value={filterKegiatan}
+                  onChange={setFilterKegiatan}
+                  ariaLabel="Filter kegiatan"
+                  options={[{ value: "", label: "Semua kegiatan" }, ...kegiatanOptions]}
+                />
+              </div>
+
+              {/* Desa */}
+              <div style={{ display: "grid", gap: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Desa</span>
+                <Select
+                  value={filterDesa}
+                  onChange={(v) => { setFilterDesa(v); setFilterKelompok(""); }}
+                  ariaLabel="Filter desa"
+                  options={[{ value: "", label: "Semua desa" }, ...desaOptions]}
+                />
+              </div>
+
+              {/* Kelompok */}
+              <div style={{ display: "grid", gap: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Kelompok</span>
+                <Select
+                  value={filterKelompok}
+                  onChange={setFilterKelompok}
+                  ariaLabel="Filter kelompok"
+                  options={[{ value: "", label: "Semua kelompok" }, ...kelompokOptions]}
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ flex: 1 }}
+                  onClick={() => { setTab("all"); setFilterKegiatan(""); setFilterDesa(""); setFilterKelompok(""); }}
+                >
+                  Reset
+                </button>
+                <button type="button" className="btn btn-primary" style={{ flex: 1, fontWeight: 800 }} onClick={() => setFilterOpen(false)}>
+                  Terapkan ({filtered.length})
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="card" style={{ padding: 24, textAlign: "center" }}><span className="muted">Memuat ajuan izin…</span></div>
