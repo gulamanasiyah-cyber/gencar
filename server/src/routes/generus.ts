@@ -109,7 +109,7 @@ r.post("/", async (c) => {
   const { mapJenisKelaminToDb } = await import("../../../shared/validation");
   const rawJK = body.jenisKelamin ? mapJenisKelaminToDb(String(body.jenisKelamin)) : null;
   const jenisKelamin = rawJK ?? body.jenisKelamin;
-  const { nama, tempatLahir, tanggalLahir, kategoriUsia, kategori, alamat, noTelp, noTelpOrtu, namaOrtu, pendidikan, pekerjaan, statusNikah, desaId, kelompokId, hobi, hobiDetail, avatarId, makananMinumanFavorit, suku, foto } = body;
+  const { nama, tempatLahir, tanggalLahir, kategoriUsia, kategori, kategoriMudaMudi, asalDaerah, domisiliAnak, domisiliOrtu, isDomisiliOrtuSama, alamat, noTelp, noTelpOrtu, namaOrtu, pendidikan, pekerjaan, statusNikah, desaId, kelompokId, hobi, hobiDetail, avatarId, makananMinumanFavorit, suku, foto } = body;
   if (!nama || !jenisKelamin || !kategoriUsia || !desaId) return c.json({ error: "Nama dan Wilayah wajib diisi" }, 400);
   const db = getDb(c.env);
   const duplicateConditions: any[] = [];
@@ -123,7 +123,7 @@ r.post("/", async (c) => {
   let existing: any = await db.query.generus.findFirst({ where: eq(generus.nomorUnik, nomorUnik) });
   while (existing) { nomorUnik = generateNomorUnik(); existing = await db.query.generus.findFirst({ where: eq(generus.nomorUnik, nomorUnik) }); }
   const id = crypto.randomUUID();
-  await db.insert(generus).values({ id, nomorUnik, nama, tempatLahir, tanggalLahir, jenisKelamin, kategoriUsia, kategori: kategori || "Generus", alamat, noTelp, noTelpOrtu, namaOrtu, pendidikan, pekerjaan, statusNikah: statusNikah || "Belum Menikah", desaId: desaId ? Number(desaId) : null, kelompokId: kelompokId ? Number(kelompokId) : null, hobi: hobi ?? null, hobiDetail: hobiDetail ?? null, avatarId: avatarId ?? null, makananMinumanFavorit, suku, foto, createdBy: session.userId, isGenerus: 1 } as any);
+  await db.insert(generus).values({ id, nomorUnik, nama, tempatLahir, tanggalLahir, jenisKelamin, kategoriUsia, kategori: kategori || "Generus", kategoriMudaMudi: kategoriMudaMudi || null, asalDaerah: asalDaerah || null, domisiliAnak: domisiliAnak || null, domisiliOrtu: domisiliOrtu || null, isDomisiliOrtuSama: isDomisiliOrtuSama != null ? Number(isDomisiliOrtuSama) : 1, alamat, noTelp, noTelpOrtu, namaOrtu, pendidikan, pekerjaan, statusNikah: statusNikah || "Belum Menikah", desaId: desaId ? Number(desaId) : null, kelompokId: kelompokId ? Number(kelompokId) : null, hobi: hobi ?? null, hobiDetail: hobiDetail ?? null, avatarId: avatarId ?? null, makananMinumanFavorit, suku, foto, createdBy: session.userId, isGenerus: 1 } as any);
   let finalEmail = body.email ? String(body.email).toLowerCase() : `${nomorUnik.toLowerCase()}@gencar.com`;
   const finalPassword = body.password || nomorUnik;
   const existingEmail: any = await db.query.users.findFirst({ where: eq(users.email, finalEmail) });

@@ -17,11 +17,15 @@ export function getEventTimeWindow(k: {
   jamSelesai?: string | null;
   jam?: string | null;
 }): EventTimeWindow {
+  const hasTimeInfo = Boolean(k.jamMulai || k.jamSelesai || k.jam);
   const startTimeStr = k.jamMulai || k.jam || "00:00";
   const start = withTime(k.tanggal, startTimeStr);
 
   let end: Date;
-  if (k.tanggalSelesai && k.jamSelesai) {
+  if (!hasTimeInfo && !k.tanggalSelesai) {
+    // Tanpa info jam = acara seharian penuh pada tanggal tersebut
+    end = withTime(k.tanggal, "23:59:59");
+  } else if (k.tanggalSelesai && k.jamSelesai) {
     end = withTime(k.tanggalSelesai, k.jamSelesai);
   } else if (k.jamSelesai) {
     if (k.jamSelesai < startTimeStr) {

@@ -162,11 +162,18 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
     scannerRef.current = null;
   }
 
+  function resetScan() {
+    scannedRef.current = false;
+    setQr(null);
+    setMsg(null);
+    if (!scannerRef.current) void startScan();
+  }
+
   async function onScan(decoded: string) {
     if (scannedRef.current) return;
     const hit = parseQrToken(decoded);
     scannedRef.current = true;
-    void stopScan();
+    // Kamera dibiarkan tetap hidup — guard scannedRef mencegah submit ganda
     if (!hit) {
       setMsg("QR tidak dikenali. Scan QR wilayah yang resmi dari admin.");
       return;
@@ -287,10 +294,13 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
           <div id="qr-reader" style={{ borderRadius: 14, overflow: "hidden", border: "none", outline: "none", background: "#0f172a", width: "100%", maxHeight: 280 }} />
           {!qr && <div style={{ textAlign: "center", fontSize: 11, color: "var(--muted)", padding: "8px 0 10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>Arahkan kamera ke QR wilayah</div>}
           {qr && (
-            <div style={{ padding: "8px 0 12px", display: "grid", placeItems: "center" }}>
+            <div style={{ padding: "8px 0 12px", display: "grid", gap: 8, placeItems: "center" }}>
               <span className="pill pill-emerald" style={{ justifyContent: "center", textTransform: "capitalize" }}>
                 <QrCode size={12} /> QR ok — {qr.level}: {qr.nama}
               </span>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={resetScan} style={{ borderRadius: 999 }}>
+                Scan lagi
+              </button>
             </div>
           )}
         </div>
@@ -360,7 +370,7 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
                   </div>
                 ))}
               </div>
-              <button type="button" className="btn btn-ghost" onClick={() => setConflictOpen(false)} style={{ width: "100%", marginTop: 12 }}>
+              <button type="button" className="btn btn-ghost" onClick={() => { setConflictOpen(false); scannedRef.current = false; }} style={{ width: "100%", marginTop: 12 }}>
                 Batal
               </button>
             </div>
