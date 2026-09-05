@@ -149,6 +149,43 @@ function useIsMobile() {
 // ── Icons: lucide-react (aliased ke nama Ico* biar call site nggak berubah) ──
 
 // ── Custom select (bukan bawaan browser) ──
+// Input jam format 24 jam (HH:MM) yang konsisten di semua HP —
+// <input type="time"> bawaan browser mengikuti locale perangkat dan bisa tampil AM/PM.
+function TimeInput24({ id, defaultValue }: { id: string; defaultValue?: string }) {
+  const normalize = (raw: string): string => {
+    const d = raw.replace(/\D/g, "").slice(0, 4);
+    if (d.length === 0) return "";
+    if (d.length <= 2) return d;
+    let hh = Math.min(23, parseInt(d.slice(0, 2), 10));
+    let mm = Math.min(59, parseInt(d.slice(2).padEnd(2, "0"), 10));
+    if (Number.isNaN(hh)) hh = 0;
+    if (Number.isNaN(mm)) mm = 0;
+    return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+  };
+  const formatLive = (raw: string): string => {
+    const d = raw.replace(/\D/g, "").slice(0, 4);
+    if (d.length <= 2) return d;
+    return `${d.slice(0, 2)}:${d.slice(2)}`;
+  };
+  const [val, setVal] = useState(() => normalize(defaultValue ?? ""));
+  return (
+    <input
+      id={id}
+      value={val}
+      inputMode="numeric"
+      autoComplete="off"
+      placeholder="HH:MM"
+      onChange={(e) => setVal(formatLive(e.target.value))}
+      onBlur={() => setVal((v) => {
+        const d = v.replace(/\D/g, "");
+        if (d.length === 0) return "";
+        if (d.length <= 2) return `${String(Math.min(23, parseInt(d, 10))).padStart(2, "0")}:00`;
+        return normalize(v);
+      })}
+    />
+  );
+}
+
 function Select({
   value, onChange, options, className, ariaLabel,
 }: {
@@ -893,6 +930,7 @@ function AdminShell({
     { key: "pengajuan", label: "Pengajuan", icon: <IcoFileCheck />, badge: pendingCount },
     { key: "users", label: "User", icon: <IcoShield /> },
     ...(role === "admin_daerah" ? [{ key: "wilayah", label: "Wilayah", icon: <IcoMapPin /> }] : []),
+    { key: "qr", label: "QR Wilayah", icon: <IcoQr /> },
     { key: "cms", label: "CMS", icon: <IcoFileText /> },
     { key: "statistik", label: "Statistik", icon: <IcoBarChart /> },
   ];
@@ -2812,7 +2850,7 @@ function AbsensiViewerModal({ kegiatan, onClose }: { kegiatan: Kegiatan; onClose
                         <td><strong>{r.generusNama}</strong>{r.generusNomorUnik ? <span className="muted" style={{ fontSize: 11 }}> · {r.generusNomorUnik}</span> : null}</td>
                         <td>{r.kelompokNama ?? r.desaNama ?? "—"}</td>
                         <td><span className={`pill ${r.keterangan === "hadir" ? "pill-emerald" : r.keterangan === "izin" ? "pill-amber" : "pill-slate"}`} style={{ fontSize: 10, padding: "2px 8px" }}>{r.keterangan}</span></td>
-                        <td className="muted" style={{ fontSize: 11, whiteSpace: "nowrap" }}>{r.timestamp ? new Date(r.timestamp).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"}</td>
+                        <td className="muted" style={{ fontSize: 11, whiteSpace: "nowrap" }}>{r.timestamp ? new Date(r.timestamp).toLocaleString("id-ID", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) : "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3373,7 +3411,7 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
               <button className="btn btn-ghost row-icon-btn" aria-label="Lihat Absensi" title="Lihat Absensi" onClick={() => setAbsensiKegiatan(k)}>
                 <IcoUsers size={15} />
               </button>
-              {(role === "admin_daerah" || (role === "admin_desa" && (k.desaId === user?.desaId || k.tingkat === "daerah")) || (role === "admin_kelompok" && (k.kelompokId === user?.kelompokId || k.tingkat === "daerah"))) && (
+              {(role === "admin_daerah" || (role === "admin_desa" && k.desaId != null && k.desaId === user?.desaId) || (role === "admin_kelompok" && k.kelompokId != null && k.kelompokId === user?.kelompokId)) && (
                 <>
                   <button className="btn btn-ghost row-icon-btn" aria-label="Edit" title="Edit" onClick={() => { setEditingKegiatan(k); setShowForm(true); }}>
                     <IcoEdit size={15} />
@@ -3418,8 +3456,8 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
               <div className="field"><label>Deskripsi</label><textarea rows={2} placeholder="Detail acara..." id="deskripsi" defaultValue={editingKegiatan?.deskripsi ?? ""} /></div>
               <div className="kegiatan-form-grid-3">
                 <div className="field"><label>Tanggal</label><input type="date" id="tanggal" defaultValue={editingKegiatan?.tanggal ?? new Date().toISOString().slice(0, 10)} /></div>
-                <div className="field"><label>Jam Mulai</label><input type="time" id="jamMulai" defaultValue={(editingKegiatan as any)?.jamMulai ?? editingKegiatan?.jam ?? ""} /></div>
-                <div className="field"><label>Jam Selesai (Pulang)</label><input type="time" id="jamSelesai" defaultValue={(editingKegiatan as any)?.jamSelesai ?? ""} /></div>
+                <div className="field"><label>Jam Mulai</label><TimeInput24 key={`jm-${editingKegiatan?.id ?? "new"}`} id="jamMulai" defaultValue={(editingKegiatan as any)?.jamMulai ?? editingKegiatan?.jam ?? ""} /></div>
+                <div className="field"><label>Jam Selesai (Pulang)</label><TimeInput24 key={`js-${editingKegiatan?.id ?? "new"}`} id="jamSelesai" defaultValue={(editingKegiatan as any)?.jamSelesai ?? ""} /></div>
               </div>
               <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, fontWeight: 700 }}>
                 <input type="checkbox" checked={multiHari || Boolean((editingKegiatan as any)?.tanggalSelesai)} onChange={(e) => setMultiHari(e.target.checked)} />
@@ -4184,27 +4222,36 @@ function AddAdminModal({
   const [roleBaru, setRoleBaru] = useState<AdminRole>(roleOptions[0]?.value ?? "admin_kelompok");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [desaList, setDesaList] = useState<{ id: number; nama: string }[]>([]);
   const [kelList, setKelList] = useState<{ id: number; nama: string; desaId: number }[]>([]);
+  const [selectedDesaId, setSelectedDesaId] = useState<number | "">("");
   const [selectedKelId, setSelectedKelId] = useState<number | "">("");
 
   useEffect(() => {
-    if (callerRole === "admin_desa" && roleBaru === "admin_kelompok") {
+    if (callerRole === "admin_daerah") {
+      apiFetch("/api/admin/desa").then((r: any) => setDesaList(Array.isArray(r) ? r : [])).catch(() => {});
+    }
+    if (roleBaru === "admin_kelompok") {
       apiFetch("/api/admin/kelompok").then((r: any) => setKelList(Array.isArray(r) ? r : [])).catch(() => {});
     }
   }, [callerRole, roleBaru]);
 
-  useEffect(() => { setSelectedKelId(""); }, [roleBaru]);
+  useEffect(() => { setSelectedKelId(""); }, [roleBaru, selectedDesaId]);
 
-  // Desa/kelompok is auto-assigned from caller context — no selector needed
+  // Desa/kelompok terisi otomatis dari konteks caller — kecuali admin_daerah yang wajib pilih manual
   const autoDesa = callerRole === "admin_desa" || callerRole === "admin_kelompok";
-  const needKelSelect = callerRole === "admin_desa" && roleBaru === "admin_kelompok";
-  const filteredKel = callerDesaId ? kelList.filter((k) => k.desaId === Number(callerDesaId)) : kelList;
-  const valid = nama.trim().length >= 3 && email.trim().includes("@") && password.length >= 8 && (!needKelSelect || selectedKelId !== "");
+  const needDesaSelect = !autoDesa && (roleBaru === "admin_desa" || roleBaru === "admin_kelompok");
+  const needKelSelect = roleBaru === "admin_kelompok" && (autoDesa || selectedDesaId !== "");
+  const filteredKel = autoDesa
+    ? (callerDesaId ? kelList.filter((k) => k.desaId === Number(callerDesaId)) : kelList)
+    : (selectedDesaId !== "" ? kelList.filter((k) => k.desaId === Number(selectedDesaId)) : []);
+  const valid = nama.trim().length >= 3 && email.trim().includes("@") && password.length >= 8
+    && (!needDesaSelect || selectedDesaId !== "") && (!needKelSelect || selectedKelId !== "");
 
   function handleSave() {
-    const desaId = autoDesa ? Number(callerDesaId) : undefined;
+    const desaId = autoDesa ? Number(callerDesaId) : (selectedDesaId !== "" ? Number(selectedDesaId) : undefined);
     const kelompokId = roleBaru === "admin_kelompok"
-      ? (needKelSelect ? (selectedKelId ? Number(selectedKelId) : undefined) : Number(callerKelompokId))
+      ? (selectedKelId !== "" ? Number(selectedKelId) : undefined)
       : undefined;
     onSave(nama.trim(), roleBaru, "", email.trim().toLowerCase(), password, desaId, kelompokId);
   }
@@ -4225,6 +4272,13 @@ function AddAdminModal({
             options={roleOptions.map((o) => ({ value: o.value, label: o.label }))}
           />
         </div>
+        {needDesaSelect && (
+          <div className="field">
+            <label>Desa *</label>
+            <Select value={selectedDesaId === "" ? "" : String(selectedDesaId)} onChange={(v) => { setSelectedDesaId(v ? Number(v) : ""); setSelectedKelId(""); }} ariaLabel="Pilih desa"
+              options={[{ value: "", label: "-- Pilih Desa --" }, ...desaList.map((d) => ({ value: String(d.id), label: d.nama }))]} />
+          </div>
+        )}
         {needKelSelect && (
           <div className="field">
             <label>Kelompok *</label>
@@ -4251,6 +4305,91 @@ function AddAdminModal({
         </div>
       </div>
     </AdminModal>
+  );
+}
+
+function QrWilayahPage({ role }: { role: AdminRole }) {
+  const { user } = useAuth();
+  const [desas, setDesas] = useState<{ id: string; nama: string }[]>([]);
+  const [kelompoks, setKelompoks] = useState<{ id: string; nama: string; desaId: string }[]>([]);
+  const [q, setQ] = useState("");
+  const [qrTarget, setQrTarget] = useState<QrTarget | null>(null);
+
+  useEffect(() => {
+    apiFetch<unknown>("/api/admin/desa").catch(() => apiFetch<unknown>("/api/auth/desa")).then((r: unknown) => {
+      const u = unwrapList<{ id: number | string; nama: string }>(r as unknown);
+      const arr = Array.isArray(r) ? r as { id: number | string; nama: string }[] : u.data as { id: number | string; nama: string }[];
+      setDesas((arr as { id: number | string; nama: string }[]).map((d) => ({ id: String(d.id), nama: d.nama })));
+    }).catch(() => {});
+    apiFetch<unknown>("/api/admin/kelompok").catch(() => apiFetch<unknown>("/api/auth/kelompok")).then((r: unknown) => {
+      const u = unwrapList<{ id: number | string; nama: string; desaId: number | string }>(r as unknown);
+      const arr = Array.isArray(r) ? r as { id: number | string; nama: string; desaId: number | string }[] : u.data as { id: number | string; nama: string; desaId: number | string }[];
+      setKelompoks((arr as { id: number | string; nama: string; desaId: number | string }[]).map((k) => ({ id: String(k.id), nama: k.nama, desaId: String(k.desaId) })));
+    }).catch(() => {});
+  }, []);
+
+  const userDesaId = user?.desaId != null ? String(user.desaId) : null;
+  const userKelompokId = user?.kelompokId != null ? String(user.kelompokId) : null;
+  const visibleDesas = role === "admin_daerah" ? desas
+    : role === "admin_desa" && userDesaId ? desas.filter((d) => d.id === userDesaId)
+    : role === "admin_kelompok" && userKelompokId ? desas.filter((d) => kelompoks.some((k) => k.id === userKelompokId && k.desaId === d.id))
+    : desas;
+  const visibleKelompoks = role === "admin_daerah" ? kelompoks
+    : role === "admin_desa" && userDesaId ? kelompoks.filter((k) => k.desaId === userDesaId)
+    : role === "admin_kelompok" && userKelompokId ? kelompoks.filter((k) => k.id === userKelompokId)
+    : kelompoks;
+
+  const query = q.trim().toLowerCase();
+  const matchQ = (nama: string) => !query || nama.toLowerCase().includes(query);
+  const showDaerah = role === "admin_daerah" && matchQ("Daerah Cengkareng");
+  const showDesas = visibleDesas.filter((d) => matchQ(d.nama));
+  const showKelompoks = visibleKelompoks.filter((k) => matchQ(k.nama));
+
+  const cards: { key: string; level: QrTarget["level"]; nama: string; sub?: string }[] = [
+    ...(showDaerah ? [{ key: "daerah", level: "daerah" as const, nama: "Daerah Cengkareng", sub: "Berlaku untuk seluruh generus" }] : []),
+    ...showDesas.map((d) => ({ key: `desa-${d.id}`, level: "desa" as const, nama: d.nama, sub: `${visibleKelompoks.filter((k) => k.desaId === d.id).length} kelompok` })),
+    ...showKelompoks.map((k) => {
+      const d = desas.find((x) => x.id === k.desaId);
+      return { key: `kel-${k.id}`, level: "kelompok" as const, nama: k.nama, sub: d ? `Desa ${d.nama}` : undefined };
+    }),
+  ];
+
+  return (
+    <div>
+      <PageHeader
+        title="QR Wilayah"
+        sub="Satu QR per wilayah — ditempel di lokasi, discan anggota wilayah tersebut untuk absensi"
+        action={(
+          <label className="search" style={{ maxWidth: 260 }}>
+            <IcoSearch size={14} />
+            <input placeholder="Cari wilayah..." value={q} onChange={(e) => setQ(e.target.value)} aria-label="Cari wilayah" />
+          </label>
+        )}
+      />
+      {cards.length === 0 ? (
+        <div className="lp-empty-card">Tidak ada QR wilayah yang cocok.</div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+          {cards.map((c) => (
+            <div key={c.key} className="card" style={{ display: "grid", justifyItems: "center", gap: 8, padding: 16, textAlign: "center" }}>
+              <span className={`pill ${c.level === "daerah" ? "pill-emerald" : c.level === "desa" ? "pill-amber" : "pill-slate"}`} style={{ textTransform: "capitalize" }}>{c.level}</span>
+              <QRCodeCanvas value={`gencar-absen|${c.level}|${c.nama}`} size={140} level="M" includeMargin={false} bgColor="#ffffff" fgColor="#1b0f0a" />
+              <div style={{ fontWeight: 800, fontSize: 14, lineHeight: 1.25 }}>{c.nama}</div>
+              {c.sub && <div className="muted" style={{ fontSize: 11 }}>{c.sub}</div>}
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                style={{ width: "100%" }}
+                onClick={() => setQrTarget({ level: c.level, nama: c.nama })}
+              >
+                <IcoQr size={14} /> Lihat & Unduh
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      {qrTarget && <QrModal target={qrTarget} onClose={() => setQrTarget(null)} />}
+    </div>
   );
 }
 
@@ -4928,6 +5067,7 @@ export default function App({ initialMode }: { initialMode?: "admin" | "member" 
         {effectivePage === "pengajuan" && <ProfileRequestsPage />}
         {effectivePage === "users" && <UsersManage role={role} />}
         {effectivePage === "wilayah" && <WilayahPage role={role} />}
+        {effectivePage === "qr" && <QrWilayahPage role={role} />}
         {effectivePage === "cms" && <CmsPage role={role} />}
         {effectivePage === "statistik" && <StatistikPage role={role} />}
       </AdminShell>

@@ -40,7 +40,7 @@ export default function MemberAbsenPage({ me: _me }: { me: MemberIdentity }) {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
-  const timeStr = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: true });
+  const timeStr = now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false });
 
   function ambilGps() {
     setGpsLoading(true);

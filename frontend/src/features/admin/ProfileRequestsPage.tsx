@@ -61,7 +61,7 @@ function fmtDate(s?: string | null) {
   try {
     const d = new Date(s);
     if (Number.isNaN(d.getTime())) return s;
-    return d.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+    return d.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short", hourCycle: "h23" });
   } catch {
     return s;
   }
