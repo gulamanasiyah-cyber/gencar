@@ -864,11 +864,11 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
         {/* Modal Ajukan Izin */}
         {izinOpen && (
           <div className="modal-backdrop" onClick={() => setIzinOpen(false)} style={{ zIndex: 1200, display: "grid", placeItems: "center", padding: 16 }}>
-            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420, width: "100%", padding: 20, borderRadius: 20 }}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420, width: "100%", padding: 20, borderRadius: 20, position: "relative" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <h3 style={{ fontSize: 16, fontWeight: 900, color: "var(--ink)", margin: 0 }}>Ajukan Izin</h3>
-                <button type="button" className="trophy-modal-close" onClick={() => setIzinOpen(false)} aria-label="Tutup">
-                  <IcoX size={18} />
+                <button type="button" className="trophy-modal-close" onClick={() => setIzinOpen(false)} aria-label="Tutup" style={{ position: "static", flexShrink: 0 }}>
+                  <IcoX size={16} />
                 </button>
               </div>
               <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px", lineHeight: 1.5 }}>
@@ -924,11 +924,11 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
       {/* Modal: Semua Riwayat Absensi (dengan filter) */}
       {historyOpen && (
         <div className="modal-backdrop" onClick={() => setHistoryOpen(false)} style={{ zIndex: 1200, display: "grid", placeItems: "start center", padding: 16, overflowY: "auto" }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520, width: "100%", padding: 20, borderRadius: 20, marginTop: 24 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520, width: "100%", padding: 20, borderRadius: 20, marginTop: 24, position: "relative" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <h3 style={{ fontSize: 16, fontWeight: 900, color: "var(--ink)", margin: 0 }}>Riwayat Absensi</h3>
-              <button type="button" className="trophy-modal-close" onClick={() => setHistoryOpen(false)} aria-label="Tutup">
-                <IcoX size={18} />
+              <button type="button" className="trophy-modal-close" onClick={() => setHistoryOpen(false)} aria-label="Tutup" style={{ position: "static", flexShrink: 0 }}>
+                <IcoX size={16} />
               </button>
             </div>
 
