@@ -15,7 +15,7 @@ import shadowUrl from "leaflet/dist/images/marker-shadow.png";
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({ iconRetinaUrl, iconUrl, shadowUrl });
 
-type AbsenRow = { id: string; tanggal: string; judul: string; status: "hadir" | "izin" | "alpha"; jam: string };
+type AbsenRow = { id: string; tanggal: string; judul: string; status: "hadir" | "izin" | "alpha"; jam: string; catatan?: string | null };
 type GpsState = { lat: number; lng: number; acc: number | null } | null;
 type QrHit = { level: string; nama: string } | null;
 type ConflictKegiatan = {
@@ -37,11 +37,7 @@ type ScanResultModal =
   | { kind: "empty"; message: string }
   | { kind: "error"; message: string };
 
-const DEMO_RIWAYAT: AbsenRow[] = [
-  { id: "a1", tanggal: "2026-05-07", judul: "Sambung Muda-Mudi Kelompok Fajar C", status: "hadir", jam: "19:42" },
-  { id: "a2", tanggal: "2026-05-02", judul: "Keakraban: Futsal Bareng", status: "izin", jam: "—" },
-  { id: "a3", tanggal: "2026-04-28", judul: "Pemantapan Materi Pra-Nikah", status: "hadir", jam: "13:10" },
-];
+const DEMO_RIWAYAT: AbsenRow[] = [];
 
 function parseQrToken(raw: string): QrHit {
   const t = raw.trim();
@@ -102,7 +98,7 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
     if (!scannerRef.current) void startScan();
   }
   const [riwayat, setRiwayat] = useState<AbsenRow[]>(DEMO_RIWAYAT);
-  void riwayat;
+  const [riwayatLoading, setRiwayatLoading] = useState(true);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannedRef = useRef(false);
   // Ref selalu-terbaru supaya callback scanner (di-capture saat mount) tidak basi
@@ -146,6 +142,27 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
     return () => {
       void stopScan();
     };
+  }, []);
+
+  async function loadRiwayat() {
+    try {
+      const rows: any = await apiFetch("/api/absensi/mine");
+      if (!Array.isArray(rows)) return;
+      setRiwayat(rows.map((r: any) => ({
+        id: r.id,
+        tanggal: r.tanggal ?? (r.timestamp ? String(r.timestamp).slice(0, 10) : ""),
+        judul: r.judul ?? "Kegiatan",
+        status: (r.keterangan === "izin" ? "izin" : r.keterangan === "alpha" ? "alpha" : "hadir") as AbsenRow["status"],
+        jam: r.jam ?? (r.timestamp ? String(r.timestamp).slice(11, 16) : "—"),
+        catatan: r.catatan ?? null,
+      })));
+    } catch {} finally {
+      setRiwayatLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadRiwayat();
   }, []);
 
   async function startScan() {
@@ -241,7 +258,7 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
       const jam = `${String(nowTime.getHours()).padStart(2, "0")}:${String(nowTime.getMinutes()).padStart(2, "0")}`;
       if (res?.status === "success" && res?.attendedKegiatan) {
         const k = res.attendedKegiatan as ConflictKegiatan;
-        setRiwayat((prev) => [{ id: `a_${Date.now()}`, tanggal: k.tanggal, judul: k.judul, status: "hadir", jam }, ...prev]);
+        void loadRiwayat();
         setResultModal({
           kind: "success",
           judul: k.judul,
@@ -292,7 +309,7 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
       const nowTime = new Date();
       const jam = `${String(nowTime.getHours()).padStart(2, "0")}:${String(nowTime.getMinutes()).padStart(2, "0")}`;
       if (picked) {
-        setRiwayat((prev) => [{ id: `a_${Date.now()}`, tanggal: picked.tanggal, judul: picked.judul, status: "hadir", jam }, ...prev]);
+        void loadRiwayat();
         setResultModal({ kind: "success", judul: picked.judul, jam, izinCount: Math.max(0, conflictAll.length - 1) });
       }
       setConflictOpen(false);
@@ -702,6 +719,45 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
                 ))}
               </div>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* 7. RIWAYAT ABSENSI */}
+      <div id="riwayat-section" className="card" style={{ padding: 16, display: "grid", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <h3 style={{ fontSize: 13, fontWeight: 800, letterSpacing: "-0.02em" }}>
+            Riwayat Absensi
+          </h3>
+          <span className="pill pill-slate">
+            <Clock3 size={12} /> {riwayat.length} riwayat
+          </span>
+        </div>
+
+        {riwayatLoading ? (
+          <div className="lp-empty-card" style={{ fontSize: 12 }}>Memuat riwayat…</div>
+        ) : riwayat.length === 0 ? (
+          <div className="lp-empty-card" style={{ fontSize: 12 }}>
+            Belum ada riwayat absensi. Scan QR wilayah saat ada kegiatan untuk mencatat kehadiran.
+          </div>
+        ) : (
+          <div style={{ display: "grid", gap: 8 }}>
+            {riwayat.map((r) => (
+              <div key={r.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 12, border: "1px solid var(--line)", background: "#fff" }}>
+                <span className={`pill ${r.status === "hadir" ? "pill-emerald" : r.status === "izin" ? "pill-amber" : "pill-slate"}`} style={{ textTransform: "capitalize", flexShrink: 0 }}>
+                  {r.status}
+                </span>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.3, color: "var(--ink)" }}>{r.judul}</div>
+                  {r.catatan && (
+                    <div className="muted" style={{ fontSize: 11, fontStyle: "italic", marginTop: 1 }}>{r.catatan}</div>
+                  )}
+                  <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
+                    {r.tanggal}{r.jam && r.jam !== "—" ? ` · ${r.jam}` : ""}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

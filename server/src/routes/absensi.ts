@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, and, like, or } from "drizzle-orm";
+import { eq, and, like, or, sql } from "drizzle-orm";
 import { absensi, generus, kegiatan, desa, kelompok, kegiatanPeserta } from "../../../shared/schema";
 import { getDb } from "../utils/db";
 import { isDiundang } from "../utils/undangan";
@@ -10,6 +10,28 @@ import { requireAuth } from "../middleware/auth";
 type Env = { DB: D1Database; JWT_SECRET: string; [k: string]: unknown };
 const r = new Hono<{ Bindings: Env }>();
 r.use("/*", requireAuth());
+
+// Riwayat absensi milik user sendiri (member beranda)
+r.get("/mine", async (c) => {
+  const session = c.get("user" as any) as any;
+  const db = getDb(c.env);
+  const user: any = await db.query.users.findFirst({ where: eq((await import("../../../shared/schema")).users.id, session.userId) });
+  if (!user?.generusId) return c.json([]);
+  const rows: any = await db.select({
+    id: absensi.id,
+    kegiatanId: absensi.kegiatanId,
+    keterangan: absensi.keterangan,
+    catatan: absensi.catatan,
+    timestamp: absensi.timestamp,
+    judul: kegiatan.judul,
+    tanggal: kegiatan.tanggal,
+    jam: kegiatan.jamMulai ?? kegiatan.jam ?? null,
+  }).from(absensi)
+    .innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id))
+    .where(eq(absensi.generusId, user.generusId))
+    .orderBy(sql`${absensi.timestamp} DESC`).limit(50);
+  return c.json(rows);
+});
 
 r.get("/", async (c) => {
   const session = c.get("user" as any) as any;
@@ -166,6 +188,9 @@ function toKegiatanCard(k: any) {
     jamMulai: k.jamMulai ?? k.jam ?? null,
     jamSelesai: k.jamSelesai ?? null,
     lokasi: k.lokasi ?? null,
+    lat: k.lat ?? null,
+    lng: k.lng ?? null,
+    radiusM: k.radiusM ?? 100,
     desaId: k.desaId ?? null,
     kelompokId: k.kelompokId ?? null,
   };

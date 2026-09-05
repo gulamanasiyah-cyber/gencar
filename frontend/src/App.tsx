@@ -3307,7 +3307,7 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
 
   return (
     <div>
-      <PageHeader title="Kegiatan" sub={`Kelola agenda dan kegiatan${kegiatanErr ? ` · ${kegiatanErr.slice(0, 80)}` : loadingKegiatan ? " · memuat…" : ""}`} action={<button className="btn btn-primary btn-auto" onClick={() => { setEditingKegiatan(null); setTingkat(role === "admin_kelompok" ? "kelompok" : role === "admin_desa" ? "desa" : "daerah"); setNamaWilayah(role === "admin_kelompok" ? "" : role === "admin_desa" ? "" : "Cengkareng"); setTargetedPeserta(false); setPesertaDesaIds([]); setPesertaKelompokIds([]); setPesertaGenerusIds([]); setPesertaFilters({}); setShowForm(true); }}>+ Buat Kegiatan</button>} />
+      <PageHeader title="Kegiatan" sub={`Kelola agenda dan kegiatan${kegiatanErr ? ` · ${kegiatanErr.slice(0, 80)}` : loadingKegiatan ? " · memuat…" : ""}`} action={<button className="btn btn-primary btn-auto" onClick={() => { setEditingKegiatan(null); setGpsLat(""); setGpsLng(""); setTingkat(role === "admin_kelompok" ? "kelompok" : role === "admin_desa" ? "desa" : "daerah"); setNamaWilayah(role === "admin_kelompok" ? "" : role === "admin_desa" ? "" : "Cengkareng"); setTargetedPeserta(false); setPesertaDesaIds([]); setPesertaKelompokIds([]); setPesertaGenerusIds([]); setPesertaFilters({}); setShowForm(true); }}>+ Buat Kegiatan</button>} />
       {kegiatanErr && <div className="card" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#991b1b", display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}><span style={{ fontSize: 13, fontWeight: 700 }}>{kegiatanErr}</span><button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: "auto" }} onClick={() => void loadKegiatan()}>Retry</button></div>}
       <div className="admin-toolbar" style={{ marginBottom: 16 }}>
         <SearchInput value={q} onChange={setQ} placeholder="Cari judul / lokasi..." />
@@ -3413,7 +3413,7 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
               </button>
               {(role === "admin_daerah" || (role === "admin_desa" && k.desaId != null && k.desaId === user?.desaId) || (role === "admin_kelompok" && k.kelompokId != null && k.kelompokId === user?.kelompokId)) && (
                 <>
-                  <button className="btn btn-ghost row-icon-btn" aria-label="Edit" title="Edit" onClick={() => { setEditingKegiatan(k); setShowForm(true); }}>
+                  <button className="btn btn-ghost row-icon-btn" aria-label="Edit" title="Edit" onClick={() => { setEditingKegiatan(k); setGpsLat(k.lat != null ? String(k.lat) : ""); setGpsLng(k.lng != null ? String(k.lng) : ""); setShowForm(true); }}>
                     <IcoEdit size={15} />
                   </button>
                   <button className="btn btn-danger row-icon-btn" aria-label="Hapus" title="Hapus" onClick={() => setDeletingKegiatan(k)}>
