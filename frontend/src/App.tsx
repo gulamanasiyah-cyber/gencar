@@ -287,7 +287,10 @@ type Kegiatan = {
   desaId?: number | null;
   kelompokId?: number | null;
   tanggal: string;
+  tanggalSelesai?: string | null;
   jam: string;
+  jamMulai?: string | null;
+  jamSelesai?: string | null;
   lokasi: string;
   lat: number | null;
   lng: number | null;
@@ -3126,6 +3129,7 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
   const [gpsLng, setGpsLng] = useState("");
   const [showMap, setShowMap] = useState(false);
   const [editingKegiatan, setEditingKegiatan] = useState<Kegiatan | null>(null);
+  const [multiHari, setMultiHari] = useState(false);
   const [absensiKegiatan, setAbsensiKegiatan] = useState<Kegiatan | null>(null);
   const [deletingKegiatan, setDeletingKegiatan] = useState<Kegiatan | null>(null);
   const [detailKegiatan, setDetailKegiatan] = useState<Kegiatan | null>(null);
@@ -3150,7 +3154,7 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
     try {
       const raw: unknown = await apiFetch("/api/kegiatan");
       const u = unwrapList<{
-        id: string; judul: string; deskripsi?: string | null; tanggal: string; jam?: string | null; lokasi?: string | null;
+        id: string; judul: string; deskripsi?: string | null; tanggal: string; tanggalSelesai?: string | null; jam?: string | null; jamMulai?: string | null; jamSelesai?: string | null; lokasi?: string | null;
         kategoriAcara?: string | null; kategoriCustom?: string | null; desaNama?: string | null; kelompokNama?: string | null;
         lat?: number | null; lng?: number | null; radiusM?: number | null; gpsRequired?: number | null;
         desaId?: number | null; kelompokId?: number | null; createdBy?: string | null;
@@ -3173,7 +3177,10 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
           desaId: k.desaId ?? null,
           kelompokId: k.kelompokId ?? null,
           tanggal: k.tanggal,
+          tanggalSelesai: (k as any).tanggalSelesai ?? null,
           jam: (k.jam as string) ?? "",
+          jamMulai: (k as any).jamMulai ?? null,
+          jamSelesai: (k as any).jamSelesai ?? null,
           lokasi: (k.lokasi as string) ?? "",
           lat: k.lat ?? null,
           lng: k.lng ?? null,
@@ -3339,7 +3346,7 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
             <div className="kegiatan-meta">
               <div className="kegiatan-meta-row">
                 <IcoCalendar size={13} />
-                <span className="kegiatan-meta-value">{k.tanggal}{k.jam ? ` • ${k.jam}` : ""}</span>
+                <span className="kegiatan-meta-value">{k.tanggalSelesai && k.tanggalSelesai !== k.tanggal ? `${k.tanggal} – ${k.tanggalSelesai}` : k.tanggal}{(k.jamMulai || k.jam) ? ` • ${k.jamMulai || k.jam}${k.jamSelesai ? ` – ${k.jamSelesai}` : ""}` : ""}</span>
               </div>
               <div className="kegiatan-meta-row">
                 <IcoMapPin size={13} />
@@ -3411,8 +3418,16 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
               <div className="field"><label>Deskripsi</label><textarea rows={2} placeholder="Detail acara..." id="deskripsi" defaultValue={editingKegiatan?.deskripsi ?? ""} /></div>
               <div className="kegiatan-form-grid-3">
                 <div className="field"><label>Tanggal</label><input type="date" id="tanggal" defaultValue={editingKegiatan?.tanggal ?? new Date().toISOString().slice(0, 10)} /></div>
-                <div className="field"><label>Jam</label><input type="time" id="jam" defaultValue={editingKegiatan?.jam ?? ""} /></div>
+                <div className="field"><label>Jam Mulai</label><input type="time" id="jamMulai" defaultValue={(editingKegiatan as any)?.jamMulai ?? editingKegiatan?.jam ?? ""} /></div>
+                <div className="field"><label>Jam Selesai (Pulang)</label><input type="time" id="jamSelesai" defaultValue={(editingKegiatan as any)?.jamSelesai ?? ""} /></div>
               </div>
+              <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, fontWeight: 700 }}>
+                <input type="checkbox" checked={multiHari || Boolean((editingKegiatan as any)?.tanggalSelesai)} onChange={(e) => setMultiHari(e.target.checked)} />
+                Acara lintas hari / multi-hari
+              </label>
+              {(multiHari || (editingKegiatan as any)?.tanggalSelesai) && (
+                <div className="field"><label>Tanggal Selesai</label><input type="date" id="tanggalSelesai" defaultValue={(editingKegiatan as any)?.tanggalSelesai ?? editingKegiatan?.tanggal ?? new Date().toISOString().slice(0, 10)} /></div>
+              )}
               <div className="field"><label>Lokasi</label><textarea id="lokasi" rows={2} placeholder="Masjid / Aula" defaultValue={editingKegiatan?.lokasi ?? ""} /></div>
               <div className="field">
                 <label>Lokasi GPS — tap untuk pilih di peta</label>
@@ -3557,7 +3572,10 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
                   const judul = (v("judul") || tpl || "").trim();
                   if (!judul) { setKegiatanErr("Judul wajib diisi."); return; }
                   const tanggal = v("tanggal") || new Date().toISOString().slice(0, 10);
-                  const jam = v("jam") || "";
+                  const tanggalSelesai = (document.getElementById("tanggalSelesai") as HTMLInputElement)?.value || "";
+                  const jam = v("jamMulai") || v("jam") || "";
+                  const jamMulai = v("jamMulai") || "";
+                  const jamSelesai = v("jamSelesai") || "";
                   const lokasi = v("lokasi") || "";
                   const deskripsi = v("deskripsi") || "";
                   const lat = parseFloat(gpsLat); const lng = parseFloat(gpsLng);
@@ -3596,7 +3614,7 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
                     await apiFetch<{ success?: boolean; id?: string }>(url, {
                       method,
                       body: JSON.stringify({
-                        judul, deskripsi, tanggal, jam, lokasi,
+                        judul, deskripsi, tanggal, tanggalSelesai: tanggalSelesai || undefined, jam, jamMulai: jamMulai || undefined, jamSelesai: jamSelesai || undefined, lokasi,
                         desaId: desaId ?? undefined,
                         kelompokId: kelompokId ?? undefined,
                         kategoriAcara: kategori,

@@ -1,8 +1,10 @@
 import { Hono } from "hono";
 import { eq, and, like, or } from "drizzle-orm";
-import { absensi, generus, kegiatan, desa, kelompok } from "../../../shared/schema";
+import { absensi, generus, kegiatan, desa, kelompok, kegiatanPeserta } from "../../../shared/schema";
 import { getDb } from "../utils/db";
 import { isDiundang } from "../utils/undangan";
+import { isEventActiveNow } from "../utils/kegiatanTime";
+import { isGenerusEligibleForKegiatan, matchesQrScope } from "../utils/eligibility";
 import { requireAuth } from "../middleware/auth";
 
 type Env = { DB: D1Database; JWT_SECRET: string; [k: string]: unknown };
@@ -66,12 +68,227 @@ r.post("/", async (c) => {
   const existing: any = await db.query.absensi.findFirst({ where: and(eq(absensi.kegiatanId, kegiatanId), eq(absensi.generusId, resolvedGenerusId)) });
   if (existing) return c.json({ error: "Sudah diabsen", existing }, 409);
   const id = crypto.randomUUID();
-  await db.insert(absensi).values({ id, kegiatanId, generusId: resolvedGenerusId, keterangan: keterangan || "hadir", timestamp: new Date().toISOString(), lat: lat ? Number(lat) : null, lng: lng ? Number(lng) : null, accuracy: accuracy ? Number(accuracy) : null, qrWilayahLevel: qrWilayahLevel || null } as any);
+  await db.insert(absensi).values({ id, kegiatanId, generusId: resolvedGenerusId, desaId: resolvedGenerus.desaId ?? null, kelompokId: resolvedGenerus.kelompokId ?? null, keterangan: keterangan || "hadir", timestamp: new Date().toISOString(), lat: lat ? Number(lat) : null, lng: lng ? Number(lng) : null, accuracy: accuracy ? Number(accuracy) : null, qrWilayahLevel: qrWilayahLevel || null } as any);
   return c.json({ success: true, id, generusNama: resolvedGenerus.nama });
 });
 
-r.delete("/", async (c) => {
+// ── Auto-detect scan: evaluasi kegiatan eligible saat scan QR wilayah ──
+function parseQrToken(raw: string): { level: "kelompok" | "desa" | "daerah"; nama: string } | null {
+  const t = String(raw || "").trim();
+  if (!t.startsWith("gencar-absen|")) return null;
+  const [, level = "", nama = ""] = t.split("|");
+  if (level !== "kelompok" && level !== "desa" && level !== "daerah") return null;
+  return { level, nama: (nama || "").trim() };
+}
+
+async function resolveQrWilayah(db: any, qr: { level: "kelompok" | "desa" | "daerah"; nama: string }) {
+  if (qr.level === "kelompok") {
+    const k: any = await db.query.kelompok.findFirst({
+      where: like(kelompok.nama, qr.nama),
+    });
+    if (!k) return null;
+    const d: any = k.desaId ? await db.query.desa.findFirst({ where: eq(desa.id, k.desaId) }) : null;
+    return { level: qr.level as const, kelompokId: k.id as number, desaId: (k.desaId ?? null) as number | null, nama: k.nama };
+  }
+  if (qr.level === "desa") {
+    const d: any = await db.query.desa.findFirst({ where: like(desa.nama, qr.nama) });
+    if (!d) return null;
+    return { level: qr.level as const, kelompokId: null, desaId: d.id as number, nama: d.nama };
+  }
+  return { level: "daerah" as const, kelompokId: null, desaId: null, nama: "Cengkareng" };
+}
+
+async function buildEligibleSets(
+  db: any,
+  resolvedGenerus: any,
+  qr: { level: "kelompok" | "desa" | "daerah"; kelompokId: number | null; desaId: number | null },
+  userLocation: { lat: number; lng: number } | null,
+  now: Date
+) {
+  const allKegiatan: any[] = await db.select().from(kegiatan);
+  const active = allKegiatan.filter((k: any) => isEventActiveNow(k, now));
+  const kegIds = active.map((k: any) => k.id);
+  let pesertaRows: any[] = [];
+  if (kegIds.length > 0) {
+    const targetConds: any[] = [eq(kegiatanPeserta.generusId, resolvedGenerus.id)];
+    if (resolvedGenerus.kelompokId != null) targetConds.push(eq(kegiatanPeserta.kelompokId, resolvedGenerus.kelompokId));
+    if (resolvedGenerus.desaId != null) targetConds.push(eq(kegiatanPeserta.desaId, resolvedGenerus.desaId));
+    pesertaRows = await db.select().from(kegiatanPeserta).where(
+      and(eq(kegiatanPeserta.status, "approved"), or(...targetConds))
+    ).catch(() => []);
+  }
+  const byKegiatan = new Map<string, any[]>();
+  for (const p of pesertaRows) {
+    if (!byKegiatan.has(p.kegiatanId)) byKegiatan.set(p.kegiatanId, []);
+    byKegiatan.get(p.kegiatanId)!.push(p);
+  }
+  const scope = {
+    id: resolvedGenerus.id,
+    desaId: resolvedGenerus.desaId ?? null,
+    kelompokId: resolvedGenerus.kelompokId ?? null,
+    jenisKelamin: resolvedGenerus.jenisKelamin ?? null,
+    kategoriMudaMudi: resolvedGenerus.kategoriMudaMudi ?? null,
+    pendidikan: resolvedGenerus.pendidikan ?? null,
+    tanggalLahir: resolvedGenerus.tanggalLahir ?? null,
+  };
+  const A = active.filter((k: any) =>
+    isGenerusEligibleForKegiatan(scope, k, byKegiatan.get(k.id) ?? [], userLocation)
+  );
+  const B = A.filter((k: any) => matchesQrScope(k, qr.level, qr.desaId, qr.kelompokId));
+  return { A, B };
+}
+
+function toKegiatanCard(k: any) {
+  return {
+    id: k.id,
+    judul: k.judul,
+    tanggal: k.tanggal,
+    tanggalSelesai: k.tanggalSelesai ?? null,
+    jam: k.jam ?? null,
+    jamMulai: k.jamMulai ?? k.jam ?? null,
+    jamSelesai: k.jamSelesai ?? null,
+    lokasi: k.lokasi ?? null,
+    desaId: k.desaId ?? null,
+    kelompokId: k.kelompokId ?? null,
+  };
+}
+
+r.post("/scan", async (c) => {
   const session = c.get("user" as any) as any;
+  const body: any = await c.req.json().catch(() => ({}));
+  const { qrToken, lat, lng, accuracy } = body;
+  if (!qrToken) return c.json({ error: "qrToken diperlukan" }, 400);
+  const db = getDb(c.env);
+  const user: any = await db.query.users.findFirst({ where: eq((await import("../../../shared/schema")).users.id, session.userId) });
+  if (!user?.generusId) return c.json({ error: "Akun belum taut generus" }, 400);
+  const resolvedGenerus: any = await db.query.generus.findFirst({ where: eq(generus.id, user.generusId) });
+  if (!resolvedGenerus) return c.json({ error: "Generus tidak ditemukan" }, 404);
+
+  const parsed = parseQrToken(qrToken);
+  if (!parsed) return c.json({ error: "QR tidak dikenali" }, 400);
+  const qr = await resolveQrWilayah(db, parsed);
+  if (!qr) return c.json({ error: "QR wilayah tidak terdaftar" }, 404);
+
+  // QR harus milik wilayah asal generus sendiri
+  if (qr.level === "kelompok" && qr.kelompokId !== resolvedGenerus.kelompokId) {
+    return c.json({ error: "QR ini bukan milik kelompok kamu" }, 403);
+  }
+  if (qr.level === "desa" && qr.desaId !== resolvedGenerus.desaId) {
+    return c.json({ error: "QR ini bukan milik desa kamu" }, 403);
+  }
+
+  const userLocation = lat != null && lng != null ? { lat: Number(lat), lng: Number(lng) } : null;
+  const now = new Date();
+  const { A, B } = await buildEligibleSets(db, resolvedGenerus, qr, userLocation, now);
+
+  // Filter yang sudah diabsen hari ini untuk kegiatan tersebut
+  const existing: any[] = await db.select().from(absensi).where(eq(absensi.generusId, resolvedGenerus.id));
+  const doneSet = new Set(existing.map((a: any) => a.kegiatanId));
+  const freshB = B.filter((k: any) => !doneSet.has(k.id));
+
+  if (freshB.length === 0) {
+    return c.json({ status: "no_event", message: "Tidak ada kegiatan aktif untuk wilayah ini saat ini." });
+  }
+  if (freshB.length === 1) {
+    const target = freshB[0];
+    const id = crypto.randomUUID();
+    await db.insert(absensi).values({
+      id,
+      kegiatanId: target.id,
+      generusId: resolvedGenerus.id,
+      desaId: resolvedGenerus.desaId ?? null,
+      kelompokId: resolvedGenerus.kelompokId ?? null,
+      keterangan: "hadir",
+      timestamp: now.toISOString(),
+      lat: lat != null ? Number(lat) : null,
+      lng: lng != null ? Number(lng) : null,
+      accuracy: accuracy != null ? Number(accuracy) : null,
+      qrWilayahLevel: qr.level,
+    } as any);
+    const others = A.filter((k: any) => k.id !== target.id && !doneSet.has(k.id));
+    for (const o of others) {
+      await db.insert(absensi).values({
+        id: crypto.randomUUID(),
+        kegiatanId: o.id,
+        generusId: resolvedGenerus.id,
+        desaId: resolvedGenerus.desaId ?? null,
+        kelompokId: resolvedGenerus.kelompokId ?? null,
+        keterangan: "izin",
+        catatan: `Menghadiri kegiatan ${target.judul}`,
+        timestamp: now.toISOString(),
+        qrWilayahLevel: qr.level,
+      } as any);
+    }
+    return c.json({
+      status: "success",
+      attendedKegiatan: toKegiatanCard(target),
+      autoIzinKegiatan: others.map(toKegiatanCard),
+    });
+  }
+  return c.json({
+    status: "multiple",
+    eligibleKegiatan: freshB.map(toKegiatanCard),
+    allConcurrentKegiatan: A.filter((k: any) => !doneSet.has(k.id)).map(toKegiatanCard),
+  });
+});
+
+r.post("/resolve", async (c) => {
+  const session = c.get("user" as any) as any;
+  const body: any = await c.req.json().catch(() => ({}));
+  const { selectedKegiatanId, allEligibleKegiatanIds, lat, lng, accuracy, qrWilayahLevel } = body;
+  if (!selectedKegiatanId || !Array.isArray(allEligibleKegiatanIds)) {
+    return c.json({ error: "selectedKegiatanId dan allEligibleKegiatanIds diperlukan" }, 400);
+  }
+  const db = getDb(c.env);
+  const { users } = await import("../../../shared/schema");
+  const user: any = await db.query.users.findFirst({ where: eq(users.id, session.userId) });
+  if (!user?.generusId) return c.json({ error: "Akun belum taut generus" }, 400);
+  const resolvedGenerus: any = await db.query.generus.findFirst({ where: eq(generus.id, user.generusId) });
+  if (!resolvedGenerus) return c.json({ error: "Generus tidak ditemukan" }, 404);
+  const target: any = await db.query.kegiatan.findFirst({ where: eq(kegiatan.id, selectedKegiatanId) });
+  if (!target) return c.json({ error: "Kegiatan tidak ditemukan" }, 404);
+
+  const now = new Date();
+  const existing: any = await db.query.absensi.findFirst({
+    where: and(eq(absensi.kegiatanId, selectedKegiatanId), eq(absensi.generusId, resolvedGenerus.id)),
+  });
+  if (!existing) {
+    await db.insert(absensi).values({
+      id: crypto.randomUUID(),
+      kegiatanId: selectedKegiatanId,
+      generusId: resolvedGenerus.id,
+      desaId: resolvedGenerus.desaId ?? null,
+      kelompokId: resolvedGenerus.kelompokId ?? null,
+      keterangan: "hadir",
+      timestamp: now.toISOString(),
+      lat: lat != null ? Number(lat) : null,
+      lng: lng != null ? Number(lng) : null,
+      accuracy: accuracy != null ? Number(accuracy) : null,
+      qrWilayahLevel: qrWilayahLevel || null,
+    } as any);
+  }
+  const others = (allEligibleKegiatanIds as string[]).filter((id) => id !== selectedKegiatanId);
+  for (const oid of others) {
+    const done: any = await db.query.absensi.findFirst({
+      where: and(eq(absensi.kegiatanId, oid), eq(absensi.generusId, resolvedGenerus.id)),
+    });
+    if (done) continue;
+    await db.insert(absensi).values({
+      id: crypto.randomUUID(),
+      kegiatanId: oid,
+      generusId: resolvedGenerus.id,
+      desaId: resolvedGenerus.desaId ?? null,
+      kelompokId: resolvedGenerus.kelompokId ?? null,
+      keterangan: "izin",
+      catatan: `Menghadiri kegiatan ${target.judul}`,
+      timestamp: now.toISOString(),
+      qrWilayahLevel: qrWilayahLevel || null,
+    } as any);
+  }
+  return c.json({ success: true, message: "Absensi dan izin otomatis berhasil dicatat." });
+});
+
+r.delete("/", async (c) => {  const session = c.get("user" as any) as any;
   const id = c.req.query("id");
   if (!id) return c.json({ error: "id absensi diperlukan" }, 400);
   const db = getDb(c.env);

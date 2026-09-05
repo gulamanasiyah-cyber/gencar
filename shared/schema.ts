@@ -104,8 +104,11 @@ export const kegiatan = sqliteTable("kegiatan", {
   deskripsi: text("deskripsi"),
   kategoriAcara: text("kategori_acara", { enum: ["sambung_rutin", "keakraban", "pemantapan", "lainnya"] }).default("sambung_rutin"),
   kategoriCustom: text("kategori_custom"),
-  tanggal: text("tanggal").notNull(),
-  jam: text("jam"),
+  tanggal: text("tanggal").notNull(),           // Tanggal Mulai (YYYY-MM-DD)
+  tanggalSelesai: text("tanggal_selesai"),      // Tanggal Selesai (YYYY-MM-DD, nullable)
+  jam: text("jam"),                             // Deprecated fallback / display
+  jamMulai: text("jam_mulai"),                  // Jam Mulai (HH:mm)
+  jamSelesai: text("jam_selesai"),              // Jam Selesai / Waktu Pulang (HH:mm)
   lokasi: text("lokasi"),
   lat: real("lat"),
   lng: real("lng"),
@@ -131,8 +134,11 @@ export const absensi = sqliteTable("absensi", {
   generusId: text("generus_id")
     .notNull()
     .references(() => generus.id),
+  desaId: integer("desa_id").references(() => desa.id, { onDelete: "set null" }),         // Snapshot Desa
+  kelompokId: integer("kelompok_id").references(() => kelompok.id, { onDelete: "set null" }), // Snapshot Kelompok
   timestamp: text("timestamp").default(sql`(datetime('now'))`),
   keterangan: text("keterangan", { enum: ["hadir", "izin", "alpha"] }).default("hadir"),
+  catatan: text("catatan"),                                                                // Keterangan / Alasan
   lat: real("lat"),
   lng: real("lng"),
   accuracy: real("accuracy"),
@@ -141,6 +147,8 @@ export const absensi = sqliteTable("absensi", {
 }, (table) => ({
   kegiatanIdIdx: index("absensi_kegiatan_id_idx").on(table.kegiatanId),
   generusIdIdx: index("absensi_generus_id_idx").on(table.generusId),
+  desaIdIdx: index("absensi_desa_id_idx").on(table.desaId),
+  kelompokIdIdx: index("absensi_kelompok_id_idx").on(table.kelompokId),
 }));
 
 // ── Kegiatan Peserta Wajib — target peserta yang wajib hadir ──

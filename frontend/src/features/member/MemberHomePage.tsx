@@ -18,6 +18,16 @@ L.Icon.Default.mergeOptions({ iconRetinaUrl, iconUrl, shadowUrl });
 type AbsenRow = { id: string; tanggal: string; judul: string; status: "hadir" | "izin" | "alpha"; jam: string };
 type GpsState = { lat: number; lng: number; acc: number | null } | null;
 type QrHit = { level: string; nama: string } | null;
+type ConflictKegiatan = {
+  id: string;
+  judul: string;
+  tanggal: string;
+  tanggalSelesai?: string | null;
+  jam?: string | null;
+  jamMulai?: string | null;
+  jamSelesai?: string | null;
+  lokasi?: string | null;
+};
 
 const DEMO_RIWAYAT: AbsenRow[] = [
   { id: "a1", tanggal: "2026-05-07", judul: "Sambung Muda-Mudi Kelompok Fajar C", status: "hadir", jam: "19:42" },
@@ -70,6 +80,10 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
   const [activeKegiatanModal, setActiveKegiatanModal] = useState<MemberKegiatan | null>(null);
   const [qr, setQr] = useState<QrHit>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [conflictOpen, setConflictOpen] = useState(false);
+  const [conflictList, setConflictList] = useState<ConflictKegiatan[]>([]);
+  const [conflictAll, setConflictAll] = useState<ConflictKegiatan[]>([]);
+  const [resolving, setResolving] = useState(false);
   const [riwayat, setRiwayat] = useState<AbsenRow[]>(DEMO_RIWAYAT);
   void riwayat;
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -160,30 +174,69 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
     setQr(hit);
     setMsg(null);
 
-    // Kirim absensi ke backend jika ID generus tersedia
+    // Auto-detect: kirim scan ke backend, backend tentukan kegiatan eligible
     try {
-      const targetKegiatanId = todayKegiatan.id;
-      if (me.id && targetKegiatanId) {
-        await apiFetch("/api/absensi", {
-          method: "POST",
-          body: JSON.stringify({
-            kegiatanId: targetKegiatanId,
-            generusId: me.id,
-            keterangan: "hadir",
-            lat: gps?.lat,
-            lng: gps?.lng,
-            accuracy: gps?.acc,
-            qrWilayahLevel: hit.level,
-          }),
-        });
-      }
+      const res: any = await apiFetch("/api/absensi/scan", {
+        method: "POST",
+        body: JSON.stringify({
+          qrToken: decoded,
+          lat: gps?.lat,
+          lng: gps?.lng,
+          accuracy: gps?.acc,
+        }),
+      });
       const nowTime = new Date();
       const jam = `${String(nowTime.getHours()).padStart(2, "0")}:${String(nowTime.getMinutes()).padStart(2, "0")}`;
-      setRiwayat((prev) => [{ id: `a_${Date.now()}`, tanggal: todayKegiatan.tanggal, judul: todayKegiatan.judul, status: "hadir", jam }, ...prev]);
-      setMsg(`Hadir berhasil dicatat pukul ${jam} via scan QR ${hit.nama}.`);
+      if (res?.status === "success" && res?.attendedKegiatan) {
+        const k = res.attendedKegiatan as ConflictKegiatan;
+        setRiwayat((prev) => [{ id: `a_${Date.now()}`, tanggal: k.tanggal, judul: k.judul, status: "hadir", jam }, ...prev]);
+        const izinInfo = Array.isArray(res?.autoIzinKegiatan) && res.autoIzinKegiatan.length > 0
+          ? ` (${res.autoIzinKegiatan.length} acara lain otomatis izin)`
+          : "";
+        setMsg(`Hadir berhasil dicatat pukul ${jam} di "${k.judul}"${izinInfo}.`);
+      } else if (res?.status === "multiple") {
+        setConflictList((res.eligibleKegiatan ?? []) as ConflictKegiatan[]);
+        setConflictAll((res.allConcurrentKegiatan ?? res.eligibleKegiatan ?? []) as ConflictKegiatan[]);
+        setConflictOpen(true);
+        setMsg(`Ada ${(res.eligibleKegiatan ?? []).length} kegiatan aktif di wilayah ini. Pilih yang kamu hadiri.`);
+      } else {
+        setMsg(res?.message || "Tidak ada kegiatan aktif untuk wilayah ini saat ini.");
+      }
     } catch (e: any) {
       const errTxt = e?.message || "Gagal mencatat absensi";
       setMsg(errTxt);
+    }
+  }
+
+  async function resolveConflict(selectedId: string) {
+    if (resolving) return;
+    setResolving(true);
+    try {
+      await apiFetch("/api/absensi/resolve", {
+        method: "POST",
+        body: JSON.stringify({
+          selectedKegiatanId: selectedId,
+          allEligibleKegiatanIds: conflictAll.map((k) => k.id),
+          lat: gps?.lat,
+          lng: gps?.lng,
+          accuracy: gps?.acc,
+          qrWilayahLevel: qr?.level,
+        }),
+      });
+      const picked = conflictList.find((k) => k.id === selectedId);
+      const nowTime = new Date();
+      const jam = `${String(nowTime.getHours()).padStart(2, "0")}:${String(nowTime.getMinutes()).padStart(2, "0")}`;
+      if (picked) {
+        setRiwayat((prev) => [{ id: `a_${Date.now()}`, tanggal: picked.tanggal, judul: picked.judul, status: "hadir", jam }, ...prev]);
+        setMsg(`Hadir berhasil dicatat pukul ${jam} di "${picked.judul}". Acara lain otomatis izin.`);
+      }
+      setConflictOpen(false);
+      setConflictList([]);
+      setConflictAll([]);
+    } catch (e: any) {
+      setMsg(e?.message || "Gagal memilih kegiatan");
+    } finally {
+      setResolving(false);
     }
   }
 
@@ -261,6 +314,56 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
         {msg && (
           <div style={{ fontSize: 12, padding: "8px 10px", borderRadius: 10, background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }}>
             {msg}
+          </div>
+        )}
+
+        {/* Modal konflik: >=2 kegiatan aktif di QR yang sama */}
+        {conflictOpen && (
+          <div className="modal-backdrop" onClick={() => setConflictOpen(false)} style={{ zIndex: 1200, display: "grid", placeItems: "center", padding: 16 }}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440, width: "100%", padding: 20, borderRadius: 20 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 900, color: "var(--ink)", margin: "0 0 4px" }}>
+                Pilih Kegiatan yang Kamu Hadiri
+              </h3>
+              <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 14px", lineHeight: 1.5 }}>
+                Ada {conflictList.length} kegiatan aktif di wilayah ini. Memilih satu kegiatan akan otomatis mencatat status <b>Izin</b> pada kegiatan lainnya.
+              </p>
+              <div style={{ display: "grid", gap: 8 }}>
+                {conflictList.map((k) => (
+                  <div
+                    key={k.id}
+                    style={{
+                      border: "1.5px solid var(--line)",
+                      borderRadius: 14,
+                      padding: "12px 14px",
+                      background: "#fff",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 800, fontSize: 13, color: "var(--ink)" }}>{k.judul}</div>
+                      <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
+                        {(k.jamMulai || k.jam || "—")}{k.jamSelesai ? ` – ${k.jamSelesai}` : ""} {(k as any).lokasi ? ` • ${(k as any).lokasi}` : ""}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      disabled={resolving}
+                      onClick={() => void resolveConflict(k.id)}
+                      style={{ flexShrink: 0, fontWeight: 800 }}
+                    >
+                      {resolving ? "…" : "Hadir"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button type="button" className="btn btn-ghost" onClick={() => setConflictOpen(false)} style={{ width: "100%", marginTop: 12 }}>
+                Batal
+              </button>
+            </div>
           </div>
         )}
       </div>

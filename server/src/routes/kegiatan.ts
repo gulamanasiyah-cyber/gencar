@@ -73,7 +73,7 @@ r.get("/", async (c) => {
     if (pesertaKegiatanIds.length > 0) ors.push(inList(kegiatan.id, pesertaKegiatanIds));
     conditions.push(or(...ors));
   }
-  const data = await db.select({ id: kegiatan.id, judul: kegiatan.judul, deskripsi: kegiatan.deskripsi, tanggal: kegiatan.tanggal, jam: kegiatan.jam, lokasi: kegiatan.lokasi, kategoriAcara: kegiatan.kategoriAcara, kategoriCustom: kegiatan.kategoriCustom, lat: kegiatan.lat, lng: kegiatan.lng, radiusM: kegiatan.radiusM, gpsRequired: kegiatan.gpsRequired, desaNama: desa.nama, kelompokNama: kelompok.nama, desaId: kegiatan.desaId, kelompokId: kegiatan.kelompokId, createdBy: kegiatan.createdBy, createdAt: kegiatan.createdAt }).from(kegiatan).leftJoin(desa, eq(kegiatan.desaId, desa.id)).leftJoin(kelompok, eq(kegiatan.kelompokId, kelompok.id)).where(conditions.length ? and(...conditions) : undefined).orderBy(sql`${kegiatan.tanggal} DESC`);
+  const data = await db.select({ id: kegiatan.id, judul: kegiatan.judul, deskripsi: kegiatan.deskripsi, tanggal: kegiatan.tanggal, tanggalSelesai: kegiatan.tanggalSelesai, jam: kegiatan.jam, jamMulai: kegiatan.jamMulai, jamSelesai: kegiatan.jamSelesai, lokasi: kegiatan.lokasi, kategoriAcara: kegiatan.kategoriAcara, kategoriCustom: kegiatan.kategoriCustom, lat: kegiatan.lat, lng: kegiatan.lng, radiusM: kegiatan.radiusM, gpsRequired: kegiatan.gpsRequired, desaNama: desa.nama, kelompokNama: kelompok.nama, desaId: kegiatan.desaId, kelompokId: kegiatan.kelompokId, createdBy: kegiatan.createdBy, createdAt: kegiatan.createdAt }).from(kegiatan).leftJoin(desa, eq(kegiatan.desaId, desa.id)).leftJoin(kelompok, eq(kegiatan.kelompokId, kelompok.id)).where(conditions.length ? and(...conditions) : undefined).orderBy(sql`${kegiatan.tanggal} DESC`);
   // Get peserta counts per kegiatan
   const kegIds = data.map((k) => k.id);
   const pesertaCounts: Record<string, number> = {};
@@ -117,7 +117,7 @@ r.get("/", async (c) => {
 r.post("/", async (c) => {
   const session = c.get("user" as any) as any;
   const body: any = await c.req.json().catch(() => ({}));
-  const { judul, deskripsi, tanggal, jam, lokasi, desaId, kelompokId, kategoriAcara, kategoriCustom, lat, lng, radiusM, gpsRequired } = body;
+  const { judul, deskripsi, tanggal, tanggalSelesai, jam, jamMulai, jamSelesai, lokasi, desaId, kelompokId, kategoriAcara, kategoriCustom, lat, lng, radiusM, gpsRequired } = body;
   if (!judul || !tanggal) return c.json({ error: "Judul dan tanggal wajib diisi" }, 400);
   const id = crypto.randomUUID();
   let finalDesaId = desaId ? Number(desaId) : null;
@@ -129,7 +129,7 @@ r.post("/", async (c) => {
   }
   const peserta = body.peserta as { generusId?: string; kelompokId?: number; desaId?: number }[] | undefined;
   const db = getDb(c.env);
-  await db.insert(kegiatan).values({ id, judul, deskripsi, tanggal, jam, lokasi, desaId: finalDesaId, kelompokId: finalKelompokId, kategoriAcara: kategoriAcara || "sambung_rutin", kategoriCustom: kategoriCustom || null, lat: lat ? Number(lat) : null, lng: lng ? Number(lng) : null, radiusM: radiusM ? Number(radiusM) : 100, gpsRequired: gpsRequired ? 1 : 0, createdBy: session.userId } as any);
+  await db.insert(kegiatan).values({ id, judul, deskripsi, tanggal, tanggalSelesai: tanggalSelesai || null, jam, jamMulai: jamMulai || jam || null, jamSelesai: jamSelesai || null, lokasi, desaId: finalDesaId, kelompokId: finalKelompokId, kategoriAcara: kategoriAcara || "sambung_rutin", kategoriCustom: kategoriCustom || null, lat: lat ? Number(lat) : null, lng: lng ? Number(lng) : null, radiusM: radiusM ? Number(radiusM) : 100, gpsRequired: gpsRequired ? 1 : 0, createdBy: session.userId } as any);
   if (peserta && peserta.length > 0) {
     await db.insert(kegiatanPeserta).values(peserta.map((p) => {
       const targetDesaId = p.desaId ? Number(p.desaId) : null;
@@ -206,13 +206,13 @@ r.put("/:id", async (c) => {
   const id = c.req.param("id");
   const session = c.get("user" as any) as any;
   const body: any = await c.req.json().catch(() => ({}));
-  const { judul, deskripsi, tanggal, jam, lokasi, desaId, kelompokId, kategoriAcara, kategoriCustom, lat, lng, radiusM, gpsRequired } = body;
+  const { judul, deskripsi, tanggal, tanggalSelesai, jam, jamMulai, jamSelesai, lokasi, desaId, kelompokId, kategoriAcara, kategoriCustom, lat, lng, radiusM, gpsRequired } = body;
   const db = getDb(c.env);
   const existing: any = await db.query.kegiatan.findFirst({ where: eq(kegiatan.id, id) });
   if (!existing) return c.json({ error: "Tidak ditemukan" }, 404);
   if (session.role === "admin_desa" && existing.desaId !== session.desaId) return c.json({ error: "Forbidden" }, 403);
   if (session.role === "admin_kelompok" && existing.kelompokId !== session.kelompokId) return c.json({ error: "Forbidden" }, 403);
-  await db.update(kegiatan).set({ judul, deskripsi, tanggal, jam, lokasi, desaId: desaId !== undefined ? (desaId ? Number(desaId) : null) : undefined, kelompokId: kelompokId !== undefined ? (kelompokId ? Number(kelompokId) : null) : undefined, kategoriAcara, kategoriCustom, lat: lat !== undefined ? (lat ? Number(lat) : null) : undefined, lng: lng !== undefined ? (lng ? Number(lng) : null) : undefined, radiusM: radiusM !== undefined ? Number(radiusM) : undefined, gpsRequired: gpsRequired !== undefined ? (gpsRequired ? 1 : 0) : undefined } as any).where(eq(kegiatan.id, id));
+  await db.update(kegiatan).set({ judul, deskripsi, tanggal, tanggalSelesai: tanggalSelesai !== undefined ? (tanggalSelesai || null) : undefined, jam, jamMulai: jamMulai !== undefined ? (jamMulai || jam || null) : undefined, jamSelesai: jamSelesai !== undefined ? (jamSelesai || null) : undefined, lokasi, desaId: desaId !== undefined ? (desaId ? Number(desaId) : null) : undefined, kelompokId: kelompokId !== undefined ? (kelompokId ? Number(kelompokId) : null) : undefined, kategoriAcara, kategoriCustom, lat: lat !== undefined ? (lat ? Number(lat) : null) : undefined, lng: lng !== undefined ? (lng ? Number(lng) : null) : undefined, radiusM: radiusM !== undefined ? Number(radiusM) : undefined, gpsRequired: gpsRequired !== undefined ? (gpsRequired ? 1 : 0) : undefined } as any).where(eq(kegiatan.id, id));
   // Replace peserta if provided
   const peserta = body.peserta as { generusId?: string; kelompokId?: number; desaId?: number }[] | undefined;
   if (peserta !== undefined) {

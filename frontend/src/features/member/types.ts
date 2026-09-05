@@ -508,7 +508,10 @@ export type MemberKegiatan = {
   kategori?: string;
   tingkat?: string;
   tanggal: string;
+  tanggalSelesai?: string | null;
   jam: string;
+  jamMulai?: string | null;
+  jamSelesai?: string | null;
   lokasi: string;
   lat: number | null;
   lng: number | null;
