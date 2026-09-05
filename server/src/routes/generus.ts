@@ -162,6 +162,7 @@ r.get("/:id", async (c) => {
       keterangan: absensi.keterangan,
       tanggal: kegiatan.tanggal,
       jam: kegiatan.jam,
+      judul: kegiatan.judul,
       kategoriAcara: kegiatan.kategoriAcara,
       desaId: kegiatan.desaId,
       kelompokId: kegiatan.kelompokId,
@@ -205,7 +206,6 @@ r.get("/:id", async (c) => {
   if (currentStreak >= 10) trophiesUnlocked.push("streak_10");
   if (currentStreak >= 20) trophiesUnlocked.push("streak_20");
   if (currentStreak >= 40) trophiesUnlocked.push("streak_40");
-  if (hadirCount > 0 && riwayatTelat.length === 0) trophiesUnlocked.push("zero_telat");
 
   // Perhitungan keterlambatan: bandingkan jam kegiatan dengan timestamp absensi
   const riwayatTelat: { id: string; judul?: string; tanggal: string; jamKegiatan: string; jamAbsen: string; menit: number }[] = [];
@@ -230,12 +230,16 @@ r.get("/:id", async (c) => {
         const absenMinutes = absenH * 60 + absenM;
         const diff = absenMinutes - targetMinutes;
         if (diff > 0) {
+          const tgl = String(a.tanggal || "");
           riwayatTelat.push({
             id: a.id,
             tanggal: a.tanggal,
+            judul: a.judul ?? "",
             jamKegiatan: a.jam,
             jamAbsen: `${String(absenH).padStart(2, "0")}:${String(absenM).padStart(2, "0")}`,
             menit: diff,
+            bulan: tgl.length >= 7 ? Number(tgl.slice(5, 7)) - 1 : undefined,
+            tahun: tgl.length >= 4 ? Number(tgl.slice(0, 4)) : undefined,
           });
         }
       } catch {}
@@ -245,6 +249,28 @@ r.get("/:id", async (c) => {
   const telatCount = riwayatTelat.length;
   const totalMenitTelat = riwayatTelat.reduce((acc, t) => acc + t.menit, 0);
   const avgTelatMenit = telatCount > 0 ? Math.round(totalMenitTelat / telatCount) : 0;
+  if (hadirCount > 0 && riwayatTelat.length === 0) trophiesUnlocked.push("zero_telat");
+
+  // Tren per bulan: agregasi status absensi berdasar tanggal kegiatan, urut naik
+  const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+  const monthMap = new Map<string, { label: string; hadir: number; izin: number; alpha: number; telat: number }>();
+  for (const a of absensiRows) {
+    const ym = String(a.tanggal || "").slice(0, 7);
+    if (ym.length !== 7) continue;
+    if (!monthMap.has(ym)) {
+      const m = Number(ym.slice(5, 7));
+      monthMap.set(ym, { label: MONTH_LABELS[m - 1] ?? ym, hadir: 0, izin: 0, alpha: 0, telat: 0 });
+    }
+    const bucket = monthMap.get(ym)!;
+    if (a.keterangan === "hadir") bucket.hadir++;
+    else if (a.keterangan === "izin") bucket.izin++;
+    else if (a.keterangan === "alpha") bucket.alpha++;
+  }
+  for (const t of riwayatTelat) {
+    const bucket = monthMap.get(String(t.tanggal || "").slice(0, 7));
+    if (bucket) bucket.telat++;
+  }
+  const tren = Array.from(monthMap.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([, v]) => v);
 
   return c.json({
     ...row,
@@ -260,6 +286,7 @@ r.get("/:id", async (c) => {
       telatCount,
       avgTelatMenit,
       riwayatTelat,
+      tren,
       riwayat: mappedAbsensiRows.slice(0, 10),
     },
   });

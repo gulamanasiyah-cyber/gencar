@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell } from "recharts";
 import { X, Clock, ChevronRight, AlertCircle, Search } from "lucide-react";
+import { Select } from "../../components/Select";
 import type { MemberIdentity, MemberKehadiran } from "./types";
 
 type TimeFilter = "all" | "month" | "year" | "custom";
@@ -161,8 +162,8 @@ export default function MemberStatPage({ me, stat }: { me: MemberIdentity; stat:
   const modalList = useMemo(() => {
     const base =
       (lateState as any).fullList
-        ? ((lateState as any).fullList as { tanggal: string; judul: string; menit: number; bulan?: number; tahun?: number }[])
-        : (lateState.list as { tanggal: string; judul: string; menit: number; bulan?: number; tahun?: number }[]);
+        ? ((lateState as any).fullList as { tanggal: string; judul: string; menit: number; bulan?: number; tahun?: number; jamAbsen?: string; jamKegiatan?: string }[])
+        : (lateState.list as { tanggal: string; judul: string; menit: number; bulan?: number; tahun?: number; jamAbsen?: string; jamKegiatan?: string }[]);
     let out = [...base];
     if (modalBulan !== "") out = out.filter((r) => r.bulan === modalBulan);
     if (modalTahun !== "") out = out.filter((r) => r.tahun === modalTahun);
@@ -182,19 +183,6 @@ export default function MemberStatPage({ me, stat }: { me: MemberIdentity; stat:
       setModalTahun("");
     }
   }, [showLateModal]);
-
-  const selectStyle = {
-    fontSize: 12,
-    fontWeight: 600,
-    padding: "6px 10px",
-    borderRadius: 8,
-    border: "1px solid var(--line, #f0dfc8)",
-    background: "var(--surface, #fff)",
-    color: "var(--text, #1b0f0a)",
-    cursor: "pointer",
-    outline: "none",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
-  };
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 16, width: "100%", minWidth: 0 }}>
@@ -339,27 +327,25 @@ export default function MemberStatPage({ me, stat }: { me: MemberIdentity; stat:
           </div>
 
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-            <select
+            <Select
               value={lateFilter}
-              onChange={(e) => setLateFilter(e.target.value as LateFilter)}
-              style={selectStyle}
-            >
-              <option value="week">Minggu Ini</option>
-              <option value="month">Bulan Ini</option>
-              <option value="year">Tahun Ini</option>
-              <option value="custom">Pilih Bulan...</option>
-            </select>
+              onChange={(v) => setLateFilter(v as LateFilter)}
+              ariaLabel="Filter periode telat"
+              options={[
+                { value: "week", label: "Minggu Ini" },
+                { value: "month", label: "Bulan Ini" },
+                { value: "year", label: "Tahun Ini" },
+                { value: "custom", label: "Pilih Bulan..." },
+              ]}
+            />
 
             {lateFilter === "custom" && (
-              <select
-                value={customLateMonth}
-                onChange={(e) => setCustomLateMonth(Number(e.target.value))}
-                style={selectStyle}
-              >
-                {MONTH_NAMES.map((m, idx) => (
-                  <option key={idx} value={idx}>{m}</option>
-                ))}
-              </select>
+              <Select
+                value={String(customLateMonth)}
+                onChange={(v) => setCustomLateMonth(Number(v))}
+                ariaLabel="Pilih bulan"
+                options={MONTH_NAMES.map((m, idx) => ({ value: String(idx), label: m }))}
+              />
             )}
           </div>
         </div>
@@ -405,7 +391,10 @@ export default function MemberStatPage({ me, stat }: { me: MemberIdentity; stat:
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--text, #1b0f0a)" }}>{item.judul}</div>
-                      <span className="muted" style={{ fontSize: 11 }}>{item.tanggal}</span>
+                      <span className="muted" style={{ fontSize: 11 }}>
+                        {item.tanggal}
+                        {item.jamAbsen && item.jamKegiatan ? ` · Masuk ${item.jamAbsen} · jadwal ${item.jamKegiatan}` : ""}
+                      </span>
                     </div>
                   </div>
                   <span style={{ fontWeight: 800, color: "#d97706", background: "#fffbeb", padding: "3px 8px", borderRadius: 6, border: "1px solid #fef3c7", flexShrink: 0, fontSize: 11 }}>
@@ -488,27 +477,25 @@ export default function MemberStatPage({ me, stat }: { me: MemberIdentity; stat:
           </div>
 
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-            <select
+            <Select
               value={pieFilter}
-              onChange={(e) => setPieFilter(e.target.value as TimeFilter)}
-              style={selectStyle}
-            >
-              <option value="all">Seluruh Waktu</option>
-              <option value="month">Bulan Ini</option>
-              <option value="year">Tahun Ini</option>
-              <option value="custom">Pilih Bulan...</option>
-            </select>
+              onChange={(v) => setPieFilter(v as TimeFilter)}
+              ariaLabel="Filter periode komposisi"
+              options={[
+                { value: "all", label: "Seluruh Waktu" },
+                { value: "month", label: "Bulan Ini" },
+                { value: "year", label: "Tahun Ini" },
+                { value: "custom", label: "Pilih Bulan..." },
+              ]}
+            />
 
             {pieFilter === "custom" && (
-              <select
-                value={customPieMonth}
-                onChange={(e) => setCustomPieMonth(Number(e.target.value))}
-                style={selectStyle}
-              >
-                {MONTH_NAMES.map((m, idx) => (
-                  <option key={idx} value={idx}>{m}</option>
-                ))}
-              </select>
+              <Select
+                value={String(customPieMonth)}
+                onChange={(v) => setCustomPieMonth(Number(v))}
+                ariaLabel="Pilih bulan"
+                options={MONTH_NAMES.map((m, idx) => ({ value: String(idx), label: m }))}
+              />
             )}
           </div>
         </div>
@@ -631,72 +618,41 @@ export default function MemberStatPage({ me, stat }: { me: MemberIdentity; stat:
                 />
               </div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", minWidth: 0 }}>
-                <select
-                  value={modalBulan === "" ? "" : String(modalBulan)}
-                  onChange={(e) => setModalBulan(e.target.value === "" ? "" : Number(e.target.value))}
-                  style={{
-                    flex: "1 1 110px",
-                    minWidth: 0,
-                    padding: "8px 8px",
-                    borderRadius: 10,
-                    border: "1px solid var(--line, #f0dfc8)",
-                    background: "var(--surface-muted, #fdf8f4)",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: "var(--text, #1b0f0a)",
-                    outline: "none",
-                    cursor: "pointer",
-                  }}
-                >
-                  <option value="">Bulan: Semua</option>
-                  {MONTH_NAMES.map((m, i) => (
-                    <option key={i} value={String(i)}>{m}</option>
-                  ))}
-                </select>
-                <select
-                  value={modalTahun === "" ? "" : String(modalTahun)}
-                  onChange={(e) => setModalTahun(e.target.value === "" ? "" : Number(e.target.value))}
-                  style={{
-                    flex: "0 1 110px",
-                    minWidth: 0,
-                    padding: "8px 8px",
-                    borderRadius: 10,
-                    border: "1px solid var(--line, #f0dfc8)",
-                    background: "var(--surface-muted, #fdf8f4)",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: "var(--text, #1b0f0a)",
-                    outline: "none",
-                    cursor: "pointer",
-                  }}
-                >
-                  <option value="">Tahun: Semua</option>
-                  {modalTahunOptions.map((y) => (
-                    <option key={y} value={String(y)}>{y}</option>
-                  ))}
-                </select>
-                <select
-                  value={modalSort}
-                  onChange={(e) => setModalSort(e.target.value as any)}
-                  style={{
-                    flex: "1 1 110px",
-                    minWidth: 0,
-                    padding: "8px 8px",
-                    borderRadius: 10,
-                    border: "1px solid var(--line, #f0dfc8)",
-                    background: "var(--surface-muted, #fdf8f4)",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: "var(--text, #1b0f0a)",
-                    outline: "none",
-                    cursor: "pointer",
-                  }}
-                >
-                  <option value="newest">Terbaru</option>
-                  <option value="oldest">Terlama</option>
-                  <option value="longest">Paling lama</option>
-                  <option value="shortest">Paling singkat</option>
-                </select>
+                <div style={{ flex: "1 1 110px", minWidth: 0 }}>
+                  <Select
+                    value={modalBulan === "" ? "" : String(modalBulan)}
+                    onChange={(v) => setModalBulan(v === "" ? "" : Number(v))}
+                    ariaLabel="Filter bulan"
+                    options={[
+                      { value: "", label: "Bulan: Semua" },
+                      ...MONTH_NAMES.map((m, i) => ({ value: String(i), label: m })),
+                    ]}
+                  />
+                </div>
+                <div style={{ flex: "0 1 110px", minWidth: 0 }}>
+                  <Select
+                    value={modalTahun === "" ? "" : String(modalTahun)}
+                    onChange={(v) => setModalTahun(v === "" ? "" : Number(v))}
+                    ariaLabel="Filter tahun"
+                    options={[
+                      { value: "", label: "Tahun: Semua" },
+                      ...modalTahunOptions.map((y) => ({ value: String(y), label: String(y) })),
+                    ]}
+                  />
+                </div>
+                <div style={{ flex: "1 1 110px", minWidth: 0 }}>
+                  <Select
+                    value={modalSort}
+                    onChange={(v) => setModalSort(v as typeof modalSort)}
+                    ariaLabel="Urutkan"
+                    options={[
+                      { value: "newest", label: "Terbaru" },
+                      { value: "oldest", label: "Terlama" },
+                      { value: "longest", label: "Paling lama" },
+                      { value: "shortest", label: "Paling singkat" },
+                    ]}
+                  />
+                </div>
               </div>
             </div>
 
@@ -752,7 +708,10 @@ export default function MemberStatPage({ me, stat }: { me: MemberIdentity; stat:
                         >
                           {item.judul}
                         </div>
-                        <span className="muted" style={{ fontSize: 11, lineHeight: 1.2 }}>{item.tanggal}</span>
+                        <span className="muted" style={{ fontSize: 11, lineHeight: 1.2 }}>
+                          {item.tanggal}
+                          {item.jamAbsen && item.jamKegiatan ? ` · Masuk ${item.jamAbsen} · jadwal ${item.jamKegiatan}` : ""}
+                        </span>
                       </div>
                     </div>
                     <span

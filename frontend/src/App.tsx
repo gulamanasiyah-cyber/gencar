@@ -4088,7 +4088,7 @@ function EditAdminModal({
 }
 
 function AddAdminModal({
-  onClose, onSave, roleOptions, callerRole, callerDesaId, callerKelompokId,
+  onClose, onSave, roleOptions, callerRole, callerDesaId,
 }: {
   onClose: () => void;
   onSave: (nama: string, role: AdminRole, wilayah: string, email?: string, password?: string, desaId?: number, kelompokId?: number) => void;
@@ -4784,6 +4784,35 @@ import MemberProfilePage from "./features/member/MemberProfilePage";
 import MemberStatPage from "./features/member/MemberStatPage";
 import { DEMO_KEGIATAN_MEMBER, type MemberIdentity, type MemberKehadiran, type MemberKegiatan } from "./features/member/types";
 
+/** Map stats mentah dari GET /api/generus/:id ke bentuk MemberKehadiran untuk halaman member. */
+function mapMemberStats(s: any): MemberKehadiran {
+  return {
+    total: s.total ?? 0,
+    hadir: s.hadir ?? 0,
+    izin: s.izin ?? 0,
+    alpha: s.alpha ?? 0,
+    hadirRate: s.rate ?? 0,
+    telat: s.telatCount ?? 0,
+    rataRataTelatMenit: s.avgTelatMenit ?? 0,
+    riwayatTelat: (s.riwayatTelat ?? []).map((r: any) => ({
+      tanggal: r.tanggal,
+      judul: r.judul ?? "",
+      menit: r.menit ?? 0,
+      bulan: r.bulan,
+      tahun: r.tahun,
+      jamAbsen: r.jamAbsen,
+      jamKegiatan: r.jamKegiatan,
+    })),
+    tren: (s.tren ?? []).map((t: any) => ({
+      label: t.label,
+      hadir: t.hadir ?? 0,
+      izin: t.izin ?? 0,
+      alpha: t.alpha ?? 0,
+      telat: t.telat ?? 0,
+    })),
+  };
+}
+
 export default function App({ initialMode }: { initialMode?: "admin" | "member" } = {}) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -4861,22 +4890,19 @@ export default function App({ initialMode }: { initialMode?: "admin" | "member" 
       setMe(mapped);
       // Load stats
       apiFetch<{ stats?: any }>(`/api/generus/${generus.id}`).then((detail) => {
-        if (!detail?.stats) return;
-        const s = detail.stats;
-        setStat({
-          total: s.total ?? 0,
-          hadir: s.hadir ?? 0,
-          izin: s.izin ?? 0,
-          alpha: s.alpha ?? 0,
-          hadirRate: s.rate ?? 0,
-          telat: s.telatCount ?? 0,
-          rataRataTelatMenit: s.avgTelatMenit ?? 0,
-          riwayatTelat: (s.riwayatTelat ?? []).map((r: any) => ({ tanggal: r.tanggal, judul: r.judul ?? "", menit: r.menit ?? 0 })),
-          tren: [],
-        });
+        if (detail?.stats) setStat(mapMemberStats(detail.stats));
       }).catch(() => {});
     }).catch(() => {});
   }, [initialMode, user]);
+
+  // Refetch stats tiap tab statistik dibuka — data hadir/izin/alpha di DB bisa berubah
+  // (scan QR / ajukan izin) setelah muat awal, sehingga tampilan tidak basi.
+  useEffect(() => {
+    if (memberPage !== "statistik" || !me?.id) return;
+    apiFetch<{ stats?: any }>(`/api/generus/${me.id}`).then((detail) => {
+      if (detail?.stats) setStat(mapMemberStats(detail.stats));
+    }).catch(() => {});
+  }, [memberPage, me?.id]);
 
   // Persist profile changes to backend
   const handleProfileUpdate = async (m: MemberIdentity) => {

@@ -1051,7 +1051,7 @@ function isEventAvailableForAbsen(k: {
 
       let text: string;
       if (diffDays >= 1) {
-        text = `Dibuka ${diffDays} hari lagi (${diffHours % 24 > 0 ? `${diffHours % 24} jam ` : ""}sebelum acara)`;
+        text = `Dibuka ${diffDays} hari lagi`;
       } else if (diffHours >= 1) {
         const remMin = diffMin % 60;
         text = `Dibuka ${diffHours} jam ${remMin > 0 ? `${remMin} mnt ` : ""}lagi`;
@@ -1136,8 +1136,7 @@ function LocationModal({
 
       L.marker([today.lat, today.lng])
         .addTo(map)
-        .bindPopup(`<b>${today.judul}</b><br/>${today.lokasi}<br/><b>Radius Absen:</b> ${today.radiusM}m`)
-        .openPopup();
+        .bindPopup(`<b>${today.judul}</b><br/>${today.lokasi || ""}<br/><b>Radius Absen:</b> ${today.radiusM}m`);
     }
 
     // Marker posisi kamu (GPS pengguna saat ini)
@@ -1197,46 +1196,41 @@ function LocationModal({
         </div>
 
         {/* Status Window: Ketersediaan Waktu & Jarak */}
-        <div style={{ display: "grid", gap: 10, padding: 12, background: "var(--bg)", borderRadius: 14, border: "1px solid var(--line)" }}>
+        <div style={{ display: "grid", gap: 10, padding: 14, background: "var(--bg)", borderRadius: 14, border: "1px solid var(--line)" }}>
           {/* Row 1: Badges & Refresh button */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", minWidth: 0, flex: 1 }}>
-              <span className={`pill ${timeAvail.statusType === "open" ? "pill-emerald" : timeAvail.statusType === "upcoming" ? "pill-amber" : "pill-slate"}`} style={{ fontSize: 11, fontWeight: 800 }}>
-                <Clock3 size={12} /> {timeAvail.statusText}
-              </span>
-              {distFormatted != null && (
-                <span className={`pill ${inRadius ? "pill-emerald" : "pill-amber"}`} style={{ fontSize: 11, fontWeight: 800 }}>
-                  {inRadius ? <ShieldCheck size={12} /> : <AlertTriangle size={12} />} {inRadius ? `Dalam Radius` : `Jarak ~${distFormatted}`}
-                </span>
-              )}
-            </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+            <span className={`pill ${timeAvail.statusType === "open" ? "pill-emerald" : timeAvail.statusType === "upcoming" ? "pill-amber" : "pill-slate"}`} style={{ fontSize: 11, fontWeight: 800 }}>
+              <Clock3 size={12} /> {timeAvail.statusText}
+            </span>
             <button
               type="button"
               className="btn btn-ghost btn-sm"
               onClick={onRefreshGps}
               disabled={gpsLoading}
-              style={{ width: "auto", minHeight: 30, padding: "4px 10px", fontSize: 11, borderRadius: 8, fontWeight: 700, flexShrink: 0 }}
+              style={{ width: "auto", minHeight: 28, padding: "4px 10px", fontSize: 11, borderRadius: 8, fontWeight: 700, flexShrink: 0 }}
             >
-              <LocateFixed size={12} /> Refresh GPS
+              <LocateFixed size={12} /> {gpsLoading ? "Mencari…" : "Refresh GPS"}
             </button>
           </div>
 
           {/* Row 2: Detail Info */}
-          <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.55, borderTop: "1px solid rgba(0,0,0,0.06)", paddingTop: 8 }}>
+          <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.55, borderTop: "1px solid rgba(0,0,0,0.06)", paddingTop: 8, display: "grid", gap: 3 }}>
             <div><b>Jadwal:</b> {jadwalStr}</div>
             {today.lokasi && <div><b>Lokasi:</b> {today.lokasi} · radius {today.radiusM}m</div>}
-            <div style={{ marginTop: 2 }}>
+            <div>
               <b>Status Kamu:</b>{" "}
               {gps ? (
                 inRadius && timeAvail.available ? (
-                  <span style={{ color: "#16a34a", fontWeight: 800 }}>Siap absen saat ini</span>
+                  <span style={{ color: "#16a34a", fontWeight: 800 }}>Siap absen saat ini (di dalam radius)</span>
+                ) : inRadius ? (
+                  <span>Di dalam radius acara &bull; absensi belum dibuka</span>
                 ) : (
                   <span>
-                    {inRadius ? "Di dalam lokasi acara" : `Di luar radius (${distFormatted} dari titik acara)`} &bull; mendekat saat waktu absen dibuka
+                    Di luar radius {distFormatted ? `(jarak ~${distFormatted})` : ""} &bull; mendekat ke lokasi saat acara dibuka
                   </span>
                 )
               ) : (
-                <span style={{ color: "#d97706", fontWeight: 700 }}>Izin lokasi belum aktif &bull; tap Refresh GPS</span>
+                <span style={{ color: "#d97706", fontWeight: 700 }}>Izin GPS belum aktif &bull; tap Refresh GPS</span>
               )}
             </div>
           </div>

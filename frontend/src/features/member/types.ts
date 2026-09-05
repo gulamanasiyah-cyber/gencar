@@ -44,7 +44,7 @@ export type MemberKehadiran = {
   hadirRate: number;
   telat?: number;
   rataRataTelatMenit?: number;
-  riwayatTelat?: { tanggal: string; judul: string; menit: number; bulan?: number; tahun?: number }[];
+  riwayatTelat?: { tanggal: string; judul: string; menit: number; bulan?: number; tahun?: number; jamAbsen?: string; jamKegiatan?: string }[];
   tren: { label: string; hadir: number; izin: number; alpha: number; telat?: number }[];
 };
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Check as IcoCheck, X as IcoX, Clock3 as IcoClock, AlertCircle as IcoAlert, ShieldCheck as IcoShield, User as IcoUser, CalendarDays as IcoCal } from "lucide-react";
+import { Check as IcoCheck, X as IcoX, Clock3 as IcoClock, AlertCircle as IcoAlert, User as IcoUser, CalendarDays as IcoCal } from "lucide-react";
 import KpiCard from "../../components/admin/KpiCard";
 import { apiFetch, unwrapList } from "../../lib/api";
 
