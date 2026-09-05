@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check as IcoCheck, X as IcoX, Clock3 as IcoClock, AlertCircle as IcoAlert, User as IcoUser, CalendarDays as IcoCal, Search as IcoSearch } from "lucide-react";
+import { Check as IcoCheck, X as IcoX, Clock3 as IcoClock, AlertCircle as IcoAlert, User as IcoUser, CalendarDays as IcoCal, Search as IcoSearch, Filter as IcoFilter, ChevronDown as IcoChevron } from "lucide-react";
 import KpiCard from "../../components/admin/KpiCard";
 import { apiFetch, unwrapList } from "../../lib/api";
 
@@ -28,6 +28,33 @@ function fmtDate(s?: string | null) {
   } catch { return s; }
 }
 
+// Select custom ringan dengan styling konsisten
+function FilterSelect<T extends string>({ value, onChange, options, placeholder }: {
+  value: string;
+  onChange: (v: T) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+}) {
+  return (
+    <div style={{ position: "relative", display: "inline-flex", alignItems: "center", background: "#fff", border: "1px solid var(--line)", borderRadius: 10, padding: "0 6px 0 12px", minHeight: 36, minWidth: 150 }}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value as T)}
+        style={{ appearance: "none", border: "none", outline: "none", background: "transparent", padding: "8px 18px 8px 0", fontSize: 13, fontWeight: 600, color: "var(--ink)", cursor: "pointer", width: "100%" }}
+        aria-label={placeholder || "Filter"}
+      >
+        <option value="">{placeholder || "Semua"}</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+      <span style={{ position: "absolute", right: 8, pointerEvents: "none", color: "var(--muted)", display: "grid", placeItems: "center" }}>
+        <IcoChevron size={14} />
+      </span>
+    </div>
+  );
+}
+
 export default function IzinAdminPanel() {
   const [rows, setRows] = useState<IzinRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +63,9 @@ export default function IzinAdminPanel() {
   const [toast, setToast] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [tab, setTab] = useState<"all" | "upcoming" | "past">("all");
+  const [filterKegiatan, setFilterKegiatan] = useState("");
+  const [filterDesa, setFilterDesa] = useState("");
+  const [filterKelompok, setFilterKelompok] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -70,12 +100,33 @@ export default function IzinAdminPanel() {
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
+  // Opsi unik utk dropdown
+  const desaOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return rows.filter((r) => { const k = r.desaNama ?? ""; if (!k || seen.has(k)) return false; seen.add(k); return true; }).map((r) => ({ value: r.desaNama!, label: r.desaNama! }));
+  }, [rows]);
+  const kelompokOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return rows.filter((r) => { const k = r.kelompokNama ?? ""; if (!k || seen.has(k)) return false; seen.add(k); return true; }).map((r) => ({ value: r.kelompokNama!, label: r.kelompokNama! }));
+  }, [rows]);
+  const kegiatanOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return rows.filter((r) => { if (seen.has(r.kegiatanId)) return false; seen.add(r.kegiatanId); return true; }).map((r) => ({
+      value: r.kegiatanId,
+      label: `${r.judul} — ${r.tanggal}${r.jamMulai ? ` ${r.jamMulai}` : ""}`,
+    }));
+  }, [rows]);
+
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     return rows.filter((r) => {
       // Filter status kegiatan
       if (tab === "upcoming" && r.tanggal < todayStr) return false;
       if (tab === "past" && r.tanggal >= todayStr) return false;
+      // Filter per kegiatan / desa / kelompok
+      if (filterKegiatan && r.kegiatanId !== filterKegiatan) return false;
+      if (filterDesa && r.desaNama !== filterDesa) return false;
+      if (filterKelompok && r.kelompokNama !== filterKelompok) return false;
       // Pencarian
       if (!s) return true;
       const hay = [
@@ -89,7 +140,7 @@ export default function IzinAdminPanel() {
       ].join(" ").toLowerCase();
       return hay.includes(s);
     });
-  }, [rows, q, tab, todayStr]);
+  }, [rows, q, tab, todayStr, filterKegiatan, filterDesa, filterKelompok]);
 
   const upcomingCount = rows.filter((r) => r.tanggal >= todayStr).length;
   const pastCount = rows.filter((r) => r.tanggal < todayStr).length;
@@ -117,10 +168,10 @@ export default function IzinAdminPanel() {
       )}
 
       {/* Toolbar filter */}
-      <div className="admin-toolbar" style={{ marginBottom: 12, flexWrap: "wrap" }}>
-        <label className="search" style={{ flex: 1, minWidth: 200 }}>
+      <div className="admin-toolbar" style={{ marginBottom: 8, flexWrap: "wrap" }}>
+        <label className="search" style={{ flex: 1, minWidth: 220 }}>
           <IcoSearch size={14} />
-          <input placeholder="Cari anggota / kegiatan / desa / alasan…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Cari ajuan izin" />
+          <input placeholder="Cari anggota / kegiatan / alasan…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Cari ajuan izin" />
           {q && (
             <button type="button" className="btn-close" style={{ width: 26, height: 26, minWidth: 26 }} aria-label="Hapus pencarian" onClick={() => setQ("")}>
               <IcoX size={12} />
@@ -134,6 +185,34 @@ export default function IzinAdminPanel() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Baris filter lanjutan */}
+      <div className="admin-toolbar" style={{ marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+        <FilterSelect
+          value={filterKegiatan}
+          onChange={setFilterKegiatan}
+          placeholder="Semua kegiatan"
+          options={kegiatanOptions}
+        />
+        <FilterSelect
+          value={filterDesa}
+          onChange={(v) => { setFilterDesa(v); setFilterKelompok(""); }}
+          placeholder="Semua desa"
+          options={desaOptions}
+        />
+        <FilterSelect
+          value={filterKelompok}
+          onChange={setFilterKelompok}
+          placeholder="Semua kelompok"
+          options={kelompokOptions}
+        />
+        {(filterKegiatan || filterDesa || filterKelompok) && (
+          <button type="button" className="btn btn-ghost btn-sm" style={{ fontSize: 12, width: "auto", minHeight: 30 }} onClick={() => { setFilterKegiatan(""); setFilterDesa(""); setFilterKelompok(""); }}>
+            <IcoFilter size={13} /> Reset Filter
+          </button>
+        )}
+        <span className="muted" style={{ fontSize: 11, marginLeft: "auto" }}>{filtered.length} dari {rows.length} ajuan</span>
       </div>
 
       {loading ? (
