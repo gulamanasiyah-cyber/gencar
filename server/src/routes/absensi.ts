@@ -135,7 +135,25 @@ async function buildEligibleSets(
     isGenerusEligibleForKegiatan(scope, k, byKegiatan.get(k.id) ?? [], userLocation)
   );
   const B = A.filter((k: any) => matchesQrScope(k, qr.level, qr.desaId, qr.kelompokId));
-  return { A, B };
+
+  // Kandidat yang cocok QR + kriteria tapi terhalang GPS (untuk pesan error spesifik)
+  const { haversineM } = await import("../../../shared/validation");
+  const gpsBlocked: { kegiatan: any; reason: "no_gps" | "out_of_range"; dist: number | null; radiusM: number }[] = [];
+  for (const k: any of active) {
+    if (!matchesQrScope(k, qr.level, qr.desaId, qr.kelompokId)) continue;
+    if (B.includes(k)) continue;
+    const okNoGps = isGenerusEligibleForKegiatan(scope, k, byKegiatan.get(k.id) ?? [], null, { skipGps: true });
+    if (!okNoGps) continue;
+    if (!(k.gpsRequired === 1 && k.lat != null && k.lng != null)) continue;
+    const radiusM = k.radiusM || 100;
+    if (!userLocation) {
+      gpsBlocked.push({ kegiatan: k, reason: "no_gps", dist: null, radiusM });
+    } else {
+      const dist = Math.round(haversineM(userLocation.lat, userLocation.lng, k.lat, k.lng));
+      if (dist > radiusM) gpsBlocked.push({ kegiatan: k, reason: "out_of_range", dist, radiusM });
+    }
+  }
+  return { A, B, gpsBlocked };
 }
 
 function toKegiatanCard(k: any) {
@@ -179,7 +197,7 @@ r.post("/scan", async (c) => {
 
   const userLocation = lat != null && lng != null ? { lat: Number(lat), lng: Number(lng) } : null;
   const now = new Date();
-  const { A, B } = await buildEligibleSets(db, resolvedGenerus, qr, userLocation, now);
+  const { A, B, gpsBlocked } = await buildEligibleSets(db, resolvedGenerus, qr, userLocation, now);
 
   // Filter yang sudah diabsen hari ini untuk kegiatan tersebut
   const existing: any[] = await db.select().from(absensi).where(eq(absensi.generusId, resolvedGenerus.id));
@@ -187,6 +205,20 @@ r.post("/scan", async (c) => {
   const freshB = B.filter((k: any) => !doneSet.has(k.id));
 
   if (freshB.length === 0) {
+    const freshGps = gpsBlocked.filter((g) => !doneSet.has(g.kegiatan.id));
+    if (freshGps.length > 0) {
+      const g = freshGps[0];
+      return c.json({
+        status: "gps_required",
+        message: g.reason === "no_gps"
+          ? `Kegiatan "${g.kegiatan.judul}" membutuhkan GPS. Aktifkan lokasi di HP lalu scan ulang.`
+          : `Kamu di luar radius ${g.radiusM}m dari "${g.kegiatan.judul}" (jarak ~${g.dist}m). Mendekat ke lokasi dulu lalu scan ulang.`,
+        kegiatan: toKegiatanCard(g.kegiatan),
+        reason: g.reason,
+        dist: g.dist,
+        radiusM: g.radiusM,
+      });
+    }
     return c.json({ status: "no_event", message: "Tidak ada kegiatan aktif untuk wilayah ini saat ini." });
   }
   if (freshB.length === 1) {

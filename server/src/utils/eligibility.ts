@@ -26,9 +26,10 @@ export function isGenerusEligibleForKegiatan(
   generus: GenerusScope,
   kegiatan: any,
   pesertaEntries: any[],
-  userLocation?: { lat: number; lng: number } | null
+  userLocation?: { lat: number; lng: number } | null,
+  opts?: { skipGps?: boolean }
 ): boolean {
-  if (kegiatan.gpsRequired === 1 && kegiatan.lat != null && kegiatan.lng != null) {
+  if (!opts?.skipGps && kegiatan.gpsRequired === 1 && kegiatan.lat != null && kegiatan.lng != null) {
     if (!userLocation) return false;
     const dist = haversineM(userLocation.lat, userLocation.lng, kegiatan.lat, kegiatan.lng);
     if (dist > (kegiatan.radiusM || 100)) return false;

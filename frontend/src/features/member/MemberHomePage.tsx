@@ -206,6 +206,8 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
         setConflictAll((res.allConcurrentKegiatan ?? res.eligibleKegiatan ?? []) as ConflictKegiatan[]);
         setConflictOpen(true);
         setMsg(`Ada ${(res.eligibleKegiatan ?? []).length} kegiatan aktif di wilayah ini. Pilih yang kamu hadiri.`);
+      } else if (res?.status === "gps_required") {
+        setMsg(res?.message || "Kegiatan ini membutuhkan GPS. Aktifkan lokasi lalu scan ulang.");
       } else {
         setMsg(res?.message || "Tidak ada kegiatan aktif untuk wilayah ini saat ini.");
       }
