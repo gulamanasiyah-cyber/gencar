@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Clock3, QrCode, LocateFixed, ChevronLeft, ChevronRight, CalendarDays, MapPin, X as IcoX, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Clock3, QrCode, LocateFixed, ChevronLeft, ChevronRight, CalendarDays, MapPin, X as IcoX, ShieldCheck, AlertTriangle, Send } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Html5Qrcode } from "html5-qrcode";
@@ -784,23 +784,40 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
         )}
       </div>
 
-      {/* 7. RIWAYAT ABSENSI */}
-      <div id="riwayat-section" className="card" style={{ padding: 16, display: "grid", gap: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-          <h3 style={{ fontSize: 13, fontWeight: 800, letterSpacing: "-0.02em" }}>
+      {/* 7. AJUKAN IZIN KEGIATAN */}
+      <div className="card" style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 12, background: "rgba(208,56,4,0.1)", color: "var(--primary)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+            <Send size={18} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <h3 style={{ fontSize: 13, fontWeight: 800, letterSpacing: "-0.02em", margin: 0, color: "var(--ink)" }}>
+              Ajukan Izin Kegiatan
+            </h3>
+            <p className="muted" style={{ fontSize: 11, margin: "2px 0 0", lineHeight: 1.3 }}>
+              Berhalangan hadir di acara mendatang? Ajukan lebih awal.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          onClick={openModalIzin}
+          style={{ width: "auto", minHeight: 34, padding: "6px 14px", fontSize: 12, borderRadius: 10, fontWeight: 800, flexShrink: 0 }}
+        >
+          Ajukan Izin
+        </button>
+      </div>
+
+      {/* 8. RIWAYAT ABSENSI */}
+      <div id="riwayat-section" className="card" style={{ padding: 16, display: "grid", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 800, letterSpacing: "-0.02em", margin: 0 }}>
             Riwayat Absensi
           </h3>
-          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-            <span className="pill pill-slate">
-              <Clock3 size={12} /> 5 terbaru
-            </span>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => void openHistoryModal()}>
-              Lihat semua
-            </button>
-            <button type="button" className="btn btn-primary btn-sm" onClick={openModalIzin}>
-              Ajukan Izin
-            </button>
-          </div>
+          <span className="pill pill-slate" style={{ fontSize: 10, padding: "2px 7px" }}>
+            5 terbaru
+          </span>
         </div>
 
         {riwayatLoading ? (
@@ -811,22 +828,36 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
           </div>
         ) : (
           <div style={{ display: "grid", gap: 8 }}>
-            {riwayat.map((r) => (
-              <div key={r.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 12, border: "1px solid var(--line)", background: "#fff" }}>
-                <span className={`pill ${r.status === "hadir" ? "pill-emerald" : r.status === "izin" ? "pill-amber" : "pill-slate"}`} style={{ textTransform: "capitalize", flexShrink: 0 }}>
-                  {r.status === "izin" && r.izinSumber === "ajuan" ? "Izin (ajuan)" : r.status === "izin" ? "Izin" : r.status}
-                </span>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.3, color: "var(--ink)" }}>{r.judul}</div>
-                  {r.catatan && (
-                    <div className="muted" style={{ fontSize: 11, fontStyle: "italic", marginTop: 1 }}>{r.catatan}</div>
-                  )}
-                  <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
-                    {r.tanggal}{r.jam && r.jam !== "—" ? ` · ${r.jam}` : ""}
+            {riwayat.map((r) => {
+              const displayCatatan = r.catatan ? r.catatan.replace(/^Izin\s*\(ajuan\):\s*/i, "") : null;
+              return (
+                <div key={r.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 12, border: "1px solid var(--line)", background: "#fff" }}>
+                  <span
+                    className={`pill ${r.status === "hadir" ? "pill-emerald" : r.status === "izin" ? "pill-amber" : "pill-slate"}`}
+                    style={{ textTransform: "capitalize", flexShrink: 0, fontSize: 11 }}
+                  >
+                    {r.status === "izin" && r.izinSumber === "ajuan" ? "Izin (Ajuan)" : r.status === "izin" ? "Izin" : r.status}
+                  </span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.3, color: "var(--ink)" }}>{r.judul}</div>
+                    {displayCatatan && (
+                      <div className="muted" style={{ fontSize: 11, fontStyle: "italic", marginTop: 1 }}>{displayCatatan}</div>
+                    )}
+                    <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
+                      {r.tanggal}{r.jam && r.jam !== "—" ? ` · ${r.jam}` : ""}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => void openHistoryModal()}
+              style={{ width: "100%", minHeight: 34, fontSize: 12, borderRadius: 10, marginTop: 4, fontWeight: 700 }}
+            >
+              Lihat Semua Riwayat &amp; Filter →
+            </button>
           </div>
         )}
 
@@ -924,22 +955,28 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
               </div>
             ) : (
               <div style={{ display: "grid", gap: 8, maxHeight: "60vh", overflowY: "auto", paddingRight: 2 }}>
-                {historyAll.map((r) => (
-                  <div key={r.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 12, border: "1px solid var(--line)", background: "#fff" }}>
-                    <span className={`pill ${r.status === "hadir" ? "pill-emerald" : r.status === "izin" ? "pill-amber" : "pill-slate"}`} style={{ textTransform: "capitalize", flexShrink: 0 }}>
-                      {r.status === "izin" && r.izinSumber === "ajuan" ? "Izin (ajuan)" : r.status === "izin" ? "Izin" : r.status}
-                    </span>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.3, color: "var(--ink)" }}>{r.judul}</div>
-                      {r.catatan && (
-                        <div className="muted" style={{ fontSize: 11, fontStyle: "italic", marginTop: 1 }}>{r.catatan}</div>
-                      )}
-                      <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
-                        {r.tanggal}{r.jam && r.jam !== "—" ? ` · ${r.jam}` : ""}
+                {historyAll.map((r) => {
+                  const displayCatatan = r.catatan ? r.catatan.replace(/^Izin\s*\(ajuan\):\s*/i, "") : null;
+                  return (
+                    <div key={r.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 12, border: "1px solid var(--line)", background: "#fff" }}>
+                      <span
+                        className={`pill ${r.status === "hadir" ? "pill-emerald" : r.status === "izin" ? "pill-amber" : "pill-slate"}`}
+                        style={{ textTransform: "capitalize", flexShrink: 0, fontSize: 11 }}
+                      >
+                        {r.status === "izin" && r.izinSumber === "ajuan" ? "Izin (Ajuan)" : r.status === "izin" ? "Izin" : r.status}
+                      </span>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.3, color: "var(--ink)" }}>{r.judul}</div>
+                        {displayCatatan && (
+                          <div className="muted" style={{ fontSize: 11, fontStyle: "italic", marginTop: 1 }}>{displayCatatan}</div>
+                        )}
+                        <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
+                          {r.tanggal}{r.jam && r.jam !== "—" ? ` · ${r.jam}` : ""}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
