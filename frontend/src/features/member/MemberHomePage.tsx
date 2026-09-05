@@ -5,6 +5,7 @@ import "leaflet/dist/leaflet.css";
 import { Html5Qrcode } from "html5-qrcode";
 import { haversineM } from "shared/validation";
 import { apiFetch } from "../../lib/api";
+import { Select } from "../../components/Select";
 import { DEMO_KEGIATAN_MEMBER, type MemberIdentity, type MemberKegiatan } from "./types";
 
 // Fix default marker icons for Vite bundling
@@ -819,16 +820,15 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
               <div style={{ display: "grid", gap: 10 }}>
                 <label style={{ display: "grid", gap: 4, textAlign: "left" }}>
                   <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Kegiatan *</span>
-                  <select
+                  <Select
                     value={izinKegiatanId}
-                    onChange={(e) => setIzinKegiatanId(e.target.value)}
-                    style={{ width: "100%", padding: "9px 11px", borderRadius: 10, border: "1.5px solid var(--line)", fontSize: 13, background: "#fff" }}
-                  >
-                    <option value="">-- Pilih kegiatan mendatang --</option>
-                    {izinKegiatanList.map((k) => (
-                      <option key={k.id} value={k.id}>{k.judul} — {k.tanggal}{k.jamMulai ? ` ${k.jamMulai}` : ""}</option>
-                    ))}
-                  </select>
+                    onChange={setIzinKegiatanId}
+                    ariaLabel="Pilih kegiatan"
+                    options={[
+                      { value: "", label: "-- Pilih kegiatan mendatang --" },
+                      ...izinKegiatanList.map((k) => ({ value: k.id, label: `${k.judul} — ${k.tanggal}${k.jamMulai ? ` ${k.jamMulai}` : ""}` })),
+                    ]}
+                  />
                   {izinKegiatanList.length === 0 && (
                     <span style={{ fontSize: 11, color: "var(--muted)" }}>Tidak ada kegiatan mendatang yang bisa diizinkan.</span>
                   )}
