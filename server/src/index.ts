@@ -219,9 +219,25 @@ function gpsCheck(k: any, lat: any, lng: any, accuracy: any) {
   return { ok: true, reason: null, distanceM: Math.round(d) };
 }
 
+// ── Internal / Test trigger: manual sweep alpha (bisa dipanggil admin atau test script) ──
+app.post("/api/_internal/alpha-sweep", async (c) => {
+  const { runAlphaSweep } = await import("./jobs/alphaSweep");
+  const summary = await runAlphaSweep({ DB: c.env.DB });
+  return c.json({ success: true, ...summary });
+});
+
 async function sha256(s: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export default app;
+// ── Cloudflare Worker scheduled handler (Cron Trigger setiap 15 menit) ──
+async function scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
+  const { runAlphaSweep } = await import("./jobs/alphaSweep");
+  ctx.waitUntil(runAlphaSweep({ DB: env.DB }));
+}
+
+export default {
+  fetch: app.fetch,
+  scheduled,
+};

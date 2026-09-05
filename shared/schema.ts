@@ -117,12 +117,14 @@ export const kegiatan = sqliteTable("kegiatan", {
   desaId: integer("desa_id").references(() => desa.id, { onDelete: "cascade" }),
   kelompokId: integer("kelompok_id").references(() => kelompok.id, { onDelete: "cascade" }),
   createdBy: text("created_by"),
+  alphaProcessedAt: text("alpha_processed_at"), // Timestamp saat sweep alpha selesai memproses
   createdAt: text("created_at").default(sql`(datetime('now'))`),
 }, (table) => ({
   desaIdIdx: index("kegiatan_desa_id_idx").on(table.desaId),
   kelompokIdIdx: index("kegiatan_kelompok_id_idx").on(table.kelompokId),
   tanggalIdx: index("kegiatan_tanggal_idx").on(table.tanggal),
   kategoriAcaraIdx: index("kegiatan_kategori_acara_idx").on(table.kategoriAcara),
+  alphaProcessedAtIdx: index("kegiatan_alpha_processed_at_idx").on(table.alphaProcessedAt),
 }));
 
 // ── Absensi — delta: lat/lng/accuracy/isGpsValid + qrWilayahLevel ──
