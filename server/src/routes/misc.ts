@@ -417,9 +417,12 @@ r.put("/profile", requireAuth(), async (c) => {
       gUpdate.jenisKelamin = body.jenisKelamin === "cowok" ? "L" : body.jenisKelamin === "cewek" ? "P" : body.jenisKelamin;
     }
     if (body.hobi !== undefined || body.hobiDetail !== undefined) {
-      // Check 30 days restriction
+      // Cooldown 30 hari HANYA jika nilai hobi benar-benar berubah.
       const currentGen: any = await db.query.generus.findFirst({ where: eq(generus.id, user.generusId) });
-      if (currentGen?.hobiUpdatedAt) {
+      const hobiBerubah =
+        (body.hobi !== undefined && String(body.hobi ?? "") !== String(currentGen?.hobi ?? "")) ||
+        (body.hobiDetail !== undefined && String(body.hobiDetail ?? "") !== String(currentGen?.hobiDetail ?? ""));
+      if (hobiBerubah && currentGen?.hobiUpdatedAt) {
         const lastUpdated = new Date(currentGen.hobiUpdatedAt).getTime();
         const diffDays = (Date.now() - lastUpdated) / (1000 * 60 * 60 * 24);
         if (diffDays < 30) {
@@ -429,7 +432,7 @@ r.put("/profile", requireAuth(), async (c) => {
       }
       if (body.hobi !== undefined) gUpdate.hobi = body.hobi;
       if (body.hobiDetail !== undefined) gUpdate.hobiDetail = body.hobiDetail;
-      gUpdate.hobiUpdatedAt = new Date().toISOString();
+      if (hobiBerubah) gUpdate.hobiUpdatedAt = new Date().toISOString();
     }
     if (Object.keys(gUpdate).length > 0) {
       gUpdate.updatedAt = new Date().toISOString();
