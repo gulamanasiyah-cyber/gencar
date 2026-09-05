@@ -15,7 +15,7 @@ import shadowUrl from "leaflet/dist/images/marker-shadow.png";
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({ iconRetinaUrl, iconUrl, shadowUrl });
 
-type AbsenRow = { id: string; tanggal: string; judul: string; status: "hadir" | "izin" | "alpha"; jam: string; catatan?: string | null };
+type AbsenRow = { id: string; tanggal: string; judul: string; status: "hadir" | "izin" | "alpha"; jam: string; catatan?: string | null; izinSumber?: string | null };
 type GpsState = { lat: number; lng: number; acc: number | null } | null;
 type QrHit = { level: string; nama: string } | null;
 type ConflictKegiatan = {
@@ -99,6 +99,12 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
   }
   const [riwayat, setRiwayat] = useState<AbsenRow[]>(DEMO_RIWAYAT);
   const [riwayatLoading, setRiwayatLoading] = useState(true);
+  const [izinOpen, setIzinOpen] = useState(false);
+  const [izinKegiatanList, setIzinKegiatanList] = useState<ConflictKegiatan[]>([]);
+  const [izinKegiatanId, setIzinKegiatanId] = useState("");
+  const [izinAlasan, setIzinAlasan] = useState("");
+  const [izinSaving, setIzinSaving] = useState(false);
+  const [izinErr, setIzinErr] = useState<string | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannedRef = useRef(false);
   // Ref selalu-terbaru supaya callback scanner (di-capture saat mount) tidak basi
@@ -155,6 +161,7 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
         status: (r.keterangan === "izin" ? "izin" : r.keterangan === "alpha" ? "alpha" : "hadir") as AbsenRow["status"],
         jam: r.jam ?? (r.timestamp ? String(r.timestamp).slice(11, 16) : "—"),
         catatan: r.catatan ?? null,
+        izinSumber: r.izinSumber ?? null,
       })));
     } catch {} finally {
       setRiwayatLoading(false);
@@ -164,6 +171,36 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
   useEffect(() => {
     void loadRiwayat();
   }, []);
+
+  async function openModalIzin() {
+    setIzinErr(null);
+    setIzinAlasan("");
+    setIzinKegiatanId("");
+    setIzinOpen(true);
+    try {
+      const rows: any = await apiFetch("/api/absensi/upcoming");
+      setIzinKegiatanList(Array.isArray(rows) ? rows : []);
+    } catch { setIzinKegiatanList([]); }
+  }
+
+  async function submitIzin() {
+    if (!izinKegiatanId) { setIzinErr("Pilih kegiatan dulu"); return; }
+    if (izinAlasan.trim().length < 5) { setIzinErr("Alasan minimal 5 karakter"); return; }
+    setIzinSaving(true);
+    setIzinErr(null);
+    try {
+      await apiFetch("/api/absensi/izin", {
+        method: "POST",
+        body: JSON.stringify({ kegiatanId: izinKegiatanId, alasan: izinAlasan.trim() }),
+      });
+      setIzinOpen(false);
+      void loadRiwayat();
+    } catch (e: any) {
+      setIzinErr(e?.message || "Gagal mengajukan izin");
+    } finally {
+      setIzinSaving(false);
+    }
+  }
 
   async function startScan() {
     if (scannerRef.current) return;
@@ -725,13 +762,18 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
 
       {/* 7. RIWAYAT ABSENSI */}
       <div id="riwayat-section" className="card" style={{ padding: 16, display: "grid", gap: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
           <h3 style={{ fontSize: 13, fontWeight: 800, letterSpacing: "-0.02em" }}>
             Riwayat Absensi
           </h3>
-          <span className="pill pill-slate">
-            <Clock3 size={12} /> {riwayat.length} riwayat
-          </span>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <span className="pill pill-slate">
+              <Clock3 size={12} /> {riwayat.length} riwayat
+            </span>
+            <button type="button" className="btn btn-primary btn-sm" onClick={openModalIzin}>
+              Ajukan Izin
+            </button>
+          </div>
         </div>
 
         {riwayatLoading ? (
@@ -745,7 +787,7 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
             {riwayat.map((r) => (
               <div key={r.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 12, border: "1px solid var(--line)", background: "#fff" }}>
                 <span className={`pill ${r.status === "hadir" ? "pill-emerald" : r.status === "izin" ? "pill-amber" : "pill-slate"}`} style={{ textTransform: "capitalize", flexShrink: 0 }}>
-                  {r.status}
+                  {r.status === "izin" && r.izinSumber === "ajuan" ? "Izin (ajuan)" : r.status === "izin" ? "Izin" : r.status}
                 </span>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.3, color: "var(--ink)" }}>{r.judul}</div>
@@ -758,6 +800,66 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Modal Ajukan Izin */}
+        {izinOpen && (
+          <div className="modal-backdrop" onClick={() => setIzinOpen(false)} style={{ zIndex: 1200, display: "grid", placeItems: "center", padding: 16 }}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420, width: "100%", padding: 20, borderRadius: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 900, color: "var(--ink)", margin: 0 }}>Ajukan Izin</h3>
+                <button type="button" className="trophy-modal-close" onClick={() => setIzinOpen(false)} aria-label="Tutup">
+                  <IcoX size={18} />
+                </button>
+              </div>
+              <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px", lineHeight: 1.5 }}>
+                Izin langsung tercatat untuk kegiatan mendatang. Admin dapat membatalkan jika tidak sesuai.
+              </p>
+              <div style={{ display: "grid", gap: 10 }}>
+                <label style={{ display: "grid", gap: 4, textAlign: "left" }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Kegiatan *</span>
+                  <select
+                    value={izinKegiatanId}
+                    onChange={(e) => setIzinKegiatanId(e.target.value)}
+                    style={{ width: "100%", padding: "9px 11px", borderRadius: 10, border: "1.5px solid var(--line)", fontSize: 13, background: "#fff" }}
+                  >
+                    <option value="">-- Pilih kegiatan mendatang --</option>
+                    {izinKegiatanList.map((k) => (
+                      <option key={k.id} value={k.id}>{k.judul} — {k.tanggal}{k.jamMulai ? ` ${k.jamMulai}` : ""}</option>
+                    ))}
+                  </select>
+                  {izinKegiatanList.length === 0 && (
+                    <span style={{ fontSize: 11, color: "var(--muted)" }}>Tidak ada kegiatan mendatang yang bisa diizinkan.</span>
+                  )}
+                </label>
+                <label style={{ display: "grid", gap: 4, textAlign: "left" }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Alasan *</span>
+                  <textarea
+                    value={izinAlasan}
+                    onChange={(e) => setIzinAlasan(e.target.value)}
+                    rows={3}
+                    maxLength={300}
+                    placeholder="Contoh: Ada urusan keluarga di luar kota…"
+                    style={{ width: "100%", padding: "9px 11px", borderRadius: 10, border: "1.5px solid var(--line)", fontSize: 13, resize: "vertical" }}
+                  />
+                  <span style={{ fontSize: 10, color: "var(--muted)" }}>{izinAlasan.length}/300</span>
+                </label>
+                {izinErr && (
+                  <div style={{ fontSize: 12, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "8px 10px" }}>
+                    {izinErr}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setIzinOpen(false)} disabled={izinSaving}>
+                    Batal
+                  </button>
+                  <button type="button" className="btn btn-primary" style={{ flex: 1, fontWeight: 800 }} onClick={submitIzin} disabled={izinSaving}>
+                    {izinSaving ? "Mengirim…" : "Kirim Izin"}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

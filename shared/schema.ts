@@ -139,6 +139,7 @@ export const absensi = sqliteTable("absensi", {
   timestamp: text("timestamp").default(sql`(datetime('now'))`),
   keterangan: text("keterangan", { enum: ["hadir", "izin", "alpha"] }).default("hadir"),
   catatan: text("catatan"),                                                                // Keterangan / Alasan
+  izinSumber: text("izin_sumber", { enum: ["ajuan", "bentrok"] }),                        // Asal status izin
   lat: real("lat"),
   lng: real("lng"),
   accuracy: real("accuracy"),
@@ -149,6 +150,7 @@ export const absensi = sqliteTable("absensi", {
   generusIdIdx: index("absensi_generus_id_idx").on(table.generusId),
   desaIdIdx: index("absensi_desa_id_idx").on(table.desaId),
   kelompokIdIdx: index("absensi_kelompok_id_idx").on(table.kelompokId),
+  izinSumberIdx: index("absensi_izin_sumber_idx").on(table.izinSumber),
 }));
 
 // ── Kegiatan Peserta Wajib — target peserta yang wajib hadir ──

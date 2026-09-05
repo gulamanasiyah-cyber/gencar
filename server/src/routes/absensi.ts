@@ -22,6 +22,7 @@ r.get("/mine", async (c) => {
     kegiatanId: absensi.kegiatanId,
     keterangan: absensi.keterangan,
     catatan: absensi.catatan,
+    izinSumber: absensi.izinSumber,
     timestamp: absensi.timestamp,
     judul: kegiatan.judul,
     tanggal: kegiatan.tanggal,
@@ -31,6 +32,89 @@ r.get("/mine", async (c) => {
     .where(eq(absensi.generusId, user.generusId))
     .orderBy(sql`${absensi.timestamp} DESC`).limit(50);
   return c.json(rows);
+});
+
+// Kegiatan mendatang yang eligible utk dropdown ajukan izin (tanpa record absensi)
+r.get("/upcoming", async (c) => {
+  const session = c.get("user" as any) as any;
+  const db = getDb(c.env);
+  const user: any = await db.query.users.findFirst({ where: eq((await import("../../../shared/schema")).users.id, session.userId) });
+  if (!user?.generusId) return c.json([]);
+  const resolvedGenerus: any = await db.query.generus.findFirst({ where: eq(generus.id, user.generusId) });
+  if (!resolvedGenerus) return c.json([]);
+
+  // Semua kegiatan yang dilihat generus (eligible scope): reuse pola list kegiatan member
+  const allKegiatan: any[] = await db.select().from(kegiatan);
+  const existingRows: any[] = await db.select({ kegiatanId: absensi.kegiatanId }).from(absensi).where(eq(absensi.generusId, resolvedGenerus.id));
+  const doneSet = new Set(existingRows.map((r: any) => r.kegiatanId));
+  const { isGenerusEligibleForKegiatan } = await import("../utils/eligibility");
+  const pesertaRows: any[] = await db.select().from(kegiatanPeserta).where(eq(kegiatanPeserta.status, "approved")).catch(() => []);
+  const byKegiatan = new Map<string, any[]>();
+  for (const p of pesertaRows) {
+    if (!byKegiatan.has(p.kegiatanId)) byKegiatan.set(p.kegiatanId, []);
+    byKegiatan.get(p.kegiatanId)!.push(p);
+  }
+  const scope = {
+    id: resolvedGenerus.id,
+    desaId: resolvedGenerus.desaId ?? null,
+    kelompokId: resolvedGenerus.kelompokId ?? null,
+    jenisKelamin: resolvedGenerus.jenisKelamin ?? null,
+    kategoriMudaMudi: resolvedGenerus.kategoriMudaMudi ?? null,
+    pendidikan: resolvedGenerus.pendidikan ?? null,
+    tanggalLahir: resolvedGenerus.tanggalLahir ?? null,
+  };
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const upcoming = allKegiatan.filter((k: any) => {
+    if (doneSet.has(k.id)) return false;
+    if (!k.tanggal || k.tanggal < todayStr) return false; // sudah lewat
+    return isGenerusEligibleForKegiatan(scope, k, byKegiatan.get(k.id) ?? [], null, { skipGps: true });
+  });
+  return c.json(upcoming.map((k: any) => ({
+    id: k.id,
+    judul: k.judul,
+    tanggal: k.tanggal,
+    tanggalSelesai: k.tanggalSelesai ?? null,
+    jamMulai: k.jamMulai ?? k.jam ?? null,
+    jamSelesai: k.jamSelesai ?? null,
+    lokasi: k.lokasi ?? null,
+    tingkat: k.kelompokId ? "kelompok" : k.desaId ? "desa" : "daerah",
+  })));
+});
+
+// Ajukan izin utk kegiatan mendatang (langsung tercatat, admin bisa tolak/hapus)
+r.post("/izin", async (c) => {
+  const session = c.get("user" as any) as any;
+  const body: any = await c.req.json().catch(() => ({}));
+  const { kegiatanId, alasan } = body;
+  if (!kegiatanId) return c.json({ error: "kegiatanId diperlukan" }, 400);
+  if (!alasan || String(alasan).trim().length < 5) return c.json({ error: "Alasan minimal 5 karakter" }, 400);
+  const db = getDb(c.env);
+  const user: any = await db.query.users.findFirst({ where: eq((await import("../../../shared/schema")).users.id, session.userId) });
+  if (!user?.generusId) return c.json({ error: "Akun belum taut generus" }, 400);
+  const resolvedGenerus: any = await db.query.generus.findFirst({ where: eq(generus.id, user.generusId) });
+  if (!resolvedGenerus) return c.json({ error: "Generus tidak ditemukan" }, 404);
+  const target: any = await db.query.kegiatan.findFirst({ where: eq(kegiatan.id, kegiatanId) });
+  if (!target) return c.json({ error: "Kegiatan tidak ditemukan" }, 404);
+  // Kegiatan harus MENDATANG (belum lewat)
+  const todayStr = new Date().toISOString().slice(0, 10);
+  if (target.tanggal < todayStr) return c.json({ error: "Kegiatan sudah lewat, tidak bisa mengajukan izin" }, 400);
+  // Belum ada record absensi utk user+kegiatan
+  const existing: any = await db.query.absensi.findFirst({
+    where: and(eq(absensi.kegiatanId, kegiatanId), eq(absensi.generusId, resolvedGenerus.id)),
+  });
+  if (existing) return c.json({ error: "Kamu sudah punya catatan hadir/izin untuk kegiatan ini" }, 409);
+  await db.insert(absensi).values({
+    id: crypto.randomUUID(),
+    kegiatanId,
+    generusId: resolvedGenerus.id,
+    desaId: resolvedGenerus.desaId ?? null,
+    kelompokId: resolvedGenerus.kelompokId ?? null,
+    keterangan: "izin",
+    catatan: `Izin (ajuan): ${String(alasan).trim()}`,
+    izinSumber: "ajuan",
+    timestamp: new Date().toISOString(),
+  } as any);
+  return c.json({ success: true });
 });
 
 r.get("/", async (c) => {
@@ -272,6 +356,7 @@ r.post("/scan", async (c) => {
         kelompokId: resolvedGenerus.kelompokId ?? null,
         keterangan: "izin",
         catatan: `Menghadiri kegiatan ${target.judul}`,
+        izinSumber: "bentrok",
         timestamp: now.toISOString(),
         qrWilayahLevel: qr.level,
       } as any);
@@ -338,6 +423,7 @@ r.post("/resolve", async (c) => {
       kelompokId: resolvedGenerus.kelompokId ?? null,
       keterangan: "izin",
       catatan: `Menghadiri kegiatan ${target.judul}`,
+      izinSumber: "bentrok",
       timestamp: now.toISOString(),
       qrWilayahLevel: qrWilayahLevel || null,
     } as any);

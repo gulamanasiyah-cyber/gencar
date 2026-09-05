@@ -4,6 +4,7 @@ import KpiCard from "../../components/admin/KpiCard";
 import SearchInput from "../../components/admin/SearchInput";
 import Modal from "../../components/admin/Modal";
 import { apiFetch, unwrapList } from "../../lib/api";
+import IzinAdminPanel from "./IzinAdminPanel";
 
 type ReqStatus = "pending" | "approved" | "rejected";
 type ReqSection = "kontak" | "wilayah" | "identitas";
@@ -80,6 +81,7 @@ function useIsMobile() {
 }
 
 export default function ProfileRequestsPage() {
+  const [mode, setMode] = useState<"profile" | "izin">("profile");
   const [tab, setTab] = useState<TabKey>("pending");
   const [q, setQ] = useState("");
   const [sectionFilter, setSectionFilter] = useState<ReqSection | "all">("all");
@@ -252,6 +254,20 @@ export default function ProfileRequestsPage() {
         </div>
       </div>
 
+      {/* Mode: pengajuan profil vs izin kegiatan */}
+      <div className="card" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+        <button type="button" className={`chip ${mode === "profile" ? "active" : ""}`} onClick={() => setMode("profile")}>
+          Pengajuan Profil
+        </button>
+        <button type="button" className={`chip ${mode === "izin" ? "active" : ""}`} onClick={() => setMode("izin")}>
+          Izin Kegiatan
+        </button>
+      </div>
+
+      {mode === "izin" ? (
+        <IzinAdminPanel />
+      ) : (
+        <>
       <div className="kpi">
         <KpiCard icon={<span className="kpi-icon kpi-icon--amber"><IcoClock size={18} /></span>} label="Menunggu" value={kpi.pending} />
         <KpiCard icon={<span className="kpi-icon kpi-icon--emerald"><IcoCheck size={18} /></span>} label="Disetujui" value={kpi.approved} />
@@ -407,6 +423,8 @@ export default function ProfileRequestsPage() {
             </tbody>
           </table>
         </div>
+      )}
+        </>
       )}
 
       {detail && (

@@ -314,6 +314,59 @@ r.post("/admin/profile-requests/:id/reject", requireAuth(), async (c) => {
   return c.json({ success: true });
 });
 
+// ── Admin: list ajuan izin member (izinSumber="ajuan"), scope wilayah ──
+r.get("/admin/izin", requireAuth(), async (c) => {
+  const session = c.get("user" as any) as any;
+  if (!["admin_daerah", "admin_desa", "admin_kelompok"].includes(session.role)) return c.json({ error: "Unauthorized" }, 401);
+  const db = getDb(c.env);
+  let q: any = db.select({
+    id: absensi.id,
+    kegiatanId: absensi.kegiatanId,
+    generusId: absensi.generusId,
+    keterangan: absensi.keterangan,
+    catatan: absensi.catatan,
+    izinSumber: absensi.izinSumber,
+    timestamp: absensi.timestamp,
+    generusNama: generus.nama,
+    generusNomorUnik: generus.nomorUnik,
+    generusDesaId: generus.desaId,
+    generusKelompokId: generus.kelompokId,
+    desaNama: desa.nama,
+    kelompokNama: kelompok.nama,
+    judul: kegiatan.judul,
+    tanggal: kegiatan.tanggal,
+    jamMulai: kegiatan.jamMulai ?? kegiatan.jam ?? null,
+    lokasi: kegiatan.lokasi,
+    kegiatanDesaId: kegiatan.desaId,
+    kegiatanKelompokId: kegiatan.kelompokId,
+  })
+    .from(absensi)
+    .innerJoin(generus, eq(absensi.generusId, generus.id))
+    .innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id))
+    .leftJoin(desa, eq(generus.desaId, desa.id))
+    .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
+    .where(eq(absensi.izinSumber, "ajuan"));
+  if (session.role === "admin_desa" && session.desaId) q = q.where(eq(generus.desaId, session.desaId));
+  if (session.role === "admin_kelompok" && session.kelompokId) q = q.where(eq(generus.kelompokId, session.kelompokId));
+  const rows: any = await q.orderBy(sql`${absensi.timestamp} DESC`).limit(100);
+  return c.json(rows);
+});
+r.post("/admin/izin/:absensiId/reject", requireAuth(), async (c) => {
+  const session = c.get("user" as any) as any;
+  if (!["admin_daerah", "admin_desa", "admin_kelompok"].includes(session.role)) return c.json({ error: "Unauthorized" }, 401);
+  const id = c.req.param("absensiId");
+  const db = getDb(c.env);
+  const row: any = await db.query.absensi.findFirst({ where: eq(absensi.id, id) });
+  if (!row) return c.json({ error: "Tidak ditemukan" }, 404);
+  if (row.izinSumber !== "ajuan") return c.json({ error: "Bukan ajuan izin" }, 400);
+  const gen: any = await db.query.generus.findFirst({ where: eq(generus.id, row.generusId) });
+  if (session.role === "admin_desa" && session.desaId && gen?.desaId !== session.desaId) return c.json({ error: "Forbidden" }, 403);
+  if (session.role === "admin_kelompok" && session.kelompokId && gen?.kelompokId !== session.kelompokId) return c.json({ error: "Forbidden" }, 403);
+  await db.delete(absensi).where(eq(absensi.id, id));
+  try { const { logAuditActivity } = await import("../utils/audit"); await logAuditActivity(c.env as any, { action: "izin_reject", userId: session.userId, targetId: id, details: { generusId: row.generusId, kegiatanId: row.kegiatanId } }); } catch {}
+  return c.json({ success: true });
+});
+
 // profile
 r.get("/profile", requireAuth(), async (c) => {
   const session = c.get("user" as any) as any;
