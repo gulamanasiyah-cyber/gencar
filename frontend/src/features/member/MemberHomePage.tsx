@@ -100,6 +100,10 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
   }
   const [riwayat, setRiwayat] = useState<AbsenRow[]>(DEMO_RIWAYAT);
   const [riwayatLoading, setRiwayatLoading] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyAll, setHistoryAll] = useState<AbsenRow[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyStatus, setHistoryStatus] = useState<"all" | "hadir" | "izin" | "alpha">("all");
   const [izinOpen, setIzinOpen] = useState(false);
   const [izinKegiatanList, setIzinKegiatanList] = useState<ConflictKegiatan[]>([]);
   const [izinKegiatanId, setIzinKegiatanId] = useState("");
@@ -151,19 +155,21 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
     };
   }, []);
 
+  const mapRiwayatRow = (r: any): AbsenRow => ({
+    id: r.id,
+    tanggal: r.tanggal ?? (r.timestamp ? String(r.timestamp).slice(0, 10) : ""),
+    judul: r.judul ?? "Kegiatan",
+    status: (r.keterangan === "izin" ? "izin" : r.keterangan === "alpha" ? "alpha" : "hadir") as AbsenRow["status"],
+    jam: r.jam ?? (r.timestamp ? String(r.timestamp).slice(11, 16) : "—"),
+    catatan: r.catatan ?? null,
+    izinSumber: r.izinSumber ?? null,
+  });
+
   async function loadRiwayat() {
     try {
-      const rows: any = await apiFetch("/api/absensi/mine");
+      const rows: any = await apiFetch("/api/absensi/mine?limit=5");
       if (!Array.isArray(rows)) return;
-      setRiwayat(rows.map((r: any) => ({
-        id: r.id,
-        tanggal: r.tanggal ?? (r.timestamp ? String(r.timestamp).slice(0, 10) : ""),
-        judul: r.judul ?? "Kegiatan",
-        status: (r.keterangan === "izin" ? "izin" : r.keterangan === "alpha" ? "alpha" : "hadir") as AbsenRow["status"],
-        jam: r.jam ?? (r.timestamp ? String(r.timestamp).slice(11, 16) : "—"),
-        catatan: r.catatan ?? null,
-        izinSumber: r.izinSumber ?? null,
-      })));
+      setRiwayat(rows.map(mapRiwayatRow));
     } catch {} finally {
       setRiwayatLoading(false);
     }
@@ -172,6 +178,23 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
   useEffect(() => {
     void loadRiwayat();
   }, []);
+
+  async function openHistoryModal() {
+    setHistoryOpen(true);
+    setHistoryStatus("all");
+    await loadHistory("all");
+  }
+
+  async function loadHistory(status: "all" | "hadir" | "izin" | "alpha") {
+    setHistoryLoading(true);
+    try {
+      const qs = status === "all" ? "" : `&status=${status}`;
+      const rows: any = await apiFetch(`/api/absensi/mine?limit=500${qs}`);
+      if (Array.isArray(rows)) setHistoryAll(rows.map(mapRiwayatRow));
+    } catch {} finally {
+      setHistoryLoading(false);
+    }
+  }
 
   async function openModalIzin() {
     setIzinErr(null);
@@ -769,8 +792,11 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
           </h3>
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <span className="pill pill-slate">
-              <Clock3 size={12} /> {riwayat.length} riwayat
+              <Clock3 size={12} /> 5 terbaru
             </span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => void openHistoryModal()}>
+              Lihat semua
+            </button>
             <button type="button" className="btn btn-primary btn-sm" onClick={openModalIzin}>
               Ajukan Izin
             </button>
@@ -863,6 +889,62 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
           </div>
         )}
       </div>
+
+      {/* Modal: Semua Riwayat Absensi (dengan filter) */}
+      {historyOpen && (
+        <div className="modal-backdrop" onClick={() => setHistoryOpen(false)} style={{ zIndex: 1200, display: "grid", placeItems: "start center", padding: 16, overflowY: "auto" }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520, width: "100%", padding: 20, borderRadius: 20, marginTop: 24 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 900, color: "var(--ink)", margin: 0 }}>Riwayat Absensi</h3>
+              <button type="button" className="trophy-modal-close" onClick={() => setHistoryOpen(false)} aria-label="Tutup">
+                <IcoX size={18} />
+              </button>
+            </div>
+
+            {/* Filter status */}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+              {([["all", "Semua"], ["hadir", "Hadir"], ["izin", "Izin"], ["alpha", "Alpha"]] as const).map(([val, label]) => (
+                <button
+                  key={val}
+                  type="button"
+                  className={`chip ${historyStatus === val ? "active" : ""}`}
+                  onClick={() => { setHistoryStatus(val); void loadHistory(val); }}
+                >
+                  {label}
+                </button>
+              ))}
+              <span className="muted" style={{ marginLeft: "auto", fontSize: 11 }}>{historyAll.length} entri</span>
+            </div>
+
+            {historyLoading ? (
+              <div className="lp-empty-card" style={{ fontSize: 12 }}>Memuat riwayat…</div>
+            ) : historyAll.length === 0 ? (
+              <div className="lp-empty-card" style={{ fontSize: 12 }}>
+                {historyStatus === "all" ? "Belum ada riwayat absensi." : `Tidak ada riwayat dengan status ${historyStatus}.`}
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 8, maxHeight: "60vh", overflowY: "auto", paddingRight: 2 }}>
+                {historyAll.map((r) => (
+                  <div key={r.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 12, border: "1px solid var(--line)", background: "#fff" }}>
+                    <span className={`pill ${r.status === "hadir" ? "pill-emerald" : r.status === "izin" ? "pill-amber" : "pill-slate"}`} style={{ textTransform: "capitalize", flexShrink: 0 }}>
+                      {r.status === "izin" && r.izinSumber === "ajuan" ? "Izin (ajuan)" : r.status === "izin" ? "Izin" : r.status}
+                    </span>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.3, color: "var(--ink)" }}>{r.judul}</div>
+                      {r.catatan && (
+                        <div className="muted" style={{ fontSize: 11, fontStyle: "italic", marginTop: 1 }}>{r.catatan}</div>
+                      )}
+                      <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
+                        {r.tanggal}{r.jam && r.jam !== "—" ? ` · ${r.jam}` : ""}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 8. MODAL CHECK LOKASI / MAP */}
       {showMapModal && (

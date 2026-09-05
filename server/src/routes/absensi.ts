@@ -11,12 +11,17 @@ type Env = { DB: D1Database; JWT_SECRET: string; [k: string]: unknown };
 const r = new Hono<{ Bindings: Env }>();
 r.use("/*", requireAuth());
 
-// Riwayat absensi milik user sendiri (member beranda)
+// Riwayat absensi milik user sendiri (member beranda) — dukung filter status & limit
 r.get("/mine", async (c) => {
   const session = c.get("user" as any) as any;
   const db = getDb(c.env);
   const user: any = await db.query.users.findFirst({ where: eq((await import("../../../shared/schema")).users.id, session.userId) });
   if (!user?.generusId) return c.json([]);
+  const statusF = c.req.query("status");
+  const limitRaw = parseInt(c.req.query("limit") || "50", 10);
+  const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 500) : 50;
+  const conds: any[] = [eq(absensi.generusId, user.generusId)];
+  if (statusF && ["hadir", "izin", "alpha"].includes(statusF)) conds.push(eq(absensi.keterangan, statusF as any));
   const rows: any = await db.select({
     id: absensi.id,
     kegiatanId: absensi.kegiatanId,
@@ -29,8 +34,8 @@ r.get("/mine", async (c) => {
     jam: kegiatan.jamMulai ?? kegiatan.jam ?? null,
   }).from(absensi)
     .innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id))
-    .where(eq(absensi.generusId, user.generusId))
-    .orderBy(sql`${absensi.timestamp} DESC`).limit(50);
+    .where(conds.length ? and(...conds) : undefined)
+    .orderBy(sql`${absensi.timestamp} DESC`).limit(limit);
   return c.json(rows);
 });
 
