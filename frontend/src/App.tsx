@@ -3163,34 +3163,28 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
     return s;
   }, [pesertaKelompokIds, kelompokList]);
 
-  // Set desa & kelompok yang punya anggota spesifik terpilih
-  const { desaIdsWithSelectedGenerus, kelompokIdsWithSelectedGenerus } = useMemo(() => {
-    const dSet = new Set<number>();
+  // Set kelompok yang punya anggota spesifik terpilih
+  const kelompokIdsWithSelectedGenerus = useMemo(() => {
     const kSet = new Set<number>();
     pesertaGenerusIds.forEach((gId) => {
       const info = generusMapInfo.get(gId);
-      if (info?.desaId != null) dSet.add(info.desaId);
       if (info?.kelompokId != null) kSet.add(info.kelompokId);
     });
-    return { desaIdsWithSelectedGenerus: dSet, kelompokIdsWithSelectedGenerus: kSet };
+    return kSet;
   }, [pesertaGenerusIds, generusMapInfo]);
 
   // 1. Desa yang disabled untuk dipilih:
-  // - Desa yang kelompoknya sudah dipilih (kecuali jika desa itu adalah desa pembuat dan belum ada kelompok lain)
-  // - Desa yang punya anggota terpilih di per-anggota
+  // - Desa yang kelompoknya sudah dipilih utuh (kecuali desa itu sendiri sudah dipilih)
   const disabledDesaIds = useMemo(() => {
     const arr: number[] = [];
     desaList.forEach((d) => {
       const hasKel = desaIdsWithSelectedKelompok.has(d.id);
-      const hasGen = desaIdsWithSelectedGenerus.has(d.id);
-      if (hasGen || hasKel) {
-        if (!pesertaDesaIds.includes(d.id)) {
-          arr.push(d.id);
-        }
+      if (hasKel && !pesertaDesaIds.includes(d.id)) {
+        arr.push(d.id);
       }
     });
     return arr;
-  }, [desaList, desaIdsWithSelectedKelompok, desaIdsWithSelectedGenerus, pesertaDesaIds]);
+  }, [desaList, desaIdsWithSelectedKelompok, pesertaDesaIds]);
 
   // 2. Kelompok yang disabled untuk dipilih:
   // - Kelompok yang desanya sudah dipilih utuh di pesertaDesaIds
@@ -3200,27 +3194,23 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
     kelompokList.forEach((k) => {
       const desaSelected = pesertaDesaIds.includes(k.desaId);
       const hasGen = kelompokIdsWithSelectedGenerus.has(k.id);
-      if (desaSelected || hasGen) {
-        if (!pesertaKelompokIds.includes(k.id)) {
-          arr.push(k.id);
-        }
+      if ((desaSelected || hasGen) && !pesertaKelompokIds.includes(k.id)) {
+        arr.push(k.id);
       }
     });
     return arr;
   }, [kelompokList, pesertaDesaIds, kelompokIdsWithSelectedGenerus, pesertaKelompokIds]);
 
   // 3. Anggota yang disabled:
-  // - Anggota yang desanya / kelompoknya sudah dipilih utuh
+  // - Anggota yang desanya / kelompoknya sudah dipilih utuh (tidak perlu pilih anggota lagi)
   const disabledGenerusIds = useMemo(() => {
     const arr: string[] = [];
     generusList.forEach((g) => {
       const info = generusMapInfo.get(g.id);
       const dSelected = info?.desaId != null && pesertaDesaIds.includes(info.desaId);
       const kSelected = info?.kelompokId != null && pesertaKelompokIds.includes(info.kelompokId);
-      if (dSelected || kSelected) {
-        if (!pesertaGenerusIds.includes(g.id)) {
-          arr.push(g.id);
-        }
+      if ((dSelected || kSelected) && !pesertaGenerusIds.includes(g.id)) {
+        arr.push(g.id);
       }
     });
     return arr;
