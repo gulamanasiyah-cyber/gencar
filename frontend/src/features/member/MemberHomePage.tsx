@@ -27,7 +27,15 @@ type ConflictKegiatan = {
   jamMulai?: string | null;
   jamSelesai?: string | null;
   lokasi?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  radiusM?: number | null;
 };
+type ScanResultModal =
+  | { kind: "success"; judul: string; jam: string; izinCount: number }
+  | { kind: "gps"; reason: "no_gps" | "out_of_range"; message: string; judul: string; dist: number | null; radiusM: number; lat: number | null; lng: number | null }
+  | { kind: "empty"; message: string }
+  | { kind: "error"; message: string };
 
 const DEMO_RIWAYAT: AbsenRow[] = [
   { id: "a1", tanggal: "2026-05-07", judul: "Sambung Muda-Mudi Kelompok Fajar C", status: "hadir", jam: "19:42" },
@@ -84,10 +92,29 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
   const [conflictList, setConflictList] = useState<ConflictKegiatan[]>([]);
   const [conflictAll, setConflictAll] = useState<ConflictKegiatan[]>([]);
   const [resolving, setResolving] = useState(false);
+  const [resultModal, setResultModal] = useState<ScanResultModal | null>(null);
+
+  function closeResultModal() {
+    setResultModal(null);
+    // reset guard supaya kamera langsung bisa scan lagi
+    scannedRef.current = false;
+    setQr(null);
+    if (!scannerRef.current) void startScan();
+  }
   const [riwayat, setRiwayat] = useState<AbsenRow[]>(DEMO_RIWAYAT);
   void riwayat;
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannedRef = useRef(false);
+  // Ref selalu-terbaru supaya callback scanner (di-capture saat mount) tidak basi
+  const gpsRef = useRef<GpsState>(gps);
+  const gpsLoadingRef = useRef(gpsLoading);
+
+  useEffect(() => {
+    gpsRef.current = gps;
+  }, [gps]);
+  useEffect(() => {
+    gpsLoadingRef.current = gpsLoading;
+  }, [gpsLoading]);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
@@ -172,14 +199,32 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
   async function onScan(decoded: string) {
     if (scannedRef.current) return;
     const hit = parseQrToken(decoded);
-    scannedRef.current = true;
-    // Kamera dibiarkan tetap hidup — guard scannedRef mencegah submit ganda
     if (!hit) {
-      setMsg("QR tidak dikenali. Scan QR wilayah yang resmi dari admin.");
+      scannedRef.current = true;
+      setResultModal({ kind: "error", message: "QR tidak dikenali. Scan QR wilayah yang resmi dari admin." });
       return;
     }
+    const curGps = gpsRef.current;
+    const curGpsLoading = gpsLoadingRef.current;
+    // GPS belum lock → jangan submit ke backend, langsung kasih tahu user
+    if (!curGps || curGpsLoading) {
+      scannedRef.current = true;
+      setResultModal({
+        kind: "gps",
+        reason: "no_gps",
+        message: curGpsLoading
+          ? "GPS sedang mencari lokasi. Tunggu sebentar lalu scan ulang."
+          : "GPS belum aktif. Aktifkan izin lokasi di browser lalu scan ulang.",
+        judul: "",
+        dist: null,
+        radiusM: 0,
+        lat: null,
+        lng: null,
+      });
+      return;
+    }
+    scannedRef.current = true;
     setQr(hit);
-    setMsg(null);
 
     // Auto-detect: kirim scan ke backend, backend tentukan kegiatan eligible
     try {
@@ -187,9 +232,9 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
         method: "POST",
         body: JSON.stringify({
           qrToken: decoded,
-          lat: gps?.lat,
-          lng: gps?.lng,
-          accuracy: gps?.acc,
+          lat: curGps?.lat,
+          lng: curGps?.lng,
+          accuracy: curGps?.acc,
         }),
       });
       const nowTime = new Date();
@@ -197,23 +242,34 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
       if (res?.status === "success" && res?.attendedKegiatan) {
         const k = res.attendedKegiatan as ConflictKegiatan;
         setRiwayat((prev) => [{ id: `a_${Date.now()}`, tanggal: k.tanggal, judul: k.judul, status: "hadir", jam }, ...prev]);
-        const izinInfo = Array.isArray(res?.autoIzinKegiatan) && res.autoIzinKegiatan.length > 0
-          ? ` (${res.autoIzinKegiatan.length} acara lain otomatis izin)`
-          : "";
-        setMsg(`Hadir berhasil dicatat pukul ${jam} di "${k.judul}"${izinInfo}.`);
+        setResultModal({
+          kind: "success",
+          judul: k.judul,
+          jam,
+          izinCount: Array.isArray(res?.autoIzinKegiatan) ? res.autoIzinKegiatan.length : 0,
+        });
       } else if (res?.status === "multiple") {
         setConflictList((res.eligibleKegiatan ?? []) as ConflictKegiatan[]);
         setConflictAll((res.allConcurrentKegiatan ?? res.eligibleKegiatan ?? []) as ConflictKegiatan[]);
         setConflictOpen(true);
         setMsg(`Ada ${(res.eligibleKegiatan ?? []).length} kegiatan aktif di wilayah ini. Pilih yang kamu hadiri.`);
       } else if (res?.status === "gps_required") {
-        setMsg(res?.message || "Kegiatan ini membutuhkan GPS. Aktifkan lokasi lalu scan ulang.");
+        setResultModal({
+          kind: "gps",
+          reason: res?.reason === "out_of_range" ? "out_of_range" : "no_gps",
+          message: res?.message || "Kegiatan ini membutuhkan GPS. Aktifkan lokasi lalu scan ulang.",
+          judul: res?.kegiatan?.judul || "Kegiatan",
+          dist: res?.dist ?? null,
+          radiusM: res?.radiusM ?? 100,
+          lat: res?.kegiatan?.lat ?? null,
+          lng: res?.kegiatan?.lng ?? null,
+        });
       } else {
-        setMsg(res?.message || "Tidak ada kegiatan aktif untuk wilayah ini saat ini.");
+        setResultModal({ kind: "empty", message: res?.message || "Tidak ada kegiatan aktif untuk wilayah ini saat ini." });
       }
     } catch (e: any) {
       const errTxt = e?.message || "Gagal mencatat absensi";
-      setMsg(errTxt);
+      setResultModal({ kind: "error", message: errTxt });
     }
   }
 
@@ -237,7 +293,7 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
       const jam = `${String(nowTime.getHours()).padStart(2, "0")}:${String(nowTime.getMinutes()).padStart(2, "0")}`;
       if (picked) {
         setRiwayat((prev) => [{ id: `a_${Date.now()}`, tanggal: picked.tanggal, judul: picked.judul, status: "hadir", jam }, ...prev]);
-        setMsg(`Hadir berhasil dicatat pukul ${jam} di "${picked.judul}". Acara lain otomatis izin.`);
+        setResultModal({ kind: "success", judul: picked.judul, jam, izinCount: Math.max(0, conflictAll.length - 1) });
       }
       setConflictOpen(false);
       setConflictList([]);
@@ -294,7 +350,11 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
         {/* Scanner QR */}
         <div style={{ borderRadius: 16, overflow: "hidden", background: "#0f172a", position: "relative" }}>
           <div id="qr-reader" style={{ borderRadius: 14, overflow: "hidden", border: "none", outline: "none", background: "#0f172a", width: "100%", maxHeight: 280 }} />
-          {!qr && <div style={{ textAlign: "center", fontSize: 11, color: "var(--muted)", padding: "8px 0 10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>Arahkan kamera ke QR wilayah</div>}
+          {!qr && (
+            <div style={{ textAlign: "center", fontSize: 11, color: "var(--muted)", padding: "8px 0 10px", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+              {gps ? "Arahkan kamera ke QR wilayah" : gpsLoading ? "Mencari GPS..." : "Aktifkan GPS lalu scan QR"}
+            </div>
+          )}
           {qr && (
             <div style={{ padding: "8px 0 12px", display: "grid", gap: 8, placeItems: "center" }}>
               <span className="pill pill-emerald" style={{ justifyContent: "center", textTransform: "capitalize" }}>
@@ -375,6 +435,106 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
               <button type="button" className="btn btn-ghost" onClick={() => { setConflictOpen(false); scannedRef.current = false; }} style={{ width: "100%", marginTop: 12 }}>
                 Batal
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Modal hasil scan: sukses / GPS / tidak ada kegiatan / error */}
+        {resultModal && (
+          <div className="modal-backdrop" onClick={closeResultModal} style={{ zIndex: 1200, display: "grid", placeItems: "center", padding: 16 }}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 400, width: "100%", padding: 22, borderRadius: 20, textAlign: "center" }}>
+              {resultModal.kind === "success" && (
+                <>
+                  <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#f0fdf4", color: "#16a34a", display: "grid", placeItems: "center", margin: "0 auto 12px" }}>
+                    <ShieldCheck size={26} />
+                  </div>
+                  <h3 style={{ fontSize: 17, fontWeight: 900, margin: "0 0 6px", color: "var(--ink)" }}>Hadir Tercatat!</h3>
+                  <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5, margin: "0 0 4px" }}>
+                    <b>{resultModal.judul}</b> &bull; pukul {resultModal.jam}
+                  </p>
+                  {resultModal.izinCount > 0 && (
+                    <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5, margin: "0 0 4px" }}>
+                      {resultModal.izinCount} acara lain otomatis tercatat izin.
+                    </p>
+                  )}
+                  <button type="button" className="btn btn-primary" onClick={closeResultModal} style={{ width: "100%", marginTop: 12, fontWeight: 800 }}>
+                    Tutup
+                  </button>
+                </>
+              )}
+              {resultModal.kind === "gps" && (
+                <>
+                  <div style={{ width: 52, height: 52, borderRadius: "50%", background: "#fffbeb", color: "#d97706", display: "grid", placeItems: "center", margin: "0 auto 12px" }}>
+                    <MapPin size={26} />
+                  </div>
+                  <h3 style={{ fontSize: 17, fontWeight: 900, margin: "0 0 6px", color: "var(--ink)" }}>
+                    {resultModal.reason === "out_of_range" ? "Di Luar Jangkauan" : "GPS Belum Aktif"}
+                  </h3>
+                  <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5, margin: "0 0 4px" }}>
+                    {resultModal.message}
+                  </p>
+                  {resultModal.reason === "out_of_range" && resultModal.dist != null && (
+                    <p style={{ fontSize: 12, fontWeight: 800, color: "var(--ink)", margin: "8px 0 0" }}>
+                      Jarak kamu ~{resultModal.dist}m &bull; radius {resultModal.radiusM}m
+                    </p>
+                  )}
+                  <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                    {resultModal.reason === "no_gps" ? (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        style={{ flex: 1, fontWeight: 800 }}
+                        onClick={() => { ambilGps(); closeResultModal(); }}
+                      >
+                        <LocateFixed size={14} /> Aktifkan GPS
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        style={{ flex: 1, fontWeight: 800 }}
+                        onClick={() => {
+                          if (resultModal.lat != null && resultModal.lng != null) {
+                            setActiveKegiatanModal({
+                              id: "",
+                              judul: resultModal.judul,
+                              tanggal: "",
+                              jam: "",
+                              lokasi: "",
+                              lat: resultModal.lat,
+                              lng: resultModal.lng,
+                              radiusM: resultModal.radiusM,
+                            } as MemberKegiatan);
+                            setShowMapModal(true);
+                          }
+                          closeResultModal();
+                        }}
+                      >
+                        <MapPin size={14} /> Lihat Lokasi
+                      </button>
+                    )}
+                    <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={closeResultModal}>
+                      Scan Ulang
+                    </button>
+                  </div>
+                </>
+              )}
+              {(resultModal.kind === "empty" || resultModal.kind === "error") && (
+                <>
+                  <div style={{ width: 52, height: 52, borderRadius: "50%", background: resultModal.kind === "error" ? "#fef2f2" : "#f8fafc", color: resultModal.kind === "error" ? "#b91c1c" : "var(--muted)", display: "grid", placeItems: "center", margin: "0 auto 12px" }}>
+                    <AlertTriangle size={26} />
+                  </div>
+                  <h3 style={{ fontSize: 17, fontWeight: 900, margin: "0 0 6px", color: "var(--ink)" }}>
+                    {resultModal.kind === "error" ? "Gagal Absen" : "Tidak Ada Kegiatan"}
+                  </h3>
+                  <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5, margin: "0 0 4px" }}>
+                    {resultModal.message}
+                  </p>
+                  <button type="button" className="btn btn-primary" onClick={closeResultModal} style={{ width: "100%", marginTop: 12, fontWeight: 800 }}>
+                    Scan Ulang
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
