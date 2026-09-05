@@ -2769,11 +2769,12 @@ function AbsensiViewerModal({ kegiatan, onClose }: { kegiatan: Kegiatan; onClose
   );
 }
 
-function PesertaKelompokPicker({ kelompokList, selectedIds, onChange, desaList }: {
+function PesertaKelompokPicker({ kelompokList, selectedIds, onChange, desaList, disabledIds = [] }: {
   kelompokList: { id: number; nama: string; desaId: number }[];
   selectedIds: number[];
   onChange: (ids: number[]) => void;
   desaList?: { id: number; nama: string }[];
+  disabledIds?: number[];
 }) {
   const [search, setSearch] = useState("");
   const [filterDesa, setFilterDesa] = useState<string>("semua");
@@ -2820,32 +2821,62 @@ function PesertaKelompokPicker({ kelompokList, selectedIds, onChange, desaList }
       )}
       <div className="peserta-gen-list" style={{ maxHeight: 180, overflowY: "auto", border: "1px solid var(--line)", borderRadius: 10, background: "#fff" }}>
         {filtered.length === 0 && <div className="muted" style={{ padding: 14, fontSize: 12, textAlign: "center" }}>Tidak ada kelompok.</div>}
-        {filtered.map((k) => (
-          <label key={k.id} className="peserta-gen-item" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", fontSize: 13, cursor: "pointer", borderBottom: "1px solid var(--line, #f1f5f9)", background: selectedIds.includes(k.id) ? "#f0fdf4" : "transparent", transition: "background 0.1s" }}>
-            <input type="checkbox" checked={selectedIds.includes(k.id)} style={{ width: 16, height: 16, accentColor: "var(--primary)" }}
-              onChange={() => {
-                const scrollEl = document.querySelector(".modal");
-                const scrollTop = scrollEl?.scrollTop ?? 0;
-                onChange(selectedIds.includes(k.id) ? selectedIds.filter((x) => x !== k.id) : [...selectedIds, k.id]);
-                requestAnimationFrame(() => { if (scrollEl) scrollEl.scrollTop = scrollTop; });
-              }} />
-            <span style={{ flex: 1, fontWeight: 500 }}>{k.nama}<span className="muted" style={{ fontSize: 11, fontWeight: 400 }}> · {desaMap.get(k.desaId) ?? ""}</span></span>
-            {selectedIds.includes(k.id) && <span style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700 }}>✓</span>}
-          </label>
-        ))}
+        {filtered.map((k) => {
+          const isDisabled = disabledIds.includes(k.id);
+          const isSelected = selectedIds.includes(k.id);
+          return (
+            <label
+              key={k.id}
+              className="peserta-gen-item"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "8px 12px",
+                fontSize: 13,
+                cursor: isDisabled ? "not-allowed" : "pointer",
+                opacity: isDisabled ? 0.45 : 1,
+                borderBottom: "1px solid var(--line, #f1f5f9)",
+                background: isSelected ? "#f0fdf4" : "transparent",
+                transition: "background 0.1s",
+              }}
+            >
+              <input
+                type="checkbox"
+                disabled={isDisabled}
+                checked={isSelected}
+                style={{ width: 16, height: 16, accentColor: "var(--primary)" }}
+                onChange={() => {
+                  if (isDisabled) return;
+                  const scrollEl = document.querySelector(".modal");
+                  const scrollTop = scrollEl?.scrollTop ?? 0;
+                  onChange(isSelected ? selectedIds.filter((x) => x !== k.id) : [...selectedIds, k.id]);
+                  requestAnimationFrame(() => { if (scrollEl) scrollEl.scrollTop = scrollTop; });
+                }}
+              />
+              <span style={{ flex: 1, fontWeight: 500 }}>
+                {k.nama}
+                <span className="muted" style={{ fontSize: 11, fontWeight: 400 }}> · {desaMap.get(k.desaId) ?? ""}</span>
+                {isDisabled && <span className="muted" style={{ fontSize: 10, fontStyle: "italic", marginLeft: 6 }}>(desa/anggota sudah dipilih)</span>}
+              </span>
+              {isSelected && <span style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700 }}>✓</span>}
+            </label>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function PesertaAnggotaPicker({ generusList, selectedIds, onChange, role, userKelompokId }: {
-  generusList: { id: string; nama: string; kelompokId?: number | null; desaNama?: string | null; kelompokNama?: string | null }[];
+function PesertaAnggotaPicker({ generusList, selectedIds, onChange, role, userKelompokId, disabledIds = [] }: {
+  generusList: { id: string; nama: string; kelompokId?: number | null; desaNama?: string | null; kelompokNama?: string | null; desaId?: number | null }[];
   selectedIds: string[];
   onChange: (ids: string[]) => void;
   role: AdminRole;
   userKelompokId?: number | null;
   desaList?: { id: number; nama: string }[];
   kelompokList?: { id: number; nama: string; desaId: number }[];
+  disabledIds?: string[];
 }) {
   const [search, setSearch] = useState("");
   const [filterDesa, setFilterDesa] = useState<string>("semua");
@@ -2910,16 +2941,44 @@ function PesertaAnggotaPicker({ generusList, selectedIds, onChange, role, userKe
           {hasFilter && <button type="button" className="btn btn-ghost btn-sm" style={{ fontSize: 12 }} onClick={() => { setFilterDesa("semua"); setFilterKel("semua"); }}>Reset Filter</button>}
         </div>
       )}
-      <div className="peserta-gen-list" style={{ maxHeight: 220, overflowY: "auto", border: "1px solid var(--line)", borderRadius: 10, background: "#fff" }}>
+      <div className="peserta-gen-list" style={{ maxHeight: 180, overflowY: "auto", border: "1px solid var(--line)", borderRadius: 10, background: "#fff" }}>
         {filtered.length === 0 && <div className="muted" style={{ padding: 14, fontSize: 12, textAlign: "center" }}>Tidak ada anggota.</div>}
-        {filtered.map((g) => (
-          <label key={g.id} className="peserta-gen-item" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", fontSize: 13, cursor: "pointer", borderBottom: "1px solid var(--line, #f1f5f9)", background: selectedIds.includes(g.id) ? "#f0fdf4" : "transparent", transition: "background 0.1s" }}>
-            <input type="checkbox" checked={selectedIds.includes(g.id)} style={{ width: 16, height: 16, accentColor: "var(--primary)" }}
-              onChange={() => toggle(g.id)} />
-            <span style={{ flex: 1, fontWeight: 500 }}>{g.nama}<span className="muted" style={{ fontSize: 11, fontWeight: 400 }}> · {getWilayah(g) || "—"}</span></span>
-            {selectedIds.includes(g.id) && <span style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700 }}>✓</span>}
-          </label>
-        ))}
+        {filtered.map((g) => {
+          const isDisabled = disabledIds.includes(g.id);
+          const isSelected = selectedIds.includes(g.id);
+          return (
+            <label
+              key={g.id}
+              className="peserta-gen-item"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "8px 12px",
+                fontSize: 13,
+                cursor: isDisabled ? "not-allowed" : "pointer",
+                opacity: isDisabled ? 0.45 : 1,
+                borderBottom: "1px solid var(--line, #f1f5f9)",
+                background: isSelected ? "#f0fdf4" : "transparent",
+                transition: "background 0.1s",
+              }}
+            >
+              <input
+                type="checkbox"
+                disabled={isDisabled}
+                checked={isSelected}
+                style={{ width: 16, height: 16, accentColor: "var(--primary)" }}
+                onChange={() => { if (!isDisabled) toggle(g.id); }}
+              />
+              <span style={{ flex: 1, fontWeight: 500 }}>
+                {g.nama}
+                <span className="muted" style={{ fontSize: 11, fontWeight: 400 }}> · {getWilayah(g)}</span>
+                {isDisabled && <span className="muted" style={{ fontSize: 10, fontStyle: "italic", marginLeft: 6 }}>(wilayah sudah dipilih utuh)</span>}
+              </span>
+              {isSelected && <span style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700 }}>✓</span>}
+            </label>
+          );
+        })}
       </div>
     </div>
   );
@@ -3060,7 +3119,112 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
   const [pesertaFilters, setPesertaFilters] = useState<{ pendidikan?: string; kategori?: string; jenisKelamin?: string; usiaMin?: number; usiaMax?: number }>({});
   const [desaList, setDesaList] = useState<{ id: number; nama: string }[]>([]);
   const [kelompokList, setKelompokList] = useState<{ id: number; nama: string; desaId: number }[]>([]);
-  const [generusList, setGenerusList] = useState<{ id: string; nama: string; kelompokId?: number | null }[]>([]);
+  const [generusList, setGenerusList] = useState<{ id: string; nama: string; kelompokId?: number | null; desaId?: number | null; desaNama?: string | null; kelompokNama?: string | null }[]>([]);
+
+  // Resolusi ID desa/kelompok pembuat kegiatan saat ini
+  const creatorDesaId = useMemo(() => {
+    if (tingkat === "desa") {
+      const hit = desaList.find((d) => d.nama.toLowerCase() === (namaWilayah || "").toLowerCase().trim());
+      return hit?.id ?? user?.desaId ?? null;
+    }
+    if (tingkat === "kelompok") {
+      const hit = kelompokList.find((k) => k.nama.toLowerCase() === (namaWilayah || "").toLowerCase().trim());
+      return hit?.desaId ?? user?.desaId ?? null;
+    }
+    return null;
+  }, [tingkat, namaWilayah, desaList, kelompokList, user?.desaId]);
+
+  const creatorKelompokId = useMemo(() => {
+    if (tingkat === "kelompok") {
+      const hit = kelompokList.find((k) => k.nama.toLowerCase() === (namaWilayah || "").toLowerCase().trim());
+      return hit?.id ?? user?.kelompokId ?? null;
+    }
+    return null;
+  }, [tingkat, namaWilayah, kelompokList, user?.kelompokId]);
+
+  // Map generusId -> desaId & kelompokId
+  const generusMapInfo = useMemo(() => {
+    const m = new Map<string, { desaId: number | null; kelompokId: number | null }>();
+    generusList.forEach((g) => {
+      const kel = kelompokList.find((k) => k.id === g.kelompokId);
+      const desaId = (g as any).desaId ?? kel?.desaId ?? null;
+      m.set(g.id, { desaId, kelompokId: g.kelompokId ?? null });
+    });
+    return m;
+  }, [generusList, kelompokList]);
+
+  // Set desa yang punya kelompok terpilih
+  const desaIdsWithSelectedKelompok = useMemo(() => {
+    const s = new Set<number>();
+    pesertaKelompokIds.forEach((kId) => {
+      const k = kelompokList.find((item) => item.id === kId);
+      if (k) s.add(k.desaId);
+    });
+    return s;
+  }, [pesertaKelompokIds, kelompokList]);
+
+  // Set desa & kelompok yang punya anggota spesifik terpilih
+  const { desaIdsWithSelectedGenerus, kelompokIdsWithSelectedGenerus } = useMemo(() => {
+    const dSet = new Set<number>();
+    const kSet = new Set<number>();
+    pesertaGenerusIds.forEach((gId) => {
+      const info = generusMapInfo.get(gId);
+      if (info?.desaId != null) dSet.add(info.desaId);
+      if (info?.kelompokId != null) kSet.add(info.kelompokId);
+    });
+    return { desaIdsWithSelectedGenerus: dSet, kelompokIdsWithSelectedGenerus: kSet };
+  }, [pesertaGenerusIds, generusMapInfo]);
+
+  // 1. Desa yang disabled untuk dipilih:
+  // - Desa yang kelompoknya sudah dipilih (kecuali jika desa itu adalah desa pembuat dan belum ada kelompok lain)
+  // - Desa yang punya anggota terpilih di per-anggota
+  const disabledDesaIds = useMemo(() => {
+    const arr: number[] = [];
+    desaList.forEach((d) => {
+      const hasKel = desaIdsWithSelectedKelompok.has(d.id);
+      const hasGen = desaIdsWithSelectedGenerus.has(d.id);
+      if (hasGen || hasKel) {
+        if (!pesertaDesaIds.includes(d.id)) {
+          arr.push(d.id);
+        }
+      }
+    });
+    return arr;
+  }, [desaList, desaIdsWithSelectedKelompok, desaIdsWithSelectedGenerus, pesertaDesaIds]);
+
+  // 2. Kelompok yang disabled untuk dipilih:
+  // - Kelompok yang desanya sudah dipilih utuh di pesertaDesaIds
+  // - Kelompok yang punya anggota terpilih di per-anggota
+  const disabledKelompokIds = useMemo(() => {
+    const arr: number[] = [];
+    kelompokList.forEach((k) => {
+      const desaSelected = pesertaDesaIds.includes(k.desaId);
+      const hasGen = kelompokIdsWithSelectedGenerus.has(k.id);
+      if (desaSelected || hasGen) {
+        if (!pesertaKelompokIds.includes(k.id)) {
+          arr.push(k.id);
+        }
+      }
+    });
+    return arr;
+  }, [kelompokList, pesertaDesaIds, kelompokIdsWithSelectedGenerus, pesertaKelompokIds]);
+
+  // 3. Anggota yang disabled:
+  // - Anggota yang desanya / kelompoknya sudah dipilih utuh
+  const disabledGenerusIds = useMemo(() => {
+    const arr: string[] = [];
+    generusList.forEach((g) => {
+      const info = generusMapInfo.get(g.id);
+      const dSelected = info?.desaId != null && pesertaDesaIds.includes(info.desaId);
+      const kSelected = info?.kelompokId != null && pesertaKelompokIds.includes(info.kelompokId);
+      if (dSelected || kSelected) {
+        if (!pesertaGenerusIds.includes(g.id)) {
+          arr.push(g.id);
+        }
+      }
+    });
+    return arr;
+  }, [generusList, generusMapInfo, pesertaDesaIds, pesertaKelompokIds, pesertaGenerusIds]);
 
   async function loadKegiatan() {
     let hasToken = false;
@@ -3386,7 +3550,28 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
                   </div>
                   <label style={{ position: "relative", display: "inline-block", width: 44, height: 24, cursor: "pointer" }}>
                     <input type="checkbox" checked={targetedPeserta} onChange={() => {
-                      if (targetedPeserta) { setPesertaDesaIds([]); setPesertaKelompokIds([]); setPesertaGenerusIds([]); setPesertaFilters({}); }
+                      if (!targetedPeserta) {
+                        // Saat dinyalakan: auto aktifkan desa atau kelompok pembuat
+                        if (tingkat === "desa" && creatorDesaId != null) {
+                          setPesertaDesaIds([creatorDesaId]);
+                          setPesertaKelompokIds([]);
+                          setPesertaGenerusIds([]);
+                        } else if (tingkat === "kelompok" && creatorKelompokId != null) {
+                          setPesertaKelompokIds([creatorKelompokId]);
+                          setPesertaDesaIds([]);
+                          setPesertaGenerusIds([]);
+                        } else {
+                          setPesertaDesaIds([]);
+                          setPesertaKelompokIds([]);
+                          setPesertaGenerusIds([]);
+                        }
+                      } else {
+                        // Dimatikan: reset semua
+                        setPesertaDesaIds([]);
+                        setPesertaKelompokIds([]);
+                        setPesertaGenerusIds([]);
+                        setPesertaFilters({});
+                      }
                       setTargetedPeserta((v) => !v);
                     }} style={{ opacity: 0, width: 0, height: 0 }} />
                     <span style={{ position: "absolute", inset: 0, background: targetedPeserta ? "var(--primary)" : "#cbd5e1", borderRadius: 12, transition: "background 0.2s" }} />
@@ -3441,17 +3626,38 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
                       <div style={{ marginBottom: 8 }}>
                         <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>Per Desa</div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                          {desaList.map((d) => (
-                            <button key={d.id} type="button" className={`chip ${pesertaDesaIds.includes(d.id) ? "active" : ""}`}
-                              onClick={() => {
-                                const scrollEl = document.querySelector(".modal");
-                                const scrollTop = scrollEl?.scrollTop ?? 0;
-                                setPesertaDesaIds((prev) => prev.includes(d.id) ? prev.filter((x) => x !== d.id) : [...prev, d.id]);
-                                requestAnimationFrame(() => { if (scrollEl) scrollEl.scrollTop = scrollTop; });
-                              }}>
-                              {d.nama}
-                            </button>
-                          ))}
+                          {desaList.map((d) => {
+                            const isSelected = pesertaDesaIds.includes(d.id);
+                            const isDisabled = disabledDesaIds.includes(d.id);
+                            return (
+                              <button
+                                key={d.id}
+                                type="button"
+                                disabled={isDisabled}
+                                className={`chip ${isSelected ? "active" : ""}`}
+                                style={{
+                                  opacity: isDisabled ? 0.45 : 1,
+                                  cursor: isDisabled ? "not-allowed" : "pointer",
+                                }}
+                                onClick={() => {
+                                  if (isDisabled) return;
+                                  const scrollEl = document.querySelector(".modal");
+                                  const scrollTop = scrollEl?.scrollTop ?? 0;
+                                  if (isSelected) {
+                                    setPesertaDesaIds((prev) => prev.filter((x) => x !== d.id));
+                                  } else {
+                                    // Memilih desa ini: hapus kelompok-kelompok miliknya dari pesertaKelompokIds (karena desa sudah mencakup)
+                                    const kelOfDesa = kelompokList.filter((k) => k.desaId === d.id).map((k) => k.id);
+                                    setPesertaKelompokIds((prev) => prev.filter((kId) => !kelOfDesa.includes(kId)));
+                                    setPesertaDesaIds((prev) => [...prev, d.id]);
+                                  }
+                                  requestAnimationFrame(() => { if (scrollEl) scrollEl.scrollTop = scrollTop; });
+                                }}
+                              >
+                                {d.nama} {isDisabled && <span style={{ fontSize: 9, opacity: 0.8 }}>(kelompok dipilih)</span>}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -3459,7 +3665,22 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
                       <PesertaKelompokPicker
                         kelompokList={kelompokList}
                         selectedIds={pesertaKelompokIds}
-                        onChange={setPesertaKelompokIds}
+                        disabledIds={disabledKelompokIds}
+                        onChange={(newKelIds) => {
+                          // Jika user memilih kelompok milik desa pembuat atau desa lain:
+                          // Cek apakah ada kelompok baru yang dipilih dari desa yang saat ini sedang aktif di pesertaDesaIds
+                          const desaIdsToUncheck = new Set<number>();
+                          newKelIds.forEach((kId) => {
+                            const k = kelompokList.find((item) => item.id === kId);
+                            if (k && pesertaDesaIds.includes(k.desaId)) {
+                              desaIdsToUncheck.add(k.desaId);
+                            }
+                          });
+                          if (desaIdsToUncheck.size > 0) {
+                            setPesertaDesaIds((prev) => prev.filter((dId) => !desaIdsToUncheck.has(dId)));
+                          }
+                          setPesertaKelompokIds(newKelIds);
+                        }}
                         desaList={desaList}
                       />
                     )}
@@ -3467,6 +3688,7 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
                       <PesertaAnggotaPicker
                         generusList={generusList}
                         selectedIds={pesertaGenerusIds}
+                        disabledIds={disabledGenerusIds}
                         onChange={setPesertaGenerusIds}
                         role={role}
                         userKelompokId={user?.kelompokId}
