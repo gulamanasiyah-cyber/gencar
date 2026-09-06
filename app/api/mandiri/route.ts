@@ -476,18 +476,35 @@ export async function DELETE(request: NextRequest) {
       const generusIds = entries.map(e => e.generusId).filter(Boolean);
 
       if (generusIds.length > 0) {
-        // Karena sqlite kadang foreign key cascase tidak aktif, kita hapus eksplisit
         for (const genId of generusIds) {
           if (genId) {
             await db.delete(mandiriAbsensi).where(eq(mandiriAbsensi.generusId, genId));
             await db.delete(absensi).where(eq(absensi.generusId, genId));
             await db.delete(users).where(eq(users.generusId, genId));
+            await db.delete(formPanitiaDanPengurus).where(eq(formPanitiaDanPengurus.generusId, genId));
             await db.delete(mandiri).where(eq(mandiri.generusId, genId));
             await db.delete(generus).where(eq(generus.id, genId));
           }
         }
       }
-      return NextResponse.json({ success: true, message: "Semua data berhasil dihapus" });
+
+      // Hapus seluruh panitia untuk kegiatan yang dipilih
+      const panitiaEntries = await db.select({ id: formPanitiaDanPengurus.id, generusId: formPanitiaDanPengurus.generusId })
+        .from(formPanitiaDanPengurus)
+        .where(eq(formPanitiaDanPengurus.kegiatanId, kegiatanId));
+
+      for (const p of panitiaEntries) {
+        await db.delete(formPanitiaDanPengurus).where(eq(formPanitiaDanPengurus.id, p.id));
+        if (p.generusId) {
+          await db.delete(mandiriAbsensi).where(eq(mandiriAbsensi.generusId, p.generusId));
+          await db.delete(absensi).where(eq(absensi.generusId, p.generusId));
+          await db.delete(users).where(eq(users.generusId, p.generusId));
+          await db.delete(mandiri).where(eq(mandiri.generusId, p.generusId));
+          await db.delete(generus).where(eq(generus.id, p.generusId));
+        }
+      }
+
+      return NextResponse.json({ success: true, message: "Semua data peserta dan panitia untuk kegiatan ini berhasil dihapus" });
     }
 
     if (!mandiriId) return NextResponse.json({ error: "ID wajib diisi" }, { status: 400 });

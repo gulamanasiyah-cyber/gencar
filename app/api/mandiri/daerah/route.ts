@@ -56,10 +56,20 @@ export async function POST(request: NextRequest) {
     if (!session || !["admin", "pengurus_daerah", "kmm_daerah", "tim_pnkb", "admin_romantic_room", "admin_kegiatan"].includes(session.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const { nama } = await request.json();
+    const body = await request.json();
+    const { nama, kegiatanId } = body;
     if (!nama || !nama.trim()) return NextResponse.json({ error: "Nama daerah wajib diisi" }, { status: 400 });
-    await db.insert(mandiriDaerah).values({ nama: nama.trim() });
-    return NextResponse.json({ success: true });
+    const insertedDaerah = await db.insert(mandiriDaerah).values({ nama: nama.trim() }).returning({ id: mandiriDaerah.id });
+    
+    if (kegiatanId && insertedDaerah && insertedDaerah.length > 0) {
+      await db.insert(mandiriKegiatanDaerah).values({
+        id: uuidv4(),
+        kegiatanId: kegiatanId,
+        daerahId: insertedDaerah[0].id,
+        isActive: 1,
+      });
+    }
+    return NextResponse.json({ success: true, data: insertedDaerah });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Gagal menyimpan data daerah" }, { status: 500 });

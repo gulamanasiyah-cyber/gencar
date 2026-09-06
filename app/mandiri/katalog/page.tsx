@@ -138,6 +138,13 @@ export default function PublicKatalogPage() {
   const [kriteriaFilter, setKriteriaFilter] = useState("all");
   const [hobiFilter, setHobiFilter] = useState("all");
   const [makananFilter, setMakananFilter] = useState("all");
+  const [sukuFilter, setSukuFilter] = useState("all");
+  const [umurMinFilter, setUmurMinFilter] = useState("");
+  const [umurMaxFilter, setUmurMaxFilter] = useState("");
+  const [anakKeFilter, setAnakKeFilter] = useState("");
+  const [jumlahSaudaraFilter, setJumlahSaudaraFilter] = useState("");
+  const [tinggiMinFilter, setTinggiMinFilter] = useState("");
+  const [tinggiMaxFilter, setTinggiMaxFilter] = useState("");
 
   const [kotaList, setKotaList] = useState<string[]>([]);
   const [selectedKota, setSelectedKota] = useState("all");
@@ -160,6 +167,7 @@ export default function PublicKatalogPage() {
   const [kriteriaList, setKriteriaList] = useState<string[]>([]);
   const [hobiList, setHobiList] = useState<string[]>([]);
   const [makananList, setMakananList] = useState<string[]>([]);
+  const [sukuList, setSukuList] = useState<string[]>([]);
   const [selections, setSelections] = useState<any[]>([]);
 
   // Box Love state
@@ -207,6 +215,63 @@ export default function PublicKatalogPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeRooms, setActiveRooms] = useState<any[]>([]);
+
+
+  // Helper to distinguish Pemanggil (Pengirim) vs Dipanggil (Penerima) RR status
+  const checkUserAlreadyFilled = (targetItem: any, currentUser: any, activeRooms: any[], hasilRRList: any[], isAdmin: boolean) => {
+    if (!targetItem || !currentUser) return false;
+
+    const targetNo = String(targetItem.nomorUnik || targetItem.no || "");
+    const targetId = String(targetItem.id || "");
+    const userNo = String(currentUser.nomorUnik || currentUser.no || "");
+    const userId = String(currentUser.id || "");
+
+    // 1. Check in hasilRRList
+    const rrEntry = hasilRRList.find((h: any) => {
+      const pNo = String(h.pengirimNo || "");
+      const pId = String(h.pengirimId || "");
+      const rNo = String(h.penerimaNo || "");
+      const rId = String(h.penerimaId || "");
+
+      if (isAdmin) {
+        return pNo === targetNo || pId === targetId || rNo === targetNo || rId === targetId;
+      }
+      const isMatch1 = (pNo === userNo || pId === userId) && (rNo === targetNo || rId === targetId);
+      const isMatch2 = (rNo === userNo || rId === userId) && (pNo === targetNo || pId === targetId);
+      return isMatch1 || isMatch2;
+    });
+
+    if (rrEntry) {
+      const isPemanggil = String(rrEntry.pengirimNo || "") === userNo || String(rrEntry.pengirimId || "") === userId;
+      const isDipanggil = String(rrEntry.penerimaNo || "") === userNo || String(rrEntry.penerimaId || "") === userId;
+
+      if (isPemanggil && rrEntry.hasilPengirim && rrEntry.hasilPengirim !== "Menunggu") return true;
+      if (isDipanggil && rrEntry.hasilPenerima && rrEntry.hasilPenerima !== "Menunggu") return true;
+      if (!isPemanggil && !isDipanggil && isAdmin && rrEntry.hasilPengirim && rrEntry.hasilPengirim !== "Menunggu" && rrEntry.hasilPenerima && rrEntry.hasilPenerima !== "Menunggu") return true;
+    }
+
+    // 2. Check in activeRooms
+    const room = activeRooms.find((r: any) => {
+      const pNo = String(r.pengirimNo || "");
+      const rNo = String(r.penerimaNo || "");
+
+      if (isAdmin) {
+        return pNo === targetNo || rNo === targetNo;
+      }
+      return (pNo === userNo && rNo === targetNo) || (rNo === userNo && pNo === targetNo);
+    });
+
+    if (room) {
+      const isPemanggil = String(room.pengirimNo || "") === userNo;
+      const isDipanggil = String(room.penerimaNo || "") === userNo;
+
+      if (isPemanggil && room.hasilPengirim && room.hasilPengirim !== "Menunggu") return true;
+      if (isDipanggil && room.hasilPenerima && room.hasilPenerima !== "Menunggu") return true;
+      if (!isPemanggil && !isDipanggil && isAdmin && room.hasilPengirim && room.hasilPengirim !== "Menunggu" && room.hasilPenerima && room.hasilPenerima !== "Menunggu") return true;
+    }
+
+    return false;
+  };
 
   const hasilRRPendingCount = hasilRRList.filter((item) => {
     if (!currentUser?.id) return false;
@@ -505,6 +570,13 @@ export default function PublicKatalogPage() {
         kelompokId: kelompokFilter,
         pekerjaan: pekerjaanFilter,
         umur: umurFilter,
+        umurMin: umurMinFilter,
+        umurMax: umurMaxFilter,
+        suku: sukuFilter,
+        anakKe: anakKeFilter,
+        jumlahSaudara: jumlahSaudaraFilter,
+        tinggiMin: tinggiMinFilter,
+        tinggiMax: tinggiMaxFilter,
         kriteria: kriteriaFilter,
         hobi: hobiFilter,
         makanan: makananFilter,
@@ -532,7 +604,7 @@ export default function PublicKatalogPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, page, gender, category, pendidikan, selectedKota, desaFilter, kelompokFilter, pekerjaanFilter, umurFilter, kriteriaFilter, hobiFilter, makananFilter, hasAttended, isAdmin]);
+  }, [search, page, gender, category, pendidikan, selectedKota, desaFilter, kelompokFilter, pekerjaanFilter, umurFilter, umurMinFilter, umurMaxFilter, sukuFilter, anakKeFilter, jumlahSaudaraFilter, tinggiMinFilter, tinggiMaxFilter, kriteriaFilter, hobiFilter, makananFilter, hasAttended, isAdmin]);
 
   useEffect(() => {
     if (hasAttended) fetchData();
@@ -580,6 +652,7 @@ export default function PublicKatalogPage() {
           setKriteriaList(filterJson.kriteriaPasangan || []);
           setHobiList(filterJson.hobi || []);
           setMakananList(filterJson.makanan || []);
+          setSukuList(filterJson.suku || []);
         }
 
         if (desaRes && desaRes.ok) {
@@ -1775,90 +1848,155 @@ export default function PublicKatalogPage() {
 
             {showFilters && (
               <div className="filter-controls">
-                <div className="toggle-group">
-                  {(["all", "peserta", "panitia"] as const).map(cat => (
-                    <button key={cat} className={category === cat ? "active" : ""} onClick={() => { setCategory(cat); setPage(1); }}>
-                      {cat === "all" ? "Semua" : cat.charAt(0).toUpperCase() + cat.slice(1)}
-                    </button>
-                  ))}
+                <div className="filter-field-group" style={{ gridColumn: "1 / -1" }}>
+                  <label className="filter-label">Kategori Peserta</label>
+                  <div className="toggle-group">
+                    {(["all", "peserta", "panitia"] as const).map(cat => (
+                      <button key={cat} className={category === cat ? "active" : ""} onClick={() => { setCategory(cat); setPage(1); }}>
+                        {cat === "all" ? "Semua" : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="select-container">
-                  <select className="select-box" value={pendidikan} onChange={(e) => { setPendidikan(e.target.value); setPage(1); }}>
-                    <option value="all">Semua Pendidikan</option>
-                    {pendidikanList.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                  <ChevronDown size={14} className="select-arrow" />
+                <div className="filter-field-group">
+                  <label className="filter-label">Pendidikan</label>
+                  <div className="select-container">
+                    <select className="select-box" value={pendidikan} onChange={(e) => { setPendidikan(e.target.value); setPage(1); }}>
+                      <option value="all">Semua Pendidikan</option>
+                      {pendidikanList.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                    <ChevronDown size={14} className="select-arrow" />
+                  </div>
                 </div>
 
-                <div className="select-container">
-                  <select className="select-box" value={selectedKota} onChange={(e) => { setSelectedKota(e.target.value); setDesaFilter("all"); setPage(1); }}>
-                    <option value="all">Semua Daerah</option>
-                    {kotaList.map(k => <option key={k} value={k}>{k}</option>)}
-                  </select>
-                  <ChevronDown size={14} className="select-arrow" />
+                <div className="filter-field-group">
+                  <label className="filter-label">Daerah</label>
+                  <div className="select-container">
+                    <select className="select-box" value={selectedKota} onChange={(e) => { setSelectedKota(e.target.value); setDesaFilter("all"); setPage(1); }}>
+                      <option value="all">Semua Daerah</option>
+                      {kotaList.map(k => <option key={k} value={k}>{k}</option>)}
+                    </select>
+                    <ChevronDown size={14} className="select-arrow" />
+                  </div>
                 </div>
 
-                <div className="select-container">
-                  <select className="select-box" value={desaFilter} onChange={(e) => { setDesaFilter(e.target.value); setKelompokFilter("all"); setPage(1); }}>
-                    <option value="all">Semua Desa</option>
-                    {wilayahList.filter(w => selectedKota === "all" || w.kota === selectedKota).map(w => <option key={w.id} value={w.id}>{w.nama}</option>)}
-                  </select>
-                  <ChevronDown size={14} className="select-arrow" />
+                <div className="filter-field-group">
+                  <label className="filter-label">Desa</label>
+                  <div className="select-container">
+                    <select className="select-box" value={desaFilter} onChange={(e) => { setDesaFilter(e.target.value); setKelompokFilter("all"); setPage(1); }}>
+                      <option value="all">Semua Desa</option>
+                      {wilayahList.filter(w => selectedKota === "all" || w.kota === selectedKota).map(w => <option key={w.id} value={w.id}>{w.nama}</option>)}
+                    </select>
+                    <ChevronDown size={14} className="select-arrow" />
+                  </div>
                 </div>
 
-                <div className="select-container">
-                  <select className="select-box" value={kelompokFilter} onChange={(e) => { setKelompokFilter(e.target.value); setPage(1); }}>
-                    <option value="all">Semua Kelompok</option>
-                    {kelompokList.filter(k => desaFilter === "all" || String(k.desaId || k.mandiriDesaId) === desaFilter).map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
-                  </select>
-                  <ChevronDown size={14} className="select-arrow" />
+                <div className="filter-field-group">
+                  <label className="filter-label">Kelompok</label>
+                  <div className="select-container">
+                    <select className="select-box" value={kelompokFilter} onChange={(e) => { setKelompokFilter(e.target.value); setPage(1); }}>
+                      <option value="all">Semua Kelompok</option>
+                      {kelompokList.filter(k => desaFilter === "all" || String(k.desaId || k.mandiriDesaId) === desaFilter).map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                    </select>
+                    <ChevronDown size={14} className="select-arrow" />
+                  </div>
                 </div>
 
-                <div className="select-container">
-                  <select className="select-box" value={umurFilter} onChange={(e) => { setUmurFilter(e.target.value); setPage(1); }}>
-                    <option value="all">Semua Umur</option>
-                    <option value="17-20">17 - 20 Tahun</option>
-                    <option value="21-25">21 - 25 Tahun</option>
-                    <option value="26-30">26 - 30 Tahun</option>
-                    <option value=">30">&gt; 30 Tahun</option>
-                    <optgroup label="Umur Spesifik">
-                      {umurList.map(u => <option key={u} value={u}>{u} Tahun</option>)}
-                    </optgroup>
-                  </select>
-                  <ChevronDown size={14} className="select-arrow" />
+                <div className="filter-field-group">
+                  <label className="filter-label">Kategori Usia</label>
+                  <div className="select-container">
+                    <select className="select-box" value={umurFilter} onChange={(e) => { setUmurFilter(e.target.value); setPage(1); }}>
+                      <option value="all">Semua Usia</option>
+                      <option value="17-20">17 - 20 Tahun</option>
+                      <option value="21-25">21 - 25 Tahun</option>
+                      <option value="26-30">26 - 30 Tahun</option>
+                      <option value=">30">&gt; 30 Tahun</option>
+                      <optgroup label="Umur Spesifik">
+                        {umurList.map(u => <option key={u} value={u}>{u} Tahun</option>)}
+                      </optgroup>
+                    </select>
+                    <ChevronDown size={14} className="select-arrow" />
+                  </div>
                 </div>
 
-                <div className="select-container">
-                  <select className="select-box" value={pekerjaanFilter} onChange={(e) => { setPekerjaanFilter(e.target.value); setPage(1); }}>
-                    <option value="all">Semua Pekerjaan</option>
-                    {pekerjaanList.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                  <ChevronDown size={14} className="select-arrow" />
+                <div className="filter-field-group">
+                  <label className="filter-label">Usia Min - Max</label>
+                  <div className="input-range-container">
+                    <input type="number" className="filter-input-box" placeholder="Min. Umur" value={umurMinFilter} onChange={(e) => { setUmurMinFilter(e.target.value); setUmurFilter("all"); setPage(1); }} />
+                    <input type="number" className="filter-input-box" placeholder="Max. Umur" value={umurMaxFilter} onChange={(e) => { setUmurMaxFilter(e.target.value); setUmurFilter("all"); setPage(1); }} />
+                  </div>
                 </div>
 
-                <div className="select-container">
-                  <select className="select-box" value={hobiFilter} onChange={(e) => { setHobiFilter(e.target.value); setPage(1); }}>
-                    <option value="all">Semua Hobi</option>
-                    {hobiList.map(h => <option key={h} value={h}>{h}</option>)}
-                  </select>
-                  <ChevronDown size={14} className="select-arrow" />
+                <div className="filter-field-group">
+                  <label className="filter-label">Suku</label>
+                  <div className="select-container">
+                    <select className="select-box" value={sukuFilter} onChange={(e) => { setSukuFilter(e.target.value); setPage(1); }}>
+                      <option value="all">Semua Suku</option>
+                      {sukuList.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    <ChevronDown size={14} className="select-arrow" />
+                  </div>
                 </div>
 
-                <div className="select-container">
-                  <select className="select-box" value={makananFilter} onChange={(e) => { setMakananFilter(e.target.value); setPage(1); }}>
-                    <option value="all">Semua Makanan/Minuman</option>
-                    {makananList.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                  <ChevronDown size={14} className="select-arrow" />
+                <div className="filter-field-group">
+                  <label className="filter-label">Urutan Anak</label>
+                  <div className="input-range-container">
+                    <input type="number" className="filter-input-box" placeholder="Anak Ke" value={anakKeFilter} onChange={(e) => { setAnakKeFilter(e.target.value); setPage(1); }} />
+                    <input type="number" className="filter-input-box" placeholder="Dari Saudara" value={jumlahSaudaraFilter} onChange={(e) => { setJumlahSaudaraFilter(e.target.value); setPage(1); }} />
+                  </div>
                 </div>
 
-                <div className="select-container">
-                  <select className="select-box" value={kriteriaFilter} onChange={(e) => { setKriteriaFilter(e.target.value); setPage(1); }}>
-                    <option value="all">Semua Kriteria Pasangan</option>
-                    {kriteriaList.map(k => <option key={k} value={k}>{k}</option>)}
-                  </select>
-                  <ChevronDown size={14} className="select-arrow" />
+                <div className="filter-field-group">
+                  <label className="filter-label">Tinggi Badan (cm)</label>
+                  <div className="input-range-container">
+                    <input type="number" className="filter-input-box" placeholder="Tinggi Min" value={tinggiMinFilter} onChange={(e) => { setTinggiMinFilter(e.target.value); setPage(1); }} />
+                    <input type="number" className="filter-input-box" placeholder="Tinggi Max" value={tinggiMaxFilter} onChange={(e) => { setTinggiMaxFilter(e.target.value); setPage(1); }} />
+                  </div>
+                </div>
+
+                <div className="filter-field-group">
+                  <label className="filter-label">Pekerjaan</label>
+                  <div className="select-container">
+                    <select className="select-box" value={pekerjaanFilter} onChange={(e) => { setPekerjaanFilter(e.target.value); setPage(1); }}>
+                      <option value="all">Semua Pekerjaan</option>
+                      {pekerjaanList.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                    <ChevronDown size={14} className="select-arrow" />
+                  </div>
+                </div>
+
+                <div className="filter-field-group">
+                  <label className="filter-label">Hobi</label>
+                  <div className="select-container">
+                    <select className="select-box" value={hobiFilter} onChange={(e) => { setHobiFilter(e.target.value); setPage(1); }}>
+                      <option value="all">Semua Hobi</option>
+                      {hobiList.map(h => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                    <ChevronDown size={14} className="select-arrow" />
+                  </div>
+                </div>
+
+                <div className="filter-field-group">
+                  <label className="filter-label">Makanan/Minuman</label>
+                  <div className="select-container">
+                    <select className="select-box" value={makananFilter} onChange={(e) => { setMakananFilter(e.target.value); setPage(1); }}>
+                      <option value="all">Semua Makanan/Minuman</option>
+                      {makananList.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                    <ChevronDown size={14} className="select-arrow" />
+                  </div>
+                </div>
+
+                <div className="filter-field-group">
+                  <label className="filter-label">Kriteria Pasangan</label>
+                  <div className="select-container">
+                    <select className="select-box" value={kriteriaFilter} onChange={(e) => { setKriteriaFilter(e.target.value); setPage(1); }}>
+                      <option value="all">Semua Kriteria Pasangan</option>
+                      {kriteriaList.map(k => <option key={k} value={k}>{k}</option>)}
+                    </select>
+                    <ChevronDown size={14} className="select-arrow" />
+                  </div>
                 </div>
 
                 <button className="btn-reset-filters" onClick={() => {
@@ -1872,6 +2010,13 @@ export default function PublicKatalogPage() {
                   setKelompokFilter("all");
                   setPekerjaanFilter("all");
                   setUmurFilter("all");
+                  setUmurMinFilter("");
+                  setUmurMaxFilter("");
+                  setSukuFilter("all");
+                  setAnakKeFilter("");
+                  setJumlahSaudaraFilter("");
+                  setTinggiMinFilter("");
+                  setTinggiMaxFilter("");
                   setKriteriaFilter("all");
                   setHobiFilter("all");
                   setMakananFilter("all");
@@ -1980,40 +2125,61 @@ export default function PublicKatalogPage() {
 
                             if (item.handshakeStatus) {
                               if (item.handshakeStatus === "Selesai") {
-                                return (
-                                  <>
-                                    <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
-                                      <Users size={16} />
-                                      <span>Sudah Bertemu</span>
-                                    </button>
-                                    <button className="btn-primary" style={{ background: '#10b981', borderColor: '#10b981', marginTop: '8px' }} onClick={() => { setIsModalOpen(false); setActiveTab('hasil'); }}>
-                                      <Heart size={16} />
-                                      <span>Input Hasil RR</span>
-                                    </button>
-                                  </>
-                                );
-                              }
-                              if (item.handshakeStatus === "Diterima") {
-                                return (
-                                  <>
-                                    <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
-                                      <Users size={16} />
-                                      <span>Dalam Ruangan</span>
-                                    </button>
-                                    {(() => {
-                                      const room = activeRooms.find((r: any) => String(r.pengirimNo) === String(item.nomorUnik) || String(r.penerimaNo) === String(item.nomorUnik));
-                                      const isPart = room && currentUser && (String(currentUser.nomorUnik) === String(room.pengirimNo) || String(currentUser.nomorUnik) === String(room.penerimaNo) || room.assignedGuardId === currentUser.id || room.assignedCallerId === currentUser.id || room.assignedCaller2Id === currentUser.id);
-                                      return (isAdmin || isPart) && (
-                                        <button className="btn-primary" style={{ background: '#10b981', borderColor: '#10b981', marginTop: '8px' }} onClick={() => handleAdminSelesaikanSesi(item)}>
-                                          {isAdmin ? <CheckCircle2 size={16} /> : <Heart size={16} />}
-                                          <span>{isAdmin ? 'Selesaikan Sesi' : 'Input Hasil RR'}</span>
-                                        </button>
-                                      );
-                                    })()}
-                                  </>
-                                );
-                              }
-                              if (item.handshakeStatus === "Menunggu") {
+                                 const alreadyFilled = checkUserAlreadyFilled(item, currentUser, activeRooms, hasilRRList, isAdmin);
+                                 return (
+                                   <>
+                                     <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
+                                       <Users size={16} />
+                                       <span>Sudah Bertemu</span>
+                                     </button>
+                                     {alreadyFilled ? (
+                                       <button className="btn-primary disabled" disabled style={{ background: '#94a3b8', borderColor: '#94a3b8', color: 'white', opacity: 0.6, cursor: 'not-allowed', marginTop: '8px' }}>
+                                         <Heart size={16} />
+                                         <span>Input Hasil RR</span>
+                                       </button>
+                                     ) : (
+                                       <button className="btn-primary" style={{ background: '#10b981', borderColor: '#10b981', marginTop: '8px' }} onClick={() => { setIsModalOpen(false); setActiveTab('hasil'); }}>
+                                         <Heart size={16} />
+                                         <span>Input Hasil RR</span>
+                                       </button>
+                                     )}
+                                   </>
+                                 );
+                               }
+                               if (item.handshakeStatus === "Diterima") {
+                                 return (
+                                   <>
+                                     <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
+                                       <Users size={16} />
+                                       <span>Dalam Ruangan</span>
+                                     </button>
+                                     {(() => {
+                                       const room = activeRooms.find((r: any) => String(r.pengirimNo) === String(item.nomorUnik) || String(r.penerimaNo) === String(item.nomorUnik));
+                                       const isPart = room && currentUser && (String(currentUser.nomorUnik) === String(room.pengirimNo) || String(currentUser.nomorUnik) === String(room.penerimaNo) || room.assignedGuardId === currentUser.id || room.assignedCallerId === currentUser.id || room.assignedCaller2Id === currentUser.id);
+                                       if (!isAdmin && !isPart) return null;
+
+                                       const alreadyFilled = checkUserAlreadyFilled(item, currentUser, activeRooms, hasilRRList, isAdmin);
+
+                                       if (alreadyFilled) {
+                                         return (
+                                           <button className="btn-primary disabled" disabled style={{ background: '#94a3b8', borderColor: '#94a3b8', color: 'white', opacity: 0.6, cursor: 'not-allowed', marginTop: '8px' }}>
+                                             {isAdmin ? <CheckCircle2 size={16} /> : <Heart size={16} />}
+                                             <span>{isAdmin ? 'Selesaikan Sesi' : 'Input Hasil RR'}</span>
+                                           </button>
+                                         );
+                                       }
+
+                                       return (
+                                         <button className="btn-primary" style={{ background: '#10b981', borderColor: '#10b981', marginTop: '8px' }} onClick={() => handleAdminSelesaikanSesi(item)}>
+                                           {isAdmin ? <CheckCircle2 size={16} /> : <Heart size={16} />}
+                                           <span>{isAdmin ? 'Selesaikan Sesi' : 'Input Hasil RR'}</span>
+                                         </button>
+                                       );
+                                     })()}
+                                   </>
+                                 );
+                               }
+                               if (item.handshakeStatus === "Menunggu") {
                                 if (!isSelected) {
                                   return (
                                     <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
@@ -3072,7 +3238,6 @@ export default function PublicKatalogPage() {
                     jenisKelamin: myFullProfile.jenisKelamin || "L",
                     tempatLahir: myFullProfile.tempatLahir || "",
                     tanggalLahir: myFullProfile.tanggalLahir || "",
-                    alamat: myFullProfile.alamat || "",
                     suku: myFullProfile.suku || "",
                     pendidikan: myFullProfile.pendidikan || "",
                     pekerjaan: myFullProfile.pekerjaan || "",
@@ -3203,10 +3368,6 @@ export default function PublicKatalogPage() {
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Tanggal Lahir</label>
                   <IndonesianDateInput value={editProfileForm.tanggalLahir} onChange={(val: string) => setEditProfileForm({...editProfileForm, tanggalLahir: val})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', fontFamily: 'inherit' }} />
                 </div>
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Alamat</label>
-                <textarea value={editProfileForm.alamat} onChange={e => setEditProfileForm({...editProfileForm, alamat: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', minHeight: '60px', fontFamily: 'inherit' }} />
               </div>
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ flex: 1 }}>
@@ -3412,7 +3573,6 @@ export default function PublicKatalogPage() {
                   <div className="dm-field"><span className="dm-label">Instagram</span><span className="dm-val">{sp.instagram ? <a href={`https://instagram.com/${sp.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>@{sp.instagram.replace('@', '')}</a> : "-"}</span></div>
                   <div className="dm-field dm-field-full"><span className="dm-label">Makanan/Minuman Favorit</span><span className="dm-val">{sp.makananMinumanFavorit || "-"}</span></div>
                   <div className="dm-field dm-field-full"><span className="dm-label">Kriteria Pasangan</span><span className="dm-val">{sp.kriteriaPasangan || "-"}</span></div>
-                  <div className="dm-field dm-field-full"><span className="dm-label">Alamat</span><span className="dm-val">{sp.alamat || "-"}</span></div>
                 </div>
               </div>
 
@@ -3445,12 +3605,19 @@ export default function PublicKatalogPage() {
 
                   if (sp.handshakeStatus) {
                     if (sp.handshakeStatus === "Selesai") {
+                      const alreadyFilled = checkUserAlreadyFilled(sp, currentUser, activeRooms, hasilRRList, isAdmin);
                       return (
                         <>
                           <button className="dm-btn dm-btn-disabled" disabled><Users size={18} />Sudah Bertemu</button>
-                          <button className="dm-btn" style={{ background: '#10b981', color: 'white', border: 'none', marginTop: '8px' }} onClick={() => { setIsModalOpen(false); setActiveTab('hasil'); }}>
-                            <Heart size={18} />Input Hasil RR
-                          </button>
+                          {alreadyFilled ? (
+                            <button className="dm-btn dm-btn-disabled" disabled style={{ background: '#94a3b8', color: 'white', border: 'none', marginTop: '8px', opacity: 0.6, cursor: 'not-allowed' }}>
+                              <Heart size={18} />Input Hasil RR
+                            </button>
+                          ) : (
+                            <button className="dm-btn" style={{ background: '#10b981', color: 'white', border: 'none', marginTop: '8px' }} onClick={() => { setIsModalOpen(false); setActiveTab('hasil'); }}>
+                              <Heart size={18} />Input Hasil RR
+                            </button>
+                          )}
                         </>
                       );
                     }
@@ -3461,7 +3628,19 @@ export default function PublicKatalogPage() {
                           {(() => {
                             const room = activeRooms.find((r: any) => String(r.pengirimNo) === String(sp.nomorUnik) || String(r.penerimaNo) === String(sp.nomorUnik));
                             const isPart = room && currentUser && (String(currentUser.nomorUnik) === String(room.pengirimNo) || String(currentUser.nomorUnik) === String(room.penerimaNo) || room.assignedGuardId === currentUser.id || room.assignedCallerId === currentUser.id || room.assignedCaller2Id === currentUser.id);
-                            return (isAdmin || isPart) && (
+                            if (!isAdmin && !isPart) return null;
+
+                            const alreadyFilled = checkUserAlreadyFilled(sp, currentUser, activeRooms, hasilRRList, isAdmin);
+
+                            if (alreadyFilled) {
+                              return (
+                                <button className="dm-btn dm-btn-disabled" disabled style={{ background: '#94a3b8', color: 'white', border: 'none', opacity: 0.6, cursor: 'not-allowed', marginTop: '8px' }}>
+                                  {isAdmin ? <CheckCircle2 size={18} /> : <Heart size={18} />}{isAdmin ? 'Selesaikan Sesi' : 'Input Hasil RR'}
+                                </button>
+                              );
+                            }
+
+                            return (
                               <button className="dm-btn" style={{ background: '#10b981', color: 'white', border: 'none', marginTop: '8px' }} onClick={() => handleAdminSelesaikanSesi(sp)}>
                                 {isAdmin ? <CheckCircle2 size={18} /> : <Heart size={18} />}{isAdmin ? 'Selesaikan Sesi' : 'Input Hasil RR'}
                               </button>
@@ -3611,14 +3790,20 @@ export default function PublicKatalogPage() {
         .clear-search-btn:hover { background:#cbd5e1; color:#1e293b; }
         .btn-advanced { display:flex; align-items:center; gap:8px; background:white; border:1px solid #e2e8f0; padding:0 20px; border-radius:16px; font-size:14px; font-weight:600; cursor:pointer; transition:0.2s; white-space:nowrap; }
         .btn-advanced:hover { background:#f8fafc; }
-        .filter-controls { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-        .toggle-group { display:flex; background:#f1f5f9; padding:4px; border-radius:14px; }
-        .toggle-group button { border:none; background:transparent; padding:8px 18px; border-radius:10px; font-size:13px; font-weight:700; color:#64748b; cursor:pointer; transition:0.2s; }
+        .filter-controls { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; align-items: start; width: 100%; }
+        .filter-field-group { display: flex; flex-direction: column; gap: 6px; width: 100%; min-width: 0; }
+        .filter-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 2px; }
+        .toggle-group { display:flex; background:#f1f5f9; padding:4px; border-radius:14px; width: 100%; }
+        .toggle-group button { border:none; background:transparent; padding:8px 18px; border-radius:10px; font-size:13px; font-weight:700; color:#64748b; cursor:pointer; transition:0.2s; flex: 1; }
         .toggle-group button.active { background:#1e293b; color:white; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
-        .select-container { position:relative; display:flex; align-items:center; }
-        .select-box { appearance:none; background:white; border:1px solid #e2e8f0; padding:10px 35px 10px 18px; border-radius:14px; font-size:13px; font-weight:600; cursor:pointer; outline:none; min-width:160px; color:#1e293b; transition:0.2s; }
+        .select-container { position:relative; display:flex; align-items:center; width:100%; min-width:0; }
+        .select-box { appearance:none; background:white; border:1px solid #e2e8f0; padding:10px 35px 10px 14px; border-radius:14px; font-size:13px; font-weight:600; cursor:pointer; outline:none; width:100%; min-width:0; color:#1e293b; transition:0.2s; box-sizing:border-box; }
         .select-box:hover { border-color:#cbd5e1; }
         .select-box:focus { border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,0.1); }
+        .input-range-container { display:flex; gap:8px; width:100%; min-width:0; }
+        .filter-input-box { background:white; border:1px solid #e2e8f0; padding:10px 12px; border-radius:14px; font-size:13px; font-weight:600; outline:none; width:100%; min-width:0; flex:1; color:#1e293b; transition:0.2s; box-sizing:border-box; }
+        .filter-input-box:hover { border-color:#cbd5e1; }
+        .filter-input-box:focus { border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,0.1); }
         .select-arrow { position:absolute; right:14px; pointer-events:none; color:#94a3b8; }
         .status-badge { display:flex; align-items:center; gap:8px; background:#f8fafc; border:1px solid #e2e8f0; padding:10px 18px; border-radius:14px; font-size:13px; font-weight:700; color:#475569; }
         .btn-logout { margin-left:auto; display:flex; align-items:center; gap:8px; background:#fef2f2; color:#ef4444; border:1px solid #fee2e2; padding:10px 18px; border-radius:14px; font-size:13px; font-weight:700; cursor:pointer; transition:0.2s; }
@@ -3655,6 +3840,7 @@ export default function PublicKatalogPage() {
         .btn-reset-filters {
           display: flex;
           align-items: center;
+          justify-content: center;
           gap: 6px;
           background: #f1f5f9;
           border: 1px solid #cbd5e1;
@@ -3665,6 +3851,7 @@ export default function PublicKatalogPage() {
           font-weight: 700;
           cursor: pointer;
           transition: 0.2s;
+          grid-column: 1 / -1;
         }
         .btn-reset-filters:hover {
           background: #e2e8f0;
@@ -3754,6 +3941,8 @@ export default function PublicKatalogPage() {
           .filter-controls .toggle-group button { flex:1; text-align:center; }
           .filter-controls .select-container { width:100%; }
           .filter-controls .select-box { width:100%; min-width:0; }
+          .filter-controls .input-range-container { width:100%; display:flex; gap:8px; }
+          .filter-controls .filter-input-box { flex:1; min-width:0; }
           .btn-reset-filters { width:100%; justify-content:center; }
         }
 

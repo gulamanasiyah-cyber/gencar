@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
         kriteriaPasangan: generus.kriteriaPasangan,
         hobi: generus.hobi,
         makanan: generus.makananMinumanFavorit,
+        suku: generus.suku,
         tanggalLahir: generus.tanggalLahir
       })
       .from(generus)
@@ -83,6 +84,7 @@ export async function GET(request: NextRequest) {
     const kriteriaPasangan = clusterText(textDataResult, "kriteriaPasangan");
     const hobi = clusterText(textDataResult, "hobi");
     const makanan = clusterText(textDataResult, "makanan");
+    const suku = clusterText(textDataResult, "suku");
 
     // Calculate unique Umur
     const umurSet = new Set<number>();
@@ -147,6 +149,7 @@ export async function GET(request: NextRequest) {
       kriteriaPasangan,
       hobi,
       makanan,
+      suku,
       umur
     });
   } catch (error) {

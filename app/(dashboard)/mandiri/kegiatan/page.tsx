@@ -169,7 +169,7 @@ export default function MandiriKegiatanPage() {
                     <th>Kegiatan</th>
                     <th>Kota</th>
                     <th>Tanggal</th>
-                    <th>Lokasi</th>
+                    <th>Link Google Maps</th>
                     <th>Desa/Kelompok</th>
                     <th>Aksi</th>
                   </tr>
@@ -204,7 +204,15 @@ export default function MandiriKegiatanPage() {
                         <td data-label="Tanggal" style={{ whiteSpace: "nowrap" }}>
                           {formatDate(item.tanggal)}
                         </td>
-                        <td data-label="Lokasi">{item.lokasi || "-"}</td>
+                        <td data-label="Link Gmaps">
+                          {item.lokasi ? (
+                            <a href={item.lokasi} target="_blank" rel="noopener noreferrer" style={{ color: "#3b82f6", fontWeight: 600, fontSize: 13, display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "underline" }}>
+                              📍 Link Maps
+                            </a>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
                         <td data-label="Desa/Kelompok">
                           {item.kelompokNama && <div className="text-sm">{item.kelompokNama}</div>}
                           {item.desaNama && <div className="text-sm text-muted">{item.desaNama}</div>}
@@ -358,8 +366,8 @@ function MandiriKegiatanModal({ item, onClose, onSaved }: {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Lokasi Detail</label>
-              <input name="lokasi" className="form-control" value={form.lokasi} onChange={handleChange} placeholder="Tempat kegiatan (Nama gedung/rumah)" />
+              <label className="form-label">Link Google Maps</label>
+              <input name="lokasi" className="form-control" value={form.lokasi} onChange={handleChange} placeholder="https://maps.app.goo.gl/... (Paste link Google Maps di sini)" />
             </div>
 
             <div className="form-group">

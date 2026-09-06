@@ -33,6 +33,7 @@ import {
   inArray,
   aliasedTable,
   isNotNull,
+  like,
 } from "drizzle-orm";
 
 async function getStats(session: any, searchParams?: any) {
@@ -79,16 +80,20 @@ async function getStats(session: any, searchParams?: any) {
       ? and(kegiatanFilter, sql`${kegiatan.tanggal} < ${todayStr}`)
       : (sql`${kegiatan.tanggal} < ${todayStr}` as any);
 
-    const roleExclusion = or(
-      isNull(users.role),
-      notInArray(users.role, [
-        "tim_pnkb",
-        "pengurus_daerah",
-        "kmm_daerah",
-        "desa",
-        "kelompok",
-        "creator",
-      ]),
+    const roleExclusion = and(
+      or(
+        isNull(users.role),
+        notInArray(users.role, [
+          "tim_pnkb",
+          "pengurus_daerah",
+          "kmm_daerah",
+          "desa",
+          "kelompok",
+          "creator",
+        ]),
+      ),
+      not(like(generus.nomorUnik, "PNKB-%")),
+      not(like(generus.nomorUnik, "PNB-%"))
     );
 
     const finalGenerusFilter = generusFilter

@@ -21,7 +21,7 @@ export default function MandiriDaftarWilayahPage() {
   const fetchAll = useCallback(async () => {
     try {
       const [da, de, ke, statusRes] = await Promise.all([
-        fetch("/api/public/mandiri/daerah", { cache: "no-store" }).then((r) => r.json()),
+        fetch("/api/public/mandiri/daerah?scope=all", { cache: "no-store" }).then((r) => r.json()),
         fetch("/api/public/mandiri/desa?scope=all", { cache: "no-store" }).then((r) => r.json()),
         fetch("/api/public/mandiri/kelompok?scope=all", { cache: "no-store" }).then((r) => r.json()),
         fetch("/api/public/mandiri/settings?key=mandiri_daftar_wilayah_status", { cache: "no-store" }),
@@ -170,7 +170,7 @@ export default function MandiriDaftarWilayahPage() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!daerahId || !desaId || !kelompokId) {
       Swal.fire({
         icon: 'warning',
@@ -179,16 +179,32 @@ export default function MandiriDaftarWilayahPage() {
       });
       return;
     }
-    Swal.fire({
-      icon: 'success',
-      title: 'Berhasil',
-      text: 'Wilayah berhasil disimpan untuk sesi ini.',
-      timer: 1500,
-      showConfirmButton: false
-    });
-    setDaerahId("");
-    setDesaId("");
-    setKelompokId("");
+
+    try {
+      await fetch("/api/public/mandiri/wilayah/link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ daerahId }),
+      });
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Berhasil',
+        text: 'Wilayah berhasil disimpan untuk sesi ini. Menunggu verifikasi admin.',
+        timer: 2000,
+        showConfirmButton: false
+      });
+      
+      setDaerahId("");
+      setDesaId("");
+      setKelompokId("");
+    } catch (e) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Gagal',
+        text: 'Terjadi kesalahan saat menyimpan.'
+      });
+    }
   };
 
   if (status === "loading") {

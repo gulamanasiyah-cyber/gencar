@@ -1037,12 +1037,6 @@ export default function AdminKatalogPage() {
                         </a>
                       </div>
                     )}
-                    {item.alamat && (
-                      <div className="contact-item address-item" title={item.alamat}>
-                        <Home size={12} className="text-home" />
-                        <span className="line-clamp-1"><strong>Alamat:</strong> {item.alamat}</span>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -1212,12 +1206,6 @@ export default function AdminKatalogPage() {
                     <span className="pd-value">{profileDetail.kriteriaPasangan}</span>
                   </div>
                 )}
-                {profileDetail.alamat && (
-                  <div className="pd-item pd-item-full">
-                    <span className="pd-label">Alamat</span>
-                    <span className="pd-value">{profileDetail.alamat}</span>
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -1338,10 +1326,6 @@ export default function AdminKatalogPage() {
 
                 <div className="id-footer-section">
                   <div className="id-footer-grid">
-                    <div className="id-footer-item">
-                      <label>Alamat Tinggal</label>
-                      <p>{selectedParticipant.alamat || "Detail alamat tidak tersedia"}</p>
-                    </div>
                     {selectedParticipant.noTelp && (
                       <div className="id-footer-item">
                         <label>Nomor WhatsApp</label>
@@ -1441,10 +1425,6 @@ export default function AdminKatalogPage() {
                 </div>
               </div>
               <div className="id-footer-section">
-                <div className="id-address-section">
-                  <label>Alamat Tinggal</label>
-                  <p>{exportParticipant.alamat || "Detail alamat tidak tersedia"}</p>
-                </div>
               </div>
             </div>
 

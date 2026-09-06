@@ -16,11 +16,14 @@ export default function MandiriDesaTreePage() {
   const [kelompokList, setKelompokList] = useState<MandiriKelompokItem[]>([]);
   const [kegiatanList, setKegiatanList] = useState<KegiatanItem[]>([]);
   const [selectedKegiatan, setSelectedKegiatan] = useState("");
+  const [activeKegiatanId, setActiveKegiatanId] = useState("");
   const [loading, setLoading] = useState(true);
   const [newDaerahName, setNewDaerahName] = useState("");
   const [error, setError] = useState("");
   const [userRole, setUserRole] = useState("");
   const [daftarWilayahStatus, setDaftarWilayahStatus] = useState("open");
+  const [selectedFilterDaerah, setSelectedFilterDaerah] = useState("all");
+  const [searchDaerahQuery, setSearchDaerahQuery] = useState("");
   
   // Collapse/Expand state
   const [collapsedDaerahs, setCollapsedDaerahs] = useState<Record<number, boolean>>({});
@@ -29,8 +32,8 @@ export default function MandiriDesaTreePage() {
   const fetchAll = useCallback(async (kegId?: string) => {
     setLoading(true);
     try {
-      const activeKegId = kegId || selectedKegiatan;
-      const daerahUrl = activeKegId ? `/api/mandiri/daerah?kegiatanId=${activeKegId}` : "/api/mandiri/daerah";
+      const targetKegId = kegId !== undefined ? kegId : selectedKegiatan;
+      const daerahUrl = targetKegId ? `/api/mandiri/daerah?kegiatanId=${targetKegId}` : "/api/mandiri/daerah";
       const [da, de, ke] = await Promise.all([
         fetch(daerahUrl, { cache: 'no-store' }).then((r) => r.json()),
         fetch("/api/mandiri/desa", { cache: 'no-store' }).then((r) => r.json()),
@@ -60,20 +63,37 @@ export default function MandiriDesaTreePage() {
 
         const activeJson = await activeRes.json();
         const activeId = activeJson.value || (kegs.length > 0 ? kegs[0].id : "");
+        setActiveKegiatanId(activeId);
         setSelectedKegiatan(activeId);
         
         const statusJson = await statusRes.json();
         setDaftarWilayahStatus(statusJson.value || "open");
 
-        fetchAll(activeId);
+        // Fetch data for initial active kegiatan
+        const daerahUrl = activeId ? `/api/mandiri/daerah?kegiatanId=${activeId}` : "/api/mandiri/daerah";
+        const [da, de, ke] = await Promise.all([
+          fetch(daerahUrl, { cache: 'no-store' }).then((r) => r.json()),
+          fetch("/api/mandiri/desa", { cache: 'no-store' }).then((r) => r.json()),
+          fetch("/api/mandiri/kelompok", { cache: 'no-store' }).then((r) => r.json()),
+        ]);
+        setDaerahList(Array.isArray(da) ? da : []);
+        setDesaList(Array.isArray(de) ? de : []);
+        setKelompokList(Array.isArray(ke) ? ke : []);
       } catch (err) {
         console.error("Init error in MandiriDesaPage:", err);
-        fetchAll();
+      } finally {
+        setLoading(false);
       }
     }
     init();
     fetch("/api/profile", { cache: 'no-store' }).then(r => r.json()).then(d => setUserRole(d.role || ""));
-  }, [fetchAll]);
+  }, []);
+
+  useEffect(() => {
+    if (selectedKegiatan) {
+      fetchAll(selectedKegiatan);
+    }
+  }, [selectedKegiatan]);
 
   const handleToggleDaftarWilayah = async () => {
     const newStatus = daftarWilayahStatus === "open" ? "closed" : "open";
@@ -100,11 +120,29 @@ export default function MandiriDesaTreePage() {
     }
   };
 
-  useEffect(() => {
-    if (selectedKegiatan) {
-      fetchAll(selectedKegiatan);
+  const handleSetSystemActiveKegiatan = async (kegId: string) => {
+    try {
+      const res = await fetch("/api/mandiri/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "mandiri_active_kegiatan_id", value: kegId }),
+      });
+      if (res.ok) {
+        setActiveKegiatanId(kegId);
+        Swal.fire({
+          icon: 'success',
+          title: 'Berhasil',
+          text: 'Kegiatan ini berhasil dijadikan Kegiatan Aktif Utama!',
+          timer: 1500,
+          showConfirmButton: false,
+          toast: true,
+          position: 'top-end'
+        });
+      }
+    } catch {
+      Swal.fire({ icon: 'error', title: 'Error', text: "Gagal mengubah kegiatan aktif utama" });
     }
-  }, [selectedKegiatan]);
+  };
 
   const handleToggleDaerahActive = async (daerahId: number, currentActive: boolean) => {
     if (!selectedKegiatan) {
@@ -142,6 +180,44 @@ export default function MandiriDesaTreePage() {
     }
   };
 
+  const handleToggleAllDaerahActive = async (targetActive: boolean) => {
+    if (!selectedKegiatan) {
+      Swal.fire({ icon: 'warning', title: 'Perhatian', text: 'Silakan pilih kegiatan terlebih dahulu' });
+      return;
+    }
+    try {
+      setLoading(true);
+      await Promise.all(
+        daerahList.map(d =>
+          fetch("/api/mandiri/daerah", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: d.id,
+              kegiatanId: selectedKegiatan,
+              isActive: targetActive
+            })
+          })
+        )
+      );
+      setDaerahList(prev => prev.map(d => ({ ...d, isActive: targetActive ? 1 : 0 })));
+      Swal.fire({
+        icon: 'success',
+        title: 'Status Diperbarui',
+        text: `Semua daerah berhasil di-${targetActive ? 'aktifkan' : 'nonaktifkan'} untuk kegiatan ini.`,
+        timer: 1500,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end'
+      });
+    } catch (e) {
+      console.error(e);
+      Swal.fire({ icon: 'error', title: 'Error', text: "Terjadi kesalahan sistem saat memperbarui semua daerah" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAddDaerah = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDaerahName.trim()) return;
@@ -149,7 +225,7 @@ export default function MandiriDesaTreePage() {
     const res = await fetch("/api/mandiri/daerah", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nama: newDaerahName }),
+      body: JSON.stringify({ nama: newDaerahName, kegiatanId: selectedKegiatan }),
     });
     if (!res.ok) { 
       const d = await res.json(); 
@@ -336,7 +412,7 @@ export default function MandiriDesaTreePage() {
             <p style={{ color: "#64748b", fontSize: "14px" }}>Kelola daerah rujukan, desa, dan kelompok peserta dalam satu peta hirarki struktur</p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#f8fafc", padding: "10px 14px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#f8fafc", padding: "8px 14px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
               <span style={{ fontSize: "14px", fontWeight: 600, color: "#475569" }}>Filter Kegiatan:</span>
               <select
                 value={selectedKegiatan}
@@ -346,11 +422,11 @@ export default function MandiriDesaTreePage() {
                   borderRadius: "8px",
                   border: "1px solid #cbd5e1",
                   fontSize: "14px",
-                  fontWeight: 500,
+                  fontWeight: 600,
                   color: "#1e293b",
                   backgroundColor: "#fff",
                   outline: "none",
-                  minWidth: "220px",
+                  minWidth: "200px",
                   cursor: "pointer"
                 }}
               >
@@ -359,6 +435,23 @@ export default function MandiriDesaTreePage() {
                   <option key={k.id} value={k.id}>{k.judul}</option>
                 ))}
               </select>
+              {selectedKegiatan && (
+                selectedKegiatan === activeKegiatanId ? (
+                  <span style={{ fontSize: "12px", fontWeight: 700, color: "#166534", background: "#dcfce7", border: "1px solid #bbf7d0", padding: "5px 10px", borderRadius: "8px", whiteSpace: "nowrap" }}>
+                    ✓ Kegiatan Utama Aktif
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => handleSetSystemActiveKegiatan(selectedKegiatan)}
+                    style={{
+                      fontSize: "12px", fontWeight: 700, color: "#2563eb", background: "#eff6ff", border: "1px solid #bfdbfe", padding: "5px 10px", borderRadius: "8px", cursor: "pointer", whiteSpace: "nowrap"
+                    }}
+                    title="Klik untuk menjadikan kegiatan yang dipilih ini sebagai kegiatan aktif utama di sistem"
+                  >
+                    ⭐ Jadikan Aktif Utama
+                  </button>
+                )
+              )}
             </div>
             <button
               onClick={handleShowAllLinks}
@@ -441,50 +534,206 @@ export default function MandiriDesaTreePage() {
 
           {/* Right Panel: Tree View Map */}
           <div className="card" style={{ padding: "24px", borderRadius: "16px", border: "1px solid #e2e8f0", background: "#fff", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", minHeight: "500px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "16px", borderBottom: "1px solid #f1f5f9", marginBottom: "20px" }}>
-              <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#0f172a", margin: 0 }}>Peta Hirarki Wilayah</h3>
-              <div style={{ display: "flex", gap: "12px", fontSize: "12.5px", color: "#64748b" }}>
-                <span>Daerah: <b>{daerahList.length}</b></span>
-                <span>Desa: <b>{desaList.length}</b></span>
-                <span>Kelompok: <b>{kelompokList.length}</b></span>
-              </div>
-            </div>
+            {(() => {
+              const activeDaerahs = daerahList.filter(d => d.isActive !== 0);
+              const visibleDaerahIds = new Set(daerahList.map(d => d.id));
+              const activeDaerahIds = new Set(activeDaerahs.map(d => d.id));
+              
+              const visibleDesas = desaList.filter(d => visibleDaerahIds.has(d.mandiriDaerahId));
+              const activeDesas = visibleDesas.filter(d => activeDaerahIds.has(d.mandiriDaerahId));
+              
+              const visibleDesaIds = new Set(visibleDesas.map(d => d.id));
+              const activeDesaIds = new Set(activeDesas.map(d => d.id));
+              
+              const visibleKelompoks = kelompokList.filter(k => visibleDesaIds.has(k.mandiriDesaId));
+              const activeKelompoks = visibleKelompoks.filter(k => activeDesaIds.has(k.mandiriDesaId));
 
-            {loading ? (
-              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "300px" }}>
-                <div className="spinner" />
-              </div>
-            ) : treeData.length === 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "300px", color: "#94a3b8" }}>
-                <Info size={36} style={{ marginBottom: "12px", color: "#cbd5e1" }} />
-                <span style={{ fontSize: "14px" }}>Belum ada data struktur wilayah.</span>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {treeData.map(daerah => {
-                  const isDaerahCollapsed = !!collapsedDaerahs[daerah.id];
-                  
-                  return (
-                    <div 
-                      key={daerah.id} 
-                      style={{ 
-                        borderRadius: "12px", 
-                        border: "1px solid #f1f5f9", 
-                        background: "#fafafa",
-                        overflow: "hidden"
-                      }}
-                    >
-                      {/* Daerah Node */}
-                      <div 
-                        style={{ 
-                          display: "flex", 
-                          justifyContent: "space-between", 
-                          alignItems: "center", 
-                          padding: "12px 16px",
-                          background: "#fff",
-                          borderBottom: isDaerahCollapsed ? "none" : "1px solid #f1f5f9",
-                        }}
-                      >
+              const filteredTreeData = treeData.filter(daerah => {
+                if (selectedFilterDaerah === "active" && daerah.isActive === 0) return false;
+                if (selectedFilterDaerah !== "all" && selectedFilterDaerah !== "active" && String(daerah.id) !== selectedFilterDaerah) {
+                  return false;
+                }
+                if (searchDaerahQuery.trim()) {
+                  const q = searchDaerahQuery.toLowerCase().trim();
+                  const matchDaerah = daerah.nama.toLowerCase().includes(q);
+                  const matchDesa = daerah.desas.some(d => d.nama.toLowerCase().includes(q) || d.kelompoks.some(k => k.nama.toLowerCase().includes(q)));
+                  if (!matchDaerah && !matchDesa) return false;
+                }
+                return true;
+              });
+
+              return (
+                <>
+                  <div style={{ paddingBottom: "16px", borderBottom: "1px solid #f1f5f9", marginBottom: "20px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", marginBottom: "12px" }}>
+                      <div>
+                        <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#0f172a", margin: 0 }}>Peta Hirarki Wilayah</h3>
+                        {selectedKegiatan && (
+                          <p style={{ fontSize: "12px", color: "#64748b", margin: "2px 0 0 0" }}>
+                            Status Keaktifan Wilayah untuk Kegiatan: <b>{kegiatanList.find(k => k.id === selectedKegiatan)?.judul || selectedKegiatan}</b>
+                          </p>
+                        )}
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", gap: "12px", fontSize: "12.5px", color: "#64748b" }}>
+                          <span>Daerah: <b>{daerahList.length}</b> <span style={{ color: "#16a34a", fontWeight: 700 }}>({activeDaerahs.length} Aktif)</span></span>
+                          <span>Desa: <b>{visibleDesas.length}</b> <span style={{ color: "#16a34a", fontWeight: 700 }}>({activeDesas.length} Aktif)</span></span>
+                          <span>Kelompok: <b>{visibleKelompoks.length}</b> <span style={{ color: "#16a34a", fontWeight: 700 }}>({activeKelompoks.length} Aktif)</span></span>
+                        </div>
+
+                        <div style={{ display: "flex", gap: "6px" }}>
+                          <button
+                            onClick={() => handleToggleAllDaerahActive(true)}
+                            style={{
+                              padding: "6px 10px",
+                              borderRadius: "8px",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              border: "1px solid #bbf7d0",
+                              background: "#f0fdf4",
+                              color: "#166534",
+                              cursor: "pointer",
+                              transition: "all 0.2s"
+                            }}
+                            title="Aktifkan semua daerah untuk kegiatan ini"
+                          >
+                            ✓ Aktifkan Semua
+                          </button>
+                          <button
+                            onClick={() => handleToggleAllDaerahActive(false)}
+                            style={{
+                              padding: "6px 10px",
+                              borderRadius: "8px",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              border: "1px solid #fecaca",
+                              background: "#fef2f2",
+                              color: "#991b1b",
+                              cursor: "pointer",
+                              transition: "all 0.2s"
+                            }}
+                            title="Non-aktifkan semua daerah untuk kegiatan ini"
+                          >
+                            ✕ Non-Aktifkan Semua
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Filter Daerah Bar */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", background: "#f8fafc", padding: "10px 14px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ fontSize: "13px", fontWeight: 600, color: "#475569" }}>Filter Daerah:</span>
+                        <select
+                          value={selectedFilterDaerah}
+                          onChange={(e) => setSelectedFilterDaerah(e.target.value)}
+                          style={{
+                            padding: "6px 12px",
+                            borderRadius: "8px",
+                            border: "1px solid #cbd5e1",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: "#1e293b",
+                            backgroundColor: "#fff",
+                            outline: "none",
+                            cursor: "pointer"
+                          }}
+                        >
+                          <option value="all">Semua Daerah ({daerahList.length})</option>
+                          <option value="active">Hanya Daerah Aktif ({activeDaerahs.length})</option>
+                          <optgroup label="Pilih Daerah Spesifik">
+                            {daerahList.map(d => (
+                              <option key={d.id} value={String(d.id)}>
+                                {d.nama} {d.isActive !== 0 ? "✓ (Aktif)" : "(Non-Aktif)"}
+                              </option>
+                            ))}
+                          </optgroup>
+                        </select>
+                      </div>
+
+                      <div style={{ flex: 1, minWidth: "200px" }}>
+                        <input
+                          type="text"
+                          placeholder="Cari nama daerah, desa, atau kelompok..."
+                          value={searchDaerahQuery}
+                          onChange={(e) => setSearchDaerahQuery(e.target.value)}
+                          style={{
+                            width: "100%",
+                            padding: "6px 12px",
+                            borderRadius: "8px",
+                            border: "1px solid #cbd5e1",
+                            fontSize: "13px",
+                            backgroundColor: "#fff",
+                            outline: "none"
+                          }}
+                        />
+                      </div>
+
+                      {(selectedFilterDaerah !== "all" || searchDaerahQuery) && (
+                        <button
+                          onClick={() => {
+                            setSelectedFilterDaerah("all");
+                            setSearchDaerahQuery("");
+                          }}
+                          style={{
+                            fontSize: "12px",
+                            color: "#64748b",
+                            background: "#e2e8f0",
+                            border: "none",
+                            padding: "6px 10px",
+                            borderRadius: "6px",
+                            cursor: "pointer",
+                            fontWeight: 600
+                          }}
+                        >
+                          Reset Filter
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {loading ? (
+                    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "300px" }}>
+                      <div className="spinner" />
+                    </div>
+                  ) : filteredTreeData.length === 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "300px", color: "#94a3b8" }}>
+                      <Info size={36} style={{ marginBottom: "12px", color: "#cbd5e1" }} />
+                      <span style={{ fontSize: "14px" }}>
+                        {selectedFilterDaerah !== "all" || searchDaerahQuery
+                          ? "Tidak ada daerah yang cocok dengan filter."
+                          : "Belum ada data struktur wilayah."}
+                      </span>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                      {filteredTreeData.map(daerah => {
+                        const isDaerahCollapsed = !!collapsedDaerahs[daerah.id];
+                        const isDaerahActive = daerah.isActive !== 0;
+                        
+                        return (
+                          <div 
+                            key={daerah.id} 
+                            style={{ 
+                              borderRadius: "12px", 
+                              border: isDaerahActive ? "1px solid #e2e8f0" : "1px dashed #cbd5e1", 
+                              background: isDaerahActive ? "#fafafa" : "#f8fafc",
+                              opacity: isDaerahActive ? 1 : 0.8,
+                              overflow: "hidden"
+                            }}
+                          >
+                            {/* Daerah Node */}
+                            <div 
+                              style={{ 
+                                display: "flex", 
+                                justifyContent: "space-between", 
+                                alignItems: "center", 
+                                padding: "12px 16px",
+                                background: isDaerahActive ? "#fff" : "#f1f5f9",
+                                borderBottom: isDaerahCollapsed ? "none" : "1px solid #f1f5f9",
+                              }}
+                            >
                         <div 
                           onClick={() => toggleDaerahCollapse(daerah.id)}
                           style={{ 
@@ -707,7 +956,10 @@ export default function MandiriDesaTreePage() {
                 })}
               </div>
             )}
-          </div>
+          </>
+        );
+      })()}
+    </div>
 
         </div>
       </div>

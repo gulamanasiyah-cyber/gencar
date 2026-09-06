@@ -170,6 +170,28 @@ export async function DELETE(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
+    const action = searchParams.get("action");
+    const kegiatanId = searchParams.get("kegiatanId");
+
+    if (action === "deleteAll") {
+      if (!kegiatanId) {
+        return NextResponse.json({ error: "Kegiatan wajib dipilih" }, { status: 400 });
+      }
+      const panitiaEntries = await db.select({ id: formPanitiaDanPengurus.id, generusId: formPanitiaDanPengurus.generusId })
+        .from(formPanitiaDanPengurus)
+        .where(eq(formPanitiaDanPengurus.kegiatanId, kegiatanId));
+
+      for (const p of panitiaEntries) {
+        await db.delete(formPanitiaDanPengurus).where(eq(formPanitiaDanPengurus.id, p.id));
+        if (p.generusId) {
+          await db.delete(mandiriAbsensi).where(eq(mandiriAbsensi.generusId, p.generusId));
+          await db.delete(users).where(eq(users.generusId, p.generusId));
+          await db.delete(mandiri).where(eq(mandiri.generusId, p.generusId));
+          await db.delete(generus).where(eq(generus.id, p.generusId));
+        }
+      }
+      return NextResponse.json({ success: true, message: "Semua panitia berhasil dihapus" });
+    }
 
     if (!id) return NextResponse.json({ error: "ID wajib diisi" }, { status: 400 });
 

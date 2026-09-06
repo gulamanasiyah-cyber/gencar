@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from "uuid";
 import { getNextMandiriNomorUrut, isMandiriJenisKelamin } from "@/lib/mandiriNomorUrut";
 
 function generateNomorUnik() {
-  const prefix = "PNB"; 
+  const prefix = "PNT"; 
   const num = Math.floor(100000 + Math.random() * 900000);
   return `${prefix}${num}`;
 }
@@ -43,10 +43,11 @@ export async function POST(request: NextRequest) {
         nama, jenisKelamin, tempatLahir, tanggalLahir,
         alamat, noTelp, foto, 
         mandiriDesaId, mandiriKelompokId, dapukan,
-        pendidikan, pekerjaan, hobi, makananMinumanFavorit, instagram, suku, kriteriaPasangan
+        pendidikan, pekerjaan, hobi, makananMinumanFavorit, instagram, suku, kriteriaPasangan,
+        anakKe, jumlahSaudara, tinggiBadan
     } = body;
 
-    if (!nama || !jenisKelamin || !mandiriDesaId || !noTelp || !dapukan || !foto || !tempatLahir || !tanggalLahir || !pendidikan || !pekerjaan || !hobi || !makananMinumanFavorit) {
+    if (!nama || !jenisKelamin || !mandiriDesaId || !noTelp || !dapukan || !foto || !tempatLahir || !tanggalLahir || !pendidikan || !pekerjaan || !hobi) {
       return NextResponse.json({ error: "Mohon lengkapi semua data wajib." }, { status: 400 });
     }
 
@@ -82,6 +83,9 @@ export async function POST(request: NextRequest) {
             nama, jenisKelamin, tempatLahir, tanggalLahir,
             alamat, noTelp, pendidikan, pekerjaan,
             hobi, makananMinumanFavorit, suku, foto, kriteriaPasangan,
+            anakKe: anakKe ? Number(anakKe) : null,
+            jumlahSaudara: jumlahSaudara ? Number(jumlahSaudara) : null,
+            tinggiBadan: tinggiBadan ? Number(tinggiBadan) : null,
             mandiriDesaId: mandiriDesaId ? Number(mandiriDesaId) : null,
             mandiriKelompokId: mandiriKelompokId ? Number(mandiriKelompokId) : null,
             instagram: instagram || existingGenerus.instagram,
@@ -112,6 +116,9 @@ export async function POST(request: NextRequest) {
             hobi,
             makananMinumanFavorit,
             suku,
+            anakKe: anakKe ? Number(anakKe) : null,
+            jumlahSaudara: jumlahSaudara ? Number(jumlahSaudara) : null,
+            tinggiBadan: tinggiBadan ? Number(tinggiBadan) : null,
             foto,
             kriteriaPasangan,
             desaId: defaultDesaId,

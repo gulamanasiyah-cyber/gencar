@@ -74,6 +74,8 @@ export default function MandiriPage() {
    const [regStatusPeserta, setRegStatusPeserta] = useState("Utusan Daerah");
    const [regGender, setRegGender] = useState("Semua");
    const [regQuota, setRegQuota] = useState("0");
+   const [regMinAgeLaki, setRegMinAgeLaki] = useState("");
+   const [regMinAgePerempuan, setRegMinAgePerempuan] = useState("");
    const [isClosed, setIsClosed] = useState(false);
    const [kegiatanList, setKegiatanList] = useState<KegiatanOption[]>([]);
    const [selectedKegiatanId, setSelectedKegiatanId] = useState("");
@@ -153,6 +155,8 @@ export default function MandiriPage() {
             setRegStatusPeserta(s.mandiri_registration_status_peserta || "Utusan Daerah");
             setRegGender(s.mandiri_registration_gender || "Semua");
             setRegQuota(s.mandiri_registration_quota || "0");
+            setRegMinAgeLaki(s.mandiri_registration_min_age_laki || "");
+            setRegMinAgePerempuan(s.mandiri_registration_min_age_perempuan || "");
 
             const kList = await kegiatanRes.json();
             if (Array.isArray(kList)) {
@@ -231,6 +235,16 @@ export default function MandiriPage() {
              <label class="form-label">Masukkan Kuota Manual (Total Peserta per Daerah)</label>
              <input type="number" id="swal-manual-quota" class="form-control" placeholder="Contoh: 15" style="width: 100%; box-sizing: border-box;" value="${!["0", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"].includes(regQuota) && regQuota !== "" ? regQuota : ""}" />
           </div>
+          <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+             <div style="flex: 1;">
+                 <label class="form-label">Minimal Usia Laki-Laki</label>
+                 <input type="number" id="swal-min-age-laki" class="form-control" style="width: 100%; box-sizing: border-box;" value="${regMinAgeLaki}" placeholder="Contoh: 20" />
+             </div>
+             <div style="flex: 1;">
+                 <label class="form-label">Minimal Usia Perempuan</label>
+                 <input type="number" id="swal-min-age-perempuan" class="form-control" style="width: 100%; box-sizing: border-box;" value="${regMinAgePerempuan}" placeholder="Contoh: 18" />
+             </div>
+          </div>
         </div>
       `,
          focusConfirm: false,
@@ -253,7 +267,9 @@ export default function MandiriPage() {
                desc: (document.getElementById("swal-desc") as HTMLTextAreaElement).value,
                status: (document.getElementById("swal-status") as HTMLSelectElement).value,
                gender: (document.getElementById("swal-gender") as HTMLSelectElement).value,
-               quota: finalQuota
+               quota: finalQuota,
+               minAgeLaki: (document.getElementById("swal-min-age-laki") as HTMLInputElement).value,
+               minAgePerempuan: (document.getElementById("swal-min-age-perempuan") as HTMLInputElement).value
             };
          },
          footer: "Nama & deskripsi akan muncul di form publik"
@@ -286,6 +302,16 @@ export default function MandiriPage() {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ key: "mandiri_registration_quota", value: formValues.quota }),
+               }),
+               fetch("/api/mandiri/settings", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ key: "mandiri_registration_min_age_laki", value: formValues.minAgeLaki }),
+               }),
+               fetch("/api/mandiri/settings", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ key: "mandiri_registration_min_age_perempuan", value: formValues.minAgePerempuan }),
                })
             ];
 
@@ -307,6 +333,8 @@ export default function MandiriPage() {
             setRegStatus(formValues.status);
             setRegGender(formValues.gender);
             setRegQuota(formValues.quota);
+            setRegMinAgeLaki(formValues.minAgeLaki);
+            setRegMinAgePerempuan(formValues.minAgePerempuan);
             setIsClosed(formValues.status === "0");
             if (formValues.id) setSelectedKegiatanId(formValues.id);
             Swal.fire({ icon: "success", title: "Berhasil disimpan", timer: 1000, showConfirmButton: false });
@@ -462,8 +490,8 @@ export default function MandiriPage() {
       }
 
       const res = await Swal.fire({
-         title: "Hapus Semua Peserta?",
-         text: "Semua data registrasi dan akun peserta untuk kegiatan ini akan dihapus secara permanen. Anda tidak dapat mengembalikan tindakan ini!",
+         title: "Hapus Semua Peserta & Panitia?",
+         text: "Semua data registrasi dan akun peserta serta panitia untuk kegiatan ini akan dihapus secara permanen. Anda tidak dapat mengembalikan tindakan ini!",
          icon: "warning",
          showCancelButton: true,
          confirmButtonColor: "#ef4444",

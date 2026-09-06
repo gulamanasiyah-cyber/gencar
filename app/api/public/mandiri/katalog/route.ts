@@ -85,6 +85,13 @@ export async function GET(request: NextRequest) {
     const kriteria = searchParams.get("kriteria") || "all";
     const hobi = searchParams.get("hobi") || "all";
     const makanan = searchParams.get("makanan") || "all";
+    const suku = searchParams.get("suku") || "all";
+    const anakKe = searchParams.get("anakKe") || "";
+    const jumlahSaudara = searchParams.get("jumlahSaudara") || "";
+    const tinggiMin = searchParams.get("tinggiMin") || "";
+    const tinggiMax = searchParams.get("tinggiMax") || "";
+    const umurMin = searchParams.get("umurMin") || "";
+    const umurMax = searchParams.get("umurMax") || "";
     const onlyChosen = searchParams.get("onlyChosen") === "true";
 
     // Build conditions
@@ -169,6 +176,26 @@ export async function GET(request: NextRequest) {
       conditions.push(like(generus.makananMinumanFavorit, `%${makanan}%`));
     }
 
+    if (suku && suku !== "all") {
+      conditions.push(eq(generus.suku, suku));
+    }
+
+    if (anakKe !== "") {
+      conditions.push(eq(generus.anakKe, Number(anakKe)));
+    }
+
+    if (jumlahSaudara !== "") {
+      conditions.push(eq(generus.jumlahSaudara, Number(jumlahSaudara)));
+    }
+
+    if (tinggiMin !== "" && !isNaN(Number(tinggiMin))) {
+      conditions.push(sql`${generus.tinggiBadan} >= ${Number(tinggiMin)}`);
+    }
+
+    if (tinggiMax !== "" && !isNaN(Number(tinggiMax))) {
+      conditions.push(sql`${generus.tinggiBadan} <= ${Number(tinggiMax)}`);
+    }
+
     if (kriteria && kriteria !== "all") {
       conditions.push(like(generus.kriteriaPasangan, `%${kriteria}%`));
     }
@@ -184,6 +211,13 @@ export async function GET(request: NextRequest) {
       } else {
         // Exact age
         conditions.push(sql`cast(strftime('%Y', 'now') as integer) - cast(strftime('%Y', ${generus.tanggalLahir}) as integer) = ${Number(umur)}`);
+      }
+    } else {
+      if (umurMin !== "" && !isNaN(Number(umurMin))) {
+        conditions.push(sql`cast(strftime('%Y', 'now') as integer) - cast(strftime('%Y', ${generus.tanggalLahir}) as integer) >= ${Number(umurMin)}`);
+      }
+      if (umurMax !== "" && !isNaN(Number(umurMax))) {
+        conditions.push(sql`cast(strftime('%Y', 'now') as integer) - cast(strftime('%Y', ${generus.tanggalLahir}) as integer) <= ${Number(umurMax)}`);
       }
     }
 
@@ -231,6 +265,9 @@ export async function GET(request: NextRequest) {
         kategoriUsia: generus.kategoriUsia,
         statusNikah: generus.statusNikah,
         suku: generus.suku,
+        anakKe: generus.anakKe,
+        jumlahSaudara: generus.jumlahSaudara,
+        tinggiBadan: generus.tinggiBadan,
         foto: generus.foto,
         desaNama: desa.nama,
         kelompokNama: kelompok.nama,

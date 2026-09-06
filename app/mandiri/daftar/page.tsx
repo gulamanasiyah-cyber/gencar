@@ -33,6 +33,9 @@ export default function MandiriDaftarPage() {
     hobi: "",
     makananMinumanFavorit: "",
     suku: "",
+    anakKe: "",
+    jumlahSaudara: "",
+    tinggiBadan: "",
     foto: "",
     mandiriDesaId: "",
     mandiriKelompokId: "",
@@ -56,6 +59,7 @@ export default function MandiriDaftarPage() {
   const [regStatus, setRegStatus] = useState("1");
   const [regTitle, setRegTitle] = useState("");
   const [regDesc, setRegDesc] = useState("");
+  const [regLocation, setRegLocation] = useState("");
   const [regStatusPeserta, setRegStatusPeserta] = useState("Utusan Daerah");
   const [regGender, setRegGender] = useState("Semua");
   const [agreed, setAgreed] = useState(false);
@@ -123,6 +127,12 @@ export default function MandiriDaftarPage() {
         if (d.value) setRegDesc(d.value);
       });
 
+    fetch("/api/public/mandiri/settings?key=mandiri_registration_location")
+      .then(r => r.json())
+      .then(d => {
+        if (d.value) setRegLocation(d.value);
+      });
+
 
     Promise.all([
       fetch("/api/public/mandiri/desa").then((r) => r.json()),
@@ -143,63 +153,170 @@ export default function MandiriDaftarPage() {
     const parts = text.split(urlRegex);
     return parts.map((part, i) => {
       if (part.match(urlRegex)) {
-        return <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: "#3b82f6", textDecoration: "underline" }}>{part}</a>;
+        return (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "#3b82f6", textDecoration: "underline", fontWeight: 600 }}
+          >
+            {part}
+          </a>
+        );
       }
       return part;
     });
   };
 
-  const renderEnhancedDescription = (text: string) => {
-    if (!text) return null;
+  const handleOpenGmaps = (rawInput: string, placeName?: string | null) => {
+    if (!rawInput) return;
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isAndroid = /Android/i.test(navigator.userAgent);
 
-    // Check if it contains our markers
+    const cleanInput = rawInput.trim();
+    const isUrl = cleanInput.startsWith("http://") || cleanInput.startsWith("https://");
+
+    if (isUrl) {
+      const coordMatch =
+        cleanInput.match(/@([-\d.]+),([-\d.]+)/) ||
+        cleanInput.match(/[?&]ll=([-\d.]+),([-\d.]+)/) ||
+        cleanInput.match(/[?&]q=([-\d.]+),([-\d.]+)/);
+
+      if (coordMatch) {
+        const lat = coordMatch[1];
+        const lng = coordMatch[2];
+        const label = encodeURIComponent(placeName || 'Lokasi Acara');
+
+        if (isIOS) {
+          window.location.href = `comgooglemaps://?q=${lat},${lng}&zoom=15`;
+          setTimeout(() => {
+            window.open(`https://maps.apple.com/?q=${lat},${lng}&ll=${lat},${lng}`, '_blank');
+          }, 600);
+        } else if (isAndroid) {
+          window.location.href = `geo:${lat},${lng}?q=${lat},${lng}(${label})`;
+        } else {
+          window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank', 'noopener,noreferrer');
+        }
+      } else if (placeName) {
+        const encodedPlace = encodeURIComponent(placeName);
+        if (isIOS) {
+          window.location.href = `comgooglemaps://?q=${encodedPlace}`;
+        } else if (isAndroid) {
+          window.location.href = `geo:0,0?q=${encodedPlace}`;
+        } else {
+          window.open(`https://www.google.com/maps/search/?api=1&query=${encodedPlace}`, '_blank', 'noopener,noreferrer');
+        }
+      } else {
+        window.open(cleanInput, '_blank', 'noopener,noreferrer');
+      }
+    } else {
+      const encodedPlace = encodeURIComponent(cleanInput);
+      if (isIOS) {
+        window.location.href = `comgooglemaps://?q=${encodedPlace}`;
+      } else if (isAndroid) {
+        window.location.href = `geo:0,0?q=${encodedPlace}`;
+      } else {
+        window.open(`https://www.google.com/maps/search/?api=1&query=${encodedPlace}`, '_blank', 'noopener,noreferrer');
+      }
+    }
+  };
+
+  const renderEnhancedDescription = (text: string) => {
+    if (!text && !regLocation) return null;
+
+    let rawGmapsLoc = regLocation;
+    let gmapsMatch = (text || "").match(/Link Gmaps\s*:\s*([^\n]+)/i);
+    if (gmapsMatch && gmapsMatch[1]) {
+      if (!rawGmapsLoc) rawGmapsLoc = gmapsMatch[1].trim();
+    }
+
+    let cleanText = (text || "").replace(/Link Gmaps\s*:\s*[^\n]*/gi, "").trim();
+    const urlMatch = cleanText.match(/(https?:\/\/[^\s]+)/);
+    if (!rawGmapsLoc && urlMatch) {
+      rawGmapsLoc = urlMatch[1];
+    }
+
     const markers = ["Tanggal Acara :", "Waktu Acara :", "Tempat Acara :"];
-    const hasMarkers = markers.some(m => text.includes(m));
+    const hasMarkers = markers.some(m => cleanText.includes(m));
 
     if (!hasMarkers) {
       return (
-        <div style={{ fontSize: "14px", color: "var(--text-muted)", lineHeight: "1.6", padding: "0 10px" }}>
-          {renderTextWithLinks(text)}
+        <div style={{ padding: "0 10px", textAlign: "center" }}>
+          {cleanText && (
+            <div style={{ fontSize: "14px", color: "var(--text-muted)", lineHeight: "1.6", marginBottom: rawGmapsLoc ? "16px" : "0" }}>
+              {renderTextWithLinks(cleanText)}
+            </div>
+          )}
+          {rawGmapsLoc && (
+            <button
+              type="button"
+              onClick={() => handleOpenGmaps(rawGmapsLoc)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                background: '#3b82f6',
+                color: 'white',
+                padding: '12px 18px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: '700',
+                textDecoration: 'none',
+                justifyContent: 'center',
+                margin: '10px auto 0 auto',
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)',
+                border: 'none',
+                cursor: 'pointer',
+                width: '100%',
+                maxWidth: '360px'
+              }}
+            >
+              <ExternalLink size={16} /> Lihat Lokasi di Google Maps
+            </button>
+          )}
         </div>
       );
     }
 
-    let mainText = text;
+    let mainText = cleanText;
     let firstMarkerIndex = -1;
     markers.forEach(m => {
-      const idx = text.indexOf(m);
+      const idx = cleanText.indexOf(m);
       if (idx !== -1 && (firstMarkerIndex === -1 || idx < firstMarkerIndex)) {
         firstMarkerIndex = idx;
       }
     });
 
     if (firstMarkerIndex !== -1) {
-      mainText = text.substring(0, firstMarkerIndex).trim();
+      mainText = cleanText.substring(0, firstMarkerIndex).trim();
     }
 
-    // Extracting details using regex
-    const dateMatch = text.match(/Tanggal Acara\s*:\s*(.*?)(?=\s*(?:Waktu Acara|Tempat Acara|https?:\/\/|$))/);
-    const timeMatch = text.match(/Waktu Acara\s*:\s*(.*?)(?=\s*(?:Tanggal Acara|Tempat Acara|https?:\/\/|$))/);
-    const placeMatch = text.match(/Tempat Acara\s*:\s*(.*?)(?=\s*(?:Tanggal Acara|Waktu Acara|https?:\/\/|$))/);
-    const urlMatch = text.match(/(https?:\/\/[^\s]+)/);
+    const dateMatch = cleanText.match(/Tanggal Acara\s*:\s*(.*?)(?=\s*(?:Waktu Acara|Tempat Acara|https?:\/\/|$))/);
+    const timeMatch = cleanText.match(/Waktu Acara\s*:\s*(.*?)(?=\s*(?:Tanggal Acara|Tempat Acara|https?:\/\/|$))/);
+    const placeMatch = cleanText.match(/Tempat Acara\s*:\s*(.*?)(?=\s*(?:Tanggal Acara|Waktu Acara|https?:\/\/|$))/);
 
     const details = [];
     if (dateMatch) details.push({ icon: Calendar, label: "Tanggal", value: dateMatch[1].trim() });
     if (timeMatch) details.push({ icon: Clock, label: "Waktu", value: timeMatch[1].trim() });
     if (placeMatch) details.push({ icon: MapPin, label: "Tempat", value: placeMatch[1].trim() });
 
+    const effectiveGmapsTarget = rawGmapsLoc || (urlMatch ? urlMatch[1] : null);
+
     return (
       <div style={{ textAlign: 'left' }}>
-        <p style={{
-          fontSize: "14px",
-          color: "var(--text-muted)",
-          lineHeight: "1.6",
-          padding: "0 10px",
-          textAlign: 'center',
-          marginBottom: '20px'
-        }}>
-          {mainText}
-        </p>
+        {mainText && (
+          <p style={{
+            fontSize: "14px",
+            color: "var(--text-muted)",
+            lineHeight: "1.6",
+            padding: "0 10px",
+            textAlign: 'center',
+            marginBottom: '20px'
+          }}>
+            {mainText}
+          </p>
+        )}
 
         <div style={{
           background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
@@ -251,66 +368,10 @@ export default function MandiriDaftarPage() {
             </div>
           ))}
 
-          {urlMatch && (
+          {effectiveGmapsTarget && (
             <button
               type="button"
-              onClick={() => {
-                const rawUrl = urlMatch[1];
-                const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-                const isAndroid = /Android/i.test(navigator.userAgent);
-
-                // Extract coordinates from URL (e.g., @-7.123,112.456 or ll= or q=)
-                const coordMatch =
-                  rawUrl.match(/@([-\d.]+),([-\d.]+)/) ||
-                  rawUrl.match(/[?&]ll=([-\d.]+),([-\d.]+)/) ||
-                  rawUrl.match(/[?&]q=([-\d.]+),([-\d.]+)/);
-
-                // Use the Tempat Acara value as the place search query
-                const placeName = placeMatch ? placeMatch[1].trim() : null;
-
-                if (coordMatch) {
-                  const lat = coordMatch[1];
-                  const lng = coordMatch[2];
-                  const label = encodeURIComponent(placeName || 'Lokasi Acara');
-
-                  if (isIOS) {
-                    // comgooglemaps:// is the native scheme — Google Maps app handles it correctly
-                    // Fallback to Apple Maps after 500ms if app not installed
-                    window.location.href = `comgooglemaps://?q=${lat},${lng}&zoom=15`;
-                    setTimeout(() => {
-                      window.open(`https://maps.apple.com/?q=${lat},${lng}&ll=${lat},${lng}`, '_blank');
-                    }, 600);
-                  } else if (isAndroid) {
-                    // geo: URI is handled natively by any Maps app on Android
-                    window.location.href = `geo:${lat},${lng}?q=${lat},${lng}(${label})`;
-                  } else {
-                    window.open(
-                      `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
-                      '_blank',
-                      'noopener,noreferrer'
-                    );
-                  }
-                } else if (placeName) {
-                  // No coordinates found — use place name to search directly via native scheme
-                  // This AVOIDS Universal Link interception (maps.app.goo.gl → Maps app rejection)
-                  const encodedPlace = encodeURIComponent(placeName);
-
-                  if (isIOS) {
-                    window.location.href = `comgooglemaps://?q=${encodedPlace}`;
-                  } else if (isAndroid) {
-                    window.location.href = `geo:0,0?q=${encodedPlace}`;
-                  } else {
-                    window.open(
-                      `https://www.google.com/maps/search/?api=1&query=${encodedPlace}`,
-                      '_blank',
-                      'noopener,noreferrer'
-                    );
-                  }
-                } else {
-                  // Last resort: open raw URL in new tab (desktop or unknown device)
-                  window.open(rawUrl, '_blank', 'noopener,noreferrer');
-                }
-              }}
+              onClick={() => handleOpenGmaps(effectiveGmapsTarget, placeMatch ? placeMatch[1].trim() : null)}
               style={{
                 marginTop: '8px',
                 display: 'flex',
@@ -333,7 +394,7 @@ export default function MandiriDaftarPage() {
               onMouseOver={(e) => e.currentTarget.style.background = '#2563eb'}
               onMouseOut={(e) => e.currentTarget.style.background = '#3b82f6'}
             >
-              <ExternalLink size={16} /> Lihat Lokasi di Maps
+              <ExternalLink size={16} /> Lihat Lokasi di Google Maps
             </button>
           )}
         </div>
@@ -411,7 +472,7 @@ export default function MandiriDaftarPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      if (!form.nama || !form.jenisKelamin || !form.mandiriDesaId || !form.mandiriKelompokId || !form.tempatLahir || !form.tanggalLahir || !form.noTelp || !form.pendidikan || !form.pekerjaan || !form.hobi || !form.makananMinumanFavorit) {
+      if (!form.nama || !form.jenisKelamin || !form.mandiriDesaId || !form.mandiriKelompokId || !form.tempatLahir || !form.tanggalLahir || !form.noTelp || !form.pendidikan || !form.pekerjaan || !form.hobi || !form.anakKe || !form.jumlahSaudara || !form.tinggiBadan) {
         Swal.fire({ icon: "warning", title: "Data Belum Lengkap", text: "Mohon lengkapi semua data wajib yang bertanda bintang (*)." });
         setLoading(false);
         return;
@@ -874,9 +935,25 @@ export default function MandiriDaftarPage() {
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Suku <span className="required">*</span></label>
-                <input name="suku" className="form-control" value={form.suku} onChange={handleChange} required placeholder="Betawi / Jawa / dll" />
+                <label className="form-label">Suku (Opsional)</label>
+                <input name="suku" className="form-control" value={form.suku} onChange={handleChange} placeholder="Betawi / Jawa / dll" />
               </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Anak Ke <span className="required">*</span></label>
+                <input type="number" name="anakKe" className="form-control" value={form.anakKe} onChange={handleChange} required placeholder="Contoh: 1" min={1} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Dari Saudara <span className="required">*</span></label>
+                <input type="number" name="jumlahSaudara" className="form-control" value={form.jumlahSaudara} onChange={handleChange} required placeholder="Contoh: 3" min={1} />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Tinggi Badan (cm) <span className="required">*</span></label>
+              <input type="number" name="tinggiBadan" className="form-control" value={form.tinggiBadan} onChange={handleChange} required placeholder="Contoh: 165" min={100} max={250} />
             </div>
 
             {/* --- SEKSI 2: KONTAK & DOMISILI --- */}
@@ -927,10 +1004,6 @@ export default function MandiriDaftarPage() {
               />
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Alamat Lengkap</label>
-              <textarea name="alamat" className="form-control" value={form.alamat} onChange={handleChange} placeholder="Alamat saat ini (opsional)" rows={2} style={{ minHeight: "80px" }} />
-            </div>
 
             {/* --- SEKSI 3: LATAR BELAKANG --- */}
             <h3 className="section-title" style={{ marginTop: "24px", marginBottom: "16px" }}>Latar Belakang & Minat</h3>
@@ -955,8 +1028,8 @@ export default function MandiriDaftarPage() {
                 <input name="hobi" className="form-control" value={form.hobi} onChange={handleChange} required placeholder="Hobi anda" />
               </div>
               <div className="form-group">
-                <label className="form-label">Favorit Makanan/Minuman <span className="required">*</span></label>
-                <input name="makananMinumanFavorit" className="form-control" value={form.makananMinumanFavorit} onChange={handleChange} required placeholder="Sate / Jus / dll" />
+                <label className="form-label">Favorit Makanan/Minuman (Opsional)</label>
+                <input name="makananMinumanFavorit" className="form-control" value={form.makananMinumanFavorit} onChange={handleChange} placeholder="Sate / Jus / dll" />
               </div>
             </div>
 

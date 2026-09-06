@@ -49,18 +49,43 @@ export async function POST(request: NextRequest) {
     const {
         nama, jenisKelamin, tempatLahir, tanggalLahir,
         alamat, noTelp, pendidikan, pekerjaan, statusNikah,
-        hobi, makananMinumanFavorit, suku, foto,
+        hobi, makananMinumanFavorit, suku, foto, anakKe, jumlahSaudara, tinggiBadan,
         mandiriDesaId, mandiriKelompokId, instagram,
         statusPeserta, dibayarkanSenilai, buktiPembayaran,
         kriteriaPasangan
     } = body;
 
-    if (!nama || !jenisKelamin || !mandiriDesaId || !tempatLahir || !tanggalLahir || !noTelp || !pendidikan || !pekerjaan || !hobi || !makananMinumanFavorit || !foto) {
+    if (!nama || !jenisKelamin || !mandiriDesaId || !tempatLahir || !tanggalLahir || !noTelp || !pendidikan || !pekerjaan || !hobi || !foto) {
       return NextResponse.json({ error: "Mohon lengkapi semua data wajib." }, { status: 400 });
     }
 
     if (!isMandiriJenisKelamin(jenisKelamin)) {
       return NextResponse.json({ error: "Jenis kelamin tidak valid. Gunakan L atau P." }, { status: 400 });
+    }
+
+    // Minimum Age Validation
+    const minAgeLakiSet = await db.select().from(settings).where(eq(settings.key, "mandiri_registration_min_age_laki"));
+    const minAgeLaki = Number(minAgeLakiSet[0]?.value || "0");
+    
+    const minAgePerempuanSet = await db.select().from(settings).where(eq(settings.key, "mandiri_registration_min_age_perempuan"));
+    const minAgePerempuan = Number(minAgePerempuanSet[0]?.value || "0");
+
+    const birthDate = new Date(tanggalLahir);
+    if (!isNaN(birthDate.getTime())) {
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+
+        if (jenisKelamin === "L" && minAgeLaki > 0 && age < minAgeLaki) {
+            return NextResponse.json({ error: `Usia belum mencukupi. Minimal usia laki-laki adalah ${minAgeLaki} tahun.` }, { status: 400 });
+        }
+        
+        if (jenisKelamin === "P" && minAgePerempuan > 0 && age < minAgePerempuan) {
+            return NextResponse.json({ error: `Usia belum mencukupi. Minimal usia perempuan adalah ${minAgePerempuan} tahun.` }, { status: 400 });
+        }
     }
 
     if (statusPeserta === "Person" && (!dibayarkanSenilai || !buktiPembayaran)) {
@@ -157,6 +182,9 @@ export async function POST(request: NextRequest) {
             nama, jenisKelamin, tempatLahir, tanggalLahir,
             alamat, noTelp, pendidikan, pekerjaan, statusNikah: statusNikah || "Belum Menikah",
             hobi, makananMinumanFavorit, suku, foto,
+            anakKe: anakKe ? Number(anakKe) : null,
+            jumlahSaudara: jumlahSaudara ? Number(jumlahSaudara) : null,
+            tinggiBadan: tinggiBadan ? Number(tinggiBadan) : null,
             mandiriDesaId: mandiriDesaId ? Number(mandiriDesaId) : null,
             mandiriKelompokId: mandiriKelompokId ? Number(mandiriKelompokId) : null,
             instagram: instagram || duplicate.instagram, 
@@ -229,6 +257,9 @@ export async function POST(request: NextRequest) {
       hobi,
       makananMinumanFavorit,
       suku,
+      anakKe: anakKe ? Number(anakKe) : null,
+      jumlahSaudara: jumlahSaudara ? Number(jumlahSaudara) : null,
+      tinggiBadan: tinggiBadan ? Number(tinggiBadan) : null,
       foto,
       desaId: defaultDesaId,
       kelompokId: defaultKelompokId,

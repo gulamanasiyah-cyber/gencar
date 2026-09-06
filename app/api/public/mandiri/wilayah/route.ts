@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriDaerah, mandiriDesa, mandiriKelompok } from "@/lib/schema";
+import { mandiriDaerah, mandiriDesa, mandiriKelompok, settings, mandiriKegiatanDaerah } from "@/lib/schema";
 import { eq, and } from "drizzle-orm";
 
 export async function POST(request: NextRequest) {
@@ -13,17 +13,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Nama wajib diisi" }, { status: 400 });
     }
 
+    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+    const activeKegiatanId = activeSetting[0]?.value;
+
     if (type === "daerah") {
+      let daerahId = null;
+      let daerahNama = nama.trim();
+
       const existing = await db.select()
         .from(mandiriDaerah)
         .where(eq(mandiriDaerah.nama, nama.trim()))
         .limit(1);
-      if (existing.length > 0) {
-        return NextResponse.json({ id: existing[0].id, nama: existing[0].nama });
-      }
       
-      const result = await db.insert(mandiriDaerah).values({ nama: nama.trim() }).returning({ id: mandiriDaerah.id });
-      return NextResponse.json({ id: result[0].id, nama: nama.trim() });
+      if (existing.length > 0) {
+        daerahId = existing[0].id;
+      } else {
+        const result = await db.insert(mandiriDaerah).values({ nama: nama.trim() }).returning({ id: mandiriDaerah.id });
+        daerahId = result[0].id;
+      }
+
+      if (activeKegiatanId && daerahId) {
+        const existingMapping = await db.select()
+          .from(mandiriKegiatanDaerah)
+          .where(and(
+            eq(mandiriKegiatanDaerah.daerahId, daerahId),
+            eq(mandiriKegiatanDaerah.kegiatanId, activeKegiatanId)
+          ))
+          .limit(1);
+        
+        if (existingMapping.length === 0) {
+          const { v4: uuidv4 } = require("uuid");
+          await db.insert(mandiriKegiatanDaerah).values({
+            id: uuidv4(),
+            kegiatanId: activeKegiatanId,
+            daerahId: daerahId,
+            isActive: 0, // Pending verification
+          });
+        }
+      }
+
+      return NextResponse.json({ id: daerahId, nama: daerahNama });
     }
 
     if (type === "desa") {

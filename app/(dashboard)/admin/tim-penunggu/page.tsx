@@ -409,7 +409,7 @@ export default function AdminTimPenungguPage() {
               </div>
 
               <div className="form-group" style={{ marginBottom: "16px" }}>
-                <label className="form-label">Daerah (Mandiri Daerah) *</label>
+                <label className="form-label">Daerah *</label>
                 <select
                   className="form-control"
                   value={form.daerahId}
@@ -426,7 +426,7 @@ export default function AdminTimPenungguPage() {
               </div>
 
               <div className="form-group" style={{ marginBottom: "24px" }}>
-                <label className="form-label">Desa (Mandiri Desa) *</label>
+                <label className="form-label">Desa *</label>
                 <select
                   className="form-control"
                   value={form.desaId}

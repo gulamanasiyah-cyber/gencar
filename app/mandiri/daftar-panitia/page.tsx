@@ -6,6 +6,7 @@
 import { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import Link from "next/link";
+import { Calendar, Clock, MapPin, ExternalLink } from "lucide-react";
 import PhotoUpload from "@/components/mandiri/PhotoUpload";
 import QRCode from "qrcode";
 
@@ -27,6 +28,9 @@ export default function PanitiaDaftarPage() {
     hobi: "",
     makananMinumanFavorit: "",
     suku: "",
+    anakKe: "",
+    jumlahSaudara: "",
+    tinggiBadan: "",
     foto: "",
     mandiriDesaId: "",
     mandiriKelompokId: "",
@@ -49,6 +53,7 @@ export default function PanitiaDaftarPage() {
   const [isClosed, setIsClosed] = useState(false);
   const [regTitle, setRegTitle] = useState("");
   const [regDesc, setRegDesc] = useState("");
+  const [regLocation, setRegLocation] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [regGender, setRegGender] = useState("Semua");
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
@@ -79,14 +84,16 @@ export default function PanitiaDaftarPage() {
       fetch("/api/public/mandiri/settings?key=mandiri_registration_title").then(r => r.json()),
       fetch("/api/public/mandiri/settings?key=mandiri_registration_description").then(r => r.json()),
       fetch("/api/public/mandiri/settings?key=mandiri_registration_gender").then(r => r.json()),
+      fetch("/api/public/mandiri/settings?key=mandiri_registration_location").then(r => r.json()),
       fetch("/api/public/mandiri/desa").then((r) => r.json()),
       fetch("/api/public/mandiri/kelompok").then((r) => r.json()),
-    ]).then(([panitiaStatus, mainStatus, title, desc, gender, daerahs, desas]) => {
+    ]).then(([panitiaStatus, mainStatus, title, desc, gender, loc, daerahs, desas]) => {
       if (panitiaStatus.value === "0" || mainStatus.value === "0") {
         setIsClosed(true);
       }
       if (title?.value) setRegTitle(title.value);
       if (desc?.value) setRegDesc(desc.value);
+      if (loc?.value) setRegLocation(loc.value);
       if (gender?.value) {
          setRegGender(gender.value);
          if (gender.value === "Laki-laki") setForm(prev => ({...prev, jenisKelamin: "L"}));
@@ -101,6 +108,261 @@ export default function PanitiaDaftarPage() {
     });
   }, []);
 
+
+  const renderTextWithLinks = (text: string) => {
+    if (!text) return text;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+    return parts.map((part, i) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "#3b82f6", textDecoration: "underline", fontWeight: 600 }}
+          >
+            {part}
+          </a>
+        );
+      }
+      return part;
+    });
+  };
+
+  const handleOpenGmaps = (rawInput: string, placeName?: string | null) => {
+    if (!rawInput) return;
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isAndroid = /Android/i.test(navigator.userAgent);
+
+    const cleanInput = rawInput.trim();
+    const isUrl = cleanInput.startsWith("http://") || cleanInput.startsWith("https://");
+
+    if (isUrl) {
+      const coordMatch =
+        cleanInput.match(/@([-\d.]+),([-\d.]+)/) ||
+        cleanInput.match(/[?&]ll=([-\d.]+),([-\d.]+)/) ||
+        cleanInput.match(/[?&]q=([-\d.]+),([-\d.]+)/);
+
+      if (coordMatch) {
+        const lat = coordMatch[1];
+        const lng = coordMatch[2];
+        const label = encodeURIComponent(placeName || 'Lokasi Acara');
+
+        if (isIOS) {
+          window.location.href = `comgooglemaps://?q=${lat},${lng}&zoom=15`;
+          setTimeout(() => {
+            window.open(`https://maps.apple.com/?q=${lat},${lng}&ll=${lat},${lng}`, '_blank');
+          }, 600);
+        } else if (isAndroid) {
+          window.location.href = `geo:${lat},${lng}?q=${lat},${lng}(${label})`;
+        } else {
+          window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank', 'noopener,noreferrer');
+        }
+      } else if (placeName) {
+        const encodedPlace = encodeURIComponent(placeName);
+        if (isIOS) {
+          window.location.href = `comgooglemaps://?q=${encodedPlace}`;
+        } else if (isAndroid) {
+          window.location.href = `geo:0,0?q=${encodedPlace}`;
+        } else {
+          window.open(`https://www.google.com/maps/search/?api=1&query=${encodedPlace}`, '_blank', 'noopener,noreferrer');
+        }
+      } else {
+        window.open(cleanInput, '_blank', 'noopener,noreferrer');
+      }
+    } else {
+      const encodedPlace = encodeURIComponent(cleanInput);
+      if (isIOS) {
+        window.location.href = `comgooglemaps://?q=${encodedPlace}`;
+      } else if (isAndroid) {
+        window.location.href = `geo:0,0?q=${encodedPlace}`;
+      } else {
+        window.open(`https://www.google.com/maps/search/?api=1&query=${encodedPlace}`, '_blank', 'noopener,noreferrer');
+      }
+    }
+  };
+
+  const renderEnhancedDescription = (text: string) => {
+    if (!text && !regLocation) return null;
+
+    let rawGmapsLoc = regLocation;
+    let gmapsMatch = (text || "").match(/Link Gmaps\s*:\s*([^\n]+)/i);
+    if (gmapsMatch && gmapsMatch[1]) {
+      if (!rawGmapsLoc) rawGmapsLoc = gmapsMatch[1].trim();
+    }
+
+    let cleanText = (text || "").replace(/Link Gmaps\s*:\s*[^\n]*/gi, "").trim();
+    const urlMatch = cleanText.match(/(https?:\/\/[^\s]+)/);
+    if (!rawGmapsLoc && urlMatch) {
+      rawGmapsLoc = urlMatch[1];
+    }
+
+    const markers = ["Tanggal Acara :", "Waktu Acara :", "Tempat Acara :"];
+    const hasMarkers = markers.some(m => cleanText.includes(m));
+
+    if (!hasMarkers) {
+      return (
+        <div style={{ padding: "0 10px", textAlign: "center" }}>
+          {cleanText && (
+            <div style={{ fontSize: "14px", color: "var(--text-muted)", lineHeight: "1.6", marginBottom: rawGmapsLoc ? "16px" : "0" }}>
+              {renderTextWithLinks(cleanText)}
+            </div>
+          )}
+          {rawGmapsLoc && (
+            <button
+              type="button"
+              onClick={() => handleOpenGmaps(rawGmapsLoc)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                background: '#3b82f6',
+                color: 'white',
+                padding: '12px 18px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: '700',
+                textDecoration: 'none',
+                justifyContent: 'center',
+                margin: '10px auto 0 auto',
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)',
+                border: 'none',
+                cursor: 'pointer',
+                width: '100%',
+                maxWidth: '360px'
+              }}
+            >
+              <ExternalLink size={16} /> Lihat Lokasi di Google Maps
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    let mainText = cleanText;
+    let firstMarkerIndex = -1;
+    markers.forEach(m => {
+      const idx = cleanText.indexOf(m);
+      if (idx !== -1 && (firstMarkerIndex === -1 || idx < firstMarkerIndex)) {
+        firstMarkerIndex = idx;
+      }
+    });
+
+    if (firstMarkerIndex !== -1) {
+      mainText = cleanText.substring(0, firstMarkerIndex).trim();
+    }
+
+    const dateMatch = cleanText.match(/Tanggal Acara\s*:\s*(.*?)(?=\s*(?:Waktu Acara|Tempat Acara|https?:\/\/|$))/);
+    const timeMatch = cleanText.match(/Waktu Acara\s*:\s*(.*?)(?=\s*(?:Tanggal Acara|Tempat Acara|https?:\/\/|$))/);
+    const placeMatch = cleanText.match(/Tempat Acara\s*:\s*(.*?)(?=\s*(?:Tanggal Acara|Waktu Acara|https?:\/\/|$))/);
+
+    const details = [];
+    if (dateMatch) details.push({ icon: Calendar, label: "Tanggal", value: dateMatch[1].trim() });
+    if (timeMatch) details.push({ icon: Clock, label: "Waktu", value: timeMatch[1].trim() });
+    if (placeMatch) details.push({ icon: MapPin, label: "Tempat", value: placeMatch[1].trim() });
+
+    const effectiveGmapsTarget = rawGmapsLoc || (urlMatch ? urlMatch[1] : null);
+
+    return (
+      <div style={{ textAlign: 'left' }}>
+        {mainText && (
+          <p style={{
+            fontSize: "14px",
+            color: "var(--text-muted)",
+            lineHeight: "1.6",
+            padding: "0 10px",
+            textAlign: 'center',
+            marginBottom: '20px'
+          }}>
+            {mainText}
+          </p>
+        )}
+
+        <div style={{
+          background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+          borderRadius: '20px',
+          padding: '20px',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px',
+          margin: '0 10px'
+        }}>
+          {details.map((item, i) => (
+            <div key={i} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+              <div style={{
+                background: '#eff6ff',
+                padding: '10px',
+                borderRadius: '12px',
+                color: '#3b82f6',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.1)'
+              }}>
+                <item.icon size={18} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{
+                  fontSize: '11px',
+                  fontWeight: '800',
+                  color: '#94a3b8',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  marginBottom: '2px',
+                  marginTop: 0
+                }}>
+                  {item.label}
+                </p>
+                <p style={{
+                  fontSize: '14px',
+                  color: '#1e293b',
+                  fontWeight: '600',
+                  margin: 0,
+                  lineHeight: '1.4'
+                }}>
+                  {item.value}
+                </p>
+              </div>
+            </div>
+          ))}
+
+          {effectiveGmapsTarget && (
+            <button
+              type="button"
+              onClick={() => handleOpenGmaps(effectiveGmapsTarget, placeMatch ? placeMatch[1].trim() : null)}
+              style={{
+                marginTop: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                background: '#3b82f6',
+                color: 'white',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: '700',
+                textDecoration: 'none',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.25)',
+                border: 'none',
+                cursor: 'pointer',
+                width: '100%'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.background = '#2563eb'}
+              onMouseOut={(e) => e.currentTarget.style.background = '#3b82f6'}
+            >
+              <ExternalLink size={16} /> Lihat Lokasi di Google Maps
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   useEffect(() => {
     if (selectedKota) {
@@ -128,7 +390,7 @@ export default function PanitiaDaftarPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      if (!form.nama || !form.jenisKelamin || !form.mandiriDesaId || !form.mandiriKelompokId || !form.tempatLahir || !form.tanggalLahir || !form.noTelp || !form.pendidikan || !form.pekerjaan || !form.hobi || !form.makananMinumanFavorit) {
+      if (!form.nama || !form.jenisKelamin || !form.mandiriDesaId || !form.mandiriKelompokId || !form.tempatLahir || !form.tanggalLahir || !form.noTelp || !form.pendidikan || !form.pekerjaan || !form.hobi || !form.anakKe || !form.jumlahSaudara || !form.tinggiBadan) {
         Swal.fire({ icon: "warning", title: "Data Belum Lengkap", text: "Mohon lengkapi semua data wajib yang bertanda bintang (*)." });
         setLoading(false);
         return;
@@ -345,9 +607,11 @@ export default function PanitiaDaftarPage() {
           <h2 style={{ fontSize: "1.5rem", fontWeight: "800", color: "var(--text)", marginBottom: "12px" }}>
             {regTitle}
           </h2>
-          <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>
-            {regDesc}
-          </p>
+          {regDesc ? renderEnhancedDescription(regDesc) : (
+            <p style={{ fontSize: "14px", color: "var(--text-muted)" }}>
+              {regDesc}
+            </p>
+          )}
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -438,9 +702,25 @@ export default function PanitiaDaftarPage() {
                 <input name="pekerjaan" className="form-control" value={form.pekerjaan} onChange={handleChange} required placeholder="Pekerjaan saat ini" />
               </div>
               <div className="form-group">
-                <label className="form-label">Suku <span className="required">*</span></label>
-                <input name="suku" className="form-control" value={form.suku} onChange={handleChange} required placeholder="Betawi / Jawa / dll" />
+                <label className="form-label">Suku (Opsional)</label>
+                <input name="suku" className="form-control" value={form.suku} onChange={handleChange} placeholder="Betawi / Jawa / dll" />
               </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Anak Ke <span className="required">*</span></label>
+                <input type="number" name="anakKe" className="form-control" value={form.anakKe} onChange={handleChange} required placeholder="Contoh: 1" min={1} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Dari Saudara <span className="required">*</span></label>
+                <input type="number" name="jumlahSaudara" className="form-control" value={form.jumlahSaudara} onChange={handleChange} required placeholder="Contoh: 3" min={1} />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Tinggi Badan (cm) <span className="required">*</span></label>
+              <input type="number" name="tinggiBadan" className="form-control" value={form.tinggiBadan} onChange={handleChange} required placeholder="Contoh: 165" min={100} max={250} />
             </div>
 
             <div className="form-row">
@@ -449,8 +729,8 @@ export default function PanitiaDaftarPage() {
                 <input name="hobi" className="form-control" value={form.hobi} onChange={handleChange} required placeholder="Hobi anda" />
               </div>
               <div className="form-group">
-                <label className="form-label">Favorit Makanan/Minuman <span className="required">*</span></label>
-                <input name="makananMinumanFavorit" className="form-control" value={form.makananMinumanFavorit} onChange={handleChange} required placeholder="Sate / Jus / dll" />
+                <label className="form-label">Favorit Makanan/Minuman (Opsional)</label>
+                <input name="makananMinumanFavorit" className="form-control" value={form.makananMinumanFavorit} onChange={handleChange} placeholder="Sate / Jus / dll" />
               </div>
             </div>
 
@@ -474,10 +754,6 @@ export default function PanitiaDaftarPage() {
               </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Alamat Lengkap</label>
-              <textarea name="alamat" className="form-control" value={form.alamat} onChange={handleChange} placeholder="Alamat saat ini (opsional)" />
-            </div>
 
             <div className="form-group" style={{ padding: "15px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
               <div style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>

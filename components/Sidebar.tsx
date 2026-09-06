@@ -50,7 +50,6 @@ const navItems = [
     section: "Menu Utama",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: "grid" },
-      { href: "/statistik", label: "Statistik", icon: "bar-chart" },
     ],
   },
   {
@@ -113,7 +112,6 @@ const userNavs: Record<string, any[]> = {
       section: "Menu Utama",
       items: [
         { href: "/dashboard", label: "Dashboard", icon: "grid" },
-        { href: "/statistik", label: "Statistik", icon: "bar-chart" },
         { href: "/artikel", label: "Artikel", icon: "book-open" },
         { href: "/berita", label: "Berita", icon: "file-text" },
       ],
@@ -136,7 +134,6 @@ const userNavs: Record<string, any[]> = {
       section: "Menu Utama",
       items: [
         { href: "/dashboard", label: "Dashboard", icon: "grid" },
-        { href: "/statistik", label: "Statistik", icon: "bar-chart" },
       ],
     },
   ],
@@ -145,7 +142,6 @@ const userNavs: Record<string, any[]> = {
       section: "Menu Utama",
       items: [
         { href: "/dashboard", label: "Dashboard", icon: "grid" },
-        { href: "/statistik", label: "Statistik", icon: "bar-chart" },
       ],
     },
     {
@@ -183,7 +179,6 @@ const userNavs: Record<string, any[]> = {
       section: "Menu Utama",
       items: [
         { href: "/dashboard", label: "Dashboard", icon: "grid" },
-        { href: "/statistik", label: "Statistik", icon: "bar-chart" },
       ],
     },
     {
@@ -211,7 +206,6 @@ const userNavs: Record<string, any[]> = {
       section: "Menu Utama",
       items: [
         { href: "/dashboard", label: "Dashboard", icon: "grid" },
-        { href: "/statistik", label: "Statistik", icon: "bar-chart" },
         { href: "/mandiri/tim-gambuh", label: "Panel Tim PNKB & Ibu Gambuh", icon: "romantic" },
         { href: "/tim-gambuh/katalog", label: "Katalog Peserta", icon: "katalog" },
       ],

@@ -337,7 +337,7 @@ export default function StatistikPage() {
             </div>
             <div>
               <label className="form-label" style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)" }}>
-                Daerah (Mandiri)
+                Daerah
               </label>
               <select
                 className="form-control"
@@ -358,7 +358,7 @@ export default function StatistikPage() {
             </div>
             <div>
               <label className="form-label" style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--text-muted)" }}>
-                Desa (Mandiri)
+                Desa Mandiri
               </label>
               <select
                 className="form-control"
