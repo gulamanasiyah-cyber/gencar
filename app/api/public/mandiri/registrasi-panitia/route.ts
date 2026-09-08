@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
         alamat, noTelp, foto, 
         mandiriDesaId, mandiriKelompokId, dapukan,
         pendidikan, pekerjaan, hobi, makananMinumanFavorit, instagram, suku, kriteriaPasangan,
-        anakKe, jumlahSaudara, tinggiBadan
+        anakKe, jumlahSaudara, tinggiBadan, statusHaid
     } = body;
 
     if (!nama || !jenisKelamin || !mandiriDesaId || !noTelp || !dapukan || !foto || !tempatLahir || !tanggalLahir || !pendidikan || !pekerjaan || !hobi) {
@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
             tinggiBadan: tinggiBadan ? Number(tinggiBadan) : null,
             mandiriDesaId: mandiriDesaId ? Number(mandiriDesaId) : null,
             mandiriKelompokId: mandiriKelompokId ? Number(mandiriKelompokId) : null,
+            statusHaid: jenisKelamin === "P" ? (statusHaid || "Tidak") : null,
             instagram: instagram || existingGenerus.instagram,
             updatedAt: new Date().toISOString()
         }).where(eq(generus.id, gId!));
@@ -121,10 +122,11 @@ export async function POST(request: NextRequest) {
             tinggiBadan: tinggiBadan ? Number(tinggiBadan) : null,
             foto,
             kriteriaPasangan,
-            desaId: defaultDesaId,
-            kelompokId: defaultKelId,
+            desaId: null,
+            kelompokId: null,
             mandiriDesaId: mandiriDesaId ? Number(mandiriDesaId) : null,
             mandiriKelompokId: mandiriKelompokId ? Number(mandiriKelompokId) : null,
+            statusHaid: jenisKelamin === "P" ? (statusHaid || "Tidak") : null,
             instagram,
             createdBy: "FORM_PANITIA",
             isGenerus: 0

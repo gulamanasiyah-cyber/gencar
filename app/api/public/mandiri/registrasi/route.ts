@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         hobi, makananMinumanFavorit, suku, foto, anakKe, jumlahSaudara, tinggiBadan,
         mandiriDesaId, mandiriKelompokId, instagram,
         statusPeserta, dibayarkanSenilai, buktiPembayaran,
-        kriteriaPasangan
+        kriteriaPasangan, statusHaid
     } = body;
 
     if (!nama || !jenisKelamin || !mandiriDesaId || !tempatLahir || !tanggalLahir || !noTelp || !pendidikan || !pekerjaan || !hobi || !foto) {
@@ -187,6 +187,7 @@ export async function POST(request: NextRequest) {
             tinggiBadan: tinggiBadan ? Number(tinggiBadan) : null,
             mandiriDesaId: mandiriDesaId ? Number(mandiriDesaId) : null,
             mandiriKelompokId: mandiriKelompokId ? Number(mandiriKelompokId) : null,
+            statusHaid: jenisKelamin === "P" ? (statusHaid || "Tidak") : null,
             instagram: instagram || duplicate.instagram, 
             kriteriaPasangan: kriteriaPasangan || duplicate.kriteriaPasangan,
             isGenerus: 0,
@@ -261,10 +262,11 @@ export async function POST(request: NextRequest) {
       jumlahSaudara: jumlahSaudara ? Number(jumlahSaudara) : null,
       tinggiBadan: tinggiBadan ? Number(tinggiBadan) : null,
       foto,
-      desaId: defaultDesaId,
-      kelompokId: defaultKelompokId,
+      desaId: null,
+      kelompokId: null,
       mandiriDesaId: mandiriDesaId ? Number(mandiriDesaId) : null,
       mandiriKelompokId: mandiriKelompokId ? Number(mandiriKelompokId) : null,
+      statusHaid: jenisKelamin === "P" ? (statusHaid || "Tidak") : null,
       instagram,
       kriteriaPasangan,
       createdBy: "FORM_MANDIRI",

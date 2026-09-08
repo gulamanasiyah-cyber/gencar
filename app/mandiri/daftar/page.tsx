@@ -16,10 +16,6 @@ interface Desa { id: number; nama: string; kota: string; }
 interface Kelompok { id: number; nama: string; }
 
 export default function MandiriDaftarPage() {
-  const maxDate = new Date();
-  maxDate.setFullYear(maxDate.getFullYear() - 25);
-  const maxDateString = maxDate.toISOString().split("T")[0];
-
   const [form, setForm] = useState({
     nama: "",
     jenisKelamin: "L",
@@ -43,6 +39,7 @@ export default function MandiriDaftarPage() {
     kriteriaPasangan: "",
     dibayarkanSenilai: "",
     buktiPembayaran: "",
+    statusHaid: "Tidak",
   });
 
   const [daerahList, setDaerahList] = useState<Desa[]>([]);
@@ -52,6 +49,13 @@ export default function MandiriDaftarPage() {
   const [kotaList, setKotaList] = useState<string[]>([]);
   const [selectedKota, setSelectedKota] = useState("");
   const [loading, setLoading] = useState(false);
+  const [minAgeLaki, setMinAgeLaki] = useState(25);
+  const [minAgePerempuan, setMinAgePerempuan] = useState(25);
+
+  const maxDate = new Date();
+  const ageLimit = form.jenisKelamin === "P" ? minAgePerempuan : minAgeLaki;
+  maxDate.setFullYear(maxDate.getFullYear() - ageLimit);
+  const maxDateString = maxDate.toISOString().split("T")[0];
 
   const [success, setSuccess] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -65,6 +69,7 @@ export default function MandiriDaftarPage() {
   const [agreed, setAgreed] = useState(false);
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
   const [uploadingBukti, setUploadingBukti] = useState(false);
+  const [haidKeterangan, setHaidKeterangan] = useState("");
 
 
   useEffect(() => {
@@ -80,7 +85,7 @@ export default function MandiriDaftarPage() {
 
   useEffect(() => {
     let currentPesertaType = "Utusan Daerah";
-    
+
     // Determine Peserta Type from URL ONLY
     const urlParams = new URLSearchParams(window.location.search);
     const statusParam = urlParams.get('status');
@@ -96,7 +101,7 @@ export default function MandiriDaftarPage() {
       .then((d) => {
         const val = d.value || "1";
         setRegStatus(val);
-        const specificClosed = 
+        const specificClosed =
           (val === "tutup_utusan" && currentPesertaType === "Utusan Daerah") ||
           (val === "tutup_person" && currentPesertaType === "Person");
 
@@ -104,14 +109,14 @@ export default function MandiriDaftarPage() {
           setIsClosed(true);
         }
       });
-      
+
     fetch("/api/public/mandiri/settings?key=mandiri_registration_gender")
       .then((r) => r.json())
       .then((d) => {
         if (d.value) {
-           setRegGender(d.value);
-           if (d.value === "Laki-laki") setForm(prev => ({...prev, jenisKelamin: "L"}));
-           else if (d.value === "Perempuan") setForm(prev => ({...prev, jenisKelamin: "P"}));
+          setRegGender(d.value);
+          if (d.value === "Laki-laki") setForm(prev => ({ ...prev, jenisKelamin: "L" }));
+          else if (d.value === "Perempuan") setForm(prev => ({ ...prev, jenisKelamin: "P" }));
         }
       });
 
@@ -133,6 +138,23 @@ export default function MandiriDaftarPage() {
         if (d.value) setRegLocation(d.value);
       });
 
+    fetch("/api/public/mandiri/settings?key=mandiri_registration_min_age_laki")
+      .then(r => r.json())
+      .then(d => {
+        if (d.value) setMinAgeLaki(Number(d.value));
+      });
+
+    fetch("/api/public/mandiri/settings?key=mandiri_registration_min_age_perempuan")
+      .then(r => r.json())
+      .then(d => {
+        if (d.value) setMinAgePerempuan(Number(d.value));
+      });
+
+    fetch("/api/public/mandiri/settings?key=mandiri_haid_keterangan")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.value) setHaidKeterangan(d.value);
+      });
 
     Promise.all([
       fetch("/api/public/mandiri/desa").then((r) => r.json()),
@@ -419,9 +441,28 @@ export default function MandiriDaftarPage() {
     }
   }, [form.mandiriDesaId, desaList]);
 
+  const showHaidPopup = (customText?: string) => {
+    const textToShow = customText || haidKeterangan || "Bagi peserta yang sedang haid/berhalangan, silakan melapor ke panitia untuk lokasi pos berhalangan.";
+    Swal.fire({
+      title: "🌸 Arahan Tempat Peserta Haid",
+      html: `<div style="text-align: left; background: #fff1f2; padding: 16px; border-radius: 12px; border: 1px solid #fecdd3; color: #9f1239; font-size: 14px; line-height: 1.6; font-weight: 500;">${textToShow}</div>`,
+      icon: "info",
+      confirmButtonText: "Saya Mengerti",
+      confirmButtonColor: "#e11d48",
+    });
+  };
+
   const handleChange = (e: any) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => {
+      const updated = { ...prev, [name]: value };
+      if (name === "statusHaid" && value === "Ya" && updated.jenisKelamin === "P") {
+        setTimeout(() => showHaidPopup(), 150);
+      } else if (name === "jenisKelamin" && value === "P" && updated.statusHaid === "Ya") {
+        setTimeout(() => showHaidPopup(), 150);
+      }
+      return updated;
+    });
   };
 
   const handleDibayarkanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -443,8 +484,8 @@ export default function MandiriDaftarPage() {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      Swal.fire({ icon: "error", title: "File Terlalu Besar", text: "Ukuran bukti pembayaran maksimal 5 MB." });
+    if (file.size > 10 * 1024 * 1024) {
+      Swal.fire({ icon: "error", title: "File Terlalu Besar", text: "Ukuran bukti pembayaran maksimal 10 MB." });
       e.target.value = "";
       return;
     }
@@ -527,7 +568,7 @@ export default function MandiriDaftarPage() {
       }
 
       if (!res.ok) throw new Error(data.error || "Gagal mendaftar");
-      
+
       // Bind FCM to newly registered phone number
       if (typeof window !== "undefined" && cleanNoTelp) {
         import("@/lib/fcm-client").then(({ registerFCM }) => {
@@ -716,20 +757,48 @@ export default function MandiriDaftarPage() {
         const barcodeDataUrl = canvas.toDataURL("image/png");
         doc.addImage(barcodeDataUrl, "PNG", 15, 130, 60, 18);
 
-        // 9. Catalog Link
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(59, 130, 246);
-        doc.text("Akses Katalog: https://gencar.my.id/mandiri/katalog", 45, 154, { align: "center" });
-        doc.link(15, 150, 60, 6, { url: "https://gencar.my.id/mandiri/katalog" });
+        // 9. Status Haid & Arahan Tempat (If Female & Haid)
+        if (form.jenisKelamin === "P" && form.statusHaid === "Ya") {
+          doc.setDrawColor(254, 205, 211);
+          doc.setFillColor(255, 241, 242);
+          doc.roundedRect(8, 151, 74, 13, 2, 2, "FD");
 
-        // 10. Login Instructions
-        doc.setFontSize(7);
-        doc.setTextColor(100, 116, 139);
-        doc.text("Tata Cara Buka Halaman Katalog:", 45, 161, { align: "center" });
-        doc.text("1. Buka link di atas melalui browser (HP/PC)", 45, 165, { align: "center" });
-        doc.text("2. Masukkan ID Login Anda pada halaman login", 45, 169, { align: "center" });
-        doc.text("3. Anda kini dapat mengakses data peserta", 45, 173, { align: "center" });
+          doc.setFontSize(7);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(225, 29, 72);
+          doc.text("STATUS: SEDANG HAID / BERHALANGAN", 45, 155, { align: "center" });
+
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(6);
+          doc.setTextColor(159, 18, 57);
+          const arahanStr = `Arahan: ${haidKeterangan || "Mengikuti petunjuk lokasi pos berhalangan dari panitia."}`;
+          const splitLines = doc.splitTextToSize(arahanStr, 70);
+          doc.text(splitLines, 45, 159, { align: "center" });
+
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(7.5);
+          doc.setTextColor(59, 130, 246);
+          doc.text("Akses Katalog: https://gencar.my.id/mandiri/katalog", 45, 168, { align: "center" });
+
+          doc.setFontSize(6.5);
+          doc.setTextColor(100, 116, 139);
+          doc.text("Tata Cara: Buka link di atas & masukkan ID Login Anda", 45, 173, { align: "center" });
+        } else {
+          // 9. Catalog Link
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+          doc.setTextColor(59, 130, 246);
+          doc.text("Akses Katalog: https://gencar.my.id/mandiri/katalog", 45, 154, { align: "center" });
+          doc.link(15, 150, 60, 6, { url: "https://gencar.my.id/mandiri/katalog" });
+
+          // 10. Login Instructions
+          doc.setFontSize(7);
+          doc.setTextColor(100, 116, 139);
+          doc.text("Tata Cara Buka Halaman Katalog:", 45, 161, { align: "center" });
+          doc.text("1. Buka link di atas melalui browser (HP/PC)", 45, 165, { align: "center" });
+          doc.text("2. Masukkan ID Login Anda pada halaman login", 45, 169, { align: "center" });
+          doc.text("3. Anda kini dapat mengakses data peserta", 45, 173, { align: "center" });
+        }
 
         // Save PDF
         doc.save(`TICKET_MANDIRI_${displayNomorUrut || displayNomorUnik}.pdf`);
@@ -758,7 +827,7 @@ export default function MandiriDaftarPage() {
             <h3 style={{ fontSize: "42px", color: "var(--primary)", letterSpacing: "2px", margin: "0 0 5px 0", fontWeight: "900" }}>#{result?.nomorUrut}</h3>
             <p style={{ fontSize: "14px", color: "#3b82f6", fontWeight: "800", marginBottom: "20px", background: "#eff6ff", display: "inline-block", padding: "4px 12px", borderRadius: "20px" }}>ID Login: {result?.nomorUnik}</p>
 
-                        {/* QR Code Section */}
+            {/* QR Code Section */}
             <div style={{
               background: "#f8fafc",
               padding: "20px",
@@ -878,17 +947,17 @@ export default function MandiriDaftarPage() {
         <form onSubmit={handleSubmit}>
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             <div className="form-group" style={{ textAlign: "center" }}>
-              <PhotoUpload 
-                value={form.foto} 
+              <PhotoUpload
+                value={form.foto}
                 onChange={(url) => setForm(prev => ({ ...prev, foto: url }))}
                 helperText="Kirim foto yang terbaik & terbaru, foto bebas, dan muka tampak jelas (tidak tertutup masker)"
-                maxSizeMb={5}
+                maxSizeMb={10}
               />
             </div>
 
             {/* --- SEKSI 1: INFORMASI PRIBADI --- */}
             <h3 className="section-title" style={{ marginTop: "10px", marginBottom: "16px" }}>Informasi Pribadi</h3>
-            
+
             <div className="form-group">
               <label className="form-label">Nama Lengkap <span className="required">*</span></label>
               <input name="nama" className="form-control" value={form.nama} onChange={handleChange} required placeholder="Masukkan nama lengkap" />
@@ -904,12 +973,12 @@ export default function MandiriDaftarPage() {
               </div>
               <div className="form-group">
                 <label className="form-label">Tanggal Lahir <span className="required">*</span></label>
-                <input 
-                  name="tanggalLahir" 
-                  type="date" 
-                  className="form-control" 
-                  value={form.tanggalLahir} 
-                  onChange={handleChange} 
+                <input
+                  name="tanggalLahir"
+                  type="date"
+                  className="form-control"
+                  value={form.tanggalLahir}
+                  onChange={handleChange}
                   onFocus={(e) => {
                     if (!form.tanggalLahir) {
                       setForm(prev => ({ ...prev, tanggalLahir: maxDateString }));
@@ -920,7 +989,7 @@ export default function MandiriDaftarPage() {
                       setForm(prev => ({ ...prev, tanggalLahir: maxDateString }));
                     }
                   }}
-                  required 
+                  required
                   max={maxDateString}
                 />
               </div>
@@ -934,11 +1003,28 @@ export default function MandiriDaftarPage() {
                   {regGender !== "Laki-laki" && <option value="P">Perempuan</option>}
                 </select>
               </div>
+              {form.jenisKelamin === "P" ? (
+                <div className="form-group">
+                  <label className="form-label">Apakah Anda Sedang Haid? <span className="required">*</span></label>
+                  <select name="statusHaid" className="form-control" value={form.statusHaid || "Tidak"} onChange={handleChange} required>
+                    <option value="Tidak">Tidak</option>
+                    <option value="Ya">Ya</option>
+                  </select>
+                </div>
+              ) : (
+                <div className="form-group">
+                  <label className="form-label">Suku (Opsional)</label>
+                  <input name="suku" className="form-control" value={form.suku} onChange={handleChange} placeholder="Betawi / Jawa / dll" />
+                </div>
+              )}
+            </div>
+
+            {form.jenisKelamin === "P" && (
               <div className="form-group">
                 <label className="form-label">Suku (Opsional)</label>
                 <input name="suku" className="form-control" value={form.suku} onChange={handleChange} placeholder="Betawi / Jawa / dll" />
               </div>
-            </div>
+            )}
 
             <div className="form-row">
               <div className="form-group">
@@ -1050,7 +1136,7 @@ export default function MandiriDaftarPage() {
                 Gunakan username Instagram tanpa simbol @.
               </p>
             </div>
-            
+
             <div className="form-group">
               <label className="form-label">Kriteria Pasangan (Opsional)</label>
               <textarea
@@ -1070,22 +1156,22 @@ export default function MandiriDaftarPage() {
                 <div style={{ marginBottom: "16px", padding: "12px", background: "#fef3c7", borderRadius: "8px", fontSize: "13px", color: "#92400e", lineHeight: "1.5", border: "1px dashed #fbbf24" }}>
                   <p style={{ margin: 0, fontWeight: 600 }}>Silakan transfer ke rekening berikut:</p>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "6px 0" }}>
-                     <p style={{ margin: 0, fontSize: "16px", fontWeight: 800, letterSpacing: "1px", color: "#b45309" }}>379601007016501</p>
-                     <button
-                        type="button"
-                        onClick={() => {
-                           navigator.clipboard.writeText("379601007016501");
-                           Swal.fire({ icon: "success", title: "Tersalin", text: "Nomor rekening berhasil disalin!", timer: 1500, showConfirmButton: false, width: "300px" });
-                        }}
-                        style={{ padding: "4px 10px", background: "#f59e0b", color: "#fff", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: "4px", transition: "all 0.2s ease" }}
-                        onMouseOver={(e) => e.currentTarget.style.background = "#d97706"}
-                        onMouseOut={(e) => e.currentTarget.style.background = "#f59e0b"}
-                     >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                        Salin
-                     </button>
+                    <p style={{ margin: 0, fontSize: "16px", fontWeight: 800, letterSpacing: "1px", color: "#b45309" }}>379601007016501</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText("379601007016501");
+                        Swal.fire({ icon: "success", title: "Tersalin", text: "Nomor rekening berhasil disalin!", timer: 1500, showConfirmButton: false, width: "300px" });
+                      }}
+                      style={{ padding: "4px 10px", background: "#f59e0b", color: "#fff", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: "4px", transition: "all 0.2s ease" }}
+                      onMouseOver={(e) => e.currentTarget.style.background = "#d97706"}
+                      onMouseOut={(e) => e.currentTarget.style.background = "#f59e0b"}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                      Salin
+                    </button>
                   </div>
-                  <p style={{ margin: 0 }}>Bank BRI<br/>a.n. Aos Burhanudin</p>
+                  <p style={{ margin: 0 }}>Bank BRI<br />a.n. Aos Burhanudin</p>
                 </div>
 
                 <div className="form-group">
@@ -1116,7 +1202,7 @@ export default function MandiriDaftarPage() {
                     required={regStatusPeserta === "Person" && !form.buktiPembayaran}
                   />
                   <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px" }}>
-                    Format JPEG, JPG, atau PNG. Ukuran maksimal 5 MB.
+                    Format JPEG, JPG, atau PNG. Ukuran maksimal 10 MB.
                   </p>
                   {uploadingBukti && (
                     <p style={{ fontSize: "12px", color: "#3b82f6", marginTop: "6px" }}>Mengunggah...</p>

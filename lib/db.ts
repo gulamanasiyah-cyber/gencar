@@ -3,30 +3,47 @@ import * as schema from "../shared/schema";
 // D1 primary (Cloudflare Workers) — Turso fallback untuk strangler 2 minggu.
 // Saat env.DB ada (wrangler D1 binding), pakai drizzle/d1. Jika tidak, fallback Turso/libsql.
 
+declare global {
+  // eslint-disable-next-line no-var
+  var __tursoDb: any;
+  // eslint-disable-next-line no-var
+  var __d1Db: any;
+}
+
 let _tursoDb: any = null;
 let _d1Db: any = null;
 
 function getTursoDb(): any {
-  if (_tursoDb) return _tursoDb;
-  let url = process.env.TURSO_DATABASE_URL || "file:local.db";
-  let authToken = process.env.TURSO_AUTH_TOKEN || "";
+  if (globalThis.__tursoDb) {
+    return globalThis.__tursoDb;
+  }
+
+  let url = (process.env.TURSO_DATABASE_URL || "file:local.db").trim();
+  let authToken = (process.env.TURSO_AUTH_TOKEN || "").trim();
+
   if (url.includes(" ") || url.includes("%20") || url.includes("TURSO_AUTH_TOKEN=")) {
     const parts = url.split(/\s+|%20/);
     url = parts[0];
     if (!authToken || authToken === "") {
-      for (const part of parts) if (part.startsWith("TURSO_AUTH_TOKEN=")) authToken = part.replace("TURSO_AUTH_TOKEN=", "");
+      for (const part of parts) {
+        if (part.startsWith("TURSO_AUTH_TOKEN=")) {
+          authToken = part.replace("TURSO_AUTH_TOKEN=", "").trim();
+        }
+      }
     }
   }
-  // Lazy import agar tidak bundling @libsql saat D1 murni
+
+  const isNode = typeof process !== "undefined" && process.versions && !!process.versions.node;
+  
+  // Lazy imports for Node vs Web/Edge runtime
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { createClient } = require("@libsql/client/web");
+  const { createClient } = isNode ? require("@libsql/client") : require("@libsql/client/web");
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { drizzle: drizzleLibsql } = require("drizzle-orm/libsql/web");
-  const client = createClient({
-    url, authToken,
-    fetch: (input: RequestInfo | URL, init?: RequestInit) => globalThis.fetch(input, { ...init, cache: "no-store" }),
-  });
+  const { drizzle: drizzleLibsql } = isNode ? require("drizzle-orm/libsql") : require("drizzle-orm/libsql/web");
+
+  const client = createClient({ url, authToken });
   _tursoDb = drizzleLibsql(client, { schema });
+  globalThis.__tursoDb = _tursoDb;
   return _tursoDb;
 }
 

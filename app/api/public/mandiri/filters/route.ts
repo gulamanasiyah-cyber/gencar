@@ -1,19 +1,30 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, mandiri, mandiriDesa, mandiriKelompok, mandiriDaerah } from "@/lib/schema";
-import { eq, isNotNull, sql } from "drizzle-orm";
+import { generus, mandiri, mandiriDesa, mandiriKelompok, mandiriDaerah, settings } from "@/lib/schema";
+import { eq, isNotNull, and, sql } from "drizzle-orm";
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    // Fetch unique pendidikan from registered participants (data pendaftar)
+    const { searchParams } = new URL(request.url);
+    const reqKegiatanId = searchParams.get("kegiatanId");
+    
+    let kegiatanId = reqKegiatanId;
+    if (kegiatanId === "semua" || kegiatanId === "all" || kegiatanId === "undefined" || kegiatanId === "null") {
+      kegiatanId = "";
+    } else if (!kegiatanId) {
+      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+      kegiatanId = activeSetting[0]?.value || "";
+    }
+
+    // Fetch unique pendidikan from registered participants (data pendaftar) depending on kegiatan
     const pendidikanResult = await db
       .select({ value: generus.pendidikan })
       .from(generus)
       .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-      .where(isNotNull(generus.pendidikan))
+      .where(kegiatanId ? and(isNotNull(generus.pendidikan), eq(mandiri.kegiatanId, kegiatanId)) : isNotNull(generus.pendidikan))
       .groupBy(generus.pendidikan);
     
     const pendidikan = pendidikanResult
@@ -78,7 +89,8 @@ export async function GET(request: NextRequest) {
         tanggalLahir: generus.tanggalLahir
       })
       .from(generus)
-      .innerJoin(mandiri, eq(generus.id, mandiri.generusId));
+      .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
+      .where(kegiatanId ? eq(mandiri.kegiatanId, kegiatanId) : sql`1=1`);
 
     const pekerjaan = clusterText(textDataResult, "pekerjaan");
     const kriteriaPasangan = clusterText(textDataResult, "kriteriaPasangan");
@@ -107,6 +119,7 @@ export async function GET(request: NextRequest) {
       .innerJoin(generus, eq(generus.mandiriDesaId, mandiriDesa.id))
       .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
       .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
+      .where(kegiatanId ? eq(mandiri.kegiatanId, kegiatanId) : sql`1=1`)
       .groupBy(mandiriDaerah.nama)
       .orderBy(mandiriDaerah.nama);
 
@@ -123,6 +136,7 @@ export async function GET(request: NextRequest) {
       .innerJoin(generus, eq(generus.mandiriDesaId, mandiriDesa.id))
       .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
       .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
+      .where(kegiatanId ? eq(mandiri.kegiatanId, kegiatanId) : sql`1=1`)
       .groupBy(mandiriDesa.id, mandiriDesa.nama, mandiriDaerah.nama)
       .orderBy(mandiriDesa.nama);
 
@@ -137,6 +151,7 @@ export async function GET(request: NextRequest) {
       .innerJoin(generus, eq(generus.mandiriKelompokId, mandiriKelompok.id))
       .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
       .innerJoin(mandiriDesa, eq(mandiriKelompok.mandiriDesaId, mandiriDesa.id))
+      .where(kegiatanId ? eq(mandiri.kegiatanId, kegiatanId) : sql`1=1`)
       .groupBy(mandiriKelompok.id, mandiriKelompok.nama, mandiriDesa.id)
       .orderBy(mandiriKelompok.nama);
 

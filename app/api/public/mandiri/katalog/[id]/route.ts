@@ -53,6 +53,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         alamat: generus.alamat,
         instagram: generus.instagram,
         kriteriaPasangan: generus.kriteriaPasangan,
+        tinggiBadan: generus.tinggiBadan,
+        anakKe: generus.anakKe,
+        jumlahSaudara: generus.jumlahSaudara,
       })
       .from(generus)
       .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
@@ -81,7 +84,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   try {
     const { id } = params;
     const body = await request.json();
-    const { nomorUnik, token, nama, tempatLahir, tanggalLahir, jenisKelamin, alamat, suku, pendidikan, pekerjaan, statusNikah, hobi, makananMinumanFavorit, instagram, kriteriaPasangan, mandiriDesaId, mandiriKelompokId } = body;
+    const { nomorUnik, token, nama, tempatLahir, tanggalLahir, jenisKelamin, alamat, suku, pendidikan, pekerjaan, statusNikah, hobi, makananMinumanFavorit, instagram, kriteriaPasangan, mandiriDesaId, mandiriKelompokId, tinggiBadan, anakKe, jumlahSaudara } = body;
 
     if (!nomorUnik || !token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -125,6 +128,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       kriteriaPasangan,
       mandiriDesaId: mandiriDesaId || null,
       mandiriKelompokId: mandiriKelompokId || null,
+      tinggiBadan: tinggiBadan ? Number(tinggiBadan) : null,
+      anakKe: anakKe ? Number(anakKe) : null,
+      jumlahSaudara: jumlahSaudara ? Number(jumlahSaudara) : null,
       updatedAt: new Date().toISOString()
     }).where(eq(generus.id, id));
 

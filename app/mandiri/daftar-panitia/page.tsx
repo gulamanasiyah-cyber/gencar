@@ -36,7 +36,8 @@ export default function PanitiaDaftarPage() {
     mandiriKelompokId: "",
     instagram: "",
     kriteriaPasangan: "",
-    dapukan: "Panitia", 
+    dapukan: "Panitia",
+    statusHaid: "Tidak",
   });
 
   const [daerahList, setDaerahList] = useState<Desa[]>([]);
@@ -49,7 +50,7 @@ export default function PanitiaDaftarPage() {
 
   const [success, setSuccess] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [qrDataUrl, setQrDataUrl] = useState<string>("" );
+  const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [isClosed, setIsClosed] = useState(false);
   const [regTitle, setRegTitle] = useState("");
   const [regDesc, setRegDesc] = useState("");
@@ -57,6 +58,7 @@ export default function PanitiaDaftarPage() {
   const [agreed, setAgreed] = useState(false);
   const [regGender, setRegGender] = useState("Semua");
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
+  const [haidKeterangan, setHaidKeterangan] = useState("");
 
   useEffect(() => {
     if (!result?.nomorUnik) return;
@@ -85,19 +87,21 @@ export default function PanitiaDaftarPage() {
       fetch("/api/public/mandiri/settings?key=mandiri_registration_description").then(r => r.json()),
       fetch("/api/public/mandiri/settings?key=mandiri_registration_gender").then(r => r.json()),
       fetch("/api/public/mandiri/settings?key=mandiri_registration_location").then(r => r.json()),
+      fetch("/api/public/mandiri/settings?key=mandiri_haid_keterangan").then(r => r.json()),
       fetch("/api/public/mandiri/desa").then((r) => r.json()),
       fetch("/api/public/mandiri/kelompok").then((r) => r.json()),
-    ]).then(([panitiaStatus, mainStatus, title, desc, gender, loc, daerahs, desas]) => {
+    ]).then(([panitiaStatus, mainStatus, title, desc, gender, loc, haidKet, daerahs, desas]) => {
       if (panitiaStatus.value === "0" || mainStatus.value === "0") {
         setIsClosed(true);
       }
       if (title?.value) setRegTitle(title.value);
       if (desc?.value) setRegDesc(desc.value);
       if (loc?.value) setRegLocation(loc.value);
+      if (haidKet?.value) setHaidKeterangan(haidKet.value);
       if (gender?.value) {
-         setRegGender(gender.value);
-         if (gender.value === "Laki-laki") setForm(prev => ({...prev, jenisKelamin: "L"}));
-         else if (gender.value === "Perempuan") setForm(prev => ({...prev, jenisKelamin: "P"}));
+        setRegGender(gender.value);
+        if (gender.value === "Laki-laki") setForm(prev => ({ ...prev, jenisKelamin: "L" }));
+        else if (gender.value === "Perempuan") setForm(prev => ({ ...prev, jenisKelamin: "P" }));
       }
       if (Array.isArray(daerahs)) {
         setDaerahList(daerahs);
@@ -381,9 +385,28 @@ export default function PanitiaDaftarPage() {
     }
   }, [form.mandiriDesaId, desaList]);
 
+  const showHaidPopup = (customText?: string) => {
+    const textToShow = customText || haidKeterangan || "Bagi peserta yang sedang haid/berhalangan, silakan melapor ke panitia untuk lokasi pos berhalangan.";
+    Swal.fire({
+      title: "🌸 Arahan Tempat Peserta Haid",
+      html: `<div style="text-align: left; background: #fff1f2; padding: 16px; border-radius: 12px; border: 1px solid #fecdd3; color: #9f1239; font-size: 14px; line-height: 1.6; font-weight: 500;">${textToShow}</div>`,
+      icon: "info",
+      confirmButtonText: "Saya Mengerti",
+      confirmButtonColor: "#e11d48",
+    });
+  };
+
   const handleChange = (e: any) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => {
+      const updated = { ...prev, [name]: value };
+      if (name === "statusHaid" && value === "Ya" && updated.jenisKelamin === "P") {
+        setTimeout(() => showHaidPopup(), 150);
+      } else if (name === "jenisKelamin" && value === "P" && updated.statusHaid === "Ya") {
+        setTimeout(() => showHaidPopup(), 150);
+      }
+      return updated;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -419,14 +442,14 @@ export default function PanitiaDaftarPage() {
       if (!res.ok) throw new Error(data.error || "Gagal mendaftar");
       setSuccess(true);
       setResult(data);
-      await Swal.fire({ 
-        icon: "success", 
-        title: "Berhasil!", 
+      await Swal.fire({
+        icon: "success",
+        title: "Berhasil!",
         text: "Data Anda sebagai Panitia telah tercatat.",
         confirmButtonColor: "#3b82f6",
         confirmButtonText: "Oke"
       });
-      
+
       // Generate PDF Automatically
       try {
         Swal.fire({
@@ -440,7 +463,7 @@ export default function PanitiaDaftarPage() {
 
         const { jsPDF } = await import("jspdf");
         const doc = new jsPDF();
-        
+
         doc.setFontSize(22);
         doc.setFont("helvetica", "bold");
         doc.text("Bukti Pendaftaran Panitia", 105, 30, { align: "center" });
@@ -452,11 +475,23 @@ export default function PanitiaDaftarPage() {
         doc.text(`Nomor Urut      : ${data.nomorUrut}`, 20, 70);
         doc.text(`Kode Unik Login : ${data.nomorUnik}`, 20, 80);
 
+        let qrY = 100;
+        if (form.jenisKelamin === "P" && form.statusHaid === "Ya") {
+          doc.setTextColor(225, 29, 72);
+          doc.setFont("helvetica", "bold");
+          doc.text(`Status Haid      : Ya (Sedang Haid / Berhalangan)`, 20, 90);
+
+          doc.setTextColor(159, 18, 57);
+          doc.setFont("helvetica", "normal");
+          doc.text(`Arahan Tempat   : ${haidKeterangan || "Silakan melapor ke panitia/Admin Romantic Room."}`, 20, 98);
+          qrY = 112;
+        }
+
         // Generate QR Code locally
         const QRCode = await import("qrcode");
         const qrDataUrl = await QRCode.toDataURL(data.nomorUnik, { margin: 2, width: 400 });
-        doc.addImage(qrDataUrl, "PNG", 75, 100, 60, 60);
-        
+        doc.addImage(qrDataUrl, "PNG", 75, qrY, 60, 60);
+
         doc.setFontSize(10);
         doc.setTextColor(100);
         doc.text("Simpan file ini dan tunjukkan kepada panitia registrasi ulang.", 105, 170, { align: "center" });
@@ -543,8 +578,8 @@ export default function PanitiaDaftarPage() {
                 <div style={{ width: "220px", height: "220px", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b" }}>
                   Memuat QR Code...
                 </div>
-              )}              
-              <button 
+              )}
+              <button
                 onClick={handleDownloadBarcode}
                 style={{
                   marginTop: "16px",
@@ -617,10 +652,11 @@ export default function PanitiaDaftarPage() {
         <form onSubmit={handleSubmit}>
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             <div className="form-group" style={{ textAlign: "center" }}>
-              <PhotoUpload 
-                value={form.foto} 
+              <PhotoUpload
+                value={form.foto}
                 onChange={(url) => setForm(prev => ({ ...prev, foto: url }))}
                 helperText="Ambil atau unggah foto terbaru dengan wajah tampak jelas"
+                maxSizeMb={10}
               />
             </div>
 
@@ -637,6 +673,16 @@ export default function PanitiaDaftarPage() {
               </select>
             </div>
 
+            {form.jenisKelamin === "P" && (
+              <div className="form-group">
+                <label className="form-label">Apakah Anda Sedang Haid? <span className="required">*</span></label>
+                <select name="statusHaid" className="form-control" value={form.statusHaid || "Tidak"} onChange={handleChange} required>
+                  <option value="Tidak">Tidak</option>
+                  <option value="Ya">Ya</option>
+                </select>
+              </div>
+            )}
+
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Kota Tempat Lahir <span className="required">*</span></label>
@@ -644,13 +690,13 @@ export default function PanitiaDaftarPage() {
               </div>
               <div className="form-group">
                 <label className="form-label">Tanggal Lahir <span className="required">*</span></label>
-                <input 
-                  name="tanggalLahir" 
-                  type="date" 
-                  className="form-control" 
-                  value={form.tanggalLahir} 
-                  onChange={handleChange} 
-                  required 
+                <input
+                  name="tanggalLahir"
+                  type="date"
+                  className="form-control"
+                  value={form.tanggalLahir}
+                  onChange={handleChange}
+                  required
                 />
               </div>
             </div>
@@ -662,7 +708,7 @@ export default function PanitiaDaftarPage() {
                 {kotaList.map(k => <option key={k} value={k}>{k}</option>)}
               </select>
             </div>
-            
+
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Desa <span className="required">*</span></label>

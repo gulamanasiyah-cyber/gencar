@@ -79,192 +79,13 @@ export default function TimGambuhOperatorPage() {
     const [loading, setLoading] = useState(true);
     const [userRole, setUserRole] = useState("");
     const [roomSearch, setRoomSearch] = useState("");
-    const [myId, setMyId] = useState<string>("");
-    const [myName, setMyName] = useState<string>("");
     const [selectedRoom, setSelectedRoom] = useState<any>(null);
     const [visitHistory, setVisitHistory] = useState<any[]>([]);
     const [queueData, setQueueData] = useState<any[]>([]);
     const [reportSearch, setReportSearch] = useState("");
     const [resultFilter, setResultFilter] = useState("Semua");
-    
-    // Scanner Absensi
-    const [showAbsenScanner, setShowAbsenScanner] = useState(false);
-    const [scanFeedback, setScanFeedback] = useState<any>(null);
-    const [isScanning, setIsScanning] = useState(false);
-    const [hasAttended, setHasAttended] = useState(false);
-    const absenScannerRef = useRef<any>(null);
 
-    const saveCurrentIdentity = useCallback((identity: any) => {
-        const normalizedId = String(identity?.id || "").trim();
-        const normalizedNama = String(identity?.nama || "").trim();
-        const normalizedTipe = String(identity?.tipe || "").trim();
 
-        if (!normalizedId) return;
-
-        try {
-            localStorage.setItem("my_tim_pnkb_gambuh_id", normalizedId);
-            localStorage.setItem("my_tim_pnkb_gambuh_nama", normalizedNama);
-            if (normalizedTipe) {
-                localStorage.setItem("my_tim_pnkb_gambuh_tipe", normalizedTipe);
-            }
-        } catch (storageErr) {
-            console.warn("Gagal menyimpan identitas Tim Gambuh di browser:", storageErr);
-        }
-
-        setMyId(normalizedId);
-        setMyName(normalizedNama);
-    }, []);
-
-    const showSelectIdentityModal = useCallback(async (forced = false) => {
-        Swal.fire({
-            title: 'Memuat Data...',
-            text: 'Mengambil daftar pendamping...',
-            allowOutsideClick: !forced,
-            allowEscapeKey: !forced,
-            showConfirmButton: false,
-            didOpen: () => { Swal.showLoading(); }
-        });
-
-        try {
-            const res = await fetch("/api/admin/tim-gambuh");
-            if (!res.ok) throw new Error("Gagal mengambil data");
-            let data: any[] = await res.json();
-            Swal.close();
-
-            const buildOptionHtml = (list: any[]) =>
-                list.map(item => `<option value="${item.id}">${item.nama} (${item.tipe})</option>`).join('');
-
-            // Removed currentSavedId logic so it always defaults to empty
-
-            const { value: selectedId, isConfirmed } = await Swal.fire({
-                title: 'Pilih Identitas Anda',
-                html: `
-                    <p style="font-size:13px;color:#64748b;margin:0 0 10px;">Pilih nama Anda dari daftar Tim PNKB &amp; Ibu Gambuh:</p>
-                    <select id="swal-identity" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;color:#1e293b;background:#fff;outline:none;cursor:pointer;">
-                        <option value="">-- Pilih Nama Anda --</option>
-                        ${buildOptionHtml(data)}
-                    </select>
-                    <div style="margin-top:14px;border-top:1px solid #e2e8f0;padding-top:12px;text-align:left;">
-                        <button type="button" id="btn-toggle-add" style="background:none;border:none;color:#3b82f6;font-size:13px;font-weight:600;cursor:pointer;padding:0;display:flex;align-items:center;gap:5px;">
-                            <span style="font-size:16px;line-height:1;">＋</span> Tambah Data Tim PNKB &amp; Ibu Gambuh
-                        </button>
-                        <div id="add-member-form" style="display:none;margin-top:10px;padding:12px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
-                            <div style="margin-bottom:8px;text-align:left;">
-                                <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Nama Lengkap *</label>
-                                <input id="new-member-nama" type="text" placeholder="Masukkan nama lengkap..." style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:13px;color:#1e293b;box-sizing:border-box;outline:none;" />
-                            </div>
-                            <div style="margin-bottom:10px;text-align:left;">
-                                <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Tipe *</label>
-                                <select id="new-member-tipe" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:13px;color:#1e293b;background:#fff;outline:none;cursor:pointer;">
-                                    <option value="">-- Pilih Tipe --</option>
-                                    <option value="PNKB">PNKB</option>
-                                    <option value="Ibu Gambuh">Ibu Gambuh</option>
-                                </select>
-                            </div>
-                            <button type="button" id="btn-save-member" style="width:100%;background:#3b82f6;color:#fff;border:none;padding:8px 16px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;">
-                                Simpan Anggota Baru
-                            </button>
-                            <div id="add-status" style="margin-top:7px;font-size:12px;text-align:center;min-height:18px;"></div>
-                        </div>
-                    </div>
-                `,
-                showCancelButton: !forced,
-                allowOutsideClick: !forced,
-                allowEscapeKey: !forced,
-                confirmButtonText: 'Simpan',
-                cancelButtonText: 'Batal',
-                preConfirm: () => {
-                    const val = (document.getElementById('swal-identity') as HTMLSelectElement)?.value;
-                    if (!val) {
-                        Swal.showValidationMessage('Anda harus memilih identitas Anda!');
-                        return false;
-                    }
-                    return val;
-                },
-                didOpen: () => {
-                    const sel = document.getElementById('swal-identity') as HTMLSelectElement;
-                    // Do not pre-select value, defaulting to "-- Pilih Nama Anda --"
-
-                    document.getElementById('btn-toggle-add')?.addEventListener('click', () => {
-                        const form = document.getElementById('add-member-form');
-                        if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
-                    });
-
-                    document.getElementById('btn-save-member')?.addEventListener('click', async () => {
-                        const nama = ((document.getElementById('new-member-nama') as HTMLInputElement)?.value || '').trim();
-                        const tipe = (document.getElementById('new-member-tipe') as HTMLSelectElement)?.value;
-                        const statusEl = document.getElementById('add-status');
-
-                        if (!nama || !tipe) {
-                            if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Nama dan Tipe wajib diisi!</span>';
-                            return;
-                        }
-
-                        const saveBtn = document.getElementById('btn-save-member') as HTMLButtonElement;
-                        if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Menyimpan...'; }
-
-                        try {
-                            const postRes = await fetch('/api/admin/tim-gambuh', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ nama, tipe })
-                            });
-
-                            if (!postRes.ok) {
-                                const errData = await postRes.json();
-                                throw new Error(errData.error || 'Gagal menyimpan');
-                            }
-
-                            const newMember = await postRes.json();
-
-                            // Refresh the member list
-                            const refreshRes = await fetch('/api/admin/tim-gambuh');
-                            if (refreshRes.ok) {
-                                data = await refreshRes.json();
-                                const sel2 = document.getElementById('swal-identity') as HTMLSelectElement;
-                                if (sel2) {
-                                    sel2.innerHTML = `<option value="">-- Pilih Nama Anda --</option>${buildOptionHtml(data)}`;
-                                    if (newMember.id) sel2.value = newMember.id;
-                                }
-                            }
-
-                            // Reset & close add form
-                            (document.getElementById('new-member-nama') as HTMLInputElement).value = '';
-                            (document.getElementById('new-member-tipe') as HTMLSelectElement).value = '';
-                            const form = document.getElementById('add-member-form');
-                            if (form) form.style.display = 'none';
-
-                            if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Simpan Anggota Baru'; }
-                            if (statusEl) {
-                                statusEl.innerHTML = `<span style="color:#10b981;">✓ ${nama} berhasil ditambahkan!</span>`;
-                                setTimeout(() => { if (statusEl) statusEl.innerHTML = ''; }, 3000);
-                            }
-                        } catch (err: any) {
-                            if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Simpan Anggota Baru'; }
-                            if (statusEl) statusEl.innerHTML = `<span style="color:#ef4444;">${err.message}</span>`;
-                        }
-                    });
-                }
-            });
-
-            if (isConfirmed && selectedId) {
-                const selectedItem = data.find((d: any) => String(d.id).trim() === String(selectedId).trim());
-                if (selectedItem) {
-                    const normalizedNama = String(selectedItem.nama || "").trim();
-                    saveCurrentIdentity(selectedItem);
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Identitas Disimpan',
-                        text: `Anda sekarang bertindak sebagai: ${normalizedNama}`,
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                }
-            }
-        } catch (err) {
-            Swal.fire("Error", "Gagal mengambil daftar anggota Tim PNKB & Ibu Gambuh.", "error");
-        }
-    }, [saveCurrentIdentity]);
 
     const fetchData = useCallback(async (showFeedback = false) => {
         setLoading(true);
@@ -334,49 +155,12 @@ export default function TimGambuhOperatorPage() {
                 setUserRole(d.role || "");
             });
 
-        let cancelled = false;
 
-        const initializeIdentity = async () => {
-            const url = new URL(window.location.href);
-            const requestedIdentityId = (url.searchParams.get("identityId") || "").trim();
-
-            if (requestedIdentityId) {
-                try {
-                    const res = await fetch("/api/admin/tim-gambuh");
-                    if (res.ok) {
-                        const data = await res.json();
-                        const selectedItem = Array.isArray(data)
-                            ? data.find((item: any) => String(item.id).trim() === requestedIdentityId)
-                            : null;
-
-                        if (!cancelled && selectedItem) {
-                            saveCurrentIdentity(selectedItem);
-                            url.searchParams.delete("identityId");
-                            window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
-                            return;
-                        }
-                    }
-                } catch (err) {
-                    console.error("Gagal menyinkronkan identitas Tim Gambuh dari URL:", err);
-                }
-            }
-
-            if (cancelled) return;
-
-            // Selalu mengharuskan user memilih identitas pada saat pertama kali komponen dibuka
-            setMyId("");
-            setMyName("");
-            showSelectIdentityModal(true);
-        };
-
-        initializeIdentity();
 
         // Realtime updates using Pusher
         const pusher = getPusherClient();
         if (!pusher) {
-            return () => {
-                cancelled = true;
-            };
+            return;
         }
 
         const channel = pusher.subscribe("taaruf-channel");
@@ -388,12 +172,10 @@ export default function TimGambuhOperatorPage() {
         channel.bind("room-changed", (eventData: any) => {
             fetchData();
             if (eventData && eventData.action === "assign") {
-                const { roomNama, pengirimNama, pengirimNoUrut, penerimaNama, penerimaNoUrut, assignedCallerNama, assignedCallerId, assignedCaller2Nama, assignedCaller2Id, assignedGuardNama, assignedGuardId } = eventData;
-                const savedId = localStorage.getItem("my_tim_pnkb_gambuh_id") || "";
-                const isMyAssignment = assignedCallerId === savedId || assignedCaller2Id === savedId || assignedGuardId === savedId;
+                const { roomNama, pengirimNama, pengirimNoUrut, penerimaNama, penerimaNoUrut, assignedCallerNama, assignedCaller2Nama, assignedGuardNama } = eventData;
 
                 Swal.fire({
-                    title: isMyAssignment ? 'Tugas Pendampingan Baru!' : 'Sesi Pertemuan Baru!',
+                    title: 'Sesi Pertemuan Baru!',
                     html: `
                         <div style="text-align: left; font-size: 13px; line-height: 1.6;">
                             <p style="margin-bottom: 8px;"><strong>Ruangan:</strong> ${roomNama}</p>
@@ -403,13 +185,13 @@ export default function TimGambuhOperatorPage() {
                                 <li>Wanita: No. ${penerimaNoUrut || '-'} - ${penerimaNama}</li>
                             </ul>
                             <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #e2e8f0; display: flex; flex-direction: column; gap: 4px;">
-                                <p style="margin: 0;">📢 <strong>Pemanggil 1:</strong> <span style="color: ${assignedCallerId === savedId ? '#3b82f6' : 'inherit'}; font-weight: bold;">${assignedCallerNama || '-'} ${assignedCallerId === savedId ? '(Anda)' : ''}</span></p>
-                                ${assignedCaller2Nama ? `<p style="margin: 0;">📢 <strong>Pemanggil 2:</strong> <span style="color: ${assignedCaller2Id === savedId ? '#3b82f6' : 'inherit'}; font-weight: bold;">${assignedCaller2Nama} ${assignedCaller2Id === savedId ? '(Anda)' : ''}</span></p>` : ''}
-                                <p style="margin: 0;">🚪 <strong>Penunggu:</strong> <span style="color: ${assignedGuardId === savedId ? '#10b981' : 'inherit'}; font-weight: bold;">${assignedGuardNama || '-'} ${assignedGuardId === savedId ? '(Anda)' : ''}</span></p>
+                                <p style="margin: 0;">📢 <strong>Pemanggil 1:</strong> <span>${assignedCallerNama || '-'}</span></p>
+                                ${assignedCaller2Nama ? `<p style="margin: 0;">📢 <strong>Pemanggil 2:</strong> <span>${assignedCaller2Nama}</span></p>` : ''}
+                                <p style="margin: 0;">🚪 <strong>Penunggu:</strong> <span>${assignedGuardNama || '-'}</span></p>
                             </div>
                         </div>
                     `,
-                    icon: isMyAssignment ? 'success' : 'info',
+                    icon: 'info',
                     toast: true,
                     position: 'top-end',
                     showConfirmButton: true,
@@ -421,19 +203,18 @@ export default function TimGambuhOperatorPage() {
         });
 
         return () => {
-            cancelled = true;
             channel.unbind("taaruf-changed");
             channel.unbind("room-changed");
             pusher.unsubscribe("taaruf-channel");
         };
-    }, [fetchData, saveCurrentIdentity, showSelectIdentityModal]);
+    }, [fetchData]);
 
     const handleStartRoom = async (id: string) => {
         try {
             const res = await fetch(`/api/mandiri/rooms/${id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action: "start", operatorCompanionId: myId })
+                body: JSON.stringify({ action: "start", operatorCompanionId: "GENERAL_PNKB" })
             });
             if (res.ok) {
                 fetchData();
@@ -446,104 +227,6 @@ export default function TimGambuhOperatorPage() {
         }
     };
 
-    useEffect(() => {
-        if (showAbsenScanner && !hasAttended) {
-            let scanner: any = null;
-            const initScanner = async () => {
-                try {
-                    const { Html5Qrcode } = await import("html5-qrcode");
-                    if (absenScannerRef.current) {
-                        try { await absenScannerRef.current.stop(); } catch(e){}
-                    }
-                    scanner = new Html5Qrcode("gambuh-scanner-box");
-                    absenScannerRef.current = scanner;
-                    
-                    await scanner.start(
-                        { facingMode: "environment" },
-                        { fps: 10, qrbox: { width: 250, height: 250 } },
-                        (decodedText: string) => {
-                            if (decodedText.includes("kegiatanId=")) {
-                                try {
-                                    const urlObj = new URL(decodedText);
-                                    const kId = urlObj.searchParams.get("kegiatanId");
-                                    if (kId) {
-                                        handleAbsenScan(kId);
-                                    }
-                                } catch(e) {}
-                            }
-                        },
-                        () => {} // ignore
-                    );
-                    setIsScanning(true);
-                } catch(e) {
-                   Swal.fire('Error', 'Kamera gagal dimulai', 'error');
-                   setShowAbsenScanner(false);
-                }
-            };
-            initScanner();
-
-            return () => {
-                if (scanner) {
-                    try { scanner.stop(); } catch(e){}
-                }
-            };
-        } else {
-            if (absenScannerRef.current) {
-                try { absenScannerRef.current.stop(); } catch(e){}
-                absenScannerRef.current = null;
-            }
-            setIsScanning(false);
-            if (!hasAttended) {
-                setScanFeedback(null);
-            }
-        }
-    }, [showAbsenScanner, hasAttended]);
-
-    const handleAbsenScan = async (kegiatanId: string) => {
-        if (absenScannerRef.current) {
-            try { await absenScannerRef.current.stop(); } catch(e){}
-        }
-        setIsScanning(false);
-
-        setScanFeedback({ type: "processing", text: "Mengirim absensi..." });
-
-        try {
-            const res = await fetch("/api/mandiri/absensi", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    kegiatanId,
-                    generusId: myId
-                })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                 setShowAbsenScanner(false);
-                 setHasAttended(true);
-                 Swal.fire("Berhasil", "Kehadiran Anda tersimpan.", "success");
-            } else if (res.status === 409) {
-                 setShowAbsenScanner(false);
-                 setHasAttended(true);
-                 Swal.fire("Info", "Kehadiran Anda sudah tercatat sebelumnya.", "info");
-            } else {
-                 throw new Error(data.error);
-            }
-        } catch (e: any) {
-            setScanFeedback({ type: "error", text: e.message || "Gagal absen" });
-        }
-    };
-
-    const handleOpenAbsensi = async () => {
-        if (!myId) {
-            Swal.fire("Pilih Identitas", "Pilih nama Anda terlebih dahulu sebelum absen.", "warning");
-            return;
-        }
-        
-        // Asumsi kita buka dlu
-        setShowAbsenScanner(true);
-        setScanFeedback(null);
-        setHasAttended(false); 
-    };
 
     const handleClearRoom = async (id: string) => {
         const room = allRooms.find(r => r.id === id);
@@ -595,7 +278,7 @@ export default function TimGambuhOperatorPage() {
                         action: "clear",
                         hasilPengirim: formValues.hasilPengirim,
                         hasilPenerima: formValues.hasilPenerima,
-                        operatorCompanionId: myId
+                        operatorCompanionId: "GENERAL_PNKB"
                     })
                 });
                 if (res.ok) {
@@ -760,10 +443,6 @@ export default function TimGambuhOperatorPage() {
         }
     };
 
-    const normalizeId = (value: any) => (value == null ? "" : String(value).trim());
-    const normalizedMyId = normalizeId(myId);
-
-    // Filter Rooms based on search & Sort so that rooms assigned to me come first
     const filteredRooms = allRooms.filter(room => {
         const query = roomSearch.toLowerCase();
         const matchesSearch = (
@@ -774,19 +453,10 @@ export default function TimGambuhOperatorPage() {
             room.penerimaNo?.toLowerCase().includes(query)
         );
 
-        // Only show rooms with an active session assigned to me (by admin romantic
-        // room or the system's auto-assignment). Kosong rooms carry no assignment
-        // (it's cleared when a session ends), so they're hidden entirely too.
         if (room.status !== "Terisi") return false;
 
         return matchesSearch;
     }).sort((a, b) => {
-        const aIsMine = normalizeId(a.assignedCallerId) === normalizedMyId || normalizeId(a.assignedGuardId) === normalizedMyId;
-        const bIsMine = normalizeId(b.assignedCallerId) === normalizedMyId || normalizeId(b.assignedGuardId) === normalizedMyId;
-        
-        if (aIsMine && !bIsMine) return -1;
-        if (!aIsMine && bIsMine) return 1;
-        
         return a.nama.localeCompare(b.nama, undefined, { numeric: true, sensitivity: 'base' });
     });
 
@@ -922,7 +592,7 @@ export default function TimGambuhOperatorPage() {
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Laporan Hasil");
         const tanggal = new Date().toISOString().slice(0, 10);
-        XLSX.writeFile(wb, `Laporan_Hasil_${(myName || "Tim_Gambuh").replace(/\s+/g, "_")}_${tanggal}.xlsx`);
+        XLSX.writeFile(wb, `Laporan_Hasil_Tim_Gambuh_${tanggal}.xlsx`);
     };
 
     return (
@@ -935,23 +605,7 @@ export default function TimGambuhOperatorPage() {
                         <h2>Panel Tim PNKB & Ibu Gambuh</h2>
                         <p>Kelola sesi taaruf di dalam ruangan: Mulai timer, dampingi, dan simpan hasil pertemuan.</p>
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <span className="identity-badge">
-                            Sebagai: <strong>{myName || "Pilih Nama Anda"}</strong>
-                        </span>
-                        <button className="btn-identity" onClick={() => showSelectIdentityModal(false)} title="Ubah Identitas">
-                            Ubah Identitas
-                        </button>
-                        <button className="btn-refresh" onClick={handleOpenAbsensi} style={{
-                            display: 'flex', alignItems: 'center', gap: '6px',
-                            background: '#fef3c7', color: '#92400e',
-                            border: '1px solid #fde68a', padding: '8px 16px',
-                            borderRadius: '8px', fontSize: '13px', fontWeight: '600',
-                            cursor: 'pointer'
-                        }}>
-                            <QrCode size={16} />
-                            Absensi
-                        </button>
+                    <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
                         <Link href="/tim-gambuh/katalog" className="btn-refresh" title="Katalog Peserta" style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -1000,14 +654,9 @@ export default function TimGambuhOperatorPage() {
                             </div>
                         ) : (
                             filteredRooms.map((room) => (
-                                <div key={room.id} className={`room-tile ${room.status?.toLowerCase()} ${room.status === "Terisi" && !room.startedAt ? "not-started" : ""} ${room.assignedGuardId === myId || room.assignedCallerId === myId || room.assignedCaller2Id === myId ? "my-assigned-room" : ""}`} onClick={() => setSelectedRoom(room)} style={{ cursor: "pointer" }}>
+                                <div key={room.id} className={`room-tile ${room.status?.toLowerCase()} ${room.status === "Terisi" && !room.startedAt ? "not-started" : ""}`} onClick={() => setSelectedRoom(room)} style={{ cursor: "pointer" }}>
                                     <div className="room-top">
                                         <span className="room-name">{room.nama}</span>
-                                        {(room.assignedGuardId === myId || room.assignedCallerId === myId || room.assignedCaller2Id === myId) && (
-                                            <span className="my-task-badge" style={{ backgroundColor: room.assignedGuardId === myId ? '#10b981' : '#3b82f6', color: 'white', fontSize: '9px', fontWeight: 800, padding: '2px 6px', borderRadius: '4px' }}>
-                                                {room.assignedGuardId === myId ? 'Penunggu' : 'Pemanggil'}
-                                            </span>
-                                        )}
                                         {room.status === "Terisi" && room.startedAt && (
                                             <RoomTimer startTime={room.startedAt} />
                                         )}
@@ -1041,42 +690,40 @@ export default function TimGambuhOperatorPage() {
                                                     {room.assignedCallerNama && (
                                                         <div style={{ color: '#2563eb', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                                                             📢 <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                                                                P1: {room.assignedCallerNama.split(' ')[0]} {room.assignedCallerId === myId ? <strong>(Anda)</strong> : ''}
+                                                                P1: {room.assignedCallerNama.split(' ')[0]}
                                                             </span>
                                                         </div>
                                                     )}
                                                     {room.assignedCaller2Nama && (
                                                         <div style={{ color: '#7c3aed', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                                                             📢 <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                                                                P2: {room.assignedCaller2Nama.split(' ')[0]} {room.assignedCaller2Id === myId ? <strong>(Anda)</strong> : ''}
+                                                                P2: {room.assignedCaller2Nama.split(' ')[0]}
                                                             </span>
                                                         </div>
                                                     )}
                                                     {room.assignedGuardNama && (
                                                         <div style={{ color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                                                             🚪 <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                                                                {room.assignedGuardNama.split(' ')[0]} {room.assignedGuardId === myId ? <strong>(Anda)</strong> : ''}
+                                                                {room.assignedGuardNama.split(' ')[0]}
                                                             </span>
                                                         </div>
                                                     )}
                                                 </div>
 
-                                                {room.assignedGuardId === myId && (
-                                                    <div className="action-row">
-                                                        {room.startedAt ? (
-                                                            <div style={{ fontSize: '10px', color: '#64748b', textAlign: 'center', width: '100%', padding: '6px', fontStyle: 'italic', background: '#f1f5f9', borderRadius: '6px' }}>
-                                                                Menunggu hasil RR dari kedua pasangan tersebut
-                                                            </div>
-                                                        ) : (
-                                                            <button
-                                                                className="btn-start-timer"
-                                                                onClick={(e) => { e.stopPropagation(); handleStartRoom(room.id); }}
-                                                            >
-                                                                <Timer size={12} fill="white" /> Mulai Sesi
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                )}
+                                                <div className="action-row">
+                                                    {room.startedAt ? (
+                                                        <div style={{ fontSize: '10px', color: '#64748b', textAlign: 'center', width: '100%', padding: '6px', fontStyle: 'italic', background: '#f1f5f9', borderRadius: '6px' }}>
+                                                            Menunggu hasil RR dari kedua pasangan tersebut
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            className="btn-start-timer"
+                                                            onClick={(e) => { e.stopPropagation(); handleStartRoom(room.id); }}
+                                                        >
+                                                            <Timer size={12} fill="white" /> Mulai Sesi
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         ) : (
                                             <span className="empty-label">Kosong</span>
@@ -1229,39 +876,7 @@ export default function TimGambuhOperatorPage() {
 
             </div>
 
-            {showAbsenScanner && (
-                <div style={{
-                    position: "fixed", inset: 0, zIndex: 9999,
-                    background: "rgba(0,0,0,0.8)", display: "flex",
-                    alignItems: "center", justifyContent: "center", padding: "16px"
-                }} onClick={() => setShowAbsenScanner(false)}>
-                    <div style={{
-                        background: "white", borderRadius: "16px", padding: "24px",
-                        width: "100%", maxWidth: "400px", textAlign: "center"
-                    }} onClick={e => e.stopPropagation()}>
-                        <h3 style={{ marginBottom: "16px" }}>{hasAttended ? "Sudah Hadir" : "Scan QR Absensi"}</h3>
-                        
-                        {hasAttended ? (
-                           <div style={{ padding: "40px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
-                              <CheckCircle size={64} style={{ color: "#10b981", animation: "pulse 2s infinite" }} />
-                              <p style={{ fontSize: "16px", fontWeight: "bold", color: "#1e293b", margin: 0 }}>Anda sudah tercatat hadir!</p>
-                           </div>
-                        ) : (
-                           <div style={{ width: "100%", aspectRatio: "1/1", background: "#f8fafc", borderRadius: "8px", overflow: "hidden", border: "2px dashed #94a3b8" }}>
-                               <div id="gambuh-scanner-box" style={{ width: "100%", height: "100%" }}></div>
-                           </div>
-                        )}
-                        
-                        {scanFeedback && !hasAttended && (
-                            <div style={{ marginTop: "12px", padding: "10px", borderRadius: "8px", fontSize: "13px", fontWeight: 600, background: scanFeedback.type === 'error' ? '#fef2f2' : (scanFeedback.type === 'processing' ? '#eff6ff' : '#ecfdf5'), color: scanFeedback.type === 'error' ? '#ef4444' : (scanFeedback.type === 'processing' ? '#3b82f6' : '#10b981') }}>
-                                {scanFeedback.text}
-                            </div>
-                        )}
-                        
-                        <button onClick={() => setShowAbsenScanner(false)} style={{ marginTop: "24px", padding: "12px 20px", width: "100%", borderRadius: "8px", border: "none", background: "#ef4444", color: "white", fontWeight: "bold", cursor: "pointer" }}>Tutup</button>
-                    </div>
-                </div>
-            )}
+
 
             {selectedRoom && (
                 <div style={{
@@ -1342,8 +957,8 @@ export default function TimGambuhOperatorPage() {
                                                 <span style={{ fontSize: "14px" }}>📢</span>
                                                 <div>
                                                     <div style={{ fontSize: "10px", color: "#64748b", fontWeight: 600 }}>Pemanggil 1 <span style={{ color: '#2563eb' }}>(PNKB)</span></div>
-                                                    <div style={{ fontSize: "13px", fontWeight: 700, color: selectedRoom.assignedCallerId === myId ? "#2563eb" : "#0f172a" }}>
-                                                        {selectedRoom.assignedCallerNama} {selectedRoom.assignedCallerId === myId ? "(Anda)" : ""}
+                                                    <div style={{ fontSize: "13px", fontWeight: 700, color: "#2563eb" }}>
+                                                        {selectedRoom.assignedCallerNama}
                                                     </div>
                                                 </div>
                                             </div>
@@ -1353,8 +968,8 @@ export default function TimGambuhOperatorPage() {
                                                 <span style={{ fontSize: "14px" }}>📢</span>
                                                 <div>
                                                     <div style={{ fontSize: "10px", color: "#64748b", fontWeight: 600 }}>Pemanggil 2 <span style={{ color: '#7c3aed' }}>(Ibu Gambuh)</span></div>
-                                                    <div style={{ fontSize: "13px", fontWeight: 700, color: selectedRoom.assignedCaller2Id === myId ? "#7c3aed" : "#0f172a" }}>
-                                                        {selectedRoom.assignedCaller2Nama} {selectedRoom.assignedCaller2Id === myId ? "(Anda)" : ""}
+                                                    <div style={{ fontSize: "13px", fontWeight: 700, color: "#7c3aed" }}>
+                                                        {selectedRoom.assignedCaller2Nama}
                                                     </div>
                                                 </div>
                                             </div>
@@ -1364,8 +979,8 @@ export default function TimGambuhOperatorPage() {
                                                 <span style={{ fontSize: "14px" }}>🚪</span>
                                                 <div>
                                                     <div style={{ fontSize: "10px", color: "#64748b", fontWeight: 600 }}>Penunggu</div>
-                                                    <div style={{ fontSize: "13px", fontWeight: 700, color: selectedRoom.assignedGuardId === myId ? "#059669" : "#0f172a" }}>
-                                                        {selectedRoom.assignedGuardNama} {selectedRoom.assignedGuardId === myId ? "(Anda)" : ""}
+                                                    <div style={{ fontSize: "13px", fontWeight: 700, color: "#059669" }}>
+                                                        {selectedRoom.assignedGuardNama}
                                                     </div>
                                                 </div>
                                             </div>
@@ -1373,8 +988,7 @@ export default function TimGambuhOperatorPage() {
                                     </div>
                                 )}
 
-                                {/* Action buttons — for all assigned staff */}
-                                {(selectedRoom.assignedGuardId === myId) && (
+                                {selectedRoom.status === "Terisi" && (
                                     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                                         {!selectedRoom.startedAt ? (
                                             <button onClick={() => { setSelectedRoom(null); handleStartRoom(selectedRoom.id); }} style={{

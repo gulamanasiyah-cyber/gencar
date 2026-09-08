@@ -84,8 +84,8 @@ function IndonesianDateInput({ value, onChange, ...props }: any) {
         }}
       />
       {/* Calendar icon absolute positioned */}
-      <span 
-        onClick={handleTriggerPicker} 
+      <span
+        onClick={handleTriggerPicker}
         style={{
           position: 'absolute',
           right: '16px',
@@ -168,6 +168,9 @@ export default function PublicKatalogPage() {
   const [hobiList, setHobiList] = useState<string[]>([]);
   const [makananList, setMakananList] = useState<string[]>([]);
   const [sukuList, setSukuList] = useState<string[]>([]);
+  const [filterKotaList, setFilterKotaList] = useState<string[]>([]);
+  const [filterWilayahList, setFilterWilayahList] = useState<any[]>([]);
+  const [filterKelompokList, setFilterKelompokList] = useState<any[]>([]);
   const [selections, setSelections] = useState<any[]>([]);
 
   // Box Love state
@@ -653,6 +656,10 @@ export default function PublicKatalogPage() {
           setHobiList(filterJson.hobi || []);
           setMakananList(filterJson.makanan || []);
           setSukuList(filterJson.suku || []);
+
+          if (filterJson.kota) setFilterKotaList(filterJson.kota.sort());
+          if (filterJson.wilayah) setFilterWilayahList(filterJson.wilayah);
+          if (filterJson.kelompok) setFilterKelompokList(filterJson.kelompok);
         }
 
         if (desaRes && desaRes.ok) {
@@ -675,7 +682,7 @@ export default function PublicKatalogPage() {
           const boxLoveJson = await boxLoveRes.json();
           setBoxLoveStatus(boxLoveJson.value || "closed");
         }
-        
+
         if (katalogStatusRes && katalogStatusRes.ok) {
           const json = await katalogStatusRes.json();
           setKatalogPublicStatus(json.value || "closed");
@@ -773,7 +780,7 @@ export default function PublicKatalogPage() {
                 setGender(profile.jenisKelamin === "L" ? "P" : "L");
               }
             }
-          } catch (e) {}
+          } catch (e) { }
         }
         // Fetch active rooms for all users (admin, peserta, panitia)
         // so the banner/button reflects the real room state for everyone
@@ -789,7 +796,7 @@ export default function PublicKatalogPage() {
           if (roomsRes.ok) {
             setActiveRooms(await roomsRes.json());
           }
-        } catch(e) {}
+        } catch (e) { }
       } catch (e) {
         console.error("init error:", e);
       } finally {
@@ -937,7 +944,7 @@ export default function PublicKatalogPage() {
 
       if (data && data.action === "clear" && currentUser) {
         const myId = String(currentUser.id);
-        const isAssociated = 
+        const isAssociated =
           String(data.pengirimId) === myId ||
           String(data.penerimaId) === myId ||
           String(data.assignedGuardId) === myId ||
@@ -1073,11 +1080,11 @@ export default function PublicKatalogPage() {
   const handleSubmitSaran = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!saranText.trim()) return;
-    
+
     setSubmittingSaran(true);
     try {
       const storedToken = localStorage.getItem("attended_session_token");
-      
+
       const payload: any = {
         untuk: "Romantic Room",
         kepada: kepadaSaran === 'Lainnya' ? kepadaSaranLainnya : kepadaSaran,
@@ -1086,7 +1093,7 @@ export default function PublicKatalogPage() {
         isAnonim: isAnonimSaran,
         userId: currentUser?.id
       };
-      
+
       let res;
       if (editingSaranId) {
         payload.id = editingSaranId;
@@ -1118,7 +1125,7 @@ export default function PublicKatalogPage() {
         setKepadaSaranLainnya("");
         setIsAnonimSaran(false);
         setEditingSaranId(null);
-        
+
         // Refresh the list
         if (currentUser?.id) {
           const freshRes = await fetch(`/api/public/saran?userId=${currentUser.id}`);
@@ -1319,12 +1326,22 @@ export default function PublicKatalogPage() {
 
   const handleAdminSelesaikanSesi = async (sp: any) => {
     const room = sp.roomId ? activeRooms.find((r: any) => r.id === sp.roomId) : activeRooms.find((r: any) => String(r.pengirimNo) === String(sp.nomorUnik) || String(r.penerimaNo) === String(sp.nomorUnik));
-    
+
     if (!room) {
-        // Rooms might not be loaded yet — try refreshing first
-        await fetchActiveRooms();
-        Swal.fire("Error", "Ruangan tidak ditemukan. Coba lagi.", "error");
-        return;
+      // Rooms might not be loaded yet — try refreshing first
+      await fetchActiveRooms();
+      Swal.fire("Error", "Ruangan tidak ditemukan. Coba lagi.", "error");
+      return;
+    }
+
+    if (!room.startedAt) {
+      Swal.fire({
+        icon: "warning",
+        title: "Sesi Belum Dimulai",
+        text: "Sesi di ruangan ini belum dimulai oleh Admin Romantic Room.",
+        confirmButtonColor: "#f43f5e"
+      });
+      return;
     }
 
     const isPengirim = String(currentUser?.nomorUnik) === String(room.pengirimNo);
@@ -1332,33 +1349,33 @@ export default function PublicKatalogPage() {
     // A third-party admin is someone who is NOT one of the two participants
     // AND is not an assigned panitia in this room
     const isAssignedPanitia = !isPengirim && !isPenerima && currentUser?.id && (
-        room.assignedGuardId === currentUser.id ||
-        room.assignedCallerId === currentUser.id ||
-        room.assignedCaller2Id === currentUser.id
+      room.assignedGuardId === currentUser.id ||
+      room.assignedCallerId === currentUser.id ||
+      room.assignedCaller2Id === currentUser.id
     );
     const isThirdPartyAdmin = !isPengirim && !isPenerima && !isAssignedPanitia;
 
     // Guard: if not a participant/admin and no pemilihanId, can't proceed
     if (!isThirdPartyAdmin && !room.pemilihanId) {
-        Swal.fire("Info", "Sesi ini sudah berakhir atau belum memiliki data pemilihan.", "info");
-        await fetchActiveRooms();
-        await fetchHasilRR();
-        return;
+      Swal.fire("Info", "Sesi ini sudah berakhir atau belum memiliki data pemilihan.", "info");
+      await fetchActiveRooms();
+      await fetchHasilRR();
+      return;
     }
 
     let htmlContent = `<div style="text-align: left; margin-bottom: 20px;">`;
-    
+
     if (isThirdPartyAdmin) {
-        htmlContent += `<p style="font-size: 14px; margin-bottom: 15px; color: #64748b;">Tentukan hasil pertemuan untuk kedua belah pihak:</p>`;
+      htmlContent += `<p style="font-size: 14px; margin-bottom: 15px; color: #64748b;">Tentukan hasil pertemuan untuk kedua belah pihak:</p>`;
     } else if (isAssignedPanitia) {
-        htmlContent += `<p style="font-size: 14px; margin-bottom: 15px; color: #64748b;">Anda bertugas di ruangan ini. Tentukan hasil pertemuan untuk kedua peserta:</p>`;
+      htmlContent += `<p style="font-size: 14px; margin-bottom: 15px; color: #64748b;">Anda bertugas di ruangan ini. Tentukan hasil pertemuan untuk kedua peserta:</p>`;
     } else {
-        htmlContent += `<p style="font-size: 14px; margin-bottom: 15px; color: #64748b;">Bagaimana hasil pertemuan Anda?</p>`;
+      htmlContent += `<p style="font-size: 14px; margin-bottom: 15px; color: #64748b;">Bagaimana hasil pertemuan Anda?</p>`;
     }
     const uid = Math.random().toString(36).substring(7);
 
     if (isPengirim || isThirdPartyAdmin || isAssignedPanitia) {
-        htmlContent += `
+      htmlContent += `
             <div style="margin-bottom: 20px;">
                 <label style="display: block; font-weight: 800; font-size: 11px; text-transform: uppercase; color: #1e293b; margin-bottom: 8px; letter-spacing: 0.5px;">
                     ${isThirdPartyAdmin ? 'Pemilih: ' : 'Anda: '}<span style="color: #f43f5e; margin-left: 4px;">${room.pengirimNama}</span>
@@ -1376,7 +1393,7 @@ export default function PublicKatalogPage() {
     }
 
     if (isPenerima || isThirdPartyAdmin || isAssignedPanitia) {
-        htmlContent += `
+      htmlContent += `
             <div>
                 <label style="display: block; font-weight: 800; font-size: 11px; text-transform: uppercase; color: #1e293b; margin-bottom: 8px; letter-spacing: 0.5px;">
                     ${isThirdPartyAdmin ? 'Terpilih: ' : 'Anda: '}<span style="color: #f43f5e; margin-left: 4px;">${room.penerimaNama}</span>
@@ -1419,87 +1436,87 @@ export default function PublicKatalogPage() {
     </div>`;
 
     const { value: formValues } = await Swal.fire({
-            title: isThirdPartyAdmin ? 'Selesaikan Sesi?' : 'Input Hasil RR',
-            html: htmlContent,
-            showCancelButton: true,
-            confirmButtonColor: '#10b981',
-            confirmButtonText: 'Simpan',
-            cancelButtonText: 'Batal',
-            preConfirm: () => {
-                const hasil_p = document.querySelector('input[name="hasil_p"]:checked') ? (document.querySelector('input[name="hasil_p"]:checked') as HTMLInputElement).value : undefined;
-                const hasil_t = document.querySelector('input[name="hasil_t"]:checked') ? (document.querySelector('input[name="hasil_t"]:checked') as HTMLInputElement).value : undefined;
-                
-                if (isPengirim && !hasil_p) {
-                    Swal.showValidationMessage("Silakan pilih hasil pertemuan Anda terlebih dahulu.");
-                    return false;
-                }
-                if (isPenerima && !hasil_t) {
-                    Swal.showValidationMessage("Silakan pilih hasil pertemuan Anda terlebih dahulu.");
-                    return false;
-                }
-                if ((isThirdPartyAdmin || isAssignedPanitia) && (!hasil_p || !hasil_t)) {
-                    Swal.showValidationMessage("Silakan pilih hasil untuk kedua peserta.");
-                    return false;
-                }
+      title: isThirdPartyAdmin ? 'Selesaikan Sesi?' : 'Input Hasil RR',
+      html: htmlContent,
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      confirmButtonText: 'Simpan',
+      cancelButtonText: 'Batal',
+      preConfirm: () => {
+        const hasil_p = document.querySelector('input[name="hasil_p"]:checked') ? (document.querySelector('input[name="hasil_p"]:checked') as HTMLInputElement).value : undefined;
+        const hasil_t = document.querySelector('input[name="hasil_t"]:checked') ? (document.querySelector('input[name="hasil_t"]:checked') as HTMLInputElement).value : undefined;
 
-                return { hasil_p, hasil_t };
-            }
-        });
-
-        if (formValues) {
-            try {
-                let isSuccess = false;
-                
-                if (isThirdPartyAdmin || isAssignedPanitia) {
-                    // Admin / panitia yang ditugaskan: selesaikan room via PATCH
-                    const res = await fetch(`/api/mandiri/rooms/${room.id}`, {
-                        method: "PATCH",
-                        headers: { 
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${localStorage.getItem("attended_session_token") || ""}`
-                        },
-                        body: JSON.stringify({ action: "clear", hasilPengirim: formValues.hasil_p, hasilPenerima: formValues.hasil_t, operatorCompanionId: currentUser?.id })
-                    });
-                    if (!res.ok) throw new Error((await res.json()).error);
-                    isSuccess = true;
-                } else {
-                    // Peserta (pengirim / penerima): submit hasil individual via POST
-                    if (!room.pemilihanId) {
-                        Swal.fire("Info", "Sesi ini sudah berakhir.", "info");
-                        await fetchActiveRooms();
-                        await fetchHasilRR();
-                        return;
-                    }
-                    const resultVal = isPengirim ? formValues.hasil_p : formValues.hasil_t;
-                    const res = await fetch("/api/mandiri/hasil-rr", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            id: room.pemilihanId,
-                            generusId: currentUser?.id,
-                            hasil: resultVal
-                        })
-                    });
-                    if (!res.ok) throw new Error((await res.json()).error);
-                    isSuccess = true;
-                }
-                if (isSuccess) {
-                    Swal.fire({
-                        title: "Berhasil!",
-                        text: (isThirdPartyAdmin || isAssignedPanitia) ? "Sesi telah selesai dan hasil disimpan." : "Hasil pertemuan Anda berhasil disimpan.",
-                        icon: "success",
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
-                    // Refresh all relevant state so UI reflects the new status immediately
-                    fetchData();
-                    fetchActiveRooms();
-                    fetchHasilRR();
-                }
-            } catch (err: any) {
-                Swal.fire("Error", err.message, "error");
-            }
+        if (isPengirim && !hasil_p) {
+          Swal.showValidationMessage("Silakan pilih hasil pertemuan Anda terlebih dahulu.");
+          return false;
         }
+        if (isPenerima && !hasil_t) {
+          Swal.showValidationMessage("Silakan pilih hasil pertemuan Anda terlebih dahulu.");
+          return false;
+        }
+        if ((isThirdPartyAdmin || isAssignedPanitia) && (!hasil_p || !hasil_t)) {
+          Swal.showValidationMessage("Silakan pilih hasil untuk kedua peserta.");
+          return false;
+        }
+
+        return { hasil_p, hasil_t };
+      }
+    });
+
+    if (formValues) {
+      try {
+        let isSuccess = false;
+
+        if (isThirdPartyAdmin || isAssignedPanitia) {
+          // Admin / panitia yang ditugaskan: selesaikan room via PATCH
+          const res = await fetch(`/api/mandiri/rooms/${room.id}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${localStorage.getItem("attended_session_token") || ""}`
+            },
+            body: JSON.stringify({ action: "clear", hasilPengirim: formValues.hasil_p, hasilPenerima: formValues.hasil_t, operatorCompanionId: currentUser?.id })
+          });
+          if (!res.ok) throw new Error((await res.json()).error);
+          isSuccess = true;
+        } else {
+          // Peserta (pengirim / penerima): submit hasil individual via POST
+          if (!room.pemilihanId) {
+            Swal.fire("Info", "Sesi ini sudah berakhir.", "info");
+            await fetchActiveRooms();
+            await fetchHasilRR();
+            return;
+          }
+          const resultVal = isPengirim ? formValues.hasil_p : formValues.hasil_t;
+          const res = await fetch("/api/mandiri/hasil-rr", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: room.pemilihanId,
+              generusId: currentUser?.id,
+              hasil: resultVal
+            })
+          });
+          if (!res.ok) throw new Error((await res.json()).error);
+          isSuccess = true;
+        }
+        if (isSuccess) {
+          Swal.fire({
+            title: "Berhasil!",
+            text: (isThirdPartyAdmin || isAssignedPanitia) ? "Sesi telah selesai dan hasil disimpan." : "Hasil pertemuan Anda berhasil disimpan.",
+            icon: "success",
+            timer: 1500,
+            showConfirmButton: false
+          });
+          // Refresh all relevant state so UI reflects the new status immediately
+          fetchData();
+          fetchActiveRooms();
+          fetchHasilRR();
+        }
+      } catch (err: any) {
+        Swal.fire("Error", err.message, "error");
+      }
+    }
   };
 
   const handleConfirmSelection = async (targetId: string, targetName: string) => {
@@ -1746,59 +1763,69 @@ export default function PublicKatalogPage() {
 
       {(() => {
         if (!currentUser) return null;
-        const activeRoomForUser = activeRooms.find((r: any) => 
-            String(r.pengirimNo) === String(currentUser.nomorUnik) || 
-            String(r.penerimaNo) === String(currentUser.nomorUnik) || 
-            r.assignedGuardId === currentUser.id || 
-            r.assignedCallerId === currentUser.id || 
-            r.assignedCaller2Id === currentUser.id
+        const activeRoomForUser = activeRooms.find((r: any) =>
+          String(r.pengirimNo) === String(currentUser.nomorUnik) ||
+          String(r.penerimaNo) === String(currentUser.nomorUnik) ||
+          r.assignedGuardId === currentUser.id ||
+          r.assignedCallerId === currentUser.id ||
+          r.assignedCaller2Id === currentUser.id
         );
 
         if (activeRoomForUser) {
-            const isPengirim = String(activeRoomForUser.pengirimNo) === String(currentUser.nomorUnik);
-            const isPenerima = String(activeRoomForUser.penerimaNo) === String(currentUser.nomorUnik);
-            const isPeserta = isPengirim || isPenerima;
-            const roleStr = isPeserta ? 'Peserta' : 'Panitia';
-            
-            let hasSubmitted = false;
-            if (isPengirim && activeRoomForUser.hasilPengirim && activeRoomForUser.hasilPengirim !== "Menunggu") {
-                hasSubmitted = true;
-            } else if (isPenerima && activeRoomForUser.hasilPenerima && activeRoomForUser.hasilPenerima !== "Menunggu") {
-                hasSubmitted = true;
-            }
+          const isPengirim = String(activeRoomForUser.pengirimNo) === String(currentUser.nomorUnik);
+          const isPenerima = String(activeRoomForUser.penerimaNo) === String(currentUser.nomorUnik);
+          const isPeserta = isPengirim || isPenerima;
+          const roleStr = isPeserta ? 'Peserta' : 'Panitia';
+          const isStarted = !!activeRoomForUser.startedAt;
 
-            return (
-                <div style={{ background: '#fef2f2', border: '1px solid #fecdd3', borderRadius: '12px', padding: '14px 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '16px', color: '#9f1239', boxShadow: '0 4px 12px rgba(244, 63, 94, 0.1)' }}>
-                    <div style={{ background: '#f43f5e', color: 'white', padding: '10px', borderRadius: '50%', display: 'flex' }}>
-                        <Users size={24} />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 900, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            Di Dalam Ruangan 
-                            <span style={{ fontSize: '10px', background: '#ffe4e6', color: '#be123c', padding: '2px 8px', borderRadius: '12px', fontWeight: 800, textTransform: 'uppercase' }}>
-                                {roleStr}
-                            </span>
-                        </div>
-                        <div style={{ fontSize: '13px', marginTop: '4px', opacity: 0.9 }}>
-                            Anda saat ini sedang ditugaskan/berada di dalam <strong>{activeRoomForUser.nama || activeRoomForUser.roomNama}</strong>.
-                        </div>
-                    </div>
-                    {!hasSubmitted ? (
-                        <button 
-                            onClick={() => handleAdminSelesaikanSesi({ roomId: activeRoomForUser.id, ...currentUser })} 
-                            style={{ flexShrink: 0, background: '#f43f5e', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: 800, fontSize: '13px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(244, 63, 94, 0.3)', transition: 'transform 0.2s' }}
-                            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-                        >
-                            {roleStr === 'Peserta' ? 'Input Hasil RR' : 'Selesaikan Sesi'}
-                        </button>
-                    ) : (
-                        <div style={{ flexShrink: 0, background: '#fecdd3', color: '#9f1239', padding: '10px 20px', borderRadius: '10px', fontWeight: 800, fontSize: '13px' }}>
-                            Menunggu Pasangan...
-                        </div>
-                    )}
+          let hasSubmitted = false;
+          if (isPengirim && activeRoomForUser.hasilPengirim && activeRoomForUser.hasilPengirim !== "Menunggu") {
+            hasSubmitted = true;
+          } else if (isPenerima && activeRoomForUser.hasilPenerima && activeRoomForUser.hasilPenerima !== "Menunggu") {
+            hasSubmitted = true;
+          }
+
+          return (
+            <div style={{ background: isStarted ? '#fef2f2' : '#fff7ed', border: `1px solid ${isStarted ? '#fecdd3' : '#fed7aa'}`, borderRadius: '12px', padding: '14px 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '16px', color: isStarted ? '#9f1239' : '#9a3412', boxShadow: isStarted ? '0 4px 12px rgba(244, 63, 94, 0.1)' : '0 4px 12px rgba(249, 115, 22, 0.1)' }}>
+              <div style={{ background: isStarted ? '#f43f5e' : '#f97316', color: 'white', padding: '10px', borderRadius: '50%', display: 'flex' }}>
+                <Users size={24} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 900, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  Di Dalam Ruangan
+                  <span style={{ fontSize: '10px', background: isStarted ? '#ffe4e6' : '#ffedd5', color: isStarted ? '#be123c' : '#c2410c', padding: '2px 8px', borderRadius: '12px', fontWeight: 800, textTransform: 'uppercase' }}>
+                    {roleStr}
+                  </span>
                 </div>
-            );
+                <div style={{ fontSize: '13px', marginTop: '4px', opacity: 0.9 }}>
+                  Anda saat ini sedang ditugaskan/berada di dalam <strong>{activeRoomForUser.nama || activeRoomForUser.roomNama}</strong>.
+                </div>
+              </div>
+              {!hasSubmitted ? (
+                isStarted ? (
+                  <button
+                    onClick={() => handleAdminSelesaikanSesi({ roomId: activeRoomForUser.id, ...currentUser })}
+                    style={{ flexShrink: 0, background: '#f43f5e', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: 800, fontSize: '13px', cursor: 'pointer', boxShadow: '0 2px 8px rgba(244, 63, 94, 0.3)', transition: 'transform 0.2s' }}
+                    onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                    onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                  >
+                    {roleStr === 'Peserta' ? 'Input Hasil RR' : 'Selesaikan Sesi'}
+                  </button>
+                ) : (
+                  <button
+                    disabled
+                    style={{ flexShrink: 0, background: '#cbd5e1', color: '#64748b', border: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: 800, fontSize: '13px', cursor: 'not-allowed', opacity: 0.8 }}
+                  >
+                    {roleStr === 'Peserta' ? 'Input Hasil RR' : 'Selesaikan Sesi'}
+                  </button>
+                )
+              ) : (
+                <div style={{ flexShrink: 0, background: '#fecdd3', color: '#9f1239', padding: '10px 20px', borderRadius: '10px', fontWeight: 800, fontSize: '13px' }}>
+                  Menunggu Pasangan...
+                </div>
+              )}
+            </div>
+          );
         }
         return null;
       })()}
@@ -1873,9 +1900,9 @@ export default function PublicKatalogPage() {
                 <div className="filter-field-group">
                   <label className="filter-label">Daerah</label>
                   <div className="select-container">
-                    <select className="select-box" value={selectedKota} onChange={(e) => { setSelectedKota(e.target.value); setDesaFilter("all"); setPage(1); }}>
+                    <select className="select-box" value={selectedKota} onChange={(e) => { setSelectedKota(e.target.value); setDesaFilter("all"); setKelompokFilter("all"); setPage(1); }}>
                       <option value="all">Semua Daerah</option>
-                      {kotaList.map(k => <option key={k} value={k}>{k}</option>)}
+                      {(filterKotaList.length > 0 ? filterKotaList : kotaList).map(k => <option key={k} value={k}>{k}</option>)}
                     </select>
                     <ChevronDown size={14} className="select-arrow" />
                   </div>
@@ -1886,7 +1913,7 @@ export default function PublicKatalogPage() {
                   <div className="select-container">
                     <select className="select-box" value={desaFilter} onChange={(e) => { setDesaFilter(e.target.value); setKelompokFilter("all"); setPage(1); }}>
                       <option value="all">Semua Desa</option>
-                      {wilayahList.filter(w => selectedKota === "all" || w.kota === selectedKota).map(w => <option key={w.id} value={w.id}>{w.nama}</option>)}
+                      {(filterWilayahList.length > 0 ? filterWilayahList : wilayahList).filter(w => selectedKota === "all" || w.kota === selectedKota).map(w => <option key={w.id} value={w.id}>{w.nama}</option>)}
                     </select>
                     <ChevronDown size={14} className="select-arrow" />
                   </div>
@@ -1897,7 +1924,15 @@ export default function PublicKatalogPage() {
                   <div className="select-container">
                     <select className="select-box" value={kelompokFilter} onChange={(e) => { setKelompokFilter(e.target.value); setPage(1); }}>
                       <option value="all">Semua Kelompok</option>
-                      {kelompokList.filter(k => desaFilter === "all" || String(k.desaId || k.mandiriDesaId) === desaFilter).map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
+                      {(filterKelompokList.length > 0 ? filterKelompokList : kelompokList).filter((k: any) => {
+                        let activeWilayahList = filterWilayahList.length > 0 ? filterWilayahList : wilayahList;
+                        let pMatch = true;
+                        if (selectedKota !== "all") {
+                          const p = activeWilayahList.find((w: any) => String(w.id) === String(k.desaId || k.mandiriDesaId));
+                          if (!p || p.kota !== selectedKota) pMatch = false;
+                        }
+                        return pMatch && (desaFilter === "all" || String(k.desaId || k.mandiriDesaId) === desaFilter);
+                      }).map((k: any) => <option key={k.id} value={k.id}>{k.nama}</option>)}
                     </select>
                     <ChevronDown size={14} className="select-arrow" />
                   </div>
@@ -1917,14 +1952,6 @@ export default function PublicKatalogPage() {
                       </optgroup>
                     </select>
                     <ChevronDown size={14} className="select-arrow" />
-                  </div>
-                </div>
-
-                <div className="filter-field-group">
-                  <label className="filter-label">Usia Min - Max</label>
-                  <div className="input-range-container">
-                    <input type="number" className="filter-input-box" placeholder="Min. Umur" value={umurMinFilter} onChange={(e) => { setUmurMinFilter(e.target.value); setUmurFilter("all"); setPage(1); }} />
-                    <input type="number" className="filter-input-box" placeholder="Max. Umur" value={umurMaxFilter} onChange={(e) => { setUmurMaxFilter(e.target.value); setUmurFilter("all"); setPage(1); }} />
                   </div>
                 </div>
 
@@ -2052,7 +2079,7 @@ export default function PublicKatalogPage() {
                 return (
                   <div key={item.id} className={`participant-card ${isUnavailable ? "is-pulang" : ""}`} style={{ position: "relative", opacity: isUnavailable ? 1 : undefined, filter: isUnavailable ? "none" : undefined }}>
                     <div style={isUnavailable ? { filter: "blur(5px) grayscale(0.6)", opacity: 0.7, pointerEvents: "none", userSelect: "none" } : {}}>
-                      <div 
+                      <div
                         className="card-image-wrapper"
                         style={{ cursor: item.foto ? "zoom-in" : "default" }}
                         onClick={(e) => {
@@ -2094,6 +2121,26 @@ export default function PublicKatalogPage() {
                           <span>{item.mandiriDesaKota || "-"} • {item.mandiriDesaNama || item.desaNama || "-"}</span>
                         </div>
 
+                        {/* Indikator Kuota Terlihat di Mobile & Desktop */}
+                        <div style={{ marginBottom: '10px' }}>
+                          <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            backgroundColor: item.selectedCount >= 5 ? '#fee2e2' : '#dcfce7',
+                            color: item.selectedCount >= 5 ? '#ef4444' : '#16a34a',
+                            border: '1px solid',
+                            borderColor: item.selectedCount >= 5 ? '#fecaca' : '#bbf7d0'
+                          }}>
+                            <UserCheck size={12} />
+                            <span>{item.selectedCount >= 5 ? "Kuota Habis" : "Masih Ada Kuota"}</span>
+                          </div>
+                        </div>
+
                         <div className="card-stats-grid">
                           <div className="stat-pill"><Calendar size={14} /><span>{item.tanggalLahir ? `${new Date().getFullYear() - new Date(item.tanggalLahir).getFullYear()} Tahun` : "-"}</span></div>
                           <div className="stat-pill"><GraduationCap size={14} /><span>{item.pendidikan || "-"}</span></div>
@@ -2107,7 +2154,6 @@ export default function PublicKatalogPage() {
                               </a>
                             ) : <span>-</span>}
                           </div>
-                          <div className="stat-pill selection-count"><UserCheck size={14} /><span>Dipilih: {item.selectedCount || 0}/5</span></div>
                         </div>
 
                         <div className="card-passions-mini">
@@ -2125,61 +2171,62 @@ export default function PublicKatalogPage() {
 
                             if (item.handshakeStatus) {
                               if (item.handshakeStatus === "Selesai") {
-                                 const alreadyFilled = checkUserAlreadyFilled(item, currentUser, activeRooms, hasilRRList, isAdmin);
-                                 return (
-                                   <>
-                                     <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
-                                       <Users size={16} />
-                                       <span>Sudah Bertemu</span>
-                                     </button>
-                                     {alreadyFilled ? (
-                                       <button className="btn-primary disabled" disabled style={{ background: '#94a3b8', borderColor: '#94a3b8', color: 'white', opacity: 0.6, cursor: 'not-allowed', marginTop: '8px' }}>
-                                         <Heart size={16} />
-                                         <span>Input Hasil RR</span>
-                                       </button>
-                                     ) : (
-                                       <button className="btn-primary" style={{ background: '#10b981', borderColor: '#10b981', marginTop: '8px' }} onClick={() => { setIsModalOpen(false); setActiveTab('hasil'); }}>
-                                         <Heart size={16} />
-                                         <span>Input Hasil RR</span>
-                                       </button>
-                                     )}
-                                   </>
-                                 );
-                               }
-                               if (item.handshakeStatus === "Diterima") {
-                                 return (
-                                   <>
-                                     <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
-                                       <Users size={16} />
-                                       <span>Dalam Ruangan</span>
-                                     </button>
-                                     {(() => {
-                                       const room = activeRooms.find((r: any) => String(r.pengirimNo) === String(item.nomorUnik) || String(r.penerimaNo) === String(item.nomorUnik));
-                                       const isPart = room && currentUser && (String(currentUser.nomorUnik) === String(room.pengirimNo) || String(currentUser.nomorUnik) === String(room.penerimaNo) || room.assignedGuardId === currentUser.id || room.assignedCallerId === currentUser.id || room.assignedCaller2Id === currentUser.id);
-                                       if (!isAdmin && !isPart) return null;
+                                const alreadyFilled = checkUserAlreadyFilled(item, currentUser, activeRooms, hasilRRList, isAdmin);
+                                return (
+                                  <>
+                                    <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
+                                      <Users size={16} />
+                                      <span>Sudah Bertemu</span>
+                                    </button>
+                                    {alreadyFilled ? (
+                                      <button className="btn-primary disabled" disabled style={{ background: '#94a3b8', borderColor: '#94a3b8', color: 'white', opacity: 0.6, cursor: 'not-allowed', marginTop: '8px' }}>
+                                        <Heart size={16} />
+                                        <span>Input Hasil RR</span>
+                                      </button>
+                                    ) : (
+                                      <button className="btn-primary" style={{ background: '#10b981', borderColor: '#10b981', marginTop: '8px' }} onClick={() => { setIsModalOpen(false); setActiveTab('hasil'); }}>
+                                        <Heart size={16} />
+                                        <span>Input Hasil RR</span>
+                                      </button>
+                                    )}
+                                  </>
+                                );
+                              }
+                              if (item.handshakeStatus === "Diterima") {
+                                return (
+                                  <>
+                                    <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
+                                      <Users size={16} />
+                                      <span>Dalam Ruangan</span>
+                                    </button>
+                                    {(() => {
+                                      const room = activeRooms.find((r: any) => String(r.pengirimNo) === String(item.nomorUnik) || String(r.penerimaNo) === String(item.nomorUnik));
+                                      const isPart = room && currentUser && (String(currentUser.nomorUnik) === String(room.pengirimNo) || String(currentUser.nomorUnik) === String(room.penerimaNo) || room.assignedGuardId === currentUser.id || room.assignedCallerId === currentUser.id || room.assignedCaller2Id === currentUser.id);
+                                      if (!isAdmin && !isPart) return null;
 
-                                       const alreadyFilled = checkUserAlreadyFilled(item, currentUser, activeRooms, hasilRRList, isAdmin);
+                                      const isStarted = room && !!room.startedAt;
+                                      const alreadyFilled = checkUserAlreadyFilled(item, currentUser, activeRooms, hasilRRList, isAdmin);
 
-                                       if (alreadyFilled) {
-                                         return (
-                                           <button className="btn-primary disabled" disabled style={{ background: '#94a3b8', borderColor: '#94a3b8', color: 'white', opacity: 0.6, cursor: 'not-allowed', marginTop: '8px' }}>
-                                             {isAdmin ? <CheckCircle2 size={16} /> : <Heart size={16} />}
-                                             <span>{isAdmin ? 'Selesaikan Sesi' : 'Input Hasil RR'}</span>
-                                           </button>
-                                         );
-                                       }
+                                      if (!isStarted || alreadyFilled) {
+                                        return (
+                                          <button className="btn-primary disabled" disabled style={{ background: '#94a3b8', borderColor: '#94a3b8', color: 'white', opacity: 0.6, cursor: 'not-allowed', marginTop: '8px' }}>
+                                            {isAdmin ? <CheckCircle2 size={16} /> : <Heart size={16} />}
+                                            <span>{isAdmin ? 'Selesaikan Sesi' : 'Input Hasil RR'}</span>
+                                          </button>
+                                        );
+                                      }
 
-                                       return (
-                                         <button className="btn-primary" style={{ background: '#10b981', borderColor: '#10b981', marginTop: '8px' }} onClick={() => handleAdminSelesaikanSesi(item)}>
-                                           {isAdmin ? <CheckCircle2 size={16} /> : <Heart size={16} />}
-                                           <span>{isAdmin ? 'Selesaikan Sesi' : 'Input Hasil RR'}</span>
-                                         </button>
-                                       );
-                                     })()}
-                                   </>
-                                 );
-                               }
-                               if (item.handshakeStatus === "Menunggu") {
+                                      return (
+                                        <button className="btn-primary" style={{ background: '#10b981', borderColor: '#10b981', marginTop: '8px' }} onClick={() => handleAdminSelesaikanSesi(item)}>
+                                          {isAdmin ? <CheckCircle2 size={16} /> : <Heart size={16} />}
+                                          <span>{isAdmin ? 'Selesaikan Sesi' : 'Input Hasil RR'}</span>
+                                        </button>
+                                      );
+                                    })()}
+                                  </>
+                                );
+                              }
+                              if (item.handshakeStatus === "Menunggu") {
                                 if (!isSelected) {
                                   return (
                                     <button className="btn-secondary disabled" disabled style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>
@@ -2619,355 +2666,355 @@ export default function PublicKatalogPage() {
           ) : (() => {
             const matchList = hasilRRList.filter(h => h.hasilPengirim === "Lanjut" && h.hasilPenerima === "Lanjut");
             return (
-            <div className="cart-list" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="cart-list" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-              {/* === MATCH SECTION: Both chose Lanjut === */}
-              {matchList.length > 0 && (
-                <div style={{ marginBottom: '8px' }}>
-                  <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                    <span style={{ fontSize: '28px' }}>💕</span>
-                    <h3 style={{ margin: '4px 0 2px', fontSize: '17px', fontWeight: 800, color: '#be185d' }}>Pasangan Lanjut</h3>
-                    <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>Kedua peserta memilih <b>Lanjut</b></p>
-                  </div>
-                  {matchList.map(h => {
-                    const isPengirim = h.pengirimId === currentUser?.id;
-                    const isPenerima = h.penerimaId === currentUser?.id;
-                    const isPanitia = !isPengirim && !isPenerima;
-                    const partnerName = isPengirim ? h.penerimaNama : h.pengirimNama;
-                    const partnerNoUrut = isPengirim ? h.penerimaNoUrut : h.pengirimNoUrut;
-                    const myName = isPengirim ? h.pengirimNama : h.penerimaNama;
-                    const myNoUrut = isPengirim ? h.pengirimNoUrut : h.penerimaNoUrut;
-                    const isDalamRuangan = h.status === "Diterima";
+                {/* === MATCH SECTION: Both chose Lanjut === */}
+                {matchList.length > 0 && (
+                  <div style={{ marginBottom: '8px' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                      <span style={{ fontSize: '28px' }}>💕</span>
+                      <h3 style={{ margin: '4px 0 2px', fontSize: '17px', fontWeight: 800, color: '#be185d' }}>Pasangan Lanjut</h3>
+                      <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>Kedua peserta memilih <b>Lanjut</b></p>
+                    </div>
+                    {matchList.map(h => {
+                      const isPengirim = h.pengirimId === currentUser?.id;
+                      const isPenerima = h.penerimaId === currentUser?.id;
+                      const isPanitia = !isPengirim && !isPenerima;
+                      const partnerName = isPengirim ? h.penerimaNama : h.pengirimNama;
+                      const partnerNoUrut = isPengirim ? h.penerimaNoUrut : h.pengirimNoUrut;
+                      const myName = isPengirim ? h.pengirimNama : h.penerimaNama;
+                      const myNoUrut = isPengirim ? h.pengirimNoUrut : h.penerimaNoUrut;
+                      const isDalamRuangan = h.status === "Diterima";
 
-                    if (isPanitia) {
+                      if (isPanitia) {
+                        return (
+                          <div key={`match-${h.id}`} style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '2px solid #fbcfe8', marginBottom: '4px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                              <div style={{ fontWeight: 800, fontSize: '16px', color: '#1e293b' }}>
+                                Ruangan: {h.roomNama || "Romantic Room"}
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 800, color: isDalamRuangan ? '#1d4ed8' : '#166534', background: isDalamRuangan ? '#eff6ff' : '#f0fdf4', border: `1px solid ${isDalamRuangan ? '#bfdbfe' : '#bbf7d0'}`, borderRadius: '999px', padding: '4px 8px' }}>
+                                  {isDalamRuangan ? "Dalam Ruangan" : "Selesai"}
+                                </span>
+                              </div>
+                            </div>
+                            <div style={{ marginBottom: '16px', fontSize: '13px', color: '#475569' }}>
+                              Peserta: <strong>{h.pengirimNama}</strong> & <strong>{h.penerimaNama}</strong>
+                            </div>
+                            {isDalamRuangan ? (
+                              <button
+                                onClick={() => handleAdminSelesaikanSesi({ roomId: h.roomId, ...currentUser })}
+                                style={{
+                                  width: '100%',
+                                  padding: '11px',
+                                  borderRadius: '10px',
+                                  border: 'none',
+                                  background: '#f43f5e',
+                                  color: 'white',
+                                  fontSize: '13px',
+                                  fontWeight: 800,
+                                  cursor: 'pointer',
+                                  transition: '0.2s',
+                                }}
+                              >
+                                Selesaikan Sesi
+                              </button>
+                            ) : (
+                              <div style={{ display: 'flex', gap: '12px' }}>
+                                <div style={{ flex: 1, padding: '12px', borderRadius: '12px', background: '#dcfce7', border: '1px solid #bbf7d0', textAlign: 'center' }}>
+                                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#166534', marginBottom: '8px' }}>{h.pengirimNama}:</div>
+                                  <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 800, background: '#dcfce7', color: '#166534', border: `1px solid #bbf7d0` }}>
+                                    ✓ Lanjut
+                                  </span>
+                                </div>
+                                <div style={{ flex: 1, padding: '12px', borderRadius: '12px', background: '#dcfce7', border: '1px solid #bbf7d0', textAlign: 'center' }}>
+                                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#166534', marginBottom: '8px' }}>{h.penerimaNama}:</div>
+                                  <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 800, background: '#dcfce7', color: '#166534', border: `1px solid #bbf7d0` }}>
+                                    ✓ Lanjut
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+
                       return (
-                        <div key={`match-${h.id}`} style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '2px solid #fbcfe8', marginBottom: '4px' }}>
+                        <div key={`match-${h.id}`} style={{
+                          background: 'linear-gradient(135deg, #fdf2f8 0%, #fff1f2 50%, #fef2f2 100%)',
+                          borderRadius: '16px',
+                          padding: '20px',
+                          border: '2px solid #fbcfe8',
+                          boxShadow: '0 4px 15px rgba(190,24,93,0.08)',
+                          marginBottom: '4px',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                            {/* My side */}
+                            <div style={{ textAlign: 'center', flex: 1, minWidth: '100px' }}>
+                              <div style={{ fontSize: '14px', fontWeight: 800, color: '#1e293b' }}>{myName}</div>
+                              <div style={{ fontSize: '11px', color: '#64748b' }}>#{myNoUrut}</div>
+                              <div style={{
+                                marginTop: '6px',
+                                display: 'inline-block',
+                                padding: '3px 10px',
+                                borderRadius: '999px',
+                                fontSize: '11px',
+                                fontWeight: 800,
+                                background: '#dcfce7',
+                                color: '#166534',
+                                border: '1px solid #bbf7d0',
+                              }}>✓ Lanjut</div>
+                            </div>
+
+                            {/* Heart icon */}
+                            <div style={{ fontSize: '28px', lineHeight: 1 }}>❤️</div>
+
+                            {/* Partner side */}
+                            <div style={{ textAlign: 'center', flex: 1, minWidth: '100px' }}>
+                              <div style={{ fontSize: '14px', fontWeight: 800, color: '#1e293b' }}>{partnerName}</div>
+                              <div style={{ fontSize: '11px', color: '#64748b' }}>#{partnerNoUrut}</div>
+                              <div style={{
+                                marginTop: '6px',
+                                display: 'inline-block',
+                                padding: '3px 10px',
+                                borderRadius: '999px',
+                                fontSize: '11px',
+                                fontWeight: 800,
+                                background: '#dcfce7',
+                                color: '#166534',
+                                border: '1px solid #bbf7d0',
+                              }}>✓ Lanjut</div>
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'center', marginTop: '12px', fontSize: '12px', color: '#94a3b8' }}>
+                            {new Date(h.createdAt).toLocaleDateString('id-ID')}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* === ALL SESSIONS (excluding matches shown above) === */}
+                {hasilRRList.filter(h => !(h.hasilPengirim === "Lanjut" && h.hasilPenerima === "Lanjut")).length > 0 && (
+                  <>
+                    {matchList.length > 0 && (
+                      <div style={{ textAlign: 'center', margin: '4px 0 8px' }}>
+                        <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#475569', margin: 0 }}>Sesi Lainnya</h4>
+                      </div>
+                    )}
+                    {hasilRRList.filter(h => !(h.hasilPengirim === "Lanjut" && h.hasilPenerima === "Lanjut")).map(h => {
+                      const isPengirim = h.pengirimId === currentUser?.id;
+                      const partnerName = isPengirim ? h.penerimaNama : h.pengirimNama;
+                      const partnerNoUrut = isPengirim ? h.penerimaNoUrut : h.pengirimNoUrut;
+                      const myHasil = isPengirim ? h.hasilPengirim : h.hasilPenerima;
+                      const partnerHasil = isPengirim ? h.hasilPenerima : h.hasilPengirim;
+                      const selectedHasil = myHasil || hasilRRDrafts[h.id] || "";
+                      const isSubmittingThis = submittingHasilId === h.id;
+                      const isDalamRuangan = h.status === "Diterima";
+
+                      const isPenerima = h.penerimaId === currentUser?.id;
+                      const isPanitia = !isPengirim && !isPenerima;
+
+                      const isRagu = (val: string) => val === "Ragu-Ragu" || val === "Ragu-ragu";
+
+                      const bothAnswered = !!myHasil && !!partnerHasil;
+
+                      const getResultBadge = (val: string) => {
+                        if (val === "Lanjut") return { bg: '#dcfce7', color: '#166534', border: '#bbf7d0', label: '✓ Lanjut' };
+                        if (isRagu(val)) return { bg: '#fef9c3', color: '#854d0e', border: '#fde68a', label: '~ Ragu-Ragu' };
+                        return { bg: '#fee2e2', color: '#991b1b', border: '#fecaca', label: '✗ Tidak Lanjut' };
+                      };
+
+                      if (isPanitia) {
+                        return (
+                          <div key={h.id} style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                              <div style={{ fontWeight: 800, fontSize: '16px', color: '#1e293b' }}>
+                                Ruangan: {h.roomNama || "Romantic Room"}
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 800, color: isDalamRuangan ? '#1d4ed8' : '#166534', background: isDalamRuangan ? '#eff6ff' : '#f0fdf4', border: `1px solid ${isDalamRuangan ? '#bfdbfe' : '#bbf7d0'}`, borderRadius: '999px', padding: '4px 8px' }}>
+                                  {isDalamRuangan ? "Dalam Ruangan" : "Selesai"}
+                                </span>
+                              </div>
+                            </div>
+                            <div style={{ marginBottom: '16px', fontSize: '13px', color: '#475569' }}>
+                              Peserta: <strong>{h.pengirimNama}</strong> & <strong>{h.penerimaNama}</strong>
+                            </div>
+                            {isDalamRuangan ? (
+                              <button
+                                onClick={() => handleAdminSelesaikanSesi({ roomId: h.roomId, ...currentUser })}
+                                style={{
+                                  width: '100%',
+                                  padding: '11px',
+                                  borderRadius: '10px',
+                                  border: 'none',
+                                  background: '#f43f5e',
+                                  color: 'white',
+                                  fontSize: '13px',
+                                  fontWeight: 800,
+                                  cursor: 'pointer',
+                                  transition: '0.2s',
+                                }}
+                              >
+                                Selesaikan Sesi
+                              </button>
+                            ) : (
+                              <div style={{ display: 'flex', gap: '12px' }}>
+                                <div style={{ flex: 1, padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '8px' }}>{h.pengirimNama}:</div>
+                                  {h.hasilPengirim ? (
+                                    <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 800, background: getResultBadge(h.hasilPengirim).bg, color: getResultBadge(h.hasilPengirim).color, border: `1px solid ${getResultBadge(h.hasilPengirim).border}` }}>
+                                      {getResultBadge(h.hasilPengirim).label}
+                                    </span>
+                                  ) : "-"}
+                                </div>
+                                <div style={{ flex: 1, padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '8px' }}>{h.penerimaNama}:</div>
+                                  {h.hasilPenerima ? (
+                                    <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 800, background: getResultBadge(h.hasilPenerima).bg, color: getResultBadge(h.hasilPenerima).color, border: `1px solid ${getResultBadge(h.hasilPenerima).border}` }}>
+                                      {getResultBadge(h.hasilPenerima).label}
+                                    </span>
+                                  ) : "-"}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div key={h.id} style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                             <div style={{ fontWeight: 800, fontSize: '16px', color: '#1e293b' }}>
-                              Ruangan: {h.roomNama || "Romantic Room"}
+                              {partnerName} <span style={{ color: '#64748b', fontSize: '12px' }}>#{partnerNoUrut}</span>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
                               <span style={{ fontSize: '11px', fontWeight: 800, color: isDalamRuangan ? '#1d4ed8' : '#166534', background: isDalamRuangan ? '#eff6ff' : '#f0fdf4', border: `1px solid ${isDalamRuangan ? '#bfdbfe' : '#bbf7d0'}`, borderRadius: '999px', padding: '4px 8px' }}>
                                 {isDalamRuangan ? "Dalam Ruangan" : "Selesai"}
                               </span>
+                              <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                                {new Date(h.createdAt).toLocaleDateString('id-ID')}
+                              </span>
                             </div>
                           </div>
-                          <div style={{ marginBottom: '16px', fontSize: '13px', color: '#475569' }}>
-                            Peserta: <strong>{h.pengirimNama}</strong> & <strong>{h.penerimaNama}</strong>
-                          </div>
-                          {isDalamRuangan ? (
+
+                          <div style={{ marginBottom: '10px', fontSize: '13px', color: '#475569', fontWeight: 600 }}>Jawaban Anda:</div>
+                          <div style={{ display: 'flex', gap: '8px' }}>
                             <button
-                              onClick={() => handleAdminSelesaikanSesi({ roomId: h.roomId, ...currentUser })}
+                              disabled={!!myHasil}
+                              onClick={() => setHasilRRDrafts(prev => ({ ...prev, [h.id]: "Lanjut" }))}
+                              style={{
+                                flex: 1,
+                                padding: '10px',
+                                borderRadius: '10px',
+                                fontSize: '13px',
+                                fontWeight: 700,
+                                border: selectedHasil === "Lanjut" ? '2px solid #22c55e' : '1px solid #e2e8f0',
+                                background: selectedHasil === "Lanjut" ? '#f0fdf4' : (!!myHasil ? '#f8fafc' : 'white'),
+                                color: selectedHasil === "Lanjut" ? '#166534' : (!!myHasil ? '#94a3b8' : '#64748b'),
+                                cursor: !!myHasil ? 'not-allowed' : 'pointer',
+                                transition: '0.2s',
+                                opacity: !!myHasil && selectedHasil !== "Lanjut" ? 0.6 : 1
+                              }}
+                            >Lanjut</button>
+                            <button
+                              disabled={!!myHasil}
+                              onClick={() => setHasilRRDrafts(prev => ({ ...prev, [h.id]: "Ragu-Ragu" }))}
+                              style={{
+                                flex: 1,
+                                padding: '10px',
+                                borderRadius: '10px',
+                                fontSize: '13px',
+                                fontWeight: 700,
+                                border: isRagu(selectedHasil) ? '2px solid #eab308' : '1px solid #e2e8f0',
+                                background: isRagu(selectedHasil) ? '#fefce8' : (!!myHasil ? '#f8fafc' : 'white'),
+                                color: isRagu(selectedHasil) ? '#854d0e' : (!!myHasil ? '#94a3b8' : '#64748b'),
+                                cursor: !!myHasil ? 'not-allowed' : 'pointer',
+                                transition: '0.2s',
+                                opacity: !!myHasil && !isRagu(selectedHasil) ? 0.6 : 1
+                              }}
+                            >Ragu-Ragu</button>
+                            <button
+                              disabled={!!myHasil}
+                              onClick={() => setHasilRRDrafts(prev => ({ ...prev, [h.id]: "Tidak Lanjut" }))}
+                              style={{
+                                flex: 1,
+                                padding: '10px',
+                                borderRadius: '10px',
+                                fontSize: '13px',
+                                fontWeight: 700,
+                                border: selectedHasil === "Tidak Lanjut" ? '2px solid #ef4444' : '1px solid #e2e8f0',
+                                background: selectedHasil === "Tidak Lanjut" ? '#fef2f2' : (!!myHasil ? '#f8fafc' : 'white'),
+                                color: selectedHasil === "Tidak Lanjut" ? '#991b1b' : (!!myHasil ? '#94a3b8' : '#64748b'),
+                                cursor: !!myHasil ? 'not-allowed' : 'pointer',
+                                transition: '0.2s',
+                                opacity: !!myHasil && selectedHasil !== "Tidak Lanjut" ? 0.6 : 1
+                              }}
+                            >Tidak Lanjut</button>
+                          </div>
+                          {!myHasil && (
+                            <button
+                              disabled={!hasilRRDrafts[h.id] || isSubmittingThis}
+                              onClick={() => handleSubmitHasilRR(h.id, partnerName)}
                               style={{
                                 width: '100%',
+                                marginTop: '14px',
                                 padding: '11px',
                                 borderRadius: '10px',
                                 border: 'none',
-                                background: '#f43f5e',
-                                color: 'white',
+                                background: hasilRRDrafts[h.id] ? '#10b981' : '#e2e8f0',
+                                color: hasilRRDrafts[h.id] ? 'white' : '#94a3b8',
                                 fontSize: '13px',
                                 fontWeight: 800,
-                                cursor: 'pointer',
+                                cursor: hasilRRDrafts[h.id] && !isSubmittingThis ? 'pointer' : 'not-allowed',
                                 transition: '0.2s',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px'
                               }}
                             >
-                              Selesaikan Sesi
+                              <CheckCircle2 size={16} />
+                              {isSubmittingThis ? "Menyimpan..." : "Submit"}
                             </button>
-                          ) : (
-                            <div style={{ display: 'flex', gap: '12px' }}>
-                              <div style={{ flex: 1, padding: '12px', borderRadius: '12px', background: '#dcfce7', border: '1px solid #bbf7d0', textAlign: 'center' }}>
-                                <div style={{ fontSize: '12px', fontWeight: 700, color: '#166534', marginBottom: '8px' }}>{h.pengirimNama}:</div>
-                                <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 800, background: '#dcfce7', color: '#166534', border: `1px solid #bbf7d0` }}>
-                                  ✓ Lanjut
-                                </span>
-                              </div>
-                              <div style={{ flex: 1, padding: '12px', borderRadius: '12px', background: '#dcfce7', border: '1px solid #bbf7d0', textAlign: 'center' }}>
-                                <div style={{ fontSize: '12px', fontWeight: 700, color: '#166534', marginBottom: '8px' }}>{h.penerimaNama}:</div>
-                                <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 800, background: '#dcfce7', color: '#166534', border: `1px solid #bbf7d0` }}>
-                                  ✓ Lanjut
-                                </span>
-                              </div>
+                          )}
+
+                          {/* Show partner's result once both have answered */}
+                          {bothAnswered && (
+                            <div style={{ marginTop: '14px', padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                              <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '8px' }}>Jawaban {partnerName}:</div>
+                              {(() => {
+                                const badge = getResultBadge(partnerHasil);
+                                return (
+                                  <span style={{
+                                    display: 'inline-block',
+                                    padding: '4px 12px',
+                                    borderRadius: '999px',
+                                    fontSize: '12px',
+                                    fontWeight: 800,
+                                    background: badge.bg,
+                                    color: badge.color,
+                                    border: `1px solid ${badge.border}`,
+                                  }}>{badge.label}</span>
+                                );
+                              })()}
+                            </div>
+                          )}
+                          {myHasil && !partnerHasil && (
+                            <div style={{ marginTop: '14px', padding: '10px', borderRadius: '12px', background: '#fffbeb', border: '1px solid #fde68a', fontSize: '12px', color: '#92400e', textAlign: 'center' }}>
+                              <Timer size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
+                              Menunggu jawaban dari {partnerName}...
                             </div>
                           )}
                         </div>
-                      );
-                    }
-
-                    return (
-                      <div key={`match-${h.id}`} style={{
-                        background: 'linear-gradient(135deg, #fdf2f8 0%, #fff1f2 50%, #fef2f2 100%)',
-                        borderRadius: '16px',
-                        padding: '20px',
-                        border: '2px solid #fbcfe8',
-                        boxShadow: '0 4px 15px rgba(190,24,93,0.08)',
-                        marginBottom: '4px',
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                          {/* My side */}
-                          <div style={{ textAlign: 'center', flex: 1, minWidth: '100px' }}>
-                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#1e293b' }}>{myName}</div>
-                            <div style={{ fontSize: '11px', color: '#64748b' }}>#{myNoUrut}</div>
-                            <div style={{
-                              marginTop: '6px',
-                              display: 'inline-block',
-                              padding: '3px 10px',
-                              borderRadius: '999px',
-                              fontSize: '11px',
-                              fontWeight: 800,
-                              background: '#dcfce7',
-                              color: '#166534',
-                              border: '1px solid #bbf7d0',
-                            }}>✓ Lanjut</div>
-                          </div>
-
-                          {/* Heart icon */}
-                          <div style={{ fontSize: '28px', lineHeight: 1 }}>❤️</div>
-
-                          {/* Partner side */}
-                          <div style={{ textAlign: 'center', flex: 1, minWidth: '100px' }}>
-                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#1e293b' }}>{partnerName}</div>
-                            <div style={{ fontSize: '11px', color: '#64748b' }}>#{partnerNoUrut}</div>
-                            <div style={{
-                              marginTop: '6px',
-                              display: 'inline-block',
-                              padding: '3px 10px',
-                              borderRadius: '999px',
-                              fontSize: '11px',
-                              fontWeight: 800,
-                              background: '#dcfce7',
-                              color: '#166534',
-                              border: '1px solid #bbf7d0',
-                            }}>✓ Lanjut</div>
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'center', marginTop: '12px', fontSize: '12px', color: '#94a3b8' }}>
-                          {new Date(h.createdAt).toLocaleDateString('id-ID')}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* === ALL SESSIONS (excluding matches shown above) === */}
-              {hasilRRList.filter(h => !(h.hasilPengirim === "Lanjut" && h.hasilPenerima === "Lanjut")).length > 0 && (
-                <>
-                  {matchList.length > 0 && (
-                    <div style={{ textAlign: 'center', margin: '4px 0 8px' }}>
-                      <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#475569', margin: 0 }}>Sesi Lainnya</h4>
-                    </div>
-                  )}
-                  {hasilRRList.filter(h => !(h.hasilPengirim === "Lanjut" && h.hasilPenerima === "Lanjut")).map(h => {
-                const isPengirim = h.pengirimId === currentUser?.id;
-                const partnerName = isPengirim ? h.penerimaNama : h.pengirimNama;
-                const partnerNoUrut = isPengirim ? h.penerimaNoUrut : h.pengirimNoUrut;
-                const myHasil = isPengirim ? h.hasilPengirim : h.hasilPenerima;
-                const partnerHasil = isPengirim ? h.hasilPenerima : h.hasilPengirim;
-                const selectedHasil = myHasil || hasilRRDrafts[h.id] || "";
-                const isSubmittingThis = submittingHasilId === h.id;
-                const isDalamRuangan = h.status === "Diterima";
-
-                const isPenerima = h.penerimaId === currentUser?.id;
-                const isPanitia = !isPengirim && !isPenerima;
-                
-                const isRagu = (val: string) => val === "Ragu-Ragu" || val === "Ragu-ragu";
-
-                const bothAnswered = !!myHasil && !!partnerHasil;
-
-                const getResultBadge = (val: string) => {
-                  if (val === "Lanjut") return { bg: '#dcfce7', color: '#166534', border: '#bbf7d0', label: '✓ Lanjut' };
-                  if (isRagu(val)) return { bg: '#fef9c3', color: '#854d0e', border: '#fde68a', label: '~ Ragu-Ragu' };
-                  return { bg: '#fee2e2', color: '#991b1b', border: '#fecaca', label: '✗ Tidak Lanjut' };
-                };
-
-                if (isPanitia) {
-                  return (
-                    <div key={h.id} style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                        <div style={{ fontWeight: 800, fontSize: '16px', color: '#1e293b' }}>
-                          Ruangan: {h.roomNama || "Romantic Room"}
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 800, color: isDalamRuangan ? '#1d4ed8' : '#166534', background: isDalamRuangan ? '#eff6ff' : '#f0fdf4', border: `1px solid ${isDalamRuangan ? '#bfdbfe' : '#bbf7d0'}`, borderRadius: '999px', padding: '4px 8px' }}>
-                            {isDalamRuangan ? "Dalam Ruangan" : "Selesai"}
-                          </span>
-                        </div>
-                      </div>
-                      <div style={{ marginBottom: '16px', fontSize: '13px', color: '#475569' }}>
-                        Peserta: <strong>{h.pengirimNama}</strong> & <strong>{h.penerimaNama}</strong>
-                      </div>
-                      {isDalamRuangan ? (
-                        <button
-                          onClick={() => handleAdminSelesaikanSesi({ roomId: h.roomId, ...currentUser })}
-                          style={{
-                            width: '100%',
-                            padding: '11px',
-                            borderRadius: '10px',
-                            border: 'none',
-                            background: '#f43f5e',
-                            color: 'white',
-                            fontSize: '13px',
-                            fontWeight: 800,
-                            cursor: 'pointer',
-                            transition: '0.2s',
-                          }}
-                        >
-                          Selesaikan Sesi
-                        </button>
-                      ) : (
-                        <div style={{ display: 'flex', gap: '12px' }}>
-                          <div style={{ flex: 1, padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', textAlign: 'center' }}>
-                            <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '8px' }}>{h.pengirimNama}:</div>
-                            {h.hasilPengirim ? (
-                              <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 800, background: getResultBadge(h.hasilPengirim).bg, color: getResultBadge(h.hasilPengirim).color, border: `1px solid ${getResultBadge(h.hasilPengirim).border}` }}>
-                                {getResultBadge(h.hasilPengirim).label}
-                              </span>
-                            ) : "-"}
-                          </div>
-                          <div style={{ flex: 1, padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', textAlign: 'center' }}>
-                            <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '8px' }}>{h.penerimaNama}:</div>
-                            {h.hasilPenerima ? (
-                              <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 800, background: getResultBadge(h.hasilPenerima).bg, color: getResultBadge(h.hasilPenerima).color, border: `1px solid ${getResultBadge(h.hasilPenerima).border}` }}>
-                                {getResultBadge(h.hasilPenerima).label}
-                              </span>
-                            ) : "-"}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                }
-
-                return (
-                  <div key={h.id} style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                      <div style={{ fontWeight: 800, fontSize: '16px', color: '#1e293b' }}>
-                        {partnerName} <span style={{ color: '#64748b', fontSize: '12px' }}>#{partnerNoUrut}</span>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: isDalamRuangan ? '#1d4ed8' : '#166534', background: isDalamRuangan ? '#eff6ff' : '#f0fdf4', border: `1px solid ${isDalamRuangan ? '#bfdbfe' : '#bbf7d0'}`, borderRadius: '999px', padding: '4px 8px' }}>
-                          {isDalamRuangan ? "Dalam Ruangan" : "Selesai"}
-                        </span>
-                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                          {new Date(h.createdAt).toLocaleDateString('id-ID')}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div style={{ marginBottom: '10px', fontSize: '13px', color: '#475569', fontWeight: 600 }}>Jawaban Anda:</div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button 
-                        disabled={!!myHasil}
-                        onClick={() => setHasilRRDrafts(prev => ({ ...prev, [h.id]: "Lanjut" }))}
-                        style={{ 
-                          flex: 1, 
-                          padding: '10px', 
-                          borderRadius: '10px', 
-                          fontSize: '13px', 
-                          fontWeight: 700, 
-                          border: selectedHasil === "Lanjut" ? '2px solid #22c55e' : '1px solid #e2e8f0',
-                          background: selectedHasil === "Lanjut" ? '#f0fdf4' : (!!myHasil ? '#f8fafc' : 'white'),
-                          color: selectedHasil === "Lanjut" ? '#166534' : (!!myHasil ? '#94a3b8' : '#64748b'),
-                          cursor: !!myHasil ? 'not-allowed' : 'pointer', 
-                          transition: '0.2s',
-                          opacity: !!myHasil && selectedHasil !== "Lanjut" ? 0.6 : 1
-                        }}
-                      >Lanjut</button>
-                      <button 
-                        disabled={!!myHasil}
-                        onClick={() => setHasilRRDrafts(prev => ({ ...prev, [h.id]: "Ragu-Ragu" }))}
-                        style={{ 
-                          flex: 1, 
-                          padding: '10px', 
-                          borderRadius: '10px', 
-                          fontSize: '13px', 
-                          fontWeight: 700, 
-                          border: isRagu(selectedHasil) ? '2px solid #eab308' : '1px solid #e2e8f0',
-                          background: isRagu(selectedHasil) ? '#fefce8' : (!!myHasil ? '#f8fafc' : 'white'),
-                          color: isRagu(selectedHasil) ? '#854d0e' : (!!myHasil ? '#94a3b8' : '#64748b'),
-                          cursor: !!myHasil ? 'not-allowed' : 'pointer', 
-                          transition: '0.2s',
-                          opacity: !!myHasil && !isRagu(selectedHasil) ? 0.6 : 1
-                        }}
-                      >Ragu-Ragu</button>
-                      <button 
-                        disabled={!!myHasil}
-                        onClick={() => setHasilRRDrafts(prev => ({ ...prev, [h.id]: "Tidak Lanjut" }))}
-                        style={{ 
-                          flex: 1, 
-                          padding: '10px', 
-                          borderRadius: '10px', 
-                          fontSize: '13px', 
-                          fontWeight: 700, 
-                          border: selectedHasil === "Tidak Lanjut" ? '2px solid #ef4444' : '1px solid #e2e8f0',
-                          background: selectedHasil === "Tidak Lanjut" ? '#fef2f2' : (!!myHasil ? '#f8fafc' : 'white'),
-                          color: selectedHasil === "Tidak Lanjut" ? '#991b1b' : (!!myHasil ? '#94a3b8' : '#64748b'),
-                          cursor: !!myHasil ? 'not-allowed' : 'pointer', 
-                          transition: '0.2s',
-                          opacity: !!myHasil && selectedHasil !== "Tidak Lanjut" ? 0.6 : 1
-                        }}
-                      >Tidak Lanjut</button>
-                    </div>
-                    {!myHasil && (
-                      <button
-                        disabled={!hasilRRDrafts[h.id] || isSubmittingThis}
-                        onClick={() => handleSubmitHasilRR(h.id, partnerName)}
-                        style={{
-                          width: '100%',
-                          marginTop: '14px',
-                          padding: '11px',
-                          borderRadius: '10px',
-                          border: 'none',
-                          background: hasilRRDrafts[h.id] ? '#10b981' : '#e2e8f0',
-                          color: hasilRRDrafts[h.id] ? 'white' : '#94a3b8',
-                          fontSize: '13px',
-                          fontWeight: 800,
-                          cursor: hasilRRDrafts[h.id] && !isSubmittingThis ? 'pointer' : 'not-allowed',
-                          transition: '0.2s',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '8px'
-                        }}
-                      >
-                        <CheckCircle2 size={16} />
-                        {isSubmittingThis ? "Menyimpan..." : "Submit"}
-                      </button>
-                    )}
-
-                    {/* Show partner's result once both have answered */}
-                    {bothAnswered && (
-                      <div style={{ marginTop: '14px', padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '8px' }}>Jawaban {partnerName}:</div>
-                        {(() => {
-                          const badge = getResultBadge(partnerHasil);
-                          return (
-                            <span style={{
-                              display: 'inline-block',
-                              padding: '4px 12px',
-                              borderRadius: '999px',
-                              fontSize: '12px',
-                              fontWeight: 800,
-                              background: badge.bg,
-                              color: badge.color,
-                              border: `1px solid ${badge.border}`,
-                            }}>{badge.label}</span>
-                          );
-                        })()}
-                      </div>
-                    )}
-                    {myHasil && !partnerHasil && (
-                      <div style={{ marginTop: '14px', padding: '10px', borderRadius: '12px', background: '#fffbeb', border: '1px solid #fde68a', fontSize: '12px', color: '#92400e', textAlign: 'center' }}>
-                        <Timer size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
-                        Menunggu jawaban dari {partnerName}...
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-                </>
-              )}
-            </div>
+                      )
+                    })}
+                  </>
+                )}
+              </div>
             );
           })()}
         </div>
@@ -2984,138 +3031,138 @@ export default function PublicKatalogPage() {
             <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: '#64748b', lineHeight: 1.5 }}>
               Berikan saran, kritik, atau masukan Anda terkait pelaksanaan Romantic Room untuk membantu kami menjadi lebih baik.
             </p>
-            
+
             {mySaranList.length > 0 && !showSaranForm && !editingSaranId ? (
-                <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                        <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
-                            Riwayat saran dan masukan yang pernah Anda kirimkan.
-                        </p>
-                        <button onClick={() => setShowSaranForm(true)} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '12px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                            Tambah
-                        </button>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {mySaranList.map((s, idx) => (
-                            <div key={idx} style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                <div style={{ flex: 1, marginRight: '16px' }}>
-                                    <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>
-                                        {new Date(s.createdAt.replace(' ', 'T') + (!s.createdAt.endsWith('Z') ? 'Z' : '')).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })} WIB
-                                        {s.isAnonim ? ' • Anonim' : ''}
-                                        {s.kepada ? ` • Kepada: ${s.kepada}` : ''}
-                                    </div>
-                                    <div style={{ fontSize: '14px', color: '#334155', whiteSpace: 'pre-wrap' }}>{s.saran}</div>
-                                </div>
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                    <button onClick={() => handleEditSaran(s)} style={{ background: 'white', border: '1px solid #cbd5e1', color: '#3b82f6', padding: '6px', borderRadius: '6px', cursor: 'pointer' }}>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                                    </button>
-                                    <button onClick={() => handleDeleteSaran(s.id)} style={{ background: 'white', border: '1px solid #cbd5e1', color: '#ef4444', padding: '6px', borderRadius: '6px', cursor: 'pointer' }}>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
+                    Riwayat saran dan masukan yang pernah Anda kirimkan.
+                  </p>
+                  <button onClick={() => setShowSaranForm(true)} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '12px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Tambah
+                  </button>
                 </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {mySaranList.map((s, idx) => (
+                    <div key={idx} style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1, marginRight: '16px' }}>
+                        <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>
+                          {new Date(s.createdAt.replace(' ', 'T') + (!s.createdAt.endsWith('Z') ? 'Z' : '')).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })} WIB
+                          {s.isAnonim ? ' • Anonim' : ''}
+                          {s.kepada ? ` • Kepada: ${s.kepada}` : ''}
+                        </div>
+                        <div style={{ fontSize: '14px', color: '#334155', whiteSpace: 'pre-wrap' }}>{s.saran}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={() => handleEditSaran(s)} style={{ background: 'white', border: '1px solid #cbd5e1', color: '#3b82f6', padding: '6px', borderRadius: '6px', cursor: 'pointer' }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                        </button>
+                        <button onClick={() => handleDeleteSaran(s.id)} style={{ background: 'white', border: '1px solid #cbd5e1', color: '#ef4444', padding: '6px', borderRadius: '6px', cursor: 'pointer' }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             ) : (
-            <form onSubmit={async (e) => {
+              <form onSubmit={async (e) => {
                 await handleSubmitSaran(e);
                 setShowSaranForm(false);
-            }}>
-              <div style={{ marginBottom: '16px' }}>
-                <select
-                  value={kepadaSaran}
-                  onChange={(e) => setKepadaSaran(e.target.value)}
-                  style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '2px solid #e2e8f0', outline: 'none', fontSize: '14px', lineHeight: 1.5, background: '#f8fafc', transition: '0.2s', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                  onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-                  onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-                  required
-                >
-                  <option value="" disabled>Pilih Tujuan Saran...</option>
-                  <option value="Tim Acara">Tim Acara</option>
-                  <option value="Tim Romantic Room">Tim Romantic Room</option>
-                  <option value="Tim PNKB dan Ibu Gambuh">Tim PNKB dan Ibu Gambuh</option>
-                  <option value="Lainnya">Lainnya</option>
-                </select>
-              </div>
-
-              {kepadaSaran === 'Lainnya' && (
+              }}>
                 <div style={{ marginBottom: '16px' }}>
-                  <input
-                    type="text"
-                    value={kepadaSaranLainnya}
-                    onChange={(e) => setKepadaSaranLainnya(e.target.value)}
-                    placeholder="Masukkan tujuan saran lainnya..."
+                  <select
+                    value={kepadaSaran}
+                    onChange={(e) => setKepadaSaran(e.target.value)}
                     style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '2px solid #e2e8f0', outline: 'none', fontSize: '14px', lineHeight: 1.5, background: '#f8fafc', transition: '0.2s', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                    onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                    onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                    required
+                  >
+                    <option value="" disabled>Pilih Tujuan Saran...</option>
+                    <option value="Tim Acara">Tim Acara</option>
+                    <option value="Tim Romantic Room">Tim Romantic Room</option>
+                    <option value="Tim PNKB dan Ibu Gambuh">Tim PNKB dan Ibu Gambuh</option>
+                    <option value="Lainnya">Lainnya</option>
+                  </select>
+                </div>
+
+                {kepadaSaran === 'Lainnya' && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <input
+                      type="text"
+                      value={kepadaSaranLainnya}
+                      onChange={(e) => setKepadaSaranLainnya(e.target.value)}
+                      placeholder="Masukkan tujuan saran lainnya..."
+                      style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '2px solid #e2e8f0', outline: 'none', fontSize: '14px', lineHeight: 1.5, background: '#f8fafc', transition: '0.2s', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                      onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                      onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                      required
+                    />
+                  </div>
+                )}
+
+                <div style={{ marginBottom: '16px' }}>
+                  <textarea
+                    value={saranText}
+                    onChange={(e) => setSaranText(e.target.value)}
+                    placeholder="Ketik saran atau masukan Anda di sini..."
+                    rows={6}
+                    style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '2px solid #e2e8f0', outline: 'none', resize: 'none', fontSize: '14px', lineHeight: 1.5, background: '#f8fafc', transition: '0.2s', fontFamily: 'inherit', boxSizing: 'border-box' }}
                     onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
                     onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
                     required
                   />
                 </div>
-              )}
 
-              <div style={{ marginBottom: '16px' }}>
-                <textarea
-                  value={saranText}
-                  onChange={(e) => setSaranText(e.target.value)}
-                  placeholder="Ketik saran atau masukan Anda di sini..."
-                  rows={6}
-                  style={{ width: '100%', padding: '16px', borderRadius: '16px', border: '2px solid #e2e8f0', outline: 'none', resize: 'none', fontSize: '14px', lineHeight: 1.5, background: '#f8fafc', transition: '0.2s', fontFamily: 'inherit', boxSizing: 'border-box' }}
-                  onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-                  onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-                  required
-                />
-              </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
+                  <input
+                    type="checkbox"
+                    id="anonim-saran"
+                    checked={isAnonimSaran}
+                    onChange={(e) => setIsAnonimSaran(e.target.checked)}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  <label htmlFor="anonim-saran" style={{ fontSize: '13px', color: '#475569', cursor: 'pointer', fontWeight: 600 }}>
+                    Kirim sebagai Anonim
+                  </label>
+                </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
-                <input
-                  type="checkbox"
-                  id="anonim-saran"
-                  checked={isAnonimSaran}
-                  onChange={(e) => setIsAnonimSaran(e.target.checked)}
-                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                />
-                <label htmlFor="anonim-saran" style={{ fontSize: '13px', color: '#475569', cursor: 'pointer', fontWeight: 600 }}>
-                  Kirim sebagai Anonim
-                </label>
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  type="submit"
-                  disabled={submittingSaran || !saranText.trim()}
-                  style={{ flex: 1, padding: '14px', borderRadius: '16px', border: 'none', background: !saranText.trim() ? '#cbd5e1' : '#3b82f6', color: 'white', fontWeight: 800, fontSize: '14px', cursor: !saranText.trim() ? 'not-allowed' : 'pointer', transition: '0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
-                >
-                {submittingSaran ? (
-                  "Mengirim..."
-                ) : (
-                  <>
-                    <Send size={18} />
-                    Kirim Saran
-                  </>
-                )}
-                </button>
-                 {editingSaranId ? (
-                  <button 
-                    type="button" 
-                    onClick={() => { setEditingSaranId(null); setSaranText(''); setKepadaSaran(''); setIsAnonimSaran(false); }}
-                    style={{ padding: '14px 20px', borderRadius: '16px', border: '2px solid #e2e8f0', background: 'white', color: '#64748b', fontWeight: 700, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="submit"
+                    disabled={submittingSaran || !saranText.trim()}
+                    style={{ flex: 1, padding: '14px', borderRadius: '16px', border: 'none', background: !saranText.trim() ? '#cbd5e1' : '#3b82f6', color: 'white', fontWeight: 800, fontSize: '14px', cursor: !saranText.trim() ? 'not-allowed' : 'pointer', transition: '0.2s', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
                   >
-                    Batal
+                    {submittingSaran ? (
+                      "Mengirim..."
+                    ) : (
+                      <>
+                        <Send size={18} />
+                        Kirim Saran
+                      </>
+                    )}
                   </button>
-                ) : mySaranList.length > 0 && showSaranForm ? (
-                  <button 
-                    type="button" 
-                    onClick={() => { setShowSaranForm(false); setSaranText(''); setKepadaSaran(''); setIsAnonimSaran(false); }}
-                    style={{ padding: '14px 20px', borderRadius: '16px', border: '2px solid #e2e8f0', background: 'white', color: '#64748b', fontWeight: 700, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                  >
-                    Batal
-                  </button>
-                ) : null}
-              </div>
-            </form>
+                  {editingSaranId ? (
+                    <button
+                      type="button"
+                      onClick={() => { setEditingSaranId(null); setSaranText(''); setKepadaSaran(''); setIsAnonimSaran(false); }}
+                      style={{ padding: '14px 20px', borderRadius: '16px', border: '2px solid #e2e8f0', background: 'white', color: '#64748b', fontWeight: 700, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                    >
+                      Batal
+                    </button>
+                  ) : mySaranList.length > 0 && showSaranForm ? (
+                    <button
+                      type="button"
+                      onClick={() => { setShowSaranForm(false); setSaranText(''); setKepadaSaran(''); setIsAnonimSaran(false); }}
+                      style={{ padding: '14px 20px', borderRadius: '16px', border: '2px solid #e2e8f0', background: 'white', color: '#64748b', fontWeight: 700, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                    >
+                      Batal
+                    </button>
+                  ) : null}
+                </div>
+              </form>
             )}
           </div>
         </div>
@@ -3129,7 +3176,7 @@ export default function PublicKatalogPage() {
           ) : myFullProfile ? (
             <div className="profile-details-card">
               <div className="profile-header-main">
-                <div 
+                <div
                   className="profile-avatar-large"
                   style={{ cursor: myFullProfile.foto ? "zoom-in" : "default" }}
                   onClick={() => {
@@ -3229,10 +3276,10 @@ export default function PublicKatalogPage() {
                 <button className="profile-edit-btn" onClick={() => {
                   let initKota = "";
                   if (myFullProfile.mandiriDesaId) {
-                      const matchW = wilayahList.find(w => String(w.id) === String(myFullProfile.mandiriDesaId));
-                      if (matchW) initKota = matchW.kota;
+                    const matchW = wilayahList.find(w => String(w.id) === String(myFullProfile.mandiriDesaId));
+                    if (matchW) initKota = matchW.kota;
                   }
-                  
+
                   setEditProfileForm({
                     nama: myFullProfile.nama || "",
                     jenisKelamin: myFullProfile.jenisKelamin || "L",
@@ -3276,110 +3323,134 @@ export default function PublicKatalogPage() {
         <div className="modal-overlay" onClick={() => setIsEditingProfile(false)} style={{ zIndex: 9999 }}>
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '90%', padding: '24px', borderRadius: '24px', background: 'white' }}>
             <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '20px', fontWeight: 800, color: '#1e293b' }}>Edit Biodata</h3>
-            
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '60vh', overflowY: 'auto', paddingRight: '4px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '16px' }}>
-                <div 
-                   style={{ width: "100px", height: "100px", borderRadius: "50%", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", marginBottom: "12px", border: "2px solid #e2e8f0", cursor: editProfileForm.foto ? "zoom-in" : "default" }}
-                   onClick={() => {
-                        if (editProfileForm.foto) {
-                            Swal.fire({
-                                imageUrl: editProfileForm.foto,
-                                imageAlt: "Foto Profil",
-                                showConfirmButton: false,
-                                showCloseButton: true,
-                                width: "auto",
-                                padding: "1rem"
-                            });
-                        }
-                   }}
+                <div
+                  style={{ width: "100px", height: "100px", borderRadius: "50%", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", marginBottom: "12px", border: "2px solid #e2e8f0", cursor: editProfileForm.foto ? "zoom-in" : "default" }}
+                  onClick={() => {
+                    if (editProfileForm.foto) {
+                      Swal.fire({
+                        imageUrl: editProfileForm.foto,
+                        imageAlt: "Foto Profil",
+                        showConfirmButton: false,
+                        showCloseButton: true,
+                        width: "auto",
+                        padding: "1rem"
+                      });
+                    }
+                  }}
                 >
                   {editProfileForm.foto ? (
                     <img src={editProfileForm.foto} alt="Foto Baru" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   ) : (
-                     <User size={40} color="#94a3b8" />
+                    <User size={40} color="#94a3b8" />
                   )}
                 </div>
                 <div style={{ display: "flex", gap: "8px" }}>
                   <label style={{ background: "#3b82f6", color: "white", padding: "8px 16px", borderRadius: "8px", fontSize: "12px", fontWeight: "bold", cursor: uploadingFoto ? "not-allowed" : "pointer", opacity: uploadingFoto ? 0.7 : 1 }}>
                     {uploadingFoto ? "Mengunggah..." : "Ganti Foto"}
-                    <input 
-                      type="file" 
-                      hidden 
-                      accept="image/jpeg,image/png,image/webp" 
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/jpeg,image/png,image/webp"
                       disabled={uploadingFoto}
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
                         if (file.size > 5 * 1024 * 1024) {
-                           Swal.fire("File Terlalu Besar", "Maksimal ukuran foto adalah 5MB.", "warning");
-                           return;
+                          Swal.fire("File Terlalu Besar", "Maksimal ukuran foto adalah 5MB.", "warning");
+                          return;
                         }
                         setUploadingFoto(true);
                         const formData = new FormData();
                         formData.append("file", file);
                         try {
-                           const res = await fetch("/api/upload", { method: "POST", body: formData });
-                           const data = await res.json();
-                           if (res.ok && data.url) {
-                              setEditProfileForm({...editProfileForm, foto: data.url});
-                           } else {
-                              throw new Error(data.error || "Gagal upload");
-                           }
+                          const res = await fetch("/api/upload", { method: "POST", body: formData });
+                          const data = await res.json();
+                          if (res.ok && data.url) {
+                            setEditProfileForm({ ...editProfileForm, foto: data.url });
+                          } else {
+                            throw new Error(data.error || "Gagal upload");
+                          }
                         } catch (err) {
-                           Swal.fire("Error", "Gagal mengunggah foto.", "error");
+                          Swal.fire("Error", "Gagal mengunggah foto.", "error");
                         } finally {
-                           setUploadingFoto(false);
+                          setUploadingFoto(false);
                         }
-                      }} 
+                      }}
                     />
                   </label>
                   {editProfileForm.foto && (
-                     <button type="button" onClick={() => setEditProfileForm({...editProfileForm, foto: ""})} style={{ background: "#fee2e2", color: "#ef4444", border: "1px solid #fca5a5", padding: "8px 16px", borderRadius: "8px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}>
-                        Hapus Foto
-                     </button>
+                    <button type="button" onClick={() => setEditProfileForm({ ...editProfileForm, foto: "" })} style={{ background: "#fee2e2", color: "#ef4444", border: "1px solid #fca5a5", padding: "8px 16px", borderRadius: "8px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}>
+                      Hapus Foto
+                    </button>
                   )}
                 </div>
                 <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "8px" }}>Format JPG/PNG/WEBP maks 5MB.</div>
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Nama Lengkap</label>
-                <input type="text" value={editProfileForm.nama} onChange={e => setEditProfileForm({...editProfileForm, nama: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
+                <input type="text" value={editProfileForm.nama} onChange={e => setEditProfileForm({ ...editProfileForm, nama: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
               </div>
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Jenis Kelamin</label>
-                  <select value={editProfileForm.jenisKelamin} onChange={e => setEditProfileForm({...editProfileForm, jenisKelamin: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }}>
+                  <select value={editProfileForm.jenisKelamin} onChange={e => setEditProfileForm({ ...editProfileForm, jenisKelamin: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }}>
                     <option value="L">Laki-laki</option>
                     <option value="P">Perempuan</option>
                   </select>
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Suku</label>
-                  <input type="text" value={editProfileForm.suku} onChange={e => setEditProfileForm({...editProfileForm, suku: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
+                  <input type="text" value={editProfileForm.suku} onChange={e => setEditProfileForm({ ...editProfileForm, suku: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Tempat Lahir</label>
-                  <input type="text" value={editProfileForm.tempatLahir} onChange={e => setEditProfileForm({...editProfileForm, tempatLahir: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
+                  <input type="text" value={editProfileForm.tempatLahir} onChange={e => setEditProfileForm({ ...editProfileForm, tempatLahir: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Tanggal Lahir</label>
-                  <IndonesianDateInput value={editProfileForm.tanggalLahir} onChange={(val: string) => setEditProfileForm({...editProfileForm, tanggalLahir: val})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', fontFamily: 'inherit' }} />
+                  <IndonesianDateInput value={editProfileForm.tanggalLahir} onChange={(val: string) => setEditProfileForm({ ...editProfileForm, tanggalLahir: val })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', fontFamily: 'inherit' }} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Tinggi Badan (cm)</label>
+                  <input type="number" value={editProfileForm.tinggiBadan || ""} onChange={e => setEditProfileForm({ ...editProfileForm, tinggiBadan: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Status Nikah</label>
+                  <select value={editProfileForm.statusNikah || ""} onChange={e => setEditProfileForm({ ...editProfileForm, statusNikah: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }}>
+                    <option value="">Pilih Status</option>
+                    <option value="Lajang / Perjaka / Perawan">Lajang / Perjaka / Perawan</option>
+                    <option value="Duda / Janda">Duda / Janda</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Anak Ke</label>
+                  <input type="number" value={editProfileForm.anakKe || ""} onChange={e => setEditProfileForm({ ...editProfileForm, anakKe: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Dari Saudara</label>
+                  <input type="number" value={editProfileForm.jumlahSaudara || ""} onChange={e => setEditProfileForm({ ...editProfileForm, jumlahSaudara: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Daerah/Kota</label>
-                  <select value={editProfileForm.kota || ""} onChange={e => setEditProfileForm({...editProfileForm, kota: e.target.value, mandiriDesaId: "", mandiriKelompokId: ""})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }}>
+                  <select value={editProfileForm.kota || ""} onChange={e => setEditProfileForm({ ...editProfileForm, kota: e.target.value, mandiriDesaId: "", mandiriKelompokId: "" })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }}>
                     <option value="">Pilih Daerah/Kota</option>
                     {kotaList.map(k => <option key={k} value={k}>{k}</option>)}
                   </select>
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Desa</label>
-                  <select value={editProfileForm.mandiriDesaId || ""} onChange={e => setEditProfileForm({...editProfileForm, mandiriDesaId: e.target.value, mandiriKelompokId: ""})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} disabled={!editProfileForm.kota}>
+                  <select value={editProfileForm.mandiriDesaId || ""} onChange={e => setEditProfileForm({ ...editProfileForm, mandiriDesaId: e.target.value, mandiriKelompokId: "" })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} disabled={!editProfileForm.kota}>
                     <option value="">Pilih Desa</option>
                     {wilayahList.filter(w => w.kota === editProfileForm.kota).map(w => <option key={w.id} value={w.id}>{w.nama}</option>)}
                   </select>
@@ -3387,34 +3458,38 @@ export default function PublicKatalogPage() {
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Kelompok</label>
-                <select value={editProfileForm.mandiriKelompokId || ""} onChange={e => setEditProfileForm({...editProfileForm, mandiriKelompokId: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} disabled={!editProfileForm.mandiriDesaId}>
+                <select value={editProfileForm.mandiriKelompokId || ""} onChange={e => setEditProfileForm({ ...editProfileForm, mandiriKelompokId: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} disabled={!editProfileForm.mandiriDesaId}>
                   <option value="">Pilih Kelompok</option>
                   {kelompokList.filter(k => String(k.desaId || k.mandiriDesaId) === String(editProfileForm.mandiriDesaId)).map(k => <option key={k.id} value={k.id}>{k.nama}</option>)}
                 </select>
               </div>
               <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Alamat Lengkap</label>
+                <textarea value={editProfileForm.alamat || ""} onChange={e => setEditProfileForm({ ...editProfileForm, alamat: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', minHeight: '60px', fontFamily: 'inherit' }} />
+              </div>
+              <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Pendidikan</label>
-                <input type="text" value={editProfileForm.pendidikan} onChange={e => setEditProfileForm({...editProfileForm, pendidikan: e.target.value})} placeholder="S1/SMA/dll" style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
+                <input type="text" value={editProfileForm.pendidikan} onChange={e => setEditProfileForm({ ...editProfileForm, pendidikan: e.target.value })} placeholder="S1/SMA/dll" style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Pekerjaan</label>
-                <input type="text" value={editProfileForm.pekerjaan} onChange={e => setEditProfileForm({...editProfileForm, pekerjaan: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
+                <input type="text" value={editProfileForm.pekerjaan} onChange={e => setEditProfileForm({ ...editProfileForm, pekerjaan: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Instagram</label>
-                <input type="text" value={editProfileForm.instagram} onChange={e => setEditProfileForm({...editProfileForm, instagram: e.target.value})} placeholder="@username" style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
+                <input type="text" value={editProfileForm.instagram} onChange={e => setEditProfileForm({ ...editProfileForm, instagram: e.target.value })} placeholder="@username" style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Hobi</label>
-                <input type="text" value={editProfileForm.hobi} onChange={e => setEditProfileForm({...editProfileForm, hobi: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
+                <input type="text" value={editProfileForm.hobi} onChange={e => setEditProfileForm({ ...editProfileForm, hobi: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Makanan/Minuman Favorit</label>
-                <input type="text" value={editProfileForm.makananMinumanFavorit} onChange={e => setEditProfileForm({...editProfileForm, makananMinumanFavorit: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
+                <input type="text" value={editProfileForm.makananMinumanFavorit} onChange={e => setEditProfileForm({ ...editProfileForm, makananMinumanFavorit: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Kriteria Pasangan</label>
-                <textarea value={editProfileForm.kriteriaPasangan} onChange={e => setEditProfileForm({...editProfileForm, kriteriaPasangan: e.target.value})} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', minHeight: '80px', fontFamily: 'inherit' }} />
+                <textarea value={editProfileForm.kriteriaPasangan} onChange={e => setEditProfileForm({ ...editProfileForm, kriteriaPasangan: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', minHeight: '80px', fontFamily: 'inherit' }} />
               </div>
             </div>
 
@@ -3431,11 +3506,11 @@ export default function PublicKatalogPage() {
                     body: JSON.stringify({ nomorUnik: storedUnik, token: storedToken, ...editProfileForm }),
                   });
                   if (!res.ok) throw new Error("Gagal menyimpan");
-                  
+
                   const selectedWilayah = wilayahList.find(w => String(w.id) === String(editProfileForm.mandiriDesaId));
-                  
-                  setMyFullProfile((prev: any) => ({ 
-                    ...prev, 
+
+                  setMyFullProfile((prev: any) => ({
+                    ...prev,
                     ...editProfileForm,
                     mandiriDesaKota: editProfileForm.kota || prev.mandiriDesaKota,
                     mandiriDesaNama: selectedWilayah ? selectedWilayah.nama : prev.mandiriDesaNama
@@ -3530,7 +3605,7 @@ export default function PublicKatalogPage() {
               {/* HERO */}
               <div className="dm-hero" style={{ background: accentGrad }}>
                 <button className="dm-close" onClick={closeDetail}><X size={18} /></button>
-                <div 
+                <div
                   className="dm-avatar-wrap"
                   style={{ cursor: sp.foto ? "zoom-in" : "default" }}
                   onClick={() => {
@@ -3586,7 +3661,7 @@ export default function PublicKatalogPage() {
                   const isPulang = sp.keterangan?.toLowerCase() === "pulang";
                   const isTidakHadir = sp.keterangan?.toLowerCase() === "alpha" || sp.keterangan?.toLowerCase() === "izin";
                   const isBelumHadir = sp.isHadir === 0;
-                  
+
                   if (isPulang || isTidakHadir || isBelumHadir) {
                     return (
                       <div style={{ textAlign: "center", color: "#ef4444", fontSize: "13px", fontWeight: "600", padding: "12px", background: "#fef2f2", borderRadius: "14px", border: "1px solid #fee2e2" }}>
@@ -3630,9 +3705,10 @@ export default function PublicKatalogPage() {
                             const isPart = room && currentUser && (String(currentUser.nomorUnik) === String(room.pengirimNo) || String(currentUser.nomorUnik) === String(room.penerimaNo) || room.assignedGuardId === currentUser.id || room.assignedCallerId === currentUser.id || room.assignedCaller2Id === currentUser.id);
                             if (!isAdmin && !isPart) return null;
 
+                            const isStarted = room && !!room.startedAt;
                             const alreadyFilled = checkUserAlreadyFilled(sp, currentUser, activeRooms, hasilRRList, isAdmin);
 
-                            if (alreadyFilled) {
+                            if (!isStarted || alreadyFilled) {
                               return (
                                 <button className="dm-btn dm-btn-disabled" disabled style={{ background: '#94a3b8', color: 'white', border: 'none', opacity: 0.6, cursor: 'not-allowed', marginTop: '8px' }}>
                                   {isAdmin ? <CheckCircle2 size={18} /> : <Heart size={18} />}{isAdmin ? 'Selesaikan Sesi' : 'Input Hasil RR'}
@@ -3641,7 +3717,7 @@ export default function PublicKatalogPage() {
                             }
 
                             return (
-                              <button className="dm-btn" style={{ background: '#10b981', color: 'white', border: 'none', marginTop: '8px' }} onClick={() => handleAdminSelesaikanSesi(sp)}>
+                              <button type="button" className="dm-btn" style={{ background: '#10b981', color: 'white', border: 'none', marginTop: '8px' }} onClick={() => handleAdminSelesaikanSesi(sp)}>
                                 {isAdmin ? <CheckCircle2 size={18} /> : <Heart size={18} />}{isAdmin ? 'Selesaikan Sesi' : 'Input Hasil RR'}
                               </button>
                             );
