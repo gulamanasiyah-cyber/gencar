@@ -20,7 +20,7 @@ r.get("/desa", async (c) => {
 });
 r.post("/desa", async (c) => {
   const session = c.get("user" as any) as any;
-  if (!isAdminRole(session.role)) return c.json({ error: "Unauthorized" }, 401);
+  if (session.role !== "admin_daerah") return c.json({ error: "Hanya admin daerah yang dapat mengelola wilayah" }, 403);
   const { nama } = await c.req.json().catch(() => ({} as any));
   if (!nama) return c.json({ error: "Nama wajib diisi" }, 400);
   const db = getDb(c.env);
@@ -29,7 +29,7 @@ r.post("/desa", async (c) => {
 });
 r.put("/desa", async (c) => {
   const session = c.get("user" as any) as any;
-  if (!isAdminRole(session.role)) return c.json({ error: "Unauthorized" }, 401);
+  if (session.role !== "admin_daerah") return c.json({ error: "Hanya admin daerah yang dapat mengelola wilayah" }, 403);
   const { id, nama } = await c.req.json().catch(() => ({} as any));
   if (!id || !nama) return c.json({ error: "ID dan nama wajib diisi" }, 400);
   const db = getDb(c.env);
@@ -39,7 +39,7 @@ r.put("/desa", async (c) => {
 r.delete("/desa", async (c) => {
   try {
     const session = c.get("user" as any) as any;
-    if (!isAdminRole(session.role)) return c.json({ error: "Unauthorized" }, 401);
+    if (session.role !== "admin_daerah") return c.json({ error: "Hanya admin daerah yang dapat mengelola wilayah" }, 403);
     const id = c.req.query("id");
     if (!id) return c.json({ error: "ID diperlukan" }, 400);
     const desaId = Number(id);
@@ -94,7 +94,7 @@ r.get("/kelompok", async (c) => {
 });
 r.post("/kelompok", async (c) => {
   const session = c.get("user" as any) as any;
-  if (!isAdminRole(session.role)) return c.json({ error: "Unauthorized" }, 401);
+  if (session.role !== "admin_daerah") return c.json({ error: "Hanya admin daerah yang dapat mengelola wilayah" }, 403);
   const { nama, desaId } = await c.req.json().catch(() => ({} as any));
   if (!nama || !desaId) return c.json({ error: "Nama dan desaId wajib diisi" }, 400);
   const db = getDb(c.env);
@@ -103,7 +103,7 @@ r.post("/kelompok", async (c) => {
 });
 r.put("/kelompok", async (c) => {
   const session = c.get("user" as any) as any;
-  if (!isAdminRole(session.role)) return c.json({ error: "Unauthorized" }, 401);
+  if (session.role !== "admin_daerah") return c.json({ error: "Hanya admin daerah yang dapat mengelola wilayah" }, 403);
   const { id, nama, desaId } = await c.req.json().catch(() => ({} as any));
   if (!id || !nama || !desaId) return c.json({ error: "ID, nama, dan desaId wajib diisi" }, 400);
   const db = getDb(c.env);
@@ -113,7 +113,7 @@ r.put("/kelompok", async (c) => {
 r.delete("/kelompok", async (c) => {
   try {
     const session = c.get("user" as any) as any;
-    if (!isAdminRole(session.role)) return c.json({ error: "Unauthorized" }, 401);
+    if (session.role !== "admin_daerah") return c.json({ error: "Hanya admin daerah yang dapat mengelola wilayah" }, 403);
     const id = c.req.query("id");
     if (!id) return c.json({ error: "ID diperlukan" }, 400);
     const kelompokId = Number(id);
@@ -244,6 +244,8 @@ r.put("/users", async (c) => {
       || (user.role === "admin_kelompok" && user.desaId === session.desaId);
     if (!allowed) return c.json({ error: "Tidak diizinkan" }, 403);
     if (role && role !== "admin_kelompok" && role !== "admin_desa") return c.json({ error: "Tidak bisa mengubah role" }, 403);
+    // Cegah eskalasi role — admin_desa tidak boleh promote ke admin_daerah
+    if (role && role === "admin_daerah") return c.json({ error: "Tidak bisa mengubah role ke admin daerah" }, 403);
   } else if (session.role === "admin_kelompok") {
     if (user.role !== "admin_kelompok" || user.kelompokId !== session.kelompokId) {
       return c.json({ error: "Tidak diizinkan" }, 403);

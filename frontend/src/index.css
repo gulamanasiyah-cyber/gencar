@@ -443,6 +443,55 @@ a {
   letter-spacing: -0.02em;
 }
 
+.sidebar-admin-info {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.sidebar-admin-email {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-admin-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.sidebar-admin-badge {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: rgba(208, 56, 4, 0.28);
+  color: #ff8a65;
+  border: 1px solid rgba(208, 56, 4, 0.4);
+  padding: 1px 6px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.sidebar-admin-wilayah {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.65);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sidebar-divider {
   height: 1px;
   background: rgba(255, 255, 255, 0.08);
@@ -450,8 +499,8 @@ a {
 }
 
 .admin-sidebar {
-  width: 200px;
-  min-width: 200px;
+  width: 210px;
+  min-width: 210px;
   background: var(--sidebar-bg);
   border-radius: 20px;
   padding: 16px 12px;
@@ -1789,6 +1838,65 @@ table.admin-table tr:hover td {
   background: var(--primary-hover);
 }
 
+.kalender-cell.range-start {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 800;
+  border-top-right-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+
+.kalender-cell.range-end {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 800;
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+}
+
+.kalender-cell.range-start.range-end {
+  border-radius: 10px;
+}
+
+.kalender-cell.in-range {
+  background: rgba(208, 56, 4, 0.12);
+  color: var(--primary);
+  font-weight: 700;
+  border-radius: 4px;
+}
+
+.kalender-cell.in-range:hover {
+  background: rgba(208, 56, 4, 0.2);
+}
+
+.kalender-cell.in-range-preview {
+  background: rgba(208, 56, 4, 0.08);
+  color: var(--primary);
+  border-radius: 4px;
+}
+
+.kalender-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-bottom: 4px;
+}
+
+.kalender-presets .chip {
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 999px;
+  font-weight: 600;
+  transition: all var(--transition);
+}
+
+.kalender-presets .chip:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
 .kalender-event-dot {
   position: absolute;
   bottom: 3px;
@@ -2018,6 +2126,7 @@ table.admin-table tr:hover td {
   }
 
   .sidebar-logo,
+  .sidebar-admin-info,
   .sidebar-divider {
     display: none;
   }

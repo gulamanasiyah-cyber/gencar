@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, Eye, MapPin, Pencil as IcoEdit, Plus, Save, Share2, Timer, Trash2 as IcoTrash } from "lucide-react";
+import { ArrowLeft, CalendarDays, Check, Eye, MapPin, Pencil as IcoEdit, Plus, Save, Share2, Timer, Trash2 as IcoTrash, X } from "lucide-react";
 import { apiFetch } from "../../lib/api";
 import SearchInput from "../../components/admin/SearchInput";
 import ImageUploadInput from "../../components/admin/ImageUploadInput";
 import RichTextEditor from "../../components/admin/RichTextEditor";
 import DeleteConfirmModal from "../../components/DeleteConfirmModal";
+import ReviewModal from "../../components/ReviewModal";
 import CategoryInput from "../../components/CategoryInput";
 import MapPickerModal from "../../components/MapPickerModal";
 import MiniMapPreview from "../../components/MiniMapPreview";
@@ -39,6 +40,8 @@ export default function KegiatanPublikTab({ role, userId }: { role: AdminRole; u
   const [editing, setEditing] = useState<Row | null>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<Row | null>(null);
+  const [reviewAction, setReviewAction] = useState<"approve" | "reject">("approve");
 
   const load = () => {
     apiFetch<unknown>(`/api/cms/kegiatan-publik?q=${encodeURIComponent(q)}`)
@@ -138,6 +141,16 @@ export default function KegiatanPublikTab({ role, userId }: { role: AdminRole; u
               {r.status}
             </span>
             <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+              {role === "admin_daerah" && r.status === "pending_review" && (
+                <>
+                  <button type="button" className="btn btn-primary row-icon-btn" aria-label="Approve" title="Approve" onClick={() => { setReviewTarget(r); setReviewAction("approve"); }}>
+                    <Check size={16} />
+                  </button>
+                  <button type="button" className="btn btn-danger row-icon-btn" aria-label="Reject" title="Reject" onClick={() => { setReviewTarget(r); setReviewAction("reject"); }}>
+                    <X size={16} />
+                  </button>
+                </>
+              )}
               {canEditItem(r) && (
               <>
               <button
@@ -178,6 +191,19 @@ export default function KegiatanPublikTab({ role, userId }: { role: AdminRole; u
           description={`Kegiatan publik "${deleteTarget.judul}" akan dihapus permanen.`}
           onClose={() => setDeleteTarget(null)}
           onConfirm={confirmDelete}
+        />
+      )}
+
+      {reviewTarget && (
+        <ReviewModal
+          itemName={reviewTarget.judul}
+          action={reviewAction}
+          onClose={() => setReviewTarget(null)}
+          onConfirm={async () => {
+            await apiFetch(`/api/cms/kegiatan-publik/${reviewTarget.id}/${reviewAction}`, { method: "POST" });
+            setReviewTarget(null);
+            load();
+          }}
         />
       )}
     </div>
@@ -268,7 +294,7 @@ function KegiatanPublikEditorPage({
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <button type="button" className="btn btn-primary btn-sm" disabled={!valid || saving} onClick={handleSave}>
-            <Save size={14} /> {saving ? "Menyimpan..." : "Simpan & Publikasikan"}
+            <Save size={14} /> {saving ? "Menyimpan..." : role === "admin_daerah" ? "Simpan & Publikasikan" : "Kirim untuk Review"}
           </button>
         </div>
       </div>

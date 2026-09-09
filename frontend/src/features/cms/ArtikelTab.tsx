@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, ExternalLink, Pencil as IcoEdit, Plus, Save, Share2, Trash2 as IcoTrash, User2 } from "lucide-react";
+import { ArrowLeft, CalendarDays, Check, ExternalLink, Pencil as IcoEdit, Plus, Save, Share2, Trash2 as IcoTrash, User2, X } from "lucide-react";
 import { apiFetch } from "../../lib/api";
 import SearchInput from "../../components/admin/SearchInput";
 import ImageUploadInput from "../../components/admin/ImageUploadInput";
 import RichTextEditor from "../../components/admin/RichTextEditor";
 import DeleteConfirmModal from "../../components/DeleteConfirmModal";
+import ReviewModal from "../../components/ReviewModal";
 import CategoryInput from "../../components/CategoryInput";
 import { labelKategori } from "../../lib/labelKategori";
 import SplitPreviewLayout from "./SplitPreviewLayout";
@@ -46,6 +47,8 @@ export default function ArtikelTab({ tipe = "artikel", role, userId }: { tipe?: 
   };
 
   const [deleteTarget, setDeleteTarget] = useState<Row | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<Row | null>(null);
+  const [reviewAction, setReviewAction] = useState<"approve" | "reject">("approve");
 
   useEffect(() => {
     if (viewMode === "list") load();
@@ -157,6 +160,16 @@ export default function ArtikelTab({ tipe = "artikel", role, userId }: { tipe?: 
               <a href={`/${tipe}/${r.slug || r.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-ghost row-icon-btn" title="Preview" aria-label="Preview">
                 <ExternalLink size={16} />
               </a>
+              {role === "admin_daerah" && r.status === "pending" && (
+                <>
+                  <button type="button" className="btn btn-primary row-icon-btn" aria-label="Approve" title="Approve" onClick={() => { setReviewTarget(r); setReviewAction("approve"); }}>
+                    <Check size={16} />
+                  </button>
+                  <button type="button" className="btn btn-danger row-icon-btn" aria-label="Reject" title="Reject" onClick={() => { setReviewTarget(r); setReviewAction("reject"); }}>
+                    <X size={16} />
+                  </button>
+                </>
+              )}
               {canEditItem(r) && (
               <>
               <button type="button" className="btn btn-ghost row-icon-btn" aria-label="Edit" title="Edit" onClick={() => openEdit(r)}>
@@ -178,6 +191,20 @@ export default function ArtikelTab({ tipe = "artikel", role, userId }: { tipe?: 
           description={`${tipe === "berita" ? "Berita" : "Artikel"} "${deleteTarget.judul}" akan dihapus permanen.`}
           onClose={() => setDeleteTarget(null)}
           onConfirm={confirmDelete}
+        />
+      )}
+
+      {reviewTarget && (
+        <ReviewModal
+          itemName={reviewTarget.judul}
+          action={reviewAction}
+          onClose={() => setReviewTarget(null)}
+          onConfirm={async () => {
+            const base = tipe === "berita" ? "/api/berita" : "/api/artikel";
+            await apiFetch(`${base}/${reviewTarget.id}/${reviewAction}`, { method: "POST" });
+            setReviewTarget(null);
+            load();
+          }}
         />
       )}
     </div>
@@ -256,7 +283,7 @@ function ArtikelEditorPage({
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <button type="button" className="btn btn-primary btn-sm" disabled={!valid || saving} onClick={handleSave}>
-            <Save size={14} /> {saving ? "Menyimpan..." : "Simpan & Publikasikan"}
+            <Save size={14} /> {saving ? "Menyimpan..." : role === "admin_daerah" ? "Simpan & Publikasikan" : "Kirim untuk Review"}
           </button>
         </div>
       </div>

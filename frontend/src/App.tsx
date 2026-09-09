@@ -516,6 +516,31 @@ function StatistikPage({ role }: { role: AdminRole }) {
   const s = live;
   const loading = statsLoading && !s;
 
+  const byMudaMudiChartData = useMemo(() => {
+    if (!s?.member?.byMudaMudi) return [];
+    const map = new Map<string, { label: string; value: number; color: string }>();
+    for (const r of s.member.byMudaMudi) {
+      const isPerantauan = String(r.name).toLowerCase() === "perantauan";
+      const key = isPerantauan ? "perantauan" : "pribumi";
+      const label = isPerantauan ? "Perantauan" : "Pribumi";
+      const color = isPerantauan ? "#06b6d4" : "#8b5cf6";
+      const cur = map.get(key);
+      if (cur) cur.value += Number(r.value || 0);
+      else map.set(key, { label, value: Number(r.value || 0), color });
+    }
+    return Array.from(map.values()).filter((d) => d.value > 0);
+  }, [s?.member?.byMudaMudi]);
+
+  const pribumiKpiCount = useMemo(() => {
+    if (!s?.member?.byMudaMudi) return 0;
+    return s.member.byMudaMudi.filter((x) => String(x.name).toLowerCase() !== "perantauan").reduce((acc, x) => acc + Number(x.value || 0), 0);
+  }, [s?.member?.byMudaMudi]);
+
+  const perantauanKpiCount = useMemo(() => {
+    if (!s?.member?.byMudaMudi) return 0;
+    return s.member.byMudaMudi.filter((x) => String(x.name).toLowerCase() === "perantauan").reduce((acc, x) => acc + Number(x.value || 0), 0);
+  }, [s?.member?.byMudaMudi]);
+
   return (
     <div className="statistik-page" style={{ minWidth: 0 }}>
       <div className="page-header">
@@ -621,8 +646,8 @@ function StatistikPage({ role }: { role: AdminRole }) {
 
       <div className="kpi" style={{ marginBottom: 16 }}>
         <KpiCard icon={<span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span>} label="Total Anggota" value={s.summary.totalGenerus} />
-        <KpiCard icon={<span className="kpi-icon kpi-icon--peach"><IcoUsers size={18} /></span>} label="Pribumi" value={(s.member.byMudaMudi.find((x) => x.name === "pribumi") ?? { value: 0 }).value} />
-        <KpiCard icon={<span className="kpi-icon kpi-icon--slate"><IcoMapPin size={18} /></span>} label="Perantauan" value={(s.member.byMudaMudi.find((x) => x.name === "perantauan") ?? { value: 0 }).value} />
+        <KpiCard icon={<span className="kpi-icon kpi-icon--peach"><IcoUsers size={18} /></span>} label="Pribumi" value={pribumiKpiCount} />
+        <KpiCard icon={<span className="kpi-icon kpi-icon--slate"><IcoMapPin size={18} /></span>} label="Perantauan" value={perantauanKpiCount} />
         <KpiCard icon={<span className="kpi-icon kpi-icon--amber"><IcoMapPin size={18} /></span>} label="Jumlah Desa" value={s.member.byDesa.length} />
       </div>
 
@@ -652,12 +677,12 @@ function StatistikPage({ role }: { role: AdminRole }) {
         <div className="card" style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 800, marginBottom: 8 }}>Pribumi vs Perantauan</div>
           <div style={{ height: isMobile ? 180 : 180, minWidth: 0 }}>
-            {s.member.byMudaMudi.length ? (
+            {byMudaMudiChartData.length ? (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart margin={{ top: 8, right: 16, bottom: 8, left: 16 }}>
-                <Pie data={s.member.byMudaMudi.map((r) => ({ label: r.name, value: r.value, color: r.name === "pribumi" ? "#8b5cf6" : "#06b6d4" }))} dataKey="value" nameKey="label" cx="50%" cy="50%" outerRadius={isMobile ? 56 : 66} labelLine={false} label={false}>
-                  {s.member.byMudaMudi.map((r, i) => (
-                    <Cell key={i} fill={r.name === "pribumi" ? "#8b5cf6" : "#06b6d4"} />
+                <Pie data={byMudaMudiChartData} dataKey="value" nameKey="label" cx="50%" cy="50%" outerRadius={isMobile ? 56 : 66} labelLine={false} label={false}>
+                  {byMudaMudiChartData.map((r, i) => (
+                    <Cell key={i} fill={r.color} />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -761,9 +786,37 @@ function AdminShell({
 }: {
   page: string; setPage: (p: string) => void; role: AdminRole; children: React.ReactNode;
 }) {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [pendingCount, setPendingCount] = useState(0);
+  const [wilayahNama, setWilayahNama] = useState<string>("");
+
+  useEffect(() => {
+    if (role === "admin_daerah") {
+      setWilayahNama("Cengkareng");
+      return;
+    }
+    let active = true;
+    if (role === "admin_desa" && user?.desaId != null) {
+      apiFetch<{ id: number; nama: string }[]>("/api/auth/desa")
+        .then((rows) => {
+          if (!active || !Array.isArray(rows)) return;
+          const d = rows.find((r) => r.id === user.desaId);
+          if (d) setWilayahNama(d.nama);
+        })
+        .catch(() => {});
+    } else if (role === "admin_kelompok" && user?.kelompokId != null) {
+      apiFetch<{ id: number; nama: string; desaId?: number }[]>("/api/auth/kelompok")
+        .then((rows) => {
+          if (!active || !Array.isArray(rows)) return;
+          const k = rows.find((r) => r.id === user.kelompokId);
+          if (k) setWilayahNama(k.nama);
+        })
+        .catch(() => {});
+    }
+    return () => { active = false; };
+  }, [role, user?.desaId, user?.kelompokId]);
+
   useEffect(() => {
     let cancel = false;
     let hadAuthOnce = false;
@@ -819,6 +872,19 @@ function AdminShell({
         <div className="sidebar-logo">
           <div className="brand-mark">G</div>
           <span className="sidebar-brand-text">Gencar</span>
+        </div>
+        <div className="sidebar-admin-info">
+          <div className="sidebar-admin-email" title={user?.email ?? ""}>
+            {user?.email || "—"}
+          </div>
+          <div className="sidebar-admin-meta">
+            <span className="sidebar-admin-badge">
+              {role === "admin_daerah" ? "Daerah" : role === "admin_desa" ? "Desa" : "Kelompok"}
+            </span>
+            <span className="sidebar-admin-wilayah" title={wilayahNama || (role === "admin_daerah" ? "Cengkareng" : "—")}>
+              {wilayahNama || (role === "admin_daerah" ? "Cengkareng" : "—")}
+            </span>
+          </div>
         </div>
         <div className="sidebar-divider" />
         {navItems.map((it) => (

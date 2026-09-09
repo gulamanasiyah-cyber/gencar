@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { Eye, Pencil as IcoEdit, Play, Plus, RotateCcw, Trash2 as IcoTrash } from "lucide-react";
+import { Check, Eye, Pencil as IcoEdit, Play, Plus, RotateCcw, Trash2 as IcoTrash, X } from "lucide-react";
 import { apiFetch } from "../../lib/api";
 import AdminModal from "../../components/admin/Modal";
 import SearchInput from "../../components/admin/SearchInput";
 import ImageUploadInput from "../../components/admin/ImageUploadInput";
 import DeleteConfirmModal from "../../components/DeleteConfirmModal";
+import ReviewModal from "../../components/ReviewModal";
 import CategoryInput from "../../components/CategoryInput";
 import { labelKategori } from "../../lib/labelKategori";
 
@@ -22,7 +23,7 @@ export type GaleriItem = {
   durasi?: string | null;
   tanggal?: string | null;
   lokasi?: string | null;
-  status: "draft" | "published";
+  status: "draft" | "pending_review" | "published" | "rejected";
   authorId?: string;
 };
 
@@ -51,6 +52,8 @@ export default function GaleriTab({ role, userId }: { role: AdminRole; userId?: 
     : items;
 
   const [deleteTarget, setDeleteTarget] = useState<GaleriItem | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<GaleriItem | null>(null);
+  const [reviewAction, setReviewAction] = useState<"approve" | "reject">("approve");
 
   const canEditItem = (item: GaleriItem) => role === "admin_daerah" || item.authorId === userId;
 
@@ -123,9 +126,25 @@ export default function GaleriTab({ role, userId }: { role: AdminRole; userId?: 
               <span className="muted" style={{ fontSize: 11 }}>
                 {item.tanggal || "—"} &bull; {item.lokasi || "Cengkareng"}
               </span>
+              <span
+                className={`pill ${item.status === "published" ? "pill-emerald" : item.status === "pending_review" ? "pill-amber" : item.status === "rejected" ? "pill-red" : "pill-slate"}`}
+                style={{ width: "fit-content", fontSize: 10, padding: "2px 8px" }}
+              >
+                {item.status}
+              </span>
             </div>
 
             <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
+              {role === "admin_daerah" && item.status === "pending_review" && (
+                <>
+                  <button type="button" className="btn btn-primary row-icon-btn" aria-label="Approve" title="Approve" onClick={() => { setReviewTarget(item); setReviewAction("approve"); }}>
+                    <Check size={16} />
+                  </button>
+                  <button type="button" className="btn btn-danger row-icon-btn" aria-label="Reject" title="Reject" onClick={() => { setReviewTarget(item); setReviewAction("reject"); }}>
+                    <X size={16} />
+                  </button>
+                </>
+              )}
               {canEditItem(item) && (
               <>
               <button
@@ -184,6 +203,19 @@ export default function GaleriTab({ role, userId }: { role: AdminRole; userId?: 
           onConfirm={confirmDelete}
         />
       )}
+
+      {reviewTarget && (
+        <ReviewModal
+          itemName={reviewTarget.judul}
+          action={reviewAction}
+          onClose={() => setReviewTarget(null)}
+          onConfirm={async () => {
+            await apiFetch(`/api/cms/galeri/${reviewTarget.id}/${reviewAction}`, { method: "POST" });
+            setReviewTarget(null);
+            load();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -211,7 +243,7 @@ function GaleriSingleFotoModal({
     durasi: initial?.durasi ?? "",
     tanggal: initial?.tanggal ?? new Date().toISOString().slice(0, 10),
     lokasi: initial?.lokasi ?? "Cengkareng",
-    status: initial?.status ?? (role === "admin_daerah" ? "published" : "draft"),
+    status: initial?.status ?? (role === "admin_daerah" ? "published" : "pending_review"),
   }));
   const [saving, setSaving] = useState(false);
   const [flipped, setFlipped] = useState(false);
@@ -294,6 +326,19 @@ function GaleriSingleFotoModal({
             </div>
           </div>
 
+          <div className="field">
+            <label>Status</label>
+            <select
+              value={f.status}
+              onChange={(e) => setF({ ...f, status: e.target.value as any })}
+              className="filter-input"
+            >
+              {role === "admin_daerah" && <option value="published">Published (Tayang)</option>}
+              <option value="pending_review">Pending Review</option>
+              <option value="draft">Draft (Tersimpan)</option>
+            </select>
+          </div>
+
           {f.type !== "quote" ? (
             <ImageUploadInput
               label="File Foto Galeri *"
@@ -364,7 +409,7 @@ function GaleriSingleFotoModal({
               Batal
             </button>
             <button type="button" className="btn btn-primary" style={{ flex: 1 }} disabled={!valid || saving} onClick={handleSave}>
-              {saving ? "Menyimpan..." : "Simpan Foto"}
+              {saving ? "Menyimpan..." : role === "admin_daerah" ? "Simpan Foto" : "Kirim untuk Review"}
             </button>
           </div>
         </div>

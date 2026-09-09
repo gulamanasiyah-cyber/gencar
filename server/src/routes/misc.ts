@@ -255,6 +255,10 @@ r.get("/admin/profile-requests", requireAuth(), async (c) => {
   const db = getDb(c.env);
   const { profileChangeRequests, generus } = await import("../../../shared/schema");
   const status = c.req.query("status") || "pending";
+  const conditions: any[] = [];
+  // Wilayah scoping: admin_desa hanya lihat generus di desanya, admin_kelompok di kelompoknya
+  if (session.role === "admin_desa" && session.desaId) conditions.push(eq(generus.desaId, session.desaId));
+  else if (session.role === "admin_kelompok" && session.kelompokId) conditions.push(eq(generus.kelompokId, session.kelompokId));
   let q: any = db
     .select({
       id: profileChangeRequests.id,
@@ -273,7 +277,8 @@ r.get("/admin/profile-requests", requireAuth(), async (c) => {
     })
     .from(profileChangeRequests)
     .leftJoin(generus, eq(profileChangeRequests.generusId, generus.id));
-  if (status !== "all") q = q.where(eq(profileChangeRequests.status, status as any));
+  if (status !== "all") conditions.push(eq(profileChangeRequests.status, status as any));
+  if (conditions.length > 0) q = q.where(and(...conditions));
   const rows: any = await q.orderBy(sql`${profileChangeRequests.createdAt} DESC`).limit(100);
   return c.json(rows);
 });
@@ -286,6 +291,13 @@ r.post("/admin/profile-requests/:id/approve", requireAuth(), async (c) => {
   const row: any = await db.query.profileChangeRequests.findFirst({ where: eq(profileChangeRequests.id, id) });
   if (!row) return c.json({ error: "Tidak ditemukan" }, 404);
   if (row.status !== "pending") return c.json({ error: "Sudah diproses" }, 400);
+  // Wilayah scoping: pastikan generus ajuan ini berada di wilayah admin yang meng-approve
+  if (session.role === "admin_desa" || session.role === "admin_kelompok") {
+    const gen: any = await db.query.generus.findFirst({ where: eq(generus.id, row.generusId) });
+    if (!gen) return c.json({ error: "Generus tidak ditemukan" }, 404);
+    if (session.role === "admin_desa" && gen.desaId !== session.desaId) return c.json({ error: "Forbidden" }, 403);
+    if (session.role === "admin_kelompok" && gen.kelompokId !== session.kelompokId) return c.json({ error: "Forbidden" }, 403);
+  }
   const payload = JSON.parse(row.payload);
   const allowed: Record<string, string[]> = {
     kontak: ["noTelp", "pendidikan", "pekerjaan"],
@@ -309,6 +321,13 @@ r.post("/admin/profile-requests/:id/reject", requireAuth(), async (c) => {
   const row: any = await db.query.profileChangeRequests.findFirst({ where: eq(profileChangeRequests.id, id) });
   if (!row) return c.json({ error: "Tidak ditemukan" }, 404);
   if (row.status !== "pending") return c.json({ error: "Sudah diproses" }, 400);
+  // Wilayah scoping
+  if (session.role === "admin_desa" || session.role === "admin_kelompok") {
+    const gen: any = await db.query.generus.findFirst({ where: eq(generus.id, row.generusId) });
+    if (!gen) return c.json({ error: "Generus tidak ditemukan" }, 404);
+    if (session.role === "admin_desa" && gen.desaId !== session.desaId) return c.json({ error: "Forbidden" }, 403);
+    if (session.role === "admin_kelompok" && gen.kelompokId !== session.kelompokId) return c.json({ error: "Forbidden" }, 403);
+  }
   await db.update(profileChangeRequests).set({ status: "rejected", reviewedBy: session.userId, reviewedAt: new Date().toISOString() } as any).where(eq(profileChangeRequests.id, id));
   try { const { logAuditActivity } = await import("../utils/audit"); await logAuditActivity(c.env as any, { action: "profile_request_reject", userId: session.userId, targetId: id, details: { generusId: row.generusId, section: row.section } }); } catch {}
   return c.json({ success: true });
@@ -362,6 +381,10 @@ r.post("/admin/izin/:absensiId/reject", requireAuth(), async (c) => {
   const gen: any = await db.query.generus.findFirst({ where: eq(generus.id, row.generusId) });
   if (session.role === "admin_desa" && session.desaId && gen?.desaId !== session.desaId) return c.json({ error: "Forbidden" }, 403);
   if (session.role === "admin_kelompok" && session.kelompokId && gen?.kelompokId !== session.kelompokId) return c.json({ error: "Forbidden" }, 403);
+  // Juga cek scope kegiatan — pastikan kegiatan berada di wilayah admin
+  const keg: any = await db.query.kegiatan.findFirst({ where: eq(kegiatan.id, row.kegiatanId) });
+  if (session.role === "admin_desa" && session.desaId && keg?.desaId !== session.desaId) return c.json({ error: "Forbidden" }, 403);
+  if (session.role === "admin_kelompok" && session.kelompokId && keg?.kelompokId !== session.kelompokId) return c.json({ error: "Forbidden" }, 403);
   await db.delete(absensi).where(eq(absensi.id, id));
   try { const { logAuditActivity } = await import("../utils/audit"); await logAuditActivity(c.env as any, { action: "izin_reject", userId: session.userId, targetId: id, details: { generusId: row.generusId, kegiatanId: row.kegiatanId } }); } catch {}
   return c.json({ success: true });

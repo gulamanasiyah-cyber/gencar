@@ -38,7 +38,7 @@ r.get("/kegiatan-publik", async (c) => {
   if (q) conds.push(or(like(kegiatanPublik.judul, `%${q}%`), like(kegiatanPublik.slug, `%${q}%`)));
   if (status) conds.push(eq(kegiatanPublik.status, status as any));
   const where = conds.length ? and(...conds) : undefined;
-  const rows = await db.select().from(kegiatanPublik).where(where).orderBy(desc(kegiatanPublik.createdAt)).limit(limit).offset(offset);
+  const rows = await db.select().from(kegiatanPublik).where(where).orderBy(desc(kegiatanPublik.tanggal)).limit(limit).offset(offset);
   const cnt: any = await db.select({ count: sql<number>`count(*)` }).from(kegiatanPublik).where(where);
   return c.json({ data: rows, total: Number(cnt[0]?.count || 0), page, limit });
 });
@@ -114,6 +114,28 @@ r.delete("/kegiatan-publik/:id", async (c) => {
   return c.json({ success: true });
 });
 
+r.post("/kegiatan-publik/:id/approve", async (c) => {
+  const session = c.get("user" as any) as any;
+  if (!isPublisher(session.role)) return c.json({ error: "Hanya admin daerah yang bisa approve" }, 403);
+  const id = c.req.param("id");
+  const db = getDb(c.env);
+  const existing: any = await db.query.kegiatanPublik.findFirst({ where: eq(kegiatanPublik.id, id) });
+  if (!existing) return c.json({ error: "Tidak ditemukan" }, 404);
+  await db.update(kegiatanPublik).set({ status: "published", publishedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }).where(eq(kegiatanPublik.id, id));
+  return c.json({ success: true });
+});
+
+r.post("/kegiatan-publik/:id/reject", async (c) => {
+  const session = c.get("user" as any) as any;
+  if (!isPublisher(session.role)) return c.json({ error: "Hanya admin daerah yang bisa reject" }, 403);
+  const id = c.req.param("id");
+  const db = getDb(c.env);
+  const existing: any = await db.query.kegiatanPublik.findFirst({ where: eq(kegiatanPublik.id, id) });
+  if (!existing) return c.json({ error: "Tidak ditemukan" }, 404);
+  await db.update(kegiatanPublik).set({ status: "rejected", updatedAt: new Date().toISOString() }).where(eq(kegiatanPublik.id, id));
+  return c.json({ success: true });
+});
+
 // ── galeri item (1 item = 1 foto/media) ──
 r.get("/galeri", async (c) => {
   const db = getDb(c.env);
@@ -143,7 +165,7 @@ r.post("/galeri", async (c) => {
     durasi: durasi || null,
     tanggal: tanggal || null,
     lokasi: lokasi || null,
-    status: status || "published",
+    status: isPublisher(session.role) ? (status || "published") : status === "published" ? "pending_review" : status || "pending_review",
     authorId: session.userId,
   } as any);
   return c.json({ success: true, id });
@@ -178,7 +200,10 @@ r.put("/galeri/:id", async (c) => {
   if (durasi !== undefined) update.durasi = durasi;
   if (tanggal !== undefined) update.tanggal = tanggal;
   if (lokasi !== undefined) update.lokasi = lokasi;
-  if (status !== undefined) update.status = status;
+  if (status !== undefined) {
+    if (!isPublisher(session.role)) return c.json({ error: "Hanya admin daerah yang bisa ubah status" }, 403);
+    update.status = status;
+  }
   await db.update(galeri).set(update).where(eq(galeri.id, id));
   return c.json({ success: true });
 });
@@ -191,6 +216,28 @@ r.delete("/galeri/:id", async (c) => {
   if (!existing) return c.json({ error: "Tidak ditemukan" }, 404);
   if (existing.authorId !== session.userId && !isPublisher(session.role)) return c.json({ error: "Tidak diizinkan" }, 403);
   await db.delete(galeri).where(eq(galeri.id, id));
+  return c.json({ success: true });
+});
+
+r.post("/galeri/:id/approve", async (c) => {
+  const session = c.get("user" as any) as any;
+  if (!isPublisher(session.role)) return c.json({ error: "Hanya admin daerah yang bisa approve" }, 403);
+  const id = c.req.param("id");
+  const db = getDb(c.env);
+  const existing: any = await db.query.galeri.findFirst({ where: eq(galeri.id, id) });
+  if (!existing) return c.json({ error: "Tidak ditemukan" }, 404);
+  await db.update(galeri).set({ status: "published", updatedAt: new Date().toISOString() }).where(eq(galeri.id, id));
+  return c.json({ success: true });
+});
+
+r.post("/galeri/:id/reject", async (c) => {
+  const session = c.get("user" as any) as any;
+  if (!isPublisher(session.role)) return c.json({ error: "Hanya admin daerah yang bisa reject" }, 403);
+  const id = c.req.param("id");
+  const db = getDb(c.env);
+  const existing: any = await db.query.galeri.findFirst({ where: eq(galeri.id, id) });
+  if (!existing) return c.json({ error: "Tidak ditemukan" }, 404);
+  await db.update(galeri).set({ status: "rejected", updatedAt: new Date().toISOString() }).where(eq(galeri.id, id));
   return c.json({ success: true });
 });
 

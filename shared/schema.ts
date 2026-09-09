@@ -299,7 +299,7 @@ export const galeri = sqliteTable("galeri", {
   durasi: text("durasi"),
   tanggal: text("tanggal"),
   lokasi: text("lokasi"),
-  status: text("status", { enum: ["draft", "published"] }).notNull().default("published"),
+  status: text("status", { enum: ["draft", "pending_review", "published", "rejected"] }).notNull().default("pending_review"),
   authorId: text("author_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),

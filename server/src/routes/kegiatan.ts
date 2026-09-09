@@ -212,6 +212,12 @@ r.put("/:id", async (c) => {
   if (!existing) return c.json({ error: "Tidak ditemukan" }, 404);
   if (session.role === "admin_desa" && existing.desaId !== session.desaId) return c.json({ error: "Forbidden" }, 403);
   if (session.role === "admin_kelompok" && existing.kelompokId !== session.kelompokId) return c.json({ error: "Forbidden" }, 403);
+  // Cegah edit kegiatan yang sudah lewat
+  const now = new Date();
+  const kegiatanTanggal = existing.tanggalSelesai || existing.tanggal;
+  if (kegiatanTanggal && kegiatanTanggal < now.toISOString().slice(0, 10)) {
+    return c.json({ error: "Kegiatan yang sudah lewat tidak dapat diedit" }, 400);
+  }
   await db.update(kegiatan).set({ judul, deskripsi, tanggal, tanggalSelesai: tanggalSelesai !== undefined ? (tanggalSelesai || null) : undefined, jam, jamMulai: jamMulai !== undefined ? (jamMulai || jam || null) : undefined, jamSelesai: jamSelesai !== undefined ? (jamSelesai || null) : undefined, lokasi, desaId: desaId !== undefined ? (desaId ? Number(desaId) : null) : undefined, kelompokId: kelompokId !== undefined ? (kelompokId ? Number(kelompokId) : null) : undefined, kategoriAcara, kategoriCustom, lat: lat !== undefined ? (lat ? Number(lat) : null) : undefined, lng: lng !== undefined ? (lng ? Number(lng) : null) : undefined, radiusM: radiusM !== undefined ? Number(radiusM) : undefined, gpsRequired: gpsRequired !== undefined ? (gpsRequired ? 1 : 0) : undefined } as any).where(eq(kegiatan.id, id));
   // Replace peserta if provided
   const peserta = body.peserta as { generusId?: string; kelompokId?: number; desaId?: number }[] | undefined;

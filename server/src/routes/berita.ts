@@ -105,4 +105,26 @@ r.delete("/:id", requireAuth(), async (c) => {
   return c.json({ success: true });
 });
 
+r.post("/:id/approve", requireAuth(), async (c) => {
+  const session = c.get("user" as any) as any;
+  if (session.role !== "admin_daerah") return c.json({ error: "Hanya admin daerah yang bisa approve" }, 403);
+  const id = c.req.param("id");
+  const db = getDb(c.env);
+  const existing: any = await db.query.artikel.findFirst({ where: and(eq(artikel.id, id), eq(artikel.tipe, "berita")) });
+  if (!existing) return c.json({ error: "Tidak ditemukan" }, 404);
+  await db.update(artikel).set({ status: "published", publishedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }).where(and(eq(artikel.id, id), eq(artikel.tipe, "berita")));
+  return c.json({ success: true });
+});
+
+r.post("/:id/reject", requireAuth(), async (c) => {
+  const session = c.get("user" as any) as any;
+  if (session.role !== "admin_daerah") return c.json({ error: "Hanya admin daerah yang bisa reject" }, 403);
+  const id = c.req.param("id");
+  const db = getDb(c.env);
+  const existing: any = await db.query.artikel.findFirst({ where: and(eq(artikel.id, id), eq(artikel.tipe, "berita")) });
+  if (!existing) return c.json({ error: "Tidak ditemukan" }, 404);
+  await db.update(artikel).set({ status: "rejected", updatedAt: new Date().toISOString() }).where(and(eq(artikel.id, id), eq(artikel.tipe, "berita")));
+  return c.json({ success: true });
+});
+
 export default r;

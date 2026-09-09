@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check as IcoCheck, X as IcoX, Clock3 as IcoClock, AlertCircle as IcoAlert, User as IcoUser, CalendarDays as IcoCal, Search as IcoSearch, Filter as IcoFilter } from "lucide-react";
 import KpiCard from "../../components/admin/KpiCard";
+import Kalender from "../../components/Kalender";
 import { Select } from "../../components/Select";
 import { apiFetch, unwrapList } from "../../lib/api";
 
@@ -29,6 +30,17 @@ function fmtDate(s?: string | null) {
   } catch { return s; }
 }
 
+function fmtShortDate(iso: string) {
+  try {
+    const parts = iso.split("-").map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return iso;
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+  } catch {
+    return iso;
+  }
+}
+
 export default function IzinAdminPanel() {
   const [rows, setRows] = useState<IzinRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,13 +49,18 @@ export default function IzinAdminPanel() {
   const [toast, setToast] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [tab, setTab] = useState<"all" | "upcoming" | "past">("all");
+  const [filterStartDate, setFilterStartDate] = useState<string | null>(null);
+  const [filterEndDate, setFilterEndDate] = useState<string | null>(null);
   const [filterKegiatan, setFilterKegiatan] = useState("");
   const [filterDesa, setFilterDesa] = useState("");
   const [filterKelompok, setFilterKelompok] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
 
+  const isDateFilterActive = Boolean(filterStartDate || filterEndDate);
+
   const activeFilterCount =
     (tab !== "all" ? 1 : 0) +
+    (isDateFilterActive ? 1 : 0) +
     (filterKegiatan ? 1 : 0) +
     (filterDesa ? 1 : 0) +
     (filterKelompok ? 1 : 0);
@@ -98,12 +115,35 @@ export default function IzinAdminPanel() {
     }));
   }, [rows]);
 
+  // Titik penanda izin pada kalender
+  const calendarEvents = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of rows) {
+      if (r.tanggal) {
+        map.set(r.tanggal, (map.get(r.tanggal) ?? 0) + 1);
+      }
+    }
+    return Array.from(map.entries()).map(([tanggal, count]) => ({
+      tanggal,
+      label: `${count} ajuan izin`,
+      color: "#f59e0b",
+    }));
+  }, [rows]);
+
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     return rows.filter((r) => {
       // Filter status kegiatan
       if (tab === "upcoming" && r.tanggal < todayStr) return false;
       if (tab === "past" && r.tanggal >= todayStr) return false;
+      // Filter rentang tanggal
+      if (filterStartDate && filterEndDate) {
+        if (r.tanggal < filterStartDate || r.tanggal > filterEndDate) return false;
+      } else if (filterStartDate) {
+        if (r.tanggal < filterStartDate) return false;
+      } else if (filterEndDate) {
+        if (r.tanggal > filterEndDate) return false;
+      }
       // Filter per kegiatan / desa / kelompok
       if (filterKegiatan && r.kegiatanId !== filterKegiatan) return false;
       if (filterDesa && r.desaNama !== filterDesa) return false;
@@ -121,10 +161,19 @@ export default function IzinAdminPanel() {
       ].join(" ").toLowerCase();
       return hay.includes(s);
     });
-  }, [rows, q, tab, todayStr, filterKegiatan, filterDesa, filterKelompok]);
+  }, [rows, q, tab, todayStr, filterStartDate, filterEndDate, filterKegiatan, filterDesa, filterKelompok]);
 
   const upcomingCount = rows.filter((r) => r.tanggal >= todayStr).length;
   const pastCount = rows.filter((r) => r.tanggal < todayStr).length;
+
+  const resetAllFilters = () => {
+    setTab("all");
+    setFilterStartDate(null);
+    setFilterEndDate(null);
+    setFilterKegiatan("");
+    setFilterDesa("");
+    setFilterKelompok("");
+  };
 
   return (
     <div>
@@ -149,7 +198,7 @@ export default function IzinAdminPanel() {
       )}
 
       {/* Toolbar filter */}
-      <div className="admin-toolbar" style={{ marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+      <div className="admin-toolbar" style={{ marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
         <label className="search" style={{ flex: 1, minWidth: 220 }}>
           <IcoSearch size={14} />
           <input placeholder="Cari anggota / kegiatan / alasan…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Cari ajuan izin" />
@@ -178,10 +227,58 @@ export default function IzinAdminPanel() {
         )}
       </div>
 
+      {/* Chips filter aktif */}
+      {activeFilterCount > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)" }}>Filter aktif:</span>
+          {tab !== "all" && (
+            <button type="button" className="chip active" style={{ fontSize: 11, padding: "2px 8px", display: "inline-flex", alignItems: "center", gap: 4 }} onClick={() => setTab("all")}>
+              Status: {tab === "upcoming" ? "Mendatang" : "Sudah lewat"} <IcoX size={12} />
+            </button>
+          )}
+          {isDateFilterActive && (
+            <button type="button" className="chip active" style={{ fontSize: 11, padding: "2px 8px", display: "inline-flex", alignItems: "center", gap: 4 }} onClick={() => { setFilterStartDate(null); setFilterEndDate(null); }}>
+              <IcoCal size={11} />
+              {filterStartDate && filterEndDate
+                ? filterStartDate === filterEndDate
+                  ? fmtShortDate(filterStartDate)
+                  : `${fmtShortDate(filterStartDate)} – ${fmtShortDate(filterEndDate)}`
+                : filterStartDate
+                  ? `Mulai ${fmtShortDate(filterStartDate)}`
+                  : `Sampai ${fmtShortDate(filterEndDate!)}`}
+              <IcoX size={12} />
+            </button>
+          )}
+          {filterKegiatan && (
+            <button type="button" className="chip active" style={{ fontSize: 11, padding: "2px 8px", display: "inline-flex", alignItems: "center", gap: 4 }} onClick={() => setFilterKegiatan("")}>
+              Kegiatan <IcoX size={12} />
+            </button>
+          )}
+          {filterDesa && (
+            <button type="button" className="chip active" style={{ fontSize: 11, padding: "2px 8px", display: "inline-flex", alignItems: "center", gap: 4 }} onClick={() => { setFilterDesa(""); setFilterKelompok(""); }}>
+              Desa: {filterDesa} <IcoX size={12} />
+            </button>
+          )}
+          {filterKelompok && (
+            <button type="button" className="chip active" style={{ fontSize: 11, padding: "2px 8px", display: "inline-flex", alignItems: "center", gap: 4 }} onClick={() => setFilterKelompok("")}>
+              Kelompok: {filterKelompok} <IcoX size={12} />
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            style={{ fontSize: 11, height: 24, minHeight: 24, padding: "0 6px", color: "var(--primary)" }}
+            onClick={resetAllFilters}
+          >
+            Reset Semua
+          </button>
+        </div>
+      )}
+
       {/* Modal filter lanjutan */}
       {filterOpen && (
         <div className="modal-backdrop" onClick={() => setFilterOpen(false)} style={{ zIndex: 1300, display: "grid", placeItems: "center", padding: 16 }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480, width: "100%", padding: 20, borderRadius: 20, position: "relative" }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480, width: "100%", maxHeight: "88vh", overflowY: "auto", padding: 20, borderRadius: 20, position: "relative" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <h3 style={{ fontSize: 16, fontWeight: 900, color: "var(--ink)", margin: 0 }}>Filter Ajuan Izin</h3>
               <button type="button" className="trophy-modal-close" style={{ position: "static", flexShrink: 0 }} onClick={() => setFilterOpen(false)} aria-label="Tutup">
@@ -200,6 +297,36 @@ export default function IzinAdminPanel() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Rentang Tanggal Kalender Ranged */}
+              <div style={{ display: "grid", gap: 6 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                    Rentang Tanggal Kegiatan
+                  </span>
+                  {isDateFilterActive && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      style={{ fontSize: 11, padding: "2px 6px", height: "auto", minHeight: 0, color: "var(--primary)" }}
+                      onClick={() => { setFilterStartDate(null); setFilterEndDate(null); }}
+                    >
+                      Hapus Rentang
+                    </button>
+                  )}
+                </div>
+                <Kalender
+                  mode="range"
+                  startDate={filterStartDate}
+                  endDate={filterEndDate}
+                  onChangeRange={(start, end) => {
+                    setFilterStartDate(start);
+                    setFilterEndDate(end);
+                  }}
+                  events={calendarEvents}
+                  presets
+                />
               </div>
 
               {/* Kegiatan */}
@@ -240,7 +367,7 @@ export default function IzinAdminPanel() {
                   type="button"
                   className="btn btn-ghost"
                   style={{ flex: 1 }}
-                  onClick={() => { setTab("all"); setFilterKegiatan(""); setFilterDesa(""); setFilterKelompok(""); }}
+                  onClick={resetAllFilters}
                 >
                   Reset
                 </button>
