@@ -269,14 +269,7 @@ export const MOCK_ARTIKEL: PubArticle[] = [
 
 export type PengurusLevel = "pimpinan" | "sekretariat" | "bidang" | "koordinator"
 export type PubPengurus = { id?: string; nama: string; role: string; foto: string; level: PengurusLevel; bio?: string | null; kontakWa?: string | null; urutan?: number }
-export const MOCK_PENGURUS: PubPengurus[] = [
-  { id: "1", nama: "Fulan A", role: "Ketua Umum", foto: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop/400/400", level: "pimpinan", bio: "Penanggung jawab pembinaan muda-mudi — menjaga kelancaran program dan arah kegiatan.", kontakWa: "6281230001000", urutan: 0 },
-  { id: "2", nama: "Fulanah B", role: "Sekretaris", foto: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop/400/400", level: "sekretariat", bio: "Dokumentasi, arsip surat, dan koordinasi jadwal antar-desa se-Cengkareng.", urutan: 1 },
-  { id: "3", nama: "Fulan C", role: "Bendahara", foto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop/400/400", level: "sekretariat", bio: "Pengelolaan dana kegiatan & pelaporan transparan untuk tiap program.", urutan: 2 },
-  { id: "4", nama: "Fulan D", role: "Biro Kepemudaan", foto: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop/400/400", level: "bidang", bio: "Pendampingan kegiatan sambung, olahraga, dan penguatan kerukunan generus.", urutan: 0 },
-  { id: "5", nama: "Fulan E", role: "Humas & Syiar", foto: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop/400/400", level: "bidang", bio: "Jembatan komunikasi kegiatan sosial, kemasyarakatan, dan antar-lingkungan.", urutan: 1 },
-  { id: "6", nama: "Fulan F", role: "Publikasi & Media", foto: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop/400/400", level: "bidang", bio: "Dokumentasi visual, penulisan artikel, dan pengelolaan etalase kegiatan publik.", urutan: 2 },
-];
+export const MOCK_PENGURUS: PubPengurus[] = [];
 
 export type PubStory = { nama: string; peran: string; angkatan: string; foto: string; quote: string; konteks: string };
 export const MOCK_STORIES: PubStory[] = [

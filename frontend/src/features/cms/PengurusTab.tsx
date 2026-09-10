@@ -9,11 +9,7 @@ import { apiFetch } from "../../lib/api";
 type PengurusRow = { id: string; nama: string; dapukan: string; foto: string | null; bio: string | null; kontakWa: string | null; urutan: number };
 
 export default function PengurusTab() {
-  const [rows, setRows] = useState<PengurusRow[]>(() => [
-    { id: "1", nama: "Fulan A", dapukan: "Ketua Umum", foto: null, bio: "Penanggung jawab harian.", kontakWa: null, urutan: 0 },
-    { id: "2", nama: "Fulanah B", dapukan: "Sekretaris", foto: null, bio: "Arsip & jadwal.", kontakWa: null, urutan: 1 },
-    { id: "3", nama: "Fulan C", dapukan: "Bendahara", foto: null, bio: "Kelola kas.", kontakWa: null, urutan: 2 },
-  ]);
+  const [rows, setRows] = useState<PengurusRow[]>([]);
   const [editing, setEditing] = useState<PengurusRow | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [q, setQ] = useState("");

@@ -1,16 +1,7 @@
--- 0012: seed public initial content (kegiatan_publik, artikel, galeri, organisasi_pengurus, settings)
+-- 0012: seed public initial content (kegiatan_publik, artikel, galeri, settings)
 -- Idempotent inserts with conflict resolution where applicable
 
--- 1) organisasi_pengurus (6 data pengurus resmi)
-INSERT OR IGNORE INTO `organisasi_pengurus` (`id`, `nama`, `dapukan`, `foto`, `level`, `bio`, `kontak_wa`, `urutan`) VALUES
-('op_1', 'Fulan A', 'Ketua Umum', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&h=400&q=80', 'pimpinan', 'Penanggung jawab pembinaan muda-mudi — menjaga kelancaran program dan arah kegiatan.', '6281230001000', 0),
-('op_2', 'Fulanah B', 'Sekretaris', 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=400&h=400&q=80', 'sekretariat', 'Dokumentasi, arsip surat, dan koordinasi jadwal antar-desa se-Cengkareng.', NULL, 1),
-('op_3', 'Fulan C', 'Bendahara', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&h=400&q=80', 'sekretariat', 'Pengelolaan dana kegiatan & pelaporan transparan untuk tiap program.', NULL, 2),
-('op_4', 'Fulan D', 'Biro Kepemudaan', 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=400&h=400&q=80', 'bidang', 'Pendampingan kegiatan sambung, olahraga, dan penguatan kerukunan generus.', NULL, 0),
-('op_5', 'Fulan E', 'Humas & Syiar', 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=400&h=400&q=80', 'bidang', 'Jembatan komunikasi kegiatan sosial, kemasyarakatan, dan antar-lingkungan.', NULL, 1),
-('op_6', 'Fulan F', 'Publikasi & Media', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&h=400&q=80', 'bidang', 'Dokumentasi visual, penulisan artikel, dan pengelolaan etalase kegiatan publik.', NULL, 2);--> statement-breakpoint
-
--- 2) kegiatan_publik (12 kegiatan terarsip)
+-- 1) kegiatan_publik (12 kegiatan terarsip)
 INSERT OR IGNORE INTO `kegiatan_publik` (`id`, `slug`, `judul`, `excerpt`, `konten`, `cover_image`, `kategori`, `kategori_acara`, `tanggal`, `jam`, `lokasi`, `status`, `published_at`) VALUES
 ('kp_1', 'ngaji-rutin-selasa-malam', 'Ngaji Rutin Selasa Malam — bedah kitab & tanya jawab', 'Kajian mingguan yang santai tapi ngena. Materi terapan, bukan ceramah satu arah.', '<p>Kajian rutin Selasa malam — kitanya duduk melingkar, bukan baris. Tanya jawab bebas, pulang bawa 1 amalan yang langsung dipraktikin.</p>', 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&h=700&q=80', 'Sambung Rutin', 'sambung_rutin', '2026-09-02', '19:30', 'Musala Al-Falah', 'published', datetime('now')),
 ('kp_2', 'festival-anak-cengkareng', 'Festival Anak Cengkareng — lomba, bazaar, dan panggung kreasi', 'Seharian penuh buat anak-anak: lomba mewarnai, bazaar UMKM, dan panggung kreasi.', '<p>Festival tahunan merangkul cabe rawit dan pra-remaja se-Cengkareng.</p>', 'https://images.unsplash.com/photo-1531058020387-3be344556be6?auto=format&fit=crop&w=900&h=700&q=80', 'Lainnya', 'lainnya', '2026-09-15', '08:00', 'Lapangan Cengkareng', 'published', datetime('now')),
