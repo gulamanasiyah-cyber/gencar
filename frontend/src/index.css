@@ -574,7 +574,7 @@ a {
 .admin-more-sheet-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(27, 15, 10, 0.55);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   z-index: 999;
@@ -585,15 +585,15 @@ a {
 }
 
 .admin-more-sheet {
-  background: var(--surface, #1e1e24);
+  background: #ffffff;
   width: 100%;
   max-width: 520px;
   max-height: 88dvh;
   border-radius: 24px 24px 0 0;
   padding: 12px 18px max(24px, env(safe-area-inset-bottom));
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--line);
   border-bottom: none;
-  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 -12px 40px rgba(27, 15, 10, 0.18);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -616,7 +616,7 @@ a {
   width: 44px;
   height: 4px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.25);
+  background: #e2d3c3;
   margin: 2px auto 6px;
 }
 
@@ -631,20 +631,20 @@ a {
   font-size: 16px;
   font-weight: 800;
   margin: 0;
-  color: #fff;
+  color: var(--ink);
   line-height: 1.2;
 }
 
 .admin-more-sheet-sub {
   font-size: 11px;
-  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
+  color: var(--text-secondary);
   display: block;
   margin-top: 2px;
 }
 
 .admin-more-user-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg);
+  border: 1px solid var(--line);
   border-radius: 16px;
   padding: 12px 14px;
   display: flex;
@@ -656,7 +656,7 @@ a {
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: var(--primary, #d03804);
+  background: var(--primary);
   color: #fff;
   font-weight: 800;
   font-size: 16px;
@@ -676,7 +676,7 @@ a {
 .admin-more-user-name {
   font-size: 13px;
   font-weight: 700;
-  color: #fff;
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -684,7 +684,7 @@ a {
 
 .admin-more-user-email {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -697,11 +697,17 @@ a {
   margin-top: 3px;
 }
 
+.admin-more-user-card .sidebar-admin-badge {
+  background: rgba(208, 56, 4, 0.12);
+  color: var(--primary);
+  border: 1px solid rgba(208, 56, 4, 0.25);
+}
+
 .admin-more-user-wilayah {
   font-size: 10px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.75);
-  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  background: rgba(27, 15, 10, 0.06);
   padding: 1px 6px;
   border-radius: 6px;
 }
@@ -713,8 +719,8 @@ a {
 }
 
 .admin-more-item-btn {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #ffffff;
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 12px 10px;
   display: flex;
@@ -723,34 +729,35 @@ a {
   text-align: left;
   cursor: pointer;
   transition: all var(--transition);
-  color: #fff;
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(27, 15, 10, 0.03);
 }
 
 .admin-more-item-btn:hover,
 .admin-more-item-btn:active {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.16);
+  background: var(--bg);
+  border-color: rgba(208, 56, 4, 0.3);
   transform: translateY(-1px);
 }
 
 .admin-more-item-btn.active {
-  background: rgba(208, 56, 4, 0.16);
-  border-color: var(--primary, #d03804);
+  background: rgba(208, 56, 4, 0.06);
+  border-color: var(--primary);
 }
 
 .admin-more-item-icon {
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--primary, #d03804);
+  background: rgba(208, 56, 4, 0.08);
+  color: var(--primary);
   display: grid;
   place-items: center;
   flex-shrink: 0;
 }
 
 .admin-more-item-btn.active .admin-more-item-icon {
-  background: var(--primary, #d03804);
+  background: var(--primary);
   color: #fff;
 }
 
@@ -765,25 +772,25 @@ a {
   font-size: 13px;
   font-weight: 700;
   line-height: 1.25;
-  color: #fff;
+  color: var(--ink);
 }
 
 .admin-more-item-text span {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-secondary);
   line-height: 1.2;
 }
 
 .admin-more-sheet-divider {
   height: 1px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--line);
   margin: 2px 0;
 }
 
 .admin-more-logout-btn {
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  color: #f87171;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
   font-size: 13px;
   font-weight: 700;
   border-radius: 14px;
@@ -799,9 +806,9 @@ a {
 
 .admin-more-logout-btn:hover,
 .admin-more-logout-btn:active {
-  background: rgba(239, 68, 68, 0.18);
+  background: #fee2e2;
   border-color: #ef4444;
-  color: #ef4444;
+  color: #b91c1c;
 }
 
 .admin-main {
@@ -2359,14 +2366,16 @@ table.admin-table tr:hover td {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: var(--surface, #1e1e24);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--line);
     border-radius: 16px;
     padding: 8px 14px;
     position: sticky;
     top: 8px;
     z-index: 40;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 2px 10px rgba(27, 15, 10, 0.05);
   }
 
   .admin-mobile-brand {
@@ -2379,33 +2388,44 @@ table.admin-table tr:hover td {
     width: 30px;
     height: 30px;
     font-size: 14px;
+    background: var(--primary);
+    color: #fff;
   }
 
   .admin-mobile-brand .sidebar-brand-text {
     font-size: 16px;
+    color: var(--ink);
+    font-weight: 800;
   }
 
   .admin-mobile-user-pill {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--bg);
+    border: 1px solid var(--line);
     padding: 4px 8px;
     border-radius: 999px;
     cursor: pointer;
+    box-shadow: 0 1px 3px rgba(27, 15, 10, 0.04);
     transition: background 0.15s;
   }
 
   .admin-mobile-user-pill:hover,
   .admin-mobile-user-pill:active {
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(208, 56, 4, 0.08);
+  }
+
+  .admin-mobile-user-pill .sidebar-admin-badge {
+    background: rgba(208, 56, 4, 0.12);
+    color: var(--primary);
+    border: 1px solid rgba(208, 56, 4, 0.25);
   }
 
   .admin-mobile-wilayah {
     font-size: 11px;
-    font-weight: 600;
-    color: var(--text, #fff);
+    font-weight: 700;
+    color: var(--ink);
     max-width: 120px;
     white-space: nowrap;
     overflow: hidden;
@@ -2420,11 +2440,13 @@ table.admin-table tr:hover td {
     bottom: 0;
     left: 0;
     right: 0;
-    background: var(--surface, #1e1e24);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid var(--line);
     padding: 6px 4px max(8px, env(safe-area-inset-bottom));
     z-index: 50;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 -4px 20px rgba(27, 15, 10, 0.06);
     gap: 2px;
   }
 
@@ -2438,23 +2460,24 @@ table.admin-table tr:hover td {
     border: none;
     padding: 6px 2px;
     border-radius: 12px;
-    color: rgba(255, 255, 255, 0.55);
+    color: var(--text-secondary);
     cursor: pointer;
     transition: all var(--transition);
     min-height: 48px;
   }
 
   .admin-mobile-tab-btn:hover {
-    color: rgba(255, 255, 255, 0.85);
+    color: var(--ink);
   }
 
   .admin-mobile-tab-btn.active {
-    color: #fff;
-    background: rgba(208, 56, 4, 0.15);
+    color: var(--primary);
+    background: rgba(208, 56, 4, 0.08);
+    font-weight: 800;
   }
 
   .admin-mobile-tab-btn.active .admin-mobile-tab-icon-wrap {
-    color: var(--primary, #d03804);
+    color: var(--primary);
   }
 
   .admin-mobile-tab-icon-wrap {
@@ -2467,7 +2490,7 @@ table.admin-table tr:hover td {
 
   .admin-mobile-tab-label {
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: 0.01em;
     line-height: 1;
     white-space: nowrap;
@@ -2488,7 +2511,7 @@ table.admin-table tr:hover td {
     display: inline-grid;
     place-items: center;
     line-height: 1;
-    border: 1.5px solid var(--surface, #1e1e24);
+    border: 1.5px solid #ffffff;
   }
 
   .admin-mobile-tab-active-dot {
