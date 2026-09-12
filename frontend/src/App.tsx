@@ -856,6 +856,8 @@ function AdminShell({
     document.addEventListener("visibilitychange", onVis);
     return () => { cancel = true; if (id != null) window.clearInterval(id); window.removeEventListener("focus", onFocus); window.removeEventListener("pengajuan:refresh" as unknown as string, onRefresh); document.removeEventListener("visibilitychange", onVis); };
   }, [page]);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+
   const navItems: { key: string; label: string; icon: React.ReactNode; badge?: number }[] = [
     { key: "anggota", label: "Anggota", icon: <IcoUsers /> },
     { key: "kegiatan", label: "Kegiatan", icon: <IcoCalendar /> },
@@ -866,8 +868,43 @@ function AdminShell({
     { key: "cms", label: "CMS", icon: <IcoFileText /> },
     { key: "statistik", label: "Statistik", icon: <IcoBarChart /> },
   ];
+
+  const mobilePrimaryItems = [
+    { key: "anggota", label: "Anggota", icon: <IcoUsers size={20} /> },
+    { key: "kegiatan", label: "Kegiatan", icon: <IcoCalendar size={20} /> },
+    { key: "pengajuan", label: "Pengajuan", icon: <IcoFileCheck size={20} />, badge: pendingCount },
+    { key: "cms", label: "CMS", icon: <IcoFileText size={20} /> },
+  ];
+
+  const mobileMoreItems = [
+    { key: "users", label: "User Admin", desc: "Kelola akun & peran", icon: <IcoShield size={20} /> },
+    ...(role === "admin_daerah" ? [{ key: "wilayah", label: "Wilayah", desc: "Desa & kelompok", icon: <IcoMapPin size={20} /> }] : []),
+    { key: "qr", label: "QR Wilayah", desc: "Kartu presensi QR", icon: <IcoQr size={20} /> },
+    { key: "statistik", label: "Statistik", desc: "Data & grafik muda-mudi", icon: <IcoBarChart size={20} /> },
+  ];
+
+  const moreNavKeys = ["users", "wilayah", "qr", "statistik"];
+  const isMoreActive = moreNavKeys.includes(page);
+
   return (
     <div className="admin-shell">
+      {/* Top Header khusus Mobile */}
+      <header className="admin-mobile-header">
+        <div className="admin-mobile-brand">
+          <div className="brand-mark">G</div>
+          <span className="sidebar-brand-text">Gencar</span>
+        </div>
+        <div className="admin-mobile-user-pill" onClick={() => setShowMoreMenu(true)} role="button" tabIndex={0}>
+          <span className="sidebar-admin-badge">
+            {role === "admin_daerah" ? "Daerah" : role === "admin_desa" ? "Desa" : "Kelompok"}
+          </span>
+          <span className="admin-mobile-wilayah" title={wilayahNama || (role === "admin_daerah" ? "Cengkareng" : "—")}>
+            {wilayahNama || (role === "admin_daerah" ? "Cengkareng" : "—")}
+          </span>
+        </div>
+      </header>
+
+      {/* Sidebar Desktop */}
       <nav className="admin-sidebar hide-scrollbar" aria-label="Admin navigation">
         <div className="sidebar-logo">
           <div className="brand-mark">G</div>
@@ -926,7 +963,137 @@ function AdminShell({
           <IcoLogOut size={18} /> <span>Keluar</span>
         </button>
       </nav>
+
+      {/* Main Content Area */}
       <main className="admin-main">{children}</main>
+
+      {/* Bottom Tab Bar khusus Mobile (5 Tab Pas & Intuitif) */}
+      <nav className="admin-mobile-bottom-nav" aria-label="Mobile admin navigation">
+        {mobilePrimaryItems.map((it) => {
+          const isActive = page === it.key;
+          return (
+            <button
+              key={it.key}
+              type="button"
+              className={`admin-mobile-tab-btn ${isActive ? "active" : ""}`}
+              onClick={() => {
+                setPage(it.key);
+                setShowMoreMenu(false);
+              }}
+              aria-label={it.label}
+              aria-current={isActive ? "page" : undefined}
+            >
+              <span className="admin-mobile-tab-icon-wrap">
+                {it.icon}
+                {it.badge != null && it.badge > 0 && (
+                  <span className="admin-mobile-tab-badge">
+                    {it.badge > 99 ? "99+" : it.badge}
+                  </span>
+                )}
+              </span>
+              <span className="admin-mobile-tab-label">{it.label}</span>
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          className={`admin-mobile-tab-btn ${isMoreActive ? "active" : ""}`}
+          onClick={() => setShowMoreMenu((prev) => !prev)}
+          aria-label="Menu Lainnya"
+          aria-expanded={showMoreMenu}
+        >
+          <span className="admin-mobile-tab-icon-wrap">
+            <IcoGrid size={20} />
+            {isMoreActive && <span className="admin-mobile-tab-active-dot" />}
+          </span>
+          <span className="admin-mobile-tab-label">Lainnya</span>
+        </button>
+      </nav>
+
+      {/* Bottom Sheet Menu Lainnya (Drawer) */}
+      {showMoreMenu && (
+        <div className="admin-more-sheet-backdrop" onClick={() => setShowMoreMenu(false)}>
+          <div
+            className="admin-more-sheet"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu Lainnya"
+          >
+            <div className="admin-more-sheet-handle" />
+            <div className="admin-more-sheet-header">
+              <div>
+                <h3 className="admin-more-sheet-title">Menu Lainnya</h3>
+                <span className="admin-more-sheet-sub">Navigasi admin &amp; pengaturan akun</span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm row-icon-btn"
+                onClick={() => setShowMoreMenu(false)}
+                aria-label="Tutup menu"
+              >
+                <IcoX size={18} />
+              </button>
+            </div>
+
+            <div className="admin-more-user-card">
+              <div className="admin-more-user-avatar">
+                {user?.name ? user.name.charAt(0).toUpperCase() : "A"}
+              </div>
+              <div className="admin-more-user-info">
+                <div className="admin-more-user-name">{user?.name || "Admin Gencar"}</div>
+                <div className="admin-more-user-email">{user?.email || "admin@gencar.com"}</div>
+                <div className="admin-more-user-meta">
+                  <span className="sidebar-admin-badge">
+                    {role === "admin_daerah" ? "Daerah" : role === "admin_desa" ? "Desa" : "Kelompok"}
+                  </span>
+                  <span className="admin-more-user-wilayah">
+                    {wilayahNama || (role === "admin_daerah" ? "Cengkareng" : "—")}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="admin-more-grid">
+              {mobileMoreItems.map((m) => {
+                const isActive = page === m.key;
+                return (
+                  <button
+                    key={m.key}
+                    type="button"
+                    className={`admin-more-item-btn ${isActive ? "active" : ""}`}
+                    onClick={() => {
+                      setPage(m.key);
+                      setShowMoreMenu(false);
+                    }}
+                  >
+                    <div className="admin-more-item-icon">{m.icon}</div>
+                    <div className="admin-more-item-text">
+                      <strong>{m.label}</strong>
+                      <span>{m.desc}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="admin-more-sheet-divider" />
+
+            <button
+              type="button"
+              className="admin-more-logout-btn"
+              onClick={async () => {
+                setShowMoreMenu(false);
+                await logout();
+                navigate("/login", { replace: true });
+              }}
+            >
+              <IcoLogOut size={18} />
+              <span>Keluar dari Akun</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

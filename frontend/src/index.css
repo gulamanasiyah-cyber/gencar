@@ -562,6 +562,248 @@ a {
   color: #ef4444 !important;
 }
 
+/* ── Admin Mobile Navigation (Top Header & Bottom Bar) ── */
+.admin-mobile-header {
+  display: none;
+}
+
+.admin-mobile-bottom-nav {
+  display: none;
+}
+
+.admin-more-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 999;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.admin-more-sheet {
+  background: var(--surface, #1e1e24);
+  width: 100%;
+  max-width: 520px;
+  max-height: 88dvh;
+  border-radius: 24px 24px 0 0;
+  padding: 12px 18px max(24px, env(safe-area-inset-bottom));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: none;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.55);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: sheetSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes sheetSlideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0.5;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.admin-more-sheet-handle {
+  width: 44px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  margin: 2px auto 6px;
+}
+
+.admin-more-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-more-sheet-title {
+  font-size: 16px;
+  font-weight: 800;
+  margin: 0;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.admin-more-sheet-sub {
+  font-size: 11px;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
+  display: block;
+  margin-top: 2px;
+}
+
+.admin-more-user-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-more-user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--primary, #d03804);
+  color: #fff;
+  font-weight: 800;
+  font-size: 16px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.admin-more-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.admin-more-user-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-more-user-email {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-more-user-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.admin-more-user-wilayah {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+.admin-more-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.admin-more-item-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 12px 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transition);
+  color: #fff;
+}
+
+.admin-more-item-btn:hover,
+.admin-more-item-btn:active {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+.admin-more-item-btn.active {
+  background: rgba(208, 56, 4, 0.16);
+  border-color: var(--primary, #d03804);
+}
+
+.admin-more-item-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--primary, #d03804);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.admin-more-item-btn.active .admin-more-item-icon {
+  background: var(--primary, #d03804);
+  color: #fff;
+}
+
+.admin-more-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.admin-more-item-text strong {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #fff;
+}
+
+.admin-more-item-text span {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.2;
+}
+
+.admin-more-sheet-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 2px 0;
+}
+
+.admin-more-logout-btn {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 14px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all var(--transition);
+  width: 100%;
+}
+
+.admin-more-logout-btn:hover,
+.admin-more-logout-btn:active {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
 .admin-main {
   flex: 1;
   padding: 8px 12px;
@@ -2102,54 +2344,161 @@ table.admin-table tr:hover td {
   .admin-shell {
     height: auto;
     min-height: 100dvh;
-    padding: 12px;
-    padding-bottom: 100px;
-  }
-
-  .admin-sidebar {
-    position: fixed;
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: max(16px, env(safe-area-inset-bottom));
-    top: auto;
-    height: auto;
-    width: auto;
-    min-width: auto;
-    max-width: calc(100% - 24px);
-    border-radius: 20px;
-    padding: 10px;
-    flex-direction: row;
-    z-index: 100;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
-    gap: 6px;
-    align-items: center;
-  }
-
-  .sidebar-logo,
-  .sidebar-admin-info,
-  .sidebar-divider {
-    display: none;
-  }
-
-  .admin-sidebar a,
-  .admin-sidebar button {
-    padding: 14px 16px;
-    border-radius: 14px;
-    white-space: nowrap;
-    width: auto;
-    font-size: 13px;
+    padding: 10px 10px 84px;
+    flex-direction: column;
     gap: 8px;
+  }
+
+  /* Sembunyikan sidebar desktop di layar mobile/tablet */
+  .admin-sidebar {
+    display: none !important;
+  }
+
+  /* Header mobile atas (Sticky) */
+  .admin-mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface, #1e1e24);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 8px 14px;
+    position: sticky;
+    top: 8px;
+    z-index: 40;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  }
+
+  .admin-mobile-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .admin-mobile-brand .brand-mark {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+  }
+
+  .admin-mobile-brand .sidebar-brand-text {
+    font-size: 16px;
+  }
+
+  .admin-mobile-user-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 4px 8px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .admin-mobile-user-pill:hover,
+  .admin-mobile-user-pill:active {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .admin-mobile-wilayah {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text, #fff);
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Bottom navigation 5 tab tetap */
+  .admin-mobile-bottom-nav {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface, #1e1e24);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 6px 4px max(8px, env(safe-area-inset-bottom));
+    z-index: 50;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.35);
+    gap: 2px;
+  }
+
+  .admin-mobile-tab-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    padding: 6px 2px;
+    border-radius: 12px;
+    color: rgba(255, 255, 255, 0.55);
+    cursor: pointer;
+    transition: all var(--transition);
     min-height: 48px;
   }
 
-  .admin-sidebar a svg,
-  .admin-sidebar button svg {
-    width: 20px;
-    height: 20px;
+  .admin-mobile-tab-btn:hover {
+    color: rgba(255, 255, 255, 0.85);
   }
 
-  .admin-sidebar .active {
-    padding: 14px 18px;
+  .admin-mobile-tab-btn.active {
+    color: #fff;
+    background: rgba(208, 56, 4, 0.15);
+  }
+
+  .admin-mobile-tab-btn.active .admin-mobile-tab-icon-wrap {
+    color: var(--primary, #d03804);
+  }
+
+  .admin-mobile-tab-icon-wrap {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+  }
+
+  .admin-mobile-tab-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .admin-mobile-tab-badge {
+    position: absolute;
+    top: -4px;
+    right: -8px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 800;
+    display: inline-grid;
+    place-items: center;
+    line-height: 1;
+    border: 1.5px solid var(--surface, #1e1e24);
+  }
+
+  .admin-mobile-tab-active-dot {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--primary, #d03804);
   }
 
   .cards-grid {
@@ -2161,7 +2510,7 @@ table.admin-table tr:hover td {
   }
 
   .admin-main {
-    padding: 8px;
+    padding: 8px 4px;
     height: auto;
     overflow: visible;
     min-width: 0;
@@ -2224,24 +2573,6 @@ table.admin-table tr:hover td {
 
   .view-toggle {
     display: none;
-  }
-
-  /* Mobile nav: icon-only, large targets */
-  .admin-sidebar a span,
-  .admin-sidebar button span {
-    display: none;
-  }
-
-  .admin-sidebar a,
-  .admin-sidebar button {
-    padding: 14px;
-    min-height: 52px;
-    min-width: 52px;
-    justify-content: center;
-  }
-
-  .admin-sidebar .active {
-    padding: 14px;
   }
 
   /* Pengurus: anti-overflow di tablet kecil/HP — izinkan baris wrap sebelum tombol kepotong */
@@ -2317,14 +2648,8 @@ table.admin-table tr:hover td {
   }
 
   .admin-main {
-    padding: 12px;
-    padding-bottom: 100px;
-  }
-
-  .admin-sidebar {
-    bottom: max(12px, env(safe-area-inset-bottom));
-    padding: 8px;
-    gap: 4px;
+    padding: 8px 4px;
+    padding-bottom: 90px;
   }
 
   table.admin-table {
