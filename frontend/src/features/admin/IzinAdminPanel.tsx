@@ -301,21 +301,9 @@ export default function IzinAdminPanel() {
 
               {/* Rentang Tanggal Kalender Ranged */}
               <div style={{ display: "grid", gap: 6 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                    Rentang Tanggal Kegiatan
-                  </span>
-                  {isDateFilterActive && (
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      style={{ fontSize: 11, padding: "2px 6px", height: "auto", minHeight: 0, color: "var(--primary)" }}
-                      onClick={() => { setFilterStartDate(null); setFilterEndDate(null); }}
-                    >
-                      Hapus Rentang
-                    </button>
-                  )}
-                </div>
+                <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  Rentang Tanggal Kegiatan
+                </span>
                 <Kalender
                   mode="range"
                   startDate={filterStartDate}
