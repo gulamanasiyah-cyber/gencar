@@ -1475,6 +1475,30 @@ table.admin-table tr:hover td {
   margin-top: 4px;
 }
 
+.member-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.member-card-name-row .member-card-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.member-card-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-card--compact .member-card-actions {
+  margin: 0;
+}
+
 /* User card (mobile view) */
 .user-card {
   display: grid;
@@ -2739,13 +2763,32 @@ table.admin-table tr:hover td {
     padding: 12px 14px;
     gap: 10px;
   }
+  .member-card--compact {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .member-card--compact .member-card-head {
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .member-card--compact .member-card-actions {
+    gap: 4px;
+    justify-content: flex-end;
+    margin: 0;
+  }
+  .member-card--compact .member-card-actions .btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    flex: 0 0 auto;
+  }
   .member-card-meta {
     gap: 6px;
     margin-top: 3px;
   }
   .member-card-info {
     gap: 4px;
-    padding-top: 10px;
+    padding-top: 8px;
   }
   .member-card-actions {
     gap: 6px;

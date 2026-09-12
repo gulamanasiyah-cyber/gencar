@@ -1432,18 +1432,25 @@ function AnggotaPage({ role: _role }: { role: AdminRole }) {
       ) : (
         <div className="cards-grid">
           {filtered.map((m) => (
-            <div key={m.id} className="member-card" role="button" tabIndex={0} onClick={() => setDetailMember(m)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetailMember(m); } }}>
+            <div key={m.id} className="member-card member-card--compact" role="button" tabIndex={0} onClick={() => setDetailMember(m)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetailMember(m); } }}>
               <div className="member-card-head">
-                <MemberAvatarCircle member={m} size={40} />
+                <MemberAvatarCircle member={m} size={36} />
                 <div className="member-card-head-info">
-                  <div className="member-card-name">{m.nama}</div>
-                  <div className="muted">{m.desa} / {m.kelompok}</div>
+                  <div className="member-card-name-row">
+                    <span className="member-card-name">{m.nama}</span>
+                    <span className={`pill ${m.status === "aktif" ? "pill-emerald" : "pill-amber"}`} style={{ fontSize: 9, padding: "2px 7px" }}>{m.status}</span>
+                  </div>
+                  <div className="member-card-sub">{m.desa} / {m.kelompok}</div>
                   <div className="member-card-meta">
-                    <span className="pill pill-slate">{m.kategoriMudaMudi}</span>
-                    <span className="muted">{m.pendidikan}</span>
+                    <span className="pill pill-slate" style={{ fontSize: 10, padding: "2px 7px" }}>{m.kategoriMudaMudi}</span>
+                    <span className="member-card-sub">{m.pendidikan}</span>
                   </div>
                 </div>
-                <span className={`pill ${m.status === "aktif" ? "pill-emerald" : "pill-amber"}`}>{m.status}</span>
+                <div className="member-card-actions" onClick={(e) => e.stopPropagation()}>
+                  <button className="btn btn-ghost row-icon-btn" aria-label="Lihat detail" title="Detail" onClick={() => setDetailMember(m)}><IcoEye size={15} /></button>
+                  <button className="btn btn-ghost row-icon-btn" aria-label="Edit" title="Edit" onClick={() => setEditMember(m)}><IcoEdit size={15} /></button>
+                  <button className="btn btn-primary row-icon-btn" aria-label="Buat QR" title="Buat QR" style={{ background: "var(--primary)", borderColor: "var(--primary)", color: "#fff" }} onClick={() => setQrMember(m)}><IcoQr size={15} /></button>
+                </div>
               </div>
 
               <div className="member-card-info">
@@ -1455,12 +1462,6 @@ function AnggotaPage({ role: _role }: { role: AdminRole }) {
                   <span className="detail-label">No Telp</span>
                   <span className="member-info-value">{m.noTelp}</span>
                 </div>
-              </div>
-
-              <div className="member-card-actions" onClick={(e) => e.stopPropagation()}>
-                <button className="btn btn-ghost row-icon-btn" aria-label="Lihat detail" title="Detail" onClick={() => setDetailMember(m)}><IcoEye size={16} /></button>
-                <button className="btn btn-ghost row-icon-btn" aria-label="Edit" title="Edit" onClick={() => setEditMember(m)}><IcoEdit size={16} /></button>
-                <button className="btn btn-primary row-icon-btn" aria-label="Buat QR" title="Buat QR" style={{ background: "var(--primary)", borderColor: "var(--primary)", color: "#fff" }} onClick={() => setQrMember(m)}><IcoQr size={16} /></button>
               </div>
             </div>
           ))}
