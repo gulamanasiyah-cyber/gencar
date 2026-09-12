@@ -2651,6 +2651,13 @@ table.admin-table tr:hover td {
     justify-content: center;
   }
 
+  /* Kalender: tombol navigasi jangan melebar penuh di mobile */
+  .kalender-header .btn,
+  .kalender-footer .btn {
+    width: auto !important;
+    flex-shrink: 0;
+  }
+
   .btn-primary {
     width: auto;
   }
