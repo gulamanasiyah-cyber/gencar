@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check as IcoCheck, X as IcoX, Clock3 as IcoClock, Search as IcoSearch, AlertCircle as IcoAlert, ExternalLink as IcoLink, ShieldCheck as IcoShield, User as IcoUser } from "lucide-react";
+import { Check as IcoCheck, X as IcoX, Clock3 as IcoClock, Search as IcoSearch, AlertCircle as IcoAlert, ExternalLink as IcoLink, ShieldCheck as IcoShield, User as IcoUser, SlidersHorizontal as IcoFilter } from "lucide-react";
 import KpiCard from "../../components/admin/KpiCard";
 import SearchInput from "../../components/admin/SearchInput";
 import Modal from "../../components/admin/Modal";
@@ -85,6 +85,7 @@ export default function ProfileRequestsPage() {
   const [tab, setTab] = useState<TabKey>("pending");
   const [q, setQ] = useState("");
   const [sectionFilter, setSectionFilter] = useState<ReqSection | "all">("all");
+  const [showFilterModal, setShowFilterModal] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -286,14 +287,79 @@ export default function ProfileRequestsPage() {
 
       <div className="admin-toolbar">
         <SearchInput value={q} onChange={setQ} placeholder="Cari nama / NIK / alasan / payload..." />
-        <div className="filter-chips" style={{ flexShrink: 0 }}>
-          {(["all", "kontak", "wilayah", "identitas"] as const).map((s) => (
-            <button key={s} type="button" className={`chip ${sectionFilter === s ? "active" : ""}`} onClick={() => setSectionFilter(s)} style={{ padding: "8px 10px", fontSize: 12 }}>
-              {s === "all" ? "Semua section" : s}
-            </button>
-          ))}
-        </div>
+        <button
+          type="button"
+          className={`btn ${showFilterModal || sectionFilter !== "all" ? "btn-primary has-active" : "btn-ghost"} toolbar-icon-btn`}
+          aria-expanded={showFilterModal}
+          aria-haspopup="dialog"
+          aria-label="Filter pengajuan profil"
+          title="Filter"
+          onClick={() => setShowFilterModal((s) => !s)}
+        >
+          <IcoFilter size={18} />
+          {sectionFilter !== "all" && <span className="filter-count">1</span>}
+        </button>
       </div>
+
+      {showFilterModal && (
+        <Modal title="Filter Pengajuan Profil" onClose={() => setShowFilterModal(false)} className="filter-modal">
+          <div className="filter-groups">
+            <div className="filter-group">
+              <span className="filter-label">Bagian / Section Data</span>
+              <div className="filter-chips">
+                {(["all", "kontak", "wilayah", "identitas"] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className={`chip ${sectionFilter === s ? "active" : ""}`}
+                    onClick={() => setSectionFilter(s)}
+                  >
+                    {s === "all" ? "Semua Section" : s === "kontak" ? "Kontak & HP" : s === "wilayah" ? "Wilayah (Desa/Kelompok)" : "Identitas / Data Diri"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="filter-group">
+              <span className="filter-label">Status Pengajuan</span>
+              <div className="filter-chips">
+                {tabs.map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    className={`chip ${tab === t.key ? "active" : ""}`}
+                    onClick={() => setTab(t.key)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, marginTop: 10, justifyContent: "flex-end" }}>
+              {(sectionFilter !== "all" || tab !== "pending") && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => {
+                    setSectionFilter("all");
+                    setTab("pending");
+                  }}
+                >
+                  Reset Filter
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => setShowFilterModal(false)}
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {err && (
         <div className="card" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#991b1b", display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
