@@ -18,6 +18,8 @@ import {
   Search as IcoSearch,
   X as IcoX,
   ChevronDown as IcoChevronDown,
+  ChevronLeft as IcoChevronLeft,
+  ChevronRight as IcoChevronRight,
   MapPin as IcoMapPin,
   BarChart3 as IcoBarChart,
   FoldVertical as IcoFold,
@@ -3248,10 +3250,28 @@ function KegiatanCalendarModal({ list, onClose }: { list: Kegiatan[]; onClose: (
   return (
     <AdminModal title="Kalender Kegiatan" onClose={onClose} maxWidth={600}>
       <div style={{ display: "grid", gap: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button className="btn btn-ghost btn-sm" onClick={prevMonth}>← Prev</button>
-          <span style={{ fontWeight: 800, fontSize: 15 }}>{monthNames[month]} {year}</span>
-          <button className="btn btn-ghost btn-sm" onClick={nextMonth}>Next →</button>
+        <div className="kegiatan-cal-header">
+          <button
+            type="button"
+            className="btn btn-ghost row-icon-btn"
+            onClick={prevMonth}
+            aria-label="Bulan sebelumnya"
+            title="Bulan sebelumnya"
+          >
+            <IcoChevronLeft size={18} />
+          </button>
+          <span className="kegiatan-cal-title">
+            {monthNames[month]} {year}
+          </span>
+          <button
+            type="button"
+            className="btn btn-ghost row-icon-btn"
+            onClick={nextMonth}
+            aria-label="Bulan berikutnya"
+            title="Bulan berikutnya"
+          >
+            <IcoChevronRight size={18} />
+          </button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, textAlign: "center" }}>
           {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map((d) => (

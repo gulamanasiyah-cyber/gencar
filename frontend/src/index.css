@@ -2022,6 +2022,33 @@ table.admin-table tr:hover td {
   gap: 8px;
 }
 
+/* Kegiatan calendar modal header (kegiatan admin) */
+.kegiatan-cal-header {
+  display: grid;
+  grid-template-columns: 40px 1fr 40px;
+  align-items: center;
+  gap: 8px;
+}
+
+.kegiatan-cal-header .btn {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  padding: 0;
+  justify-content: center;
+}
+
+.kegiatan-cal-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--text);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .kalender-month {
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-weight: 700;
