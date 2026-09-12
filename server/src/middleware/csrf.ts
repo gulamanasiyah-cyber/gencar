@@ -36,6 +36,7 @@ const CSRF_SKIP_PREFIXES = [
   "/api/public",
   "/api/webhook",
   "/api/fcm/register",
+  "/api/auth/invite",
 ];
 
 const CSRF_SKIP_EXACT = new Set([

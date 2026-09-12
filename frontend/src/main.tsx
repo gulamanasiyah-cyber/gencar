@@ -12,6 +12,7 @@ import { PublicPengurus, PublicTentang } from './routes/public/PublicStatic.tsx'
 import { PublicGaleri } from './routes/public/PublicGaleri.tsx'
 import LoginPage from './routes/auth/LoginPage.tsx'
 import AktivasiPage from './routes/auth/AktivasiPage.tsx'
+import RegisterPage from './routes/auth/RegisterPage.tsx'
 import { AuthProvider } from './lib/auth.tsx'
 import { RequireAuth } from './lib/RequireAuth.tsx'
 
@@ -33,6 +34,7 @@ const router = createBrowserRouter([
   },
   { path: '/login', element: <LoginPage /> },
   { path: '/aktivasi', element: <AktivasiPage /> },
+  { path: '/daftar', element: <RegisterPage /> },
   { path: '/admin', element: <RequireAuth allow="admin"><App initialMode="admin" /></RequireAuth> },
   { path: '/member', element: <RequireAuth allow="member"><App initialMode="member" /></RequireAuth> },
   { path: '/admin/*', element: <RequireAuth allow="admin"><App initialMode="admin" /></RequireAuth> },

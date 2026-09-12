@@ -40,8 +40,15 @@ export default function MemberShell({
           <span className="pill" style={{ fontSize: 11 }}>
             <Users size={12} /> {me.nama.split(" ")[0]}
           </span>
-          <button className="btn btn-ghost btn-sm" onClick={() => (onLogout ?? onExit)()} title="Keluar — hapus sesi">
-            <LogOut size={14} /> Keluar
+          <button
+            type="button"
+            className="member-topbar-logout-btn"
+            onClick={() => (onLogout ?? onExit)()}
+            title="Keluar — hapus sesi"
+            aria-label="Keluar akun"
+          >
+            <LogOut size={14} />
+            <span className="member-topbar-logout-text">Keluar</span>
           </button>
           <button className="member-burger" aria-label="Menu" onClick={() => setOpen((v) => !v)}>
             ☰
@@ -71,6 +78,23 @@ export default function MemberShell({
             </button>
           );
         })}
+        {open && (
+          <>
+            <div style={{ height: 1, background: "var(--line)", margin: "4px 0" }} />
+            <button
+              type="button"
+              className="member-nav-item"
+              style={{ color: "#dc2626", borderColor: "#fecaca", background: "#fef2f2" }}
+              onClick={() => {
+                setOpen(false);
+                (onLogout ?? onExit)();
+              }}
+            >
+              <LogOut size={18} />
+              <span>Keluar dari Akun</span>
+            </button>
+          </>
+        )}
       </nav>
 
       <main className="member-main">{children}</main>

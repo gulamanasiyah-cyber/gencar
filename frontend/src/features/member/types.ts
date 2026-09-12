@@ -519,8 +519,4 @@ export type MemberKegiatan = {
   statusAbsen?: "hadir" | "izin" | "alpha" | null;
 };
 
-export const DEMO_KEGIATAN_MEMBER: MemberKegiatan[] = [
-  { id: "k1", judul: "Sambung Muda-Mudi Kelompok Fajar C", tanggal: "2026-05-08", jam: "19:30", lokasi: "Masjid Fajar", lat: -6.14, lng: 106.7, radiusM: 100 },
-  { id: "k2", judul: "Keakraban: Futsal Bareng", tanggal: "2026-05-09", jam: "08:00", lokasi: "Lapangan Duri", lat: -6.141, lng: 106.705, radiusM: 120 },
-  { id: "k3", judul: "Pemantapan Materi Pra-Nikah", tanggal: "2026-05-10", jam: "13:00", lokasi: "Aula Daerah Cengkareng", lat: null, lng: null, radiusM: 100 },
-];
+export const DEMO_KEGIATAN_MEMBER: MemberKegiatan[] = [];

@@ -276,12 +276,13 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  min-height: 36px;
-  min-width: 36px;
-  padding: 0;
-  flex-shrink: 0;
+  width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  min-width: 36px !important;
+  max-width: 36px !important;
+  padding: 0 !important;
+  flex: 0 0 36px !important;
   border-radius: 10px;
   border: 1px solid var(--line);
   background: #fff;
@@ -1429,6 +1430,9 @@ table.admin-table tr:hover td {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 20px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .member-card {
@@ -1442,6 +1446,11 @@ table.admin-table tr:hover td {
   transition: box-shadow var(--transition), transform var(--transition);
   cursor: pointer;
   align-content: start;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 /* Card head: avatar + name + status pill */
@@ -1450,11 +1459,14 @@ table.admin-table tr:hover td {
   display: flex;
   align-items: center;
   gap: 12px;
+  width: 100%;
+  min-width: 0;
 }
 
 .member-card-head-info {
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
+  overflow: hidden;
 }
 
 .member-card-name {
@@ -1480,11 +1492,15 @@ table.admin-table tr:hover td {
   align-items: center;
   gap: 6px;
   min-width: 0;
+  width: 100%;
 }
 
 .member-card-name-row .member-card-name {
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .member-card-sub {
@@ -1558,13 +1574,17 @@ table.admin-table tr:hover td {
   gap: 8px;
   border-top: 1px solid var(--line);
   padding-top: 12px;
+  width: 100%;
+  min-width: 0;
 }
 
 .member-info-row {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  width: 100%;
+  min-width: 0;
 }
 
 .member-info-value {
@@ -1572,7 +1592,10 @@ table.admin-table tr:hover td {
   font-weight: 600;
   color: var(--text);
   text-align: right;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 /* Actions: bottom, separated */
@@ -2702,13 +2725,14 @@ table.admin-table tr:hover td {
     flex: 1;
   }
 
-  .btn:not(.toolbar-icon-btn):not(.row-icon-btn):not(.btn-auto) {
+  .btn:not(.toolbar-icon-btn):not(.row-icon-btn):not(.btn-auto):not(.btn-close) {
     width: 100%;
   }
 
   .btn-auto,
   .btn-primary.btn-auto,
-  .btn.btn-auto {
+  .btn.btn-auto,
+  .btn-close {
     width: auto;
   }
 
@@ -2762,41 +2786,76 @@ table.admin-table tr:hover td {
   .member-card {
     padding: 12px 14px;
     gap: 10px;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
   }
   .member-card--compact {
     padding: 10px 12px;
     gap: 8px;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
   }
   .member-card--compact .member-card-head {
     gap: 8px;
-    align-items: flex-start;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+  }
+  .member-card--compact .member-card-head-info {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
   }
   .member-card--compact .member-card-actions {
     gap: 4px;
     justify-content: flex-end;
     margin: 0;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
   }
-  .member-card--compact .member-card-actions .btn {
+  .member-card--compact .member-card-actions .btn,
+  .member-card--compact .member-card-actions .row-icon-btn {
     width: 32px;
     height: 32px;
     min-width: 32px;
-    flex: 0 0 auto;
+    max-width: 32px;
+    padding: 0 !important;
+    flex: 0 0 32px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 8px;
   }
   .member-card-meta {
     gap: 6px;
     margin-top: 3px;
+    flex-wrap: wrap;
+    min-width: 0;
   }
   .member-card-info {
     gap: 4px;
     padding-top: 8px;
+    width: 100%;
+    min-width: 0;
   }
-  .member-card-actions {
+  .member-info-row {
     gap: 6px;
-    justify-content: flex-end;
-    margin-top: 0;
+    width: 100%;
+    min-width: 0;
   }
-  .member-card-actions .btn {
-    flex: 0 0 auto;
+  .member-info-row .detail-label {
+    flex-shrink: 0;
+  }
+  .member-info-row .member-info-value {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    flex: 1 1 0;
+    min-width: 0;
   }
 }
 
@@ -3063,8 +3122,17 @@ table.admin-table tr:hover td {
 .member-topbar-sub { font-size: 11px; color: rgba(255,255,255,0.62); line-height: 1; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .member-topbar-right { display: flex; align-items: center; gap: 8px; }
 .member-topbar-right .pill { background: rgba(255,255,255,0.10); color: #fff; border: 1px solid rgba(255,255,255,0.14); }
-.member-topbar-right .btn-ghost { background: rgba(255,255,255,0.08); color: #fff; border-color: rgba(255,255,255,0.14); }
-.member-topbar-right .btn-ghost:hover { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.22); }
+.member-topbar-logout-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px; border-radius: 999px;
+  font-size: 12px; font-weight: 700;
+  background: rgba(255,255,255,0.08); color: #fff;
+  border: 1px solid rgba(255,255,255,0.16);
+  cursor: pointer; transition: all 0.16s ease;
+}
+.member-topbar-logout-btn:hover {
+  background: rgba(220,38,38,0.22); border-color: rgba(239,68,68,0.4); color: #fca5a5;
+}
 .member-burger { display: none; width: 36px; height: 36px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.08); color: #fff; }
 .member-nav {
   display: flex; gap: 8px; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--line);
@@ -3129,7 +3197,7 @@ table.admin-table tr:hover td {
   .member-nav.open { display: flex; position: fixed; left: 12px; right: 12px; top: 58px; z-index: 25; flex-direction: column; border-radius: 16px; box-shadow: var(--shadow-hover); background: #fff; padding: 10px; border: 1px solid var(--line); }
   .member-burger { display: grid; place-items: center; }
   .member-bottom { display: grid; }
-  .member-topbar-right .btn { display: none; }
+  .member-topbar-right .pill { display: none; }
   .member-main { padding: 16px 16px 160px; }
   .member-profile-hero { border-radius: 16px; }
   .member-profile-hero-top { padding: 14px; gap: 12px; align-items: center; }
@@ -3521,6 +3589,39 @@ table.admin-table tr:hover td {
   cursor: not-allowed;
 }
 
+/* Custom Google Button (100% GENCAR Design System) */
+.auth-google-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 13px 18px;
+  border-radius: 14px;
+  background: #ffffff;
+  color: var(--ink, #1b0f0a);
+  border: 1.5px solid var(--line, #e2e8f0);
+  font-size: 14px;
+  font-weight: 800;
+  font-family: var(--font-sans, 'Plus Jakarta Sans', sans-serif);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  transition: all var(--transition, 0.16s ease);
+}
+.auth-google-btn:hover:not(:disabled) {
+  border-color: var(--primary, #d03804);
+  background: #fff8f5;
+  box-shadow: 0 4px 14px rgba(208, 56, 4, 0.12);
+  transform: translateY(-1px);
+}
+.auth-google-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.auth-google-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .auth-btn-loading {
   display: inline-flex;
   align-items: center;
@@ -3789,6 +3890,59 @@ table.admin-table tr:hover td {
 }
 .trophy-modal-status.unlocked { background: #f0fdf4; color: #16a34a; border: 1.5px solid #86efac; }
 .trophy-modal-progress { display: grid; gap: 6px; width: 100%; margin-top: 4px; }
+
+/* ── Aktivasi Page & Member Card Print ── */
+.aktivasi-print-page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  background: var(--bg, #fdfbf7);
+}
+.aktivasi-card-container {
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+@media print {
+  body, html {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .no-print,
+  .auth-brand-pane,
+  .auth-back-link,
+  header,
+  nav,
+  footer {
+    display: none !important;
+  }
+  .aktivasi-print-page {
+    min-height: auto !important;
+    padding: 0 !important;
+    background: transparent !important;
+    display: block !important;
+  }
+  .aktivasi-card-container {
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 20px 0 !important;
+  }
+  .printable-member-card {
+    box-shadow: none !important;
+    border: 2px solid #000000 !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    margin: 20px auto !important;
+    max-width: 360px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
 
 /* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {

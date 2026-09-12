@@ -113,6 +113,34 @@
       "when": 1788235000000,
       "tag": "0015_fix_generus_hobi_updated_at",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1788236000000,
+      "tag": "0016_absensi_time_snapshot",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1788237000000,
+      "tag": "0017_absensi_izin_sumber",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1788238000000,
+      "tag": "0018_alpha_scheduler",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1788239000000,
+      "tag": "0019_invites_table",
+      "breakpoints": true
     }
   ]
 }

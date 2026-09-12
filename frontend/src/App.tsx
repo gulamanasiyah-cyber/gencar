@@ -33,6 +33,11 @@ import {
   Trash2 as IcoTrash,
   Pencil as IcoEdit,
   LogOut as IcoLogOut,
+  Link as IcoLink,
+  Copy as IcoCopy,
+  Clock as IcoClock,
+  Plus as IcoPlus,
+  CheckCircle2 as IcoCheckCircle,
 } from "lucide-react";
 import MapPickerModal from "./components/MapPickerModal";
 import Kalender from "./components/Kalender";
@@ -1177,6 +1182,7 @@ function AnggotaPage({ role: _role }: { role: AdminRole }) {
   const [desaFilter, setDesaFilter] = useState("Semua");
   const [kelompokFilter, setKelompokFilter] = useState("semua");
   const [showAdd, setShowAdd] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const [editMember, setEditMember] = useState<Member | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [magicLinkModal, setMagicLinkModal] = useState<string | null>(null);
@@ -1326,7 +1332,24 @@ function AnggotaPage({ role: _role }: { role: AdminRole }) {
 
   return (
     <div>
-      <PageHeader title="Anggota" sub="Kelola data anggota muda-mudi" action={<button className="btn btn-primary btn-auto" onClick={() => setShowAdd(true)}>+ Tambah Anggota</button>} />
+      <PageHeader
+        title="Anggota"
+        sub="Kelola data anggota muda-mudi"
+        action={
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <button
+              type="button"
+              className="btn btn-ghost btn-auto"
+              onClick={() => setShowInviteModal(true)}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 700 }}
+              title="Buat link registrasi mandiri untuk calon anggota di wilayah Anda"
+            >
+              <IcoLink size={15} /> <span>Link Registrasi Mandiri</span>
+            </button>
+            <button className="btn btn-primary btn-auto" onClick={() => setShowAdd(true)}>+ Tambah Anggota</button>
+          </div>
+        }
+      />
       {membersErr && (
         <div className="card" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#991b1b", display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
           <IcoX size={14} /> <span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>{membersErr}</span>
@@ -1470,6 +1493,7 @@ function AnggotaPage({ role: _role }: { role: AdminRole }) {
       )}
 
       {showAdd && <AddMemberModal onClose={() => setShowAdd(false)} onSave={(m) => { setMembers((prev) => [m, ...prev]); setShowAdd(false); }} />}
+      {showInviteModal && <InviteModal role={_role} onClose={() => setShowInviteModal(false)} />}
       {editMember && <EditMemberModal member={editMember} onClose={() => setEditMember(null)} onSaved={() => { setEditMember(null); setRefreshKey((k) => k + 1); }} />}
       {detailMember && (
         <MemberDetailModal
@@ -1825,7 +1849,7 @@ function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; o
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440, width: "calc(100% - 24px)", padding: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Statistik Kehadiran ({member.nama})</h3>
-              <button type="button" className="btn btn-ghost" style={{ padding: 6 }} onClick={() => setActiveModalTab(null)}>✕</button>
+              <button type="button" className="btn-close" aria-label="Tutup" onClick={() => setActiveModalTab(null)}><IcoX size={16} /></button>
             </div>
             
             <div style={{ height: 180, width: "100%", position: "relative" }}>
@@ -1873,7 +1897,7 @@ function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; o
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440, width: "calc(100% - 24px)", padding: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Jenjang Streak ({member.nama})</h3>
-              <button type="button" className="btn btn-ghost" style={{ padding: 6 }} onClick={() => setActiveModalTab(null)}>✕</button>
+              <button type="button" className="btn-close" aria-label="Tutup" onClick={() => setActiveModalTab(null)}><IcoX size={16} /></button>
             </div>
 
             <div style={{ padding: 12, borderRadius: 12, background: isFlame ? "#fffbeb" : "#f8fafc", border: `1.5px solid ${isFlame ? "#fde68a" : "#e2e8f0"}`, marginBottom: 14, textAlign: "center" }}>
@@ -1915,7 +1939,7 @@ function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; o
                 <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Daftar Trophy ({member.nama})</h3>
                 <span style={{ fontSize: 12, color: "var(--muted)" }}>{totalUnlockedTrophies} dari {memberAchievements.length} piala terbuka</span>
               </div>
-              <button type="button" className="btn btn-ghost" style={{ padding: 6 }} onClick={() => setActiveModalTab(null)}>✕</button>
+              <button type="button" className="btn-close" aria-label="Tutup" onClick={() => setActiveModalTab(null)}><IcoX size={16} /></button>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 10, maxHeight: 380, overflowY: "auto", padding: 4 }}>
@@ -1986,7 +2010,7 @@ function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; o
                   <span style={{ display: "inline-block", width: 12, height: 12, borderRadius: "50%", background: meta.color }} />
                   <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: "var(--ink)" }}>Hobi: {meta.label}</h3>
                 </div>
-                <button type="button" className="btn btn-ghost" style={{ padding: 6 }} onClick={() => setSelectedHobi(null)}>✕</button>
+                <button type="button" className="btn-close" aria-label="Tutup" onClick={() => setSelectedHobi(null)}><IcoX size={16} /></button>
               </div>
 
               <div style={{ padding: 14, borderRadius: 12, background: meta.bg, border: `1.5px solid ${meta.color}33`, marginBottom: 14 }}>
@@ -2016,7 +2040,7 @@ function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; o
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440, width: "calc(100% - 24px)", padding: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Riwayat Telat ({member.nama})</h3>
-              <button type="button" className="btn btn-ghost" style={{ padding: 6 }} onClick={() => setActiveModalTab(null)}>✕</button>
+              <button type="button" className="btn-close" aria-label="Tutup" onClick={() => setActiveModalTab(null)}><IcoX size={16} /></button>
             </div>
 
             <div style={{ padding: 12, borderRadius: 12, background: (statsData?.telatCount ?? 0) > 0 ? "#fff7ed" : "#f0fdf4", border: `1.5px solid ${(statsData?.telatCount ?? 0) > 0 ? "#ffedd5" : "#bbf7d0"}`, marginBottom: 14, textAlign: "center" }}>
@@ -2077,7 +2101,7 @@ function MemberDetailModal({ member, onClose, onMagicLink }: { member: Member; o
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <div style={{ fontWeight: 800, fontSize: 16, textAlign: "left" }}>Foto Profil ({member.nama})</div>
-              <button type="button" className="btn btn-ghost" style={{ padding: 6 }} onClick={() => setShowFullAvatar(false)}>✕</button>
+              <button type="button" className="btn-close" aria-label="Tutup" onClick={() => setShowFullAvatar(false)}><IcoX size={16} /></button>
             </div>
 
             <div style={{ width: "100%", aspectRatio: "1 / 1", borderRadius: 16, overflow: "hidden", background: "var(--surface-sunken, #f8fafc)", border: "1px solid var(--line)", display: "grid", placeItems: "center", marginBottom: 14 }}>
@@ -2312,6 +2336,389 @@ function OpenAccessButton({ memberId, memberName: _memberName, onCopied }: { mem
       {copiedOnce ? <IcoShield size={14} /> : <IcoShield size={14} />}
       {busy ? "Membuat…" : copiedOnce ? "Link dibuat ✓" : "Buka Akses Login"}
     </button>
+  );
+}
+
+function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }) {
+  const { user } = useAuth();
+  const [durationPreset, setDurationPreset] = useState<string>("10080");
+  const [customValue, setCustomValue] = useState<number>(30);
+  const [customUnit, setCustomUnit] = useState<"minutes" | "hours" | "days">("minutes");
+  const [desaId, setDesaId] = useState<number | "">("");
+  const [kelompokId, setKelompokId] = useState<number | "">("");
+  const [desaOpts, setDesaOpts] = useState<{ id: number; nama: string }[]>([]);
+  const [kelompokOpts, setKelompokOpts] = useState<{ id: number; nama: string; desaId: number }[]>([]);
+
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [createdLink, setCreatedLink] = useState<string | null>(null);
+  const [createdExpires, setCreatedExpires] = useState<string | null>(null);
+  const [createdDurationLabel, setCreatedDurationLabel] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<"create" | "history">("create");
+  const [inviteList, setInviteList] = useState<any[]>([]);
+  const [loadingList, setLoadingList] = useState(false);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (role === "admin_daerah" || role === "admin_desa") {
+      void apiFetch<{ id: number; nama: string }[]>("/api/auth/desa")
+        .then((j: unknown) => {
+          const arr = Array.isArray(j) ? j as { id: number; nama: string }[] : [];
+          setDesaOpts(arr);
+        }).catch(() => {});
+      void apiFetch<{ id: number; nama: string; desaId: number }[]>("/api/auth/kelompok")
+        .then((j: unknown) => {
+          const arr = Array.isArray(j) ? j as { id: number; nama: string; desaId: number }[] : [];
+          setKelompokOpts(arr);
+        }).catch(() => {});
+    }
+  }, [role]);
+
+  function loadHistory() {
+    setLoadingList(true);
+    apiFetch<any[]>("/api/auth/invite/list")
+      .then((rows) => {
+        if (Array.isArray(rows)) setInviteList(rows);
+        setLoadingList(false);
+      })
+      .catch(() => setLoadingList(false));
+  }
+
+  useEffect(() => {
+    if (activeTab === "history") loadHistory();
+  }, [activeTab]);
+
+  async function handleCreate() {
+    setBusy(true);
+    setErr(null);
+    try {
+      let durationMinutes: number | null = null;
+      let durationLabel = "";
+
+      if (durationPreset === "custom") {
+        const val = Number(customValue) || 1;
+        if (customUnit === "minutes") {
+          durationMinutes = val;
+          durationLabel = `${val} Menit`;
+        } else if (customUnit === "hours") {
+          durationMinutes = val * 60;
+          durationLabel = `${val} Jam`;
+        } else {
+          durationMinutes = val * 1440;
+          durationLabel = `${val} Hari`;
+        }
+      } else {
+        const p = Number(durationPreset);
+        if (p > 0) {
+          durationMinutes = p;
+          if (p < 60) durationLabel = `${p} Menit`;
+          else if (p < 1440) durationLabel = `${Math.round(p / 60)} Jam`;
+          else durationLabel = `${Math.round(p / 1440)} Hari`;
+        } else {
+          durationMinutes = null;
+          durationLabel = "Tanpa Batas Waktu";
+        }
+      }
+
+      const res = await apiFetch<{ success: boolean; token: string; expiresAt: string | null; durationLabel: string }>("/api/auth/invite/create", {
+        method: "POST",
+        body: JSON.stringify({
+          durationMinutes,
+          durationLabel,
+          desaId: desaId ? Number(desaId) : undefined,
+          kelompokId: kelompokId ? Number(kelompokId) : undefined,
+        }),
+      });
+
+      const fullLink = `${window.location.origin}/daftar?invite=${encodeURIComponent(res.token)}`;
+      setCreatedLink(fullLink);
+      setCreatedExpires(res.expiresAt);
+      setCreatedDurationLabel(res.durationLabel);
+      try { await navigator.clipboard.writeText(fullLink); setCopied(true); } catch {}
+    } catch (e2: unknown) {
+      const msg = e2 instanceof Error ? e2.message : String(e2);
+      setErr(msg || "Gagal membuat link undangan.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRevoke(id: string) {
+    if (!window.confirm("Cabut link undangan ini? Calon anggota tidak akan bisa mendaftar dengan link ini lagi.")) return;
+    setRevokingId(id);
+    try {
+      await apiFetch("/api/auth/invite/revoke", { method: "POST", body: JSON.stringify({ id }) });
+      setInviteList((prev) => prev.map((it) => it.id === id ? { ...it, status: "revoked" } : it));
+    } catch {
+      alert("Gagal mencabut link.");
+    } finally {
+      setRevokingId(null);
+    }
+  }
+
+  async function copyToClipboard(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      alert("Silakan salin teks link secara manual.");
+    }
+  }
+
+  return (
+    <AdminModal title="Buka Registrasi Mandiri" onClose={onClose}>
+      <div style={{ display: "grid", gap: 14 }}>
+        {/* Tab Navigation */}
+        <div style={{ display: "flex", gap: 8, borderBottom: "1px solid var(--line)", paddingBottom: 8 }}>
+          <button
+            type="button"
+            className={`chip ${activeTab === "create" ? "active" : ""}`}
+            style={{ fontSize: 13, padding: "8px 14px", fontWeight: 800 }}
+            onClick={() => setActiveTab("create")}
+          >
+            <IcoPlus size={14} /> Buat Link Baru
+          </button>
+          <button
+            type="button"
+            className={`chip ${activeTab === "history" ? "active" : ""}`}
+            style={{ fontSize: 13, padding: "8px 14px", fontWeight: 800 }}
+            onClick={() => setActiveTab("history")}
+          >
+            <IcoClock size={14} /> Riwayat Link Aktif
+          </button>
+        </div>
+
+        {activeTab === "create" ? (
+          <>
+            <p className="muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+              Buat tautan formulir pendaftaran mandiri untuk calon anggota di wilayah Anda. Calon anggota dapat mengisi biodata sendiri dan langsung mendapatkan akun aktif.
+            </p>
+
+            {/* Scope info */}
+            <div style={{ padding: "10px 12px", borderRadius: 10, background: "var(--surface-sunken, #f8fafc)", border: "1px solid var(--line)", fontSize: 12, display: "grid", gap: 3 }}>
+              <div style={{ fontWeight: 800 }}>Tingkat Wilayah Anda: <span style={{ textTransform: "uppercase", color: "var(--primary)" }}>{role.replace("admin_", "")}</span></div>
+              <div className="muted">Pendaftaran akan otomatis terhubung ke wilayah administrasi Anda.</div>
+            </div>
+
+            {/* Wilayah sub-select for admin daerah */}
+            {role === "admin_daerah" && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div className="field">
+                  <label style={{ fontSize: 11, fontWeight: 800 }}>Target Desa (Opsional)</label>
+                  <select
+                    value={desaId}
+                    onChange={(e) => {
+                      const v = e.target.value ? Number(e.target.value) : "";
+                      setDesaId(v);
+                      setKelompokId("");
+                    }}
+                    style={{ padding: "8px 10px", borderRadius: 10, border: "1.5px solid var(--line)", background: "#fff", width: "100%", fontSize: 13 }}
+                  >
+                    <option value="">Semua Desa (Bebas Pilih)</option>
+                    {desaOpts.map((d) => (
+                      <option key={d.id} value={d.id}>{d.nama}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label style={{ fontSize: 11, fontWeight: 800 }}>Target Kelompok</label>
+                  <select
+                    value={kelompokId}
+                    disabled={!desaId}
+                    onChange={(e) => setKelompokId(e.target.value ? Number(e.target.value) : "")}
+                    style={{ padding: "8px 10px", borderRadius: 10, border: "1.5px solid var(--line)", background: "#fff", width: "100%", fontSize: 13 }}
+                  >
+                    <option value="">Semua Kelompok</option>
+                    {kelompokOpts.filter((k) => k.desaId === Number(desaId)).map((k) => (
+                      <option key={k.id} value={k.id}>{k.nama}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* Wilayah sub-select for admin desa */}
+            {role === "admin_desa" && (
+              <div className="field">
+                <label style={{ fontSize: 11, fontWeight: 800 }}>Target Kelompok (Opsional)</label>
+                <select
+                  value={kelompokId}
+                  onChange={(e) => setKelompokId(e.target.value ? Number(e.target.value) : "")}
+                  style={{ padding: "8px 10px", borderRadius: 10, border: "1.5px solid var(--line)", background: "#fff", width: "100%", fontSize: 13 }}
+                >
+                  <option value="">Semua Kelompok di Desa Ini</option>
+                  {kelompokOpts.filter((k) => !user?.desaId || k.desaId === user.desaId).map((k) => (
+                    <option key={k.id} value={k.id}>{k.nama}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* PENGATURAN DURASI (Lama Bertahannya Link) */}
+            <div className="field">
+              <label style={{ fontSize: 12, fontWeight: 800 }}>Lama Masa Aktif Link (Durasi) *</label>
+              <select
+                value={durationPreset}
+                onChange={(e) => setDurationPreset(e.target.value)}
+                style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid var(--line)", background: "#fff", width: "100%", fontSize: 13, fontWeight: 700 }}
+              >
+                <option value="15">15 Menit</option>
+                <option value="60">1 Jam (60 Menit)</option>
+                <option value="360">6 Jam</option>
+                <option value="1440">1 Hari (24 Jam)</option>
+                <option value="4320">3 Hari</option>
+                <option value="10080">7 Hari (1 Minggu) — Standar</option>
+                <option value="43200">30 Hari (1 Bulan)</option>
+                <option value="0">Tanpa Batas Waktu (Permanen sampai dicabut)</option>
+                <option value="custom">Atur Manual (Kustom)...</option>
+              </select>
+            </div>
+
+            {/* Custom duration fields */}
+            {durationPreset === "custom" && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, background: "#f8fafc", padding: 12, borderRadius: 12, border: "1px solid var(--line)" }}>
+                <div className="field">
+                  <label style={{ fontSize: 11, fontWeight: 800 }}>Jumlah Waktu</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={customValue}
+                    onChange={(e) => setCustomValue(Math.max(1, Number(e.target.value)))}
+                    placeholder="Contoh: 45"
+                  />
+                </div>
+                <div className="field">
+                  <label style={{ fontSize: 11, fontWeight: 800 }}>Satuan</label>
+                  <select
+                    value={customUnit}
+                    onChange={(e) => setCustomUnit(e.target.value as any)}
+                    style={{ padding: "9px 10px", borderRadius: 10, border: "1.5px solid var(--line)", background: "#fff", width: "100%", fontSize: 13 }}
+                  >
+                    <option value="minutes">Menit</option>
+                    <option value="hours">Jam</option>
+                    <option value="days">Hari</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {err && (
+              <div style={{ padding: 10, borderRadius: 10, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontSize: 13, fontWeight: 600 }}>
+                {err}
+              </div>
+            )}
+
+            {!createdLink ? (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleCreate}
+                disabled={busy}
+                style={{ width: "100%", padding: "12px", borderRadius: 12, fontWeight: 800 }}
+              >
+                {busy ? "Membuat Link Undangan…" : "Buat Link Registrasi"}
+              </button>
+            ) : (
+              <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: 14, padding: 14, display: "grid", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#166534", fontWeight: 800, fontSize: 13 }}>
+                  <IcoCheckCircle size={16} /> Link Berhasil Dibuat &amp; Disalin!
+                </div>
+                <div style={{
+                  padding: "10px 12px",
+                  background: "#ffffff",
+                  border: "1px solid #bbf7d0",
+                  borderRadius: 10,
+                  fontSize: 12,
+                  fontFamily: "monospace",
+                  wordBreak: "break-all",
+                  color: "#0f172a",
+                }}>
+                  {createdLink}
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 11, color: "#15803d" }}>
+                  <span>Durasi: <b>{createdDurationLabel}</b></span>
+                  {createdExpires && <span>&bull; Kadaluarsa: <b>{new Date(createdExpires).toLocaleString("id-ID")}</b></span>}
+                </div>
+                <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => copyToClipboard(createdLink)}
+                    style={{ flex: 1, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                  >
+                    <IcoCopy size={14} /> {copied ? "Tersalin ✓" : "Salin Ulang"}
+                  </button>
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(`Assalamu'alaikum, silakan lengkapi formulir pendaftaran anggota Generus melalui tautan resmi berikut: ${createdLink}`)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-ghost btn-sm"
+                    style={{ flex: 1, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, textDecoration: "none" }}
+                  >
+                    Kirim via WA
+                  </a>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{ display: "grid", gap: 10 }}>
+            {loadingList && <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 13 }}>Memuat riwayat link…</div>}
+            {!loadingList && inviteList.length === 0 && (
+              <div className="muted" style={{ padding: 20, textAlign: "center", fontSize: 13, background: "#f8fafc", borderRadius: 12, border: "1px dashed var(--line)" }}>
+                Belum ada link pendaftaran yang dibuat.
+              </div>
+            )}
+            {!loadingList && inviteList.map((it) => {
+              const isExpired = it.expires_at && new Date(it.expires_at).getTime() < Date.now();
+              const isUsed = it.status === "used";
+              const isRevoked = it.status === "revoked";
+              const isOpen = it.status === "open" && !isExpired;
+
+              return (
+                <div key={it.id} style={{ padding: "12px 14px", borderRadius: 12, border: "1px solid var(--line)", background: isOpen ? "#ffffff" : "#f8fafc", display: "grid", gap: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span className={`pill ${isOpen ? "pill-emerald" : isUsed ? "pill-slate" : "pill-amber"}`} style={{ fontSize: 10 }}>
+                      {isOpen ? "Aktif" : isUsed ? "Sudah Terpakai" : isRevoked ? "Dicabut" : "Kadaluarsa"}
+                    </span>
+                    <span className="muted" style={{ fontSize: 11 }}>{new Date(it.created_at).toLocaleDateString("id-ID")}</span>
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--ink)" }}>
+                    Scope: {it.desa_nama ? `Desa ${it.desa_nama}` : "Daerah"} {it.kelompok_nama ? `· Kelompok ${it.kelompok_nama}` : ""}
+                  </div>
+                  <div className="muted" style={{ fontSize: 11 }}>
+                    Masa aktif: <b>{it.duration_label || "Tanpa batas"}</b>
+                    {it.expires_at && <span> &bull; Sampai {new Date(it.expires_at).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}</span>}
+                  </div>
+                  {isOpen && (
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 4 }}>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        style={{ color: "#dc2626", borderColor: "#fecaca", padding: "4px 10px", fontSize: 11, minHeight: 28 }}
+                        disabled={revokingId === it.id}
+                        onClick={() => handleRevoke(it.id)}
+                      >
+                        {revokingId === it.id ? "Mencabut…" : "Cabut Link"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+          <button type="button" className="btn btn-ghost" onClick={onClose} style={{ borderRadius: 10 }}>
+            Tutup
+          </button>
+        </div>
+      </div>
+    </AdminModal>
   );
 }
 
@@ -5271,7 +5678,7 @@ import type { MemberPageKey } from "./features/member/MemberShell";
 import MemberHomePage from "./features/member/MemberHomePage";
 import MemberProfilePage from "./features/member/MemberProfilePage";
 import MemberStatPage from "./features/member/MemberStatPage";
-import { DEMO_KEGIATAN_MEMBER, type MemberIdentity, type MemberKehadiran, type MemberKegiatan } from "./features/member/types";
+import { type MemberIdentity, type MemberKehadiran, type MemberKegiatan } from "./features/member/types";
 
 /** Map stats mentah dari GET /api/generus/:id ke bentuk MemberKehadiran untuk halaman member. */
 function mapMemberStats(s: any): MemberKehadiran {
@@ -5417,7 +5824,7 @@ export default function App({ initialMode }: { initialMode?: "admin" | "member" 
   if (initialMode === "member") {
     const fallbackMe: MemberIdentity = me ?? { id: "", nama: "Memuat…", desa: "", kelompok: "", pendidikan: "", pekerjaan: null, noTelp: "", kategoriMudaMudi: "pribumi", asalDaerah: null, domisiliAnak: "", domisiliOrtu: null, isOrtuSama: true, status: "aktif" };
     const fallbackStat: MemberKehadiran = stat ?? { total: 0, hadir: 0, izin: 0, alpha: 0, hadirRate: 0, tren: [] };
-    const effectiveKegiatan = memberKegiatanList.length > 0 ? memberKegiatanList : DEMO_KEGIATAN_MEMBER;
+    const effectiveKegiatan = memberKegiatanList;
     return (
       <MemberShell
         page={memberPage}
@@ -5427,7 +5834,7 @@ export default function App({ initialMode }: { initialMode?: "admin" | "member" 
         onLogout={async () => { await logout(); navigate("/login", { replace: true }); }}
       >
         {memberPage === "beranda" && <MemberHomePage me={fallbackMe} kegiatanList={memberKegiatanList} />}
-        {memberPage === "profil" && <MemberProfilePage me={fallbackMe} stat={fallbackStat} kegiatan={effectiveKegiatan} onUpdate={handleProfileUpdate} />}
+        {memberPage === "profil" && <MemberProfilePage me={fallbackMe} stat={fallbackStat} kegiatan={effectiveKegiatan} onUpdate={handleProfileUpdate} onLogout={async () => { await logout(); navigate("/login", { replace: true }); }} />}
         {memberPage === "statistik" && <MemberStatPage me={fallbackMe} stat={fallbackStat} />}
       </MemberShell>
     );
@@ -5436,7 +5843,7 @@ export default function App({ initialMode }: { initialMode?: "admin" | "member" 
   if (!isAdmin) {
     const fallbackMe: MemberIdentity = me ?? { id: "", nama: "Memuat…", desa: "", kelompok: "", pendidikan: "", pekerjaan: null, noTelp: "", kategoriMudaMudi: "pribumi", asalDaerah: null, domisiliAnak: "", domisiliOrtu: null, isOrtuSama: true, status: "aktif" };
     const fallbackStat: MemberKehadiran = stat ?? { total: 0, hadir: 0, izin: 0, alpha: 0, hadirRate: 0, tren: [] };
-    const effectiveKegiatan = memberKegiatanList.length > 0 ? memberKegiatanList : DEMO_KEGIATAN_MEMBER;
+    const effectiveKegiatan = memberKegiatanList;
     return (
       <MemberShell
         page={memberPage}
@@ -5446,7 +5853,7 @@ export default function App({ initialMode }: { initialMode?: "admin" | "member" 
         onLogout={async () => { await logout(); navigate("/login", { replace: true }); }}
       >
         {memberPage === "beranda" && <MemberHomePage me={fallbackMe} kegiatanList={memberKegiatanList} />}
-        {memberPage === "profil" && <MemberProfilePage me={fallbackMe} stat={fallbackStat} kegiatan={effectiveKegiatan} onUpdate={handleProfileUpdate} />}
+        {memberPage === "profil" && <MemberProfilePage me={fallbackMe} stat={fallbackStat} kegiatan={effectiveKegiatan} onUpdate={handleProfileUpdate} onLogout={async () => { await logout(); navigate("/login", { replace: true }); }} />}
         {memberPage === "statistik" && <MemberStatPage me={fallbackMe} stat={fallbackStat} />}
       </MemberShell>
     );

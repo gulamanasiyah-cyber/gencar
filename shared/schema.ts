@@ -191,6 +191,28 @@ export const magicTokens = sqliteTable("magic_tokens", {
   generusIdIdx: index("magic_tokens_generus_id_idx").on(table.generusId),
 }));
 
+// ── Invites — registrasi mandiri scoped per admin dengan durasi fleksibel ──
+export const invites = sqliteTable("invites", {
+  id: text("id").primaryKey(),
+  tokenHash: text("token_hash").notNull().unique(),
+  scopeRole: text("scope_role", { enum: ["admin_daerah", "admin_desa", "admin_kelompok"] }).notNull(),
+  desaId: integer("desa_id").references(() => desa.id, { onDelete: "cascade" }),
+  kelompokId: integer("kelompok_id").references(() => kelompok.id, { onDelete: "cascade" }),
+  createdBy: text("created_by").notNull(),
+  status: text("status", { enum: ["open", "used", "revoked"] }).default("open").notNull(),
+  durationLabel: text("duration_label"),
+  expiresAt: text("expires_at"),
+  consumedAt: text("consumed_at"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+}, (table) => ({
+  tokenHashIdx: index("invites_token_hash_idx").on(table.tokenHash),
+  scopeRoleIdx: index("invites_scope_role_idx").on(table.scopeRole),
+  desaIdIdx: index("invites_desa_id_idx").on(table.desaId),
+  kelompokIdIdx: index("invites_kelompok_id_idx").on(table.kelompokId),
+  createdByIdx: index("invites_created_by_idx").on(table.createdBy),
+  statusIdx: index("invites_status_idx").on(table.status),
+}));
+
 // ── Wilayah QR statis — 1 per kelompok/desa/daerah ──
 export const wilayahQr = sqliteTable("wilayah_qr", {
   id: text("id").primaryKey(),
@@ -349,6 +371,7 @@ export type KegiatanPublik = typeof kegiatanPublik.$inferSelect;
 export type Galeri = typeof galeri.$inferSelect;
 export type MagicToken = typeof magicTokens.$inferSelect;
 export type WilayahQr = typeof wilayahQr.$inferSelect;
+export type Invite = typeof invites.$inferSelect;
 
 export type NewDesa = typeof desa.$inferInsert;
 export type NewKelompok = typeof kelompok.$inferInsert;
@@ -366,6 +389,7 @@ export type NewSaranMasukan = typeof saranMasukan.$inferInsert;
 export type NewProfileChangeRequest = typeof profileChangeRequests.$inferInsert;
 export type NewMagicToken = typeof magicTokens.$inferInsert;
 export type NewWilayahQr = typeof wilayahQr.$inferInsert;
+export type NewInvite = typeof invites.$inferInsert;
 
 export const rab = sqliteTable("rab", {
   id: text("id").primaryKey(),

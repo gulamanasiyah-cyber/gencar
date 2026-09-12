@@ -11,6 +11,7 @@ import {
   ArrowRight,
   Share2,
   Timer,
+  X,
 } from "lucide-react";
 import { apiFetch, unwrapList } from "../../lib/api";
 import { labelKategori } from "../../lib/labelKategori";
@@ -369,7 +370,7 @@ export function PublicKegiatanList() {
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420, width: "100%", padding: 22, borderRadius: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Kategori Lainnya</h3>
-              <button type="button" className="btn btn-ghost" style={{ padding: 6 }} onClick={() => setShowMoreModal(false)}>✕</button>
+              <button type="button" className="btn-close" aria-label="Tutup" onClick={() => setShowMoreModal(false)}><X size={16} /></button>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {overflowCats.map((c) => {

@@ -62,6 +62,64 @@ auth.post("/login", async (c) => {
   return c.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role, desaId: user.desaId, kelompokId: user.kelompokId }, token: bearer });
 });
 
+auth.post("/google", async (c) => {
+  const { credential, accessToken } = await c.req.json().catch(() => ({}));
+  let email: string | null = null;
+
+  if (accessToken && typeof accessToken === "string") {
+    try {
+      const gRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (gRes.ok) {
+        const info: any = await gRes.json();
+        if (info?.email) {
+          email = String(info.email).toLowerCase().trim();
+        }
+      }
+    } catch {}
+  } else if (credential && typeof credential === "string") {
+    try {
+      const parts = credential.split(".");
+      if (parts.length === 3) {
+        const base64Url = parts[1];
+        const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+        const decoded = JSON.parse(atob(base64));
+        if (decoded.email) {
+          email = String(decoded.email).toLowerCase().trim();
+        }
+      }
+    } catch {}
+  }
+
+  if (!email) {
+    return c.json({ error: "Gagal memverifikasi akun Google" }, 400);
+  }
+
+  const db = getDb(c.env);
+  const user: any = await db.query.users.findFirst({ where: eq(users.email, email) });
+  if (!user) {
+    return c.json({ error: `Akun Google (${email}) belum terdaftar. Silakan hubungi admin untuk aktivasi akun.` }, 404);
+  }
+
+  const bearer = await setSessionCookie(c, {
+    userId: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    desaId: user.desaId,
+    kelompokId: user.kelompokId,
+    generusId: user.generusId,
+  } as any, c.env);
+  setCsrfCookie(c);
+
+  return c.json({
+    success: true,
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, desaId: user.desaId, kelompokId: user.kelompokId },
+    token: bearer,
+  });
+});
+
 auth.post("/register", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const result = registerSchema.safeParse(body);

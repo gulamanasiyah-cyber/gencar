@@ -6,7 +6,7 @@ import { Html5Qrcode } from "html5-qrcode";
 import { haversineM } from "shared/validation";
 import { apiFetch } from "../../lib/api";
 import { Select } from "../../components/Select";
-import { DEMO_KEGIATAN_MEMBER, type MemberIdentity, type MemberKegiatan } from "./types";
+import { type MemberIdentity, type MemberKegiatan } from "./types";
 
 // Fix default marker icons for Vite bundling
 import iconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
@@ -50,7 +50,7 @@ function parseQrToken(raw: string): QrHit {
 }
 
 export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberIdentity; kegiatanList?: MemberKegiatan[]; go?: (k: any) => void }) {
-  const sourceList = kegiatanList.length > 0 ? kegiatanList : DEMO_KEGIATAN_MEMBER;
+  const sourceList = kegiatanList;
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   // Sorting & finding upcoming / closest event
@@ -71,7 +71,7 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
     return sortedKegiatan.filter((k) => k.tanggal >= todayStr);
   }, [sortedKegiatan, todayStr]);
 
-  const todayKegiatan = upcomingKegiatan[0] || sortedKegiatan[0] || DEMO_KEGIATAN_MEMBER[0]!;
+  const todayKegiatan = upcomingKegiatan[0] || sortedKegiatan[0] || null;
   const next = useMemo(() => {
     return upcomingKegiatan.length > 0 ? upcomingKegiatan.slice(0, 5) : sortedKegiatan.slice(0, 5);
   }, [upcomingKegiatan, sortedKegiatan]);
@@ -384,9 +384,9 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
   }
 
   const dist = useMemo(() => {
-    if (gps == null || todayKegiatan.lat == null || todayKegiatan.lng == null) return null;
+    if (gps == null || todayKegiatan?.lat == null || todayKegiatan?.lng == null) return null;
     return Math.round(haversineM(gps.lat, gps.lng, todayKegiatan.lat, todayKegiatan.lng));
-  }, [gps, todayKegiatan.lat, todayKegiatan.lng]);
+  }, [gps, todayKegiatan?.lat, todayKegiatan?.lng]);
 
   // Calendar Data & Events Mapping
   const [calDate, setCalDate] = useState(() => new Date());
@@ -419,7 +419,11 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
         <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--muted)" }}>Working Time</div>
         <div className="member-hero-clock-time">{timeStr}</div>
         <div className="member-hero-clock-sub">
-          <MapPin size={11} /> {todayKegiatan.lokasi} · Radius {todayKegiatan.radiusM}m
+          {todayKegiatan ? (
+            <><MapPin size={11} /> {todayKegiatan.lokasi} · Radius {todayKegiatan.radiusM}m</>
+          ) : (
+            <><CalendarDays size={11} /> Belum ada agenda terjadwal</>
+          )}
         </div>
       </div>
 
@@ -450,7 +454,9 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
           <button
             type="button"
             className="btn btn-ghost btn-sm"
+            disabled={!todayKegiatan}
             onClick={() => {
+              if (!todayKegiatan) return;
               ambilGps();
               setActiveKegiatanModal(todayKegiatan);
               setShowMapModal(true);
@@ -631,6 +637,12 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
         </div>
 
         <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+          {next.length === 0 && (
+            <div style={{ padding: "20px 16px", textAlign: "center", color: "var(--muted)", fontSize: 13, border: "1px dashed var(--line)", borderRadius: 14, background: "#fff" }}>
+              <CalendarDays size={22} style={{ opacity: 0.5, marginBottom: 6 }} />
+              <div>Belum ada agenda kegiatan terjadwal.</div>
+            </div>
+          )}
           {next.map((k: MemberKegiatan) => (
             <div
               key={k.id}
@@ -984,9 +996,9 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
       )}
 
       {/* 8. MODAL CHECK LOKASI / MAP */}
-      {showMapModal && (
+      {showMapModal && (activeKegiatanModal || todayKegiatan) && (
         <LocationModal
-          today={activeKegiatanModal || todayKegiatan}
+          today={(activeKegiatanModal || todayKegiatan)!}
           gps={gps}
           gpsLoading={gpsLoading}
           dist={dist}

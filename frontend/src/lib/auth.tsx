@@ -16,6 +16,7 @@ type AuthState = {
   user: AuthUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
+  loginWithGoogle: (payload: { credential?: string; accessToken?: string }) => Promise<AuthUser>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 };
@@ -66,6 +67,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return u as AuthUser;
   }, [refresh]);
 
+  const loginWithGoogle = useCallback(async (payload: { credential?: string; accessToken?: string }) => {
+    const j = await apiFetch<{ success: boolean; user: AuthUser; token?: string }>("/api/auth/google", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    const u = (j as { user?: AuthUser })?.user ?? null;
+    const bearer = (j as { token?: string })?.token ?? null;
+    if (bearer) {
+      try { localStorage.setItem("token", bearer); } catch {}
+    }
+    if (u) setUser(u);
+    else await refresh();
+    return u as AuthUser;
+  }, [refresh]);
+
   const logout = useCallback(async () => {
     try {
       await apiFetch("/api/auth/logout", { method: "POST", body: JSON.stringify({}) });
@@ -74,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
-  const value = useMemo<AuthState>(() => ({ user, loading, login, logout, refresh }), [user, loading, login, logout, refresh]);
+  const value = useMemo<AuthState>(() => ({ user, loading, login, loginWithGoogle, logout, refresh }), [user, loading, login, loginWithGoogle, logout, refresh]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

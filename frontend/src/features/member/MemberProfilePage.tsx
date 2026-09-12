@@ -1,5 +1,5 @@
 import { useRef, useMemo, useState, useEffect } from "react";
-import { MapPin, Phone, GraduationCap, Home, Download, Heart, X, Check, Pencil, Volleyball, Plane, Palette, Music, ChefHat, Laptop, BookOpen, Gamepad2, Sparkles, Send, Clock3, AlertCircle } from "lucide-react";
+import { MapPin, Phone, GraduationCap, Home, Download, Heart, X, Check, Pencil, Volleyball, Plane, Palette, Music, ChefHat, Laptop, BookOpen, Gamepad2, Sparkles, Send, Clock3, AlertCircle, LogOut } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { toPng } from "html-to-image";
 import { apiFetch } from "../../lib/api";
@@ -17,9 +17,10 @@ type Props = {
   stat?: MemberKehadiran;
   kegiatan?: MemberKegiatan[];
   onUpdate?: (m: MemberIdentity) => void;
+  onLogout?: () => void;
 };
 
-export default function MemberProfilePage({ me, stat, kegiatan, onUpdate }: Props) {
+export default function MemberProfilePage({ me, stat, kegiatan, onUpdate, onLogout }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [hobiOpen, setHobiOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
@@ -278,6 +279,34 @@ export default function MemberProfilePage({ me, stat, kegiatan, onUpdate }: Prop
           }}
         />
       )}
+      {onLogout && (
+        <div style={{ marginTop: 16, display: "grid", justifyItems: "center" }}>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={onLogout}
+            style={{
+              color: "#dc2626",
+              borderColor: "#fecaca",
+              background: "#fef2f2",
+              width: "100%",
+              maxWidth: 340,
+              padding: "12px 18px",
+              borderRadius: 14,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              fontWeight: 800,
+              fontSize: 13,
+            }}
+          >
+            <LogOut size={16} />
+            <span>Keluar dari Akun</span>
+          </button>
+        </div>
+      )}
+
       {ajukanOpen && (
         <AjukanPerubahan
           me={me}

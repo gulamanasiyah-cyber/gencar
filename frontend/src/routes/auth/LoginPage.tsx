@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "../../lib/auth";
 import { MOSQUE_PATH, MOSQUE_VIEWBOX } from "../public/mosquePath";
 import { ArrowLeft, Lock, Mail, Eye, EyeOff, ShieldCheck, Sparkles, CheckCircle2 } from "lucide-react";
+import { GoogleIcon } from "../../components/GoogleIcon";
+import { requestGoogleAuth } from "../../lib/googleAuth";
 
 function roleToHome(role: string | undefined | null) {
   const r = String(role ?? "").toLowerCase();
@@ -20,7 +22,7 @@ function safeNext(raw: string | null): string | null {
 }
 
 export default function LoginPage() {
-  const { login, user } = useAuth();
+  const { login, loginWithGoogle, user } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [email, setEmail] = useState("");
@@ -30,6 +32,48 @@ export default function LoginPage() {
   const [err, setErr] = useState<string | null>(null);
 
   const next = params.get("next") || null;
+
+  function redirectAfterLogin(role: string | undefined | null) {
+    const isAdminLike = ["admin", "admin_daerah", "admin_desa", "admin_kelompok", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "admin_keuangan", "admin_kegiatan"].includes(String(role ?? "").toLowerCase());
+    const sn = safeNext(next);
+    let target: string;
+    if (sn) {
+      if (isAdminLike && sn.startsWith("/member")) {
+        target = "/admin";
+      } else if (!isAdminLike && sn.startsWith("/admin")) {
+        target = "/member";
+      } else {
+        target = sn;
+      }
+    } else {
+      target = roleToHome(role);
+    }
+    navigate(target, { replace: true });
+  }
+
+  // ── Custom Google SSO Trigger ──
+  function handleGoogleLoginClick() {
+    setErr(null);
+    setBusy(true);
+    requestGoogleAuth({
+      onSuccess: async ({ accessToken }) => {
+        try {
+          const u = await loginWithGoogle({ accessToken });
+          const role = (u as { role?: string } | null)?.role ?? user?.role;
+          redirectAfterLogin(role);
+        } catch (e2: unknown) {
+          const msg = e2 instanceof Error ? e2.message : String(e2);
+          setErr(msg);
+        } finally {
+          setBusy(false);
+        }
+      },
+      onError: (errMsg) => {
+        setBusy(false);
+        setErr(errMsg);
+      },
+    });
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -42,21 +86,7 @@ export default function LoginPage() {
     try {
       const u = await login(email.trim(), password);
       const role = (u as { role?: string } | null)?.role ?? user?.role;
-      const isAdminLike = ["admin", "admin_daerah", "admin_desa", "admin_kelompok", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "admin_keuangan", "admin_kegiatan"].includes(String(role ?? "").toLowerCase());
-      const sn = safeNext(next);
-      let target: string;
-      if (sn) {
-        if (isAdminLike && sn.startsWith("/member")) {
-          target = "/admin";
-        } else if (!isAdminLike && sn.startsWith("/admin")) {
-          target = "/member";
-        } else {
-          target = sn;
-        }
-      } else {
-        target = roleToHome(role);
-      }
-      navigate(target, { replace: true });
+      redirectAfterLogin(role);
     } catch (e2: unknown) {
       const msg = e2 instanceof Error ? e2.message : String(e2);
       if (msg.includes("401") || msg.toLowerCase().includes("salah") || msg.toLowerCase().includes("unauthorized")) {
@@ -153,6 +183,27 @@ export default function LoginPage() {
               <span>{err}</span>
             </div>
           )}
+
+          {/* ── GOOGLE SIGN-IN BUTTON (CUSTOM DESIGN) ── */}
+          <div style={{ display: "grid", gap: 12, marginBottom: 14 }}>
+            <button
+              type="button"
+              className="auth-google-btn"
+              onClick={handleGoogleLoginClick}
+              disabled={busy}
+            >
+              <GoogleIcon size={18} />
+              <span>Masuk dengan Akun Google</span>
+            </button>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "2px 0" }}>
+              <div style={{ flex: 1, height: 1, background: "var(--line, #e2e8f0)" }} />
+              <span className="muted" style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                atau masuk dengan password
+              </span>
+              <div style={{ flex: 1, height: 1, background: "var(--line, #e2e8f0)" }} />
+            </div>
+          </div>
 
           <form onSubmit={onSubmit} className="auth-form-body">
             <div className="auth-field">
