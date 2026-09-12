@@ -1438,13 +1438,12 @@ function AnggotaPage({ role: _role }: { role: AdminRole }) {
                 <div className="member-card-head-info">
                   <div className="member-card-name">{m.nama}</div>
                   <div className="muted">{m.desa} / {m.kelompok}</div>
+                  <div className="member-card-meta">
+                    <span className="pill pill-slate">{m.kategoriMudaMudi}</span>
+                    <span className="muted">{m.pendidikan}</span>
+                  </div>
                 </div>
                 <span className={`pill ${m.status === "aktif" ? "pill-emerald" : "pill-amber"}`}>{m.status}</span>
-              </div>
-
-              <div className="member-card-meta">
-                <span className="pill pill-slate">{m.kategoriMudaMudi}</span>
-                <span className="muted">{m.pendidikan}</span>
               </div>
 
               <div className="member-card-info">

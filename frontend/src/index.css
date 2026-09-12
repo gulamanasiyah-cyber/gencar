@@ -1472,6 +1472,7 @@ table.admin-table tr:hover td {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  margin-top: 4px;
 }
 
 /* User card (mobile view) */
@@ -2731,6 +2732,28 @@ table.admin-table tr:hover td {
   .pengurus-row .pengurus-row-actions {
     flex-wrap: wrap;
     justify-content: flex-end;
+  }
+
+  /* Kartu anggota mobile: lebih ringkas & aksi icon compact */
+  .member-card {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+  .member-card-meta {
+    gap: 6px;
+    margin-top: 3px;
+  }
+  .member-card-info {
+    gap: 4px;
+    padding-top: 10px;
+  }
+  .member-card-actions {
+    gap: 6px;
+    justify-content: flex-end;
+    margin-top: 0;
+  }
+  .member-card-actions .btn {
+    flex: 0 0 auto;
   }
 }
 
