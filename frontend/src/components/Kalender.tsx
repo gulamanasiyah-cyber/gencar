@@ -183,14 +183,6 @@ export default function Kalender({
     }
   }
 
-  function goToToday() {
-    setViewYear(today.getFullYear());
-    setViewMonth(today.getMonth());
-    if (mode === "single" && onChange) {
-      onChange(today);
-    }
-  }
-
   return (
     <div className={`kalender ${className}`.trim()} style={{ width: "100%", maxWidth: "100%" }}>
       {presets && mode === "range" && (
@@ -298,7 +290,6 @@ export default function Kalender({
       </div>
 
       <div className="kalender-footer">
-        <button type="button" className="btn btn-ghost btn-sm" onClick={goToToday}>Hari ini</button>
         {mode === "range" ? (
           <div className="muted" style={{ fontSize: 11, textAlign: "right", lineHeight: 1.3 }}>
             {startDate && endDate ? (
