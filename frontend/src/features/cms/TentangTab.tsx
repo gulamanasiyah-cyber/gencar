@@ -148,16 +148,16 @@ export default function TentangTab() {
       <div className="cms-tentang-header">
         <div>
           <h2 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Kelola Halaman Tentang</h2>
-          <p className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+          <p className="muted hide-mobile" style={{ fontSize: 12, marginTop: 2 }}>
             Edit 7 seksi konten halaman publik <code>/tentang</code>. Form otomatis tersinkronisasi live 1:1.
           </p>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <a href="/tentang" target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
-            <ExternalLink size={14} /> Web Publik
+        <div className="cms-tentang-actions">
+          <a href="/tentang" target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm btn-auto">
+            <ExternalLink size={14} /> <span className="hide-mobile">Web</span> Publik
           </a>
-          <button type="button" className="btn btn-primary btn-sm" disabled={saving} onClick={save}>
-            <Save size={14} /> {saving ? "Menyimpan..." : "Simpan Perubahan"}
+          <button type="button" className="btn btn-primary btn-sm btn-auto" disabled={saving} onClick={save}>
+            <Save size={14} /> {saving ? "Menyimpan..." : "Simpan"}
           </button>
         </div>
       </div>

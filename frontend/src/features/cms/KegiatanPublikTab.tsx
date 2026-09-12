@@ -281,20 +281,20 @@ function KegiatanPublikEditorPage({
     <div className="cms-tentang-container">
       {/* Top Header */}
       <div className="cms-tentang-header">
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={onBack} aria-label="Kembali">
-            <ArrowLeft size={16} /> Kembali
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+          <button type="button" className="btn btn-ghost btn-sm btn-auto" onClick={onBack} aria-label="Kembali" style={{ padding: "8px 10px", flexShrink: 0 }}>
+            <ArrowLeft size={16} /> <span className="hide-mobile">Kembali</span>
           </button>
-          <div>
-            <h2 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>
-              {initial ? "Edit Kegiatan Publik" : "Buat Kegiatan Publik Baru"}
+          <div style={{ minWidth: 0 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 800, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {initial ? "Edit Kegiatan Publik" : "Buat Kegiatan Baru"}
             </h2>
-            <span className="muted" style={{ fontSize: 11 }}>Halaman editor lengkap &amp; Live Preview detail kegiatan</span>
+            <span className="muted hide-mobile" style={{ fontSize: 11 }}>Editor lengkap &amp; Live Preview detail</span>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button type="button" className="btn btn-primary btn-sm" disabled={!valid || saving} onClick={handleSave}>
-            <Save size={14} /> {saving ? "Menyimpan..." : role === "admin_daerah" ? "Simpan & Publikasikan" : "Kirim untuk Review"}
+        <div className="cms-tentang-actions">
+          <button type="button" className="btn btn-primary btn-sm btn-auto" disabled={!valid || saving} onClick={handleSave} style={{ whiteSpace: "nowrap" }}>
+            <Save size={14} /> {saving ? "Menyimpan..." : role === "admin_daerah" ? "Simpan" : "Kirim Review"}
           </button>
         </div>
       </div>
