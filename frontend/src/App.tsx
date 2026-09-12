@@ -2495,65 +2495,86 @@ function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }
         )}
 
         {selectedInvite ? (
-          <div style={{ display: "grid", gap: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "grid", gap: 14 }}>
+            {/* Header sub-view */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
               <button
                 type="button"
-                className="btn btn-ghost btn-sm"
+                className="btn-ghost btn-auto"
                 onClick={() => setSelectedInvite(null)}
-                style={{ fontSize: 12, padding: "6px 10px", borderRadius: 8, display: "inline-flex", alignItems: "center", gap: 4 }}
+                style={{ fontSize: 12, padding: "6px 12px", borderRadius: 8, display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 700, width: "auto", border: "1px solid var(--line)" }}
               >
-                ← Kembali ke Daftar
+                <IcoChevronLeft size={14} /> <span>Kembali ke Riwayat</span>
               </button>
-              <span className={`pill ${selectedInvite.status === "open" ? "pill-emerald" : "pill-slate"}`} style={{ fontSize: 10 }}>
+              <span className={`pill ${selectedInvite.status === "open" ? "pill-emerald" : selectedInvite.status === "used" ? "pill-slate" : "pill-amber"}`} style={{ fontSize: 10 }}>
                 {selectedInvite.status === "open" ? "Link Aktif" : selectedInvite.status === "used" ? "Sudah Terpakai" : "Dicabut"}
               </span>
             </div>
 
-            <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: 14, padding: 14, display: "grid", gap: 10 }}>
-              <div style={{ fontWeight: 800, fontSize: 13, color: "#166534" }}>
-                Detail Link Registrasi Mandiri
+            {/* Clean Card Content */}
+            <div style={{
+              background: "#ffffff",
+              border: "1.5px solid var(--line, #f0dfc8)",
+              borderRadius: 16,
+              padding: "16px",
+              display: "grid",
+              gap: 12,
+              boxShadow: "0 2px 10px rgba(27,15,10,0.04)"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 14, color: "var(--ink)" }}>Link Registrasi Mandiri</div>
+                  <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
+                    {selectedInvite.desa_nama ? `Desa ${selectedInvite.desa_nama}` : "Daerah"} {selectedInvite.kelompok_nama ? `· Kelompok ${selectedInvite.kelompok_nama}` : ""}
+                  </div>
+                </div>
+                <span className="pill pill-slate" style={{ fontSize: 10 }}>{selectedInvite.duration_label || "Tanpa batas"}</span>
               </div>
+
+              {/* URL box */}
               <div style={{
                 padding: "10px 12px",
-                background: "#ffffff",
-                border: "1px solid #bbf7d0",
+                background: "var(--surface-sunken, #f8fafc)",
+                border: "1px solid var(--line, #e2e8f0)",
                 borderRadius: 10,
-                fontSize: 12,
+                fontSize: 11,
                 fontFamily: "monospace",
                 wordBreak: "break-all",
-                color: "#0f172a",
+                color: "#1e293b",
+                lineHeight: 1.4,
               }}>
                 {`${window.location.origin}/daftar?invite=${encodeURIComponent(selectedInvite.raw_token || "")}`}
               </div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 11, color: "#15803d" }}>
-                <span>Scope: <b>{selectedInvite.desa_nama ? `Desa ${selectedInvite.desa_nama}` : "Daerah"} {selectedInvite.kelompok_nama ? `· ${selectedInvite.kelompok_nama}` : ""}</b></span>
-                <span>&bull; Durasi: <b>{selectedInvite.duration_label || "Tanpa batas"}</b></span>
-                {selectedInvite.expires_at && <span>&bull; Sampai: <b>{new Date(selectedInvite.expires_at).toLocaleString("id-ID")}</b></span>}
-              </div>
+
+              {selectedInvite.expires_at && (
+                <div className="muted" style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}>
+                  <IcoClock size={12} /> Berlaku hingga: <b>{new Date(selectedInvite.expires_at).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</b>
+                </div>
+              )}
 
               {/* QR Code */}
-              <div style={{ display: "grid", justifyItems: "center", gap: 6, padding: "8px 0" }}>
-                <div style={{ padding: 10, background: "#fff", borderRadius: 12, border: "1px solid #bbf7d0" }}>
+              <div style={{ display: "grid", justifyItems: "center", gap: 6, padding: "6px 0" }}>
+                <div style={{ padding: 10, background: "#ffffff", borderRadius: 14, border: "1px solid var(--line)" }}>
                   <QRCodeCanvas
                     value={`${window.location.origin}/daftar?invite=${encodeURIComponent(selectedInvite.raw_token || "")}`}
-                    size={140}
+                    size={144}
                     level="M"
                     bgColor="#ffffff"
                     fgColor="#1b0f0a"
                   />
                 </div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#15803d" }}>
+                <span className="muted" style={{ fontSize: 10, fontWeight: 700 }}>
                   Scan QR untuk membuka formulir pendaftaran
-                </div>
+                </span>
               </div>
 
-              <div style={{ display: "flex", gap: 8 }}>
+              {/* Actions */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 2 }}>
                 <button
                   type="button"
-                  className="btn btn-primary btn-sm"
+                  className="btn btn-primary"
                   onClick={() => copyToClipboard(`${window.location.origin}/daftar?invite=${encodeURIComponent(selectedInvite.raw_token || "")}`)}
-                  style={{ flex: 1, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                  style={{ borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 13, padding: "10px" }}
                 >
                   <IcoCopy size={14} /> {copied ? "Tersalin ✓" : "Salin Link"}
                 </button>
@@ -2561,30 +2582,34 @@ function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }
                   href={`https://wa.me/?text=${encodeURIComponent(`Assalamu'alaikum, silakan lengkapi formulir pendaftaran anggota Generus melalui tautan resmi berikut: ${window.location.origin}/daftar?invite=${encodeURIComponent(selectedInvite.raw_token || "")}`)}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="btn btn-ghost btn-sm"
-                  style={{ flex: 1, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, textDecoration: "none" }}
+                  className="btn btn-ghost"
+                  style={{ borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, textDecoration: "none", fontSize: 13, padding: "10px", fontWeight: 700 }}
                 >
                   Kirim via WA
                 </a>
               </div>
             </div>
 
-            {selectedInvite.status === "open" && (
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
+            {/* Footer with revoke & close */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
+              {selectedInvite.status === "open" ? (
                 <button
                   type="button"
-                  className="btn btn-ghost btn-sm"
-                  style={{ color: "#dc2626", borderColor: "#fecaca" }}
+                  className="btn btn-ghost btn-auto"
+                  style={{ color: "#dc2626", borderColor: "#fecaca", background: "#fef2f2", fontSize: 11, padding: "6px 12px", width: "auto" }}
                   disabled={revokingId === selectedInvite.id}
                   onClick={async () => {
                     await handleRevoke(selectedInvite.id);
                     setSelectedInvite(null);
                   }}
                 >
-                  {revokingId === selectedInvite.id ? "Mencabut…" : "Cabut Link Ini"}
+                  {revokingId === selectedInvite.id ? "Mencabut…" : "Cabut Link"}
                 </button>
-              </div>
-            )}
+              ) : <span />}
+              <button type="button" className="btn btn-ghost btn-auto" onClick={onClose} style={{ borderRadius: 8, fontSize: 12, padding: "6px 14px", width: "auto" }}>
+                Tutup
+              </button>
+            </div>
           </div>
         ) : activeTab === "create" ? (
           <>
@@ -2710,32 +2735,61 @@ function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }
                 {busy ? "Membuat Link Undangan…" : "Buat Link Registrasi"}
               </button>
             ) : (
-              <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: 14, padding: 14, display: "grid", gap: 10 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#166534", fontWeight: 800, fontSize: 13 }}>
-                  <IcoCheckCircle size={16} /> Link Berhasil Dibuat &amp; Disalin!
+              <div style={{
+                background: "#ffffff",
+                border: "1.5px solid #86efac",
+                borderRadius: 16,
+                padding: "16px",
+                display: "grid",
+                gap: 12,
+                boxShadow: "0 2px 10px rgba(22,163,74,0.06)"
+              }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#166534", fontWeight: 800, fontSize: 13 }}>
+                    <IcoCheckCircle size={16} /> Link Berhasil Dibuat &amp; Disalin!
+                  </div>
+                  <span className="pill pill-emerald" style={{ fontSize: 10 }}>Link Aktif</span>
                 </div>
                 <div style={{
                   padding: "10px 12px",
-                  background: "#ffffff",
-                  border: "1px solid #bbf7d0",
+                  background: "var(--surface-sunken, #f8fafc)",
+                  border: "1px solid var(--line, #e2e8f0)",
                   borderRadius: 10,
-                  fontSize: 12,
+                  fontSize: 11,
                   fontFamily: "monospace",
                   wordBreak: "break-all",
                   color: "#0f172a",
+                  lineHeight: 1.4,
                 }}>
                   {createdLink}
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 11, color: "#15803d" }}>
                   <span>Durasi: <b>{createdDurationLabel}</b></span>
-                  {createdExpires && <span>&bull; Kadaluarsa: <b>{new Date(createdExpires).toLocaleString("id-ID")}</b></span>}
+                  {createdExpires && <span>&bull; Kadaluarsa: <b>{new Date(createdExpires).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</b></span>}
                 </div>
-                <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+
+                {/* QR Code */}
+                <div style={{ display: "grid", justifyItems: "center", gap: 6, padding: "4px 0" }}>
+                  <div style={{ padding: 10, background: "#ffffff", borderRadius: 14, border: "1px solid var(--line)" }}>
+                    <QRCodeCanvas
+                      value={createdLink}
+                      size={144}
+                      level="M"
+                      bgColor="#ffffff"
+                      fgColor="#1b0f0a"
+                    />
+                  </div>
+                  <span className="muted" style={{ fontSize: 10, fontWeight: 700 }}>
+                    Scan QR untuk membuka formulir pendaftaran
+                  </span>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                   <button
                     type="button"
-                    className="btn btn-primary btn-sm"
+                    className="btn btn-primary"
                     onClick={() => copyToClipboard(createdLink)}
-                    style={{ flex: 1, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                    style={{ borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 13, padding: "10px" }}
                   >
                     <IcoCopy size={14} /> {copied ? "Tersalin ✓" : "Salin Ulang"}
                   </button>
@@ -2743,8 +2797,8 @@ function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }
                     href={`https://wa.me/?text=${encodeURIComponent(`Assalamu'alaikum, silakan lengkapi formulir pendaftaran anggota Generus melalui tautan resmi berikut: ${createdLink}`)}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="btn btn-ghost btn-sm"
-                    style={{ flex: 1, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, textDecoration: "none" }}
+                    className="btn btn-ghost"
+                    style={{ borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, textDecoration: "none", fontSize: 13, padding: "10px", fontWeight: 700 }}
                   >
                     Kirim via WA
                   </a>
