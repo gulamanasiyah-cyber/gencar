@@ -10,6 +10,7 @@ import { toPng } from "html-to-image";
 import { GoogleIcon } from "../../components/GoogleIcon";
 import { requestGoogleAuth } from "../../lib/googleAuth";
 import { Select } from "../../components/Select";
+import { PEKERJAAN_GROUPS } from "../../../../shared/pekerjaan";
 import { MOSQUE_PATH, MOSQUE_VIEWBOX } from "../public/mosquePath";
 
 type InviteScope = {
@@ -38,45 +39,52 @@ export default function RegisterPage() {
   const navigate = useNavigate();
   const token = (params.get("invite") || "").trim();
 
+  // Stepper state (1: Identitas & Profesi, 2: Domisili & Akun, 3: Ringkasan & Konfirmasi)
+  const [s, setS] = useState(1);
+
   // Invite state
   const [loadingInvite, setLoadingInvite] = useState(true);
   const [inviteScope, setInviteScope] = useState<InviteScope | null>(null);
   const [inviteErr, setInviteErr] = useState<string | null>(null);
 
   // Form state
-  const [nama, setNama] = useState("");
-  const [jenisKelamin, setJenisKelamin] = useState<"L" | "P">("L");
-  const [tempatLahir, setTempatLahir] = useState("");
-  const [tanggalLahir, setTanggalLahir] = useState("");
-  const [noTelp, setNoTelp] = useState("");
-  const [namaOrtu, setNamaOrtu] = useState("");
-  const [noTelpOrtu, setNoTelpOrtu] = useState("");
+  const [form, setForm] = useState({
+    nama: "",
+    namaOrtu: "",
+    tempatLahir: "",
+    tanggalLahir: "",
+    noTelp: "",
+    noTelpOrtu: "",
+    pendidikan: "SMA",
+    pekerjaan: "",
+    jenisKelamin: "L" as "L" | "P",
+    kategoriMudaMudi: "pribumi" as "pribumi" | "perantauan",
+    asalDaerah: "",
+    domisiliAnak: "",
+    isOrtuSama: true,
+    domisiliOrtu: "",
+    desa: "",
+    kelompok: "",
+  });
 
-  const [kategoriMudaMudi, setKategoriMudaMudi] = useState<"pribumi" | "perantauan">("pribumi");
-  const [asalDaerah, setAsalDaerah] = useState("");
-  const [domisiliAnak, setDomisiliAnak] = useState("");
-  const [isOrtuSama, setIsOrtuSama] = useState(true);
-  const [domisiliOrtu, setDomisiliOrtu] = useState("");
-
-  const [pendidikan, setPendidikan] = useState("SMA");
-  const [pekerjaan, setPekerjaan] = useState("");
-  const [kategoriUsia, setKategoriUsia] = useState("Mandiri");
+  // Pekerjaan selector state
+  const [pekerjaanOpen, setPekerjaanOpen] = useState(false);
+  const [pekerjaanFreeMode, setPekerjaanFreeMode] = useState(false);
+  const pekerjaanRef = useRef<HTMLDivElement>(null);
 
   // Wilayah pickers (if admin_daerah or admin_desa)
   const [desaOpts, setDesaOpts] = useState<{ id: number; nama: string }[]>([]);
   const [kelompokOpts, setKelompokOpts] = useState<{ id: number; nama: string; desaId: number }[]>([]);
-  const [pickedDesaId, setPickedDesaId] = useState<number | "">("");
-  const [pickedKelompokId, setPickedKelompokId] = useState<number | "">("");
 
-  // Kredensial
+  // Kredensial Akun
   const [email, setEmail] = useState("");
   const [isGoogleLinked, setIsGoogleLinked] = useState(false);
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
   const [showPw, setShowPw] = useState(false);
 
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
 
   // Success result
   const [registered, setRegistered] = useState<RegisteredMember | null>(null);
@@ -95,8 +103,8 @@ export default function RegisterPage() {
       .then((res) => {
         if (cancel) return;
         setInviteScope(res);
-        if (res.desaId) setPickedDesaId(res.desaId);
-        if (res.kelompokId) setPickedKelompokId(res.kelompokId);
+        if (res.desaNama) setForm((prev) => ({ ...prev, desa: res.desaNama || "" }));
+        if (res.kelompokNama) setForm((prev) => ({ ...prev, kelompok: res.kelompokNama || "" }));
         setLoadingInvite(false);
       })
       .catch((e: unknown) => {
@@ -115,16 +123,28 @@ export default function RegisterPage() {
         .then((j: unknown) => {
           const arr = Array.isArray(j) ? j as { id: number; nama: string }[] : [];
           setDesaOpts(arr);
+          if (arr.length > 0 && !form.desa) setForm((prev) => ({ ...prev, desa: arr[0].nama }));
         }).catch(() => {});
       void apiFetch<{ id: number; nama: string; desaId: number }[]>("/api/auth/kelompok")
         .then((j: unknown) => {
           const arr = Array.isArray(j) ? j as { id: number; nama: string; desaId: number }[] : [];
           setKelompokOpts(arr);
+          if (arr.length > 0 && !form.kelompok) setForm((prev) => ({ ...prev, kelompok: arr[0].nama }));
         }).catch(() => {});
     }
   }, [inviteScope?.scopeRole]);
 
-  // 3. Auto-print saat kartu pendaftaran selesai dibuat
+  // 3. Pekerjaan click outside listener
+  useEffect(() => {
+    if (!pekerjaanOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (pekerjaanRef.current && !pekerjaanRef.current.contains(e.target as Node)) setPekerjaanOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [pekerjaanOpen]);
+
+  // 4. Auto-print saat kartu pendaftaran selesai dibuat
   useEffect(() => {
     if (registered) {
       const timer = setTimeout(() => {
@@ -134,63 +154,82 @@ export default function RegisterPage() {
     }
   }, [registered]);
 
+  const filteredKelompok = kelompokOpts.filter((k) => {
+    const desa = desaOpts.find((d) => d.nama === form.desa);
+    return desa ? k.desaId === desa.id : true;
+  });
+
   function handleGoogleConnect() {
-    setErr(null);
+    setSaveErr(null);
     requestGoogleAuth({
       onSuccess: ({ email: gEmail }) => {
         setEmail(gEmail);
         setIsGoogleLinked(true);
       },
       onError: (errMsg) => {
-        setErr(errMsg);
+        setSaveErr(errMsg);
       },
     });
   }
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setErr(null);
-    if (!token) { setErr("Token pendaftaran tidak tersedia."); return; }
-    if (!nama.trim()) { setErr("Nama lengkap wajib diisi."); return; }
-    if (!tempatLahir.trim()) { setErr("Tempat lahir wajib diisi."); return; }
-    if (!tanggalLahir) { setErr("Tanggal lahir wajib diisi."); return; }
-    if (!noTelp.trim()) { setErr("Nomor WhatsApp wajib diisi."); return; }
-    if (kategoriMudaMudi === "perantauan" && !asalDaerah.trim()) {
-      setErr("Asal daerah wajib diisi untuk kategori perantauan.");
+  // Validations per step
+  const canNext1 = form.nama.trim().length >= 2 && form.tempatLahir.trim() && form.tanggalLahir && form.noTelp.trim().length >= 10 && form.pekerjaan.trim().length > 0;
+  const needAsal = form.kategoriMudaMudi === "perantauan" && !form.asalDaerah.trim();
+  const canNext2 = form.domisiliAnak.trim().length >= 3 && (form.isOrtuSama || form.domisiliOrtu.trim().length >= 3) && email.trim().length >= 5 && pw.length >= 8 && pw === pw2;
+
+  async function handleRegister() {
+    if (saving) return;
+    if (!form.nama.trim() || !form.tempatLahir.trim() || !form.tanggalLahir || !form.noTelp.trim()) {
+      setSaveErr("Nama, tempat lahir, tanggal lahir, dan no telp wajib diisi.");
       return;
     }
-    if (!domisiliAnak.trim()) { setErr("Alamat domisili saat ini wajib diisi."); return; }
-    if (!isOrtuSama && !domisiliOrtu.trim()) { setErr("Alamat domisili orang tua wajib diisi."); return; }
-    if (!email.trim()) { setErr("Email Google / akun wajib diisi."); return; }
-    if (pw.length < 8) { setErr("Kata sandi minimal 8 karakter."); return; }
-    if (pw !== pw2) { setErr("Konfirmasi kata sandi tidak cocok."); return; }
+    if (form.kategoriMudaMudi === "perantauan" && !form.asalDaerah.trim()) {
+      setSaveErr("Asal daerah wajib diisi jika perantauan.");
+      return;
+    }
+    if (form.domisiliAnak.trim().length < 3) { setSaveErr("Domisili anak wajib (min 3 karakter)."); return; }
+    if (!form.isOrtuSama && form.domisiliOrtu.trim().length < 3) { setSaveErr("Domisili ortu wajib jika ortu beda."); return; }
+    if (!email.trim()) { setSaveErr("Email Google / akun wajib diisi."); return; }
+    if (pw.length < 8) { setSaveErr("Kata sandi minimal 8 karakter."); return; }
+    if (pw !== pw2) { setSaveErr("Konfirmasi kata sandi tidak cocok."); return; }
 
-    setBusy(true);
+    setSaveErr(null);
+    setSaving(true);
     try {
+      let desaId: number | undefined;
+      let kelompokId: number | undefined;
+      if (desaOpts.length > 0 && form.desa) {
+        const hitD = desaOpts.find((d) => d.nama.toLowerCase() === form.desa.toLowerCase());
+        if (hitD) desaId = hitD.id;
+      }
+      if (kelompokOpts.length > 0 && form.kelompok) {
+        const hitK = kelompokOpts.find((k) => k.nama.toLowerCase() === form.kelompok.toLowerCase());
+        if (hitK) kelompokId = hitK.id;
+      }
+
       const res = await apiFetch<{ success: boolean; token?: string; member: RegisteredMember }>("/api/auth/invite/register", {
         method: "POST",
         body: JSON.stringify({
           token,
-          nama: nama.trim(),
-          jenisKelamin,
-          tempatLahir: tempatLahir.trim(),
-          tanggalLahir,
-          noTelp: noTelp.trim(),
-          namaOrtu: namaOrtu.trim() || undefined,
-          noTelpOrtu: noTelpOrtu.trim() || undefined,
-          kategoriMudaMudi,
-          asalDaerah: asalDaerah.trim() || undefined,
-          domisiliAnak: domisiliAnak.trim(),
-          isOrtuSama,
-          domisiliOrtu: isOrtuSama ? undefined : domisiliOrtu.trim(),
-          alamat: domisiliAnak.trim(),
-          pendidikan,
-          pekerjaan: pekerjaan.trim() || undefined,
-          kategoriUsia,
+          nama: form.nama.trim(),
+          jenisKelamin: form.jenisKelamin,
+          tempatLahir: form.tempatLahir.trim(),
+          tanggalLahir: form.tanggalLahir,
+          noTelp: form.noTelp.trim(),
+          namaOrtu: form.namaOrtu.trim() || undefined,
+          noTelpOrtu: form.noTelpOrtu.trim() || undefined,
+          kategoriMudaMudi: form.kategoriMudaMudi,
+          asalDaerah: form.asalDaerah.trim() || undefined,
+          domisiliAnak: form.domisiliAnak.trim(),
+          isOrtuSama: form.isOrtuSama ? 1 : 0,
+          domisiliOrtu: form.isOrtuSama ? undefined : form.domisiliOrtu.trim(),
+          alamat: form.domisiliAnak.trim(),
+          pendidikan: form.pendidikan,
+          pekerjaan: form.pekerjaan.trim() || undefined,
           email: email.trim().toLowerCase(),
           password: pw,
-          desaId: pickedDesaId || undefined,
-          kelompokId: pickedKelompokId || undefined,
+          desaId,
+          kelompokId,
         }),
       });
 
@@ -200,9 +239,9 @@ export default function RegisterPage() {
       setRegistered(res.member);
     } catch (e2: unknown) {
       const msg = e2 instanceof Error ? e2.message : String(e2);
-      setErr(msg || "Gagal melakukan pendaftaran. Silakan coba lagi.");
+      setSaveErr(msg || "Gagal melakukan pendaftaran. Silakan coba lagi.");
     } finally {
-      setBusy(false);
+      setSaving(false);
     }
   }
 
@@ -436,7 +475,7 @@ export default function RegisterPage() {
     );
   }
 
-  // ── 2. Tampilan Form Pendaftaran ──
+  // ── 2. Tampilan Form Pendaftaran (Format Seperti Create Anggota) ──
   return (
     <div className="auth-split-layout">
       {/* ── Brand Pane (Left) ── */}
@@ -487,16 +526,16 @@ export default function RegisterPage() {
           <div style={{ display: "flex", gap: 8, alignItems: "center", color: "var(--primary, #d03804)", fontWeight: 800, fontSize: 12, letterSpacing: "0.06em", textTransform: "uppercase" }}>
             <ShieldCheck size={14} /> Formulir Pendaftaran Anggota
           </div>
-          <h1 className="auth-form-title" style={{ marginTop: 8 }}>Registrasi Anggota Baru</h1>
+          <h1 className="auth-form-title" style={{ marginTop: 8, marginBottom: 16 }}>Registrasi Anggota Baru</h1>
 
           {loadingInvite && (
-            <div style={{ marginTop: 16, padding: 14, borderRadius: 12, border: "1px solid var(--line)", background: "#fff" }} className="muted">
+            <div style={{ padding: 14, borderRadius: 12, border: "1px solid var(--line)", background: "#fff" }} className="muted">
               Memverifikasi link undangan pendaftaran…
             </div>
           )}
 
           {inviteErr && (
-            <div style={{ marginTop: 16, padding: 14, borderRadius: 12, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontWeight: 600, fontSize: 13 }}>
+            <div style={{ padding: 14, borderRadius: 12, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontWeight: 600, fontSize: 13 }}>
               {inviteErr}
               <div style={{ marginTop: 10 }}>
                 <Link to="/login" className="btn btn-ghost" style={{ padding: "8px 12px" }}>Ke halaman login</Link>
@@ -505,447 +544,469 @@ export default function RegisterPage() {
           )}
 
           {inviteScope && !registered && (
-            <form onSubmit={onSubmit} style={{ marginTop: 16, display: "grid", gap: 16 }}>
-              {/* Scope Info Card */}
-              <div style={{
-                padding: "12px 14px",
-                borderRadius: 14,
-                background: "var(--surface-sunken, #f8fafc)",
-                border: "1.5px solid var(--line, #e2e8f0)",
-                fontSize: 13,
-                display: "grid",
-                gap: 4,
-              }}>
-                <div style={{ fontWeight: 800, fontSize: 13, color: "var(--ink)" }}>Wilayah Pendaftaran Resmi:</div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                  <span className="pill pill-slate" style={{ fontSize: 11 }}>Daerah Cengkareng</span>
-                  {inviteScope.desaNama && <span className="pill pill-emerald" style={{ fontSize: 11 }}>Desa {inviteScope.desaNama}</span>}
-                  {inviteScope.kelompokNama && <span className="pill pill-amber" style={{ fontSize: 11 }}>Kelompok {inviteScope.kelompokNama}</span>}
-                </div>
-                {inviteScope.durationLabel && (
-                  <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
-                    Masa aktif link: <b>{inviteScope.durationLabel}</b>
-                  </div>
-                )}
+            <div>
+              {/* Stepper Dots */}
+              <div className="stepper" style={{ marginBottom: 10 }}>
+                {[1, 2, 3].map((n) => (
+                  <div key={n} className={`step-dot ${s >= n ? "on" : ""}`} />
+                ))}
+              </div>
+              <div className="muted" style={{ marginBottom: 16, fontSize: 12 }}>
+                Langkah {s}/3 &bull; {s === 1 ? "Identitas Diri & Profesi" : s === 2 ? "Domisili & Akun Login" : "Ringkasan & Konfirmasi"}
               </div>
 
-              {/* SECTION 1: IDENTITAS DIRI */}
-              <div style={{ display: "grid", gap: 10 }}>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "var(--ink)", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid var(--line)", paddingBottom: 4 }}>
-                  1. Identitas Diri
+              {/* Scope Info Card */}
+              <div style={{
+                padding: "10px 12px",
+                borderRadius: 12,
+                background: "var(--surface-sunken, #f8fafc)",
+                border: "1px solid var(--line, #e2e8f0)",
+                fontSize: 12,
+                display: "grid",
+                gap: 4,
+                marginBottom: 16,
+              }}>
+                <div style={{ fontWeight: 800, color: "var(--ink)" }}>Wilayah Pendaftaran Resmi:</div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                  <span className="pill pill-slate" style={{ fontSize: 10 }}>Daerah Cengkareng</span>
+                  {inviteScope.desaNama && <span className="pill pill-emerald" style={{ fontSize: 10 }}>Desa {inviteScope.desaNama}</span>}
+                  {inviteScope.kelompokNama && <span className="pill pill-amber" style={{ fontSize: 10 }}>Kelompok {inviteScope.kelompokNama}</span>}
                 </div>
+              </div>
 
-                <div className="field">
-                  <label style={{ fontSize: 12, fontWeight: 800 }}>Nama Lengkap *</label>
-                  <input
-                    type="text"
-                    required
-                    value={nama}
-                    onChange={(e) => setNama(e.target.value)}
-                    placeholder="Nama lengkap sesuai KTP/identitas"
-                  />
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {/* ── STEP 1: IDENTITAS & PEKERJAAN (MIRIP CREATE ANGGOTA) ── */}
+              {s === 1 && (
+                <div style={{ display: "grid", gap: 12 }}>
                   <div className="field">
-                    <label style={{ fontSize: 12, fontWeight: 800 }}>Jenis Kelamin *</label>
-                    <Select
-                      value={jenisKelamin}
-                      onChange={(v) => setJenisKelamin(v as "L" | "P")}
-                      options={[
-                        { value: "L", label: "Laki-laki (Muda)" },
-                        { value: "P", label: "Perempuan (Mudi)" },
-                      ]}
-                    />
-                  </div>
-
-                  <div className="field">
-                    <label style={{ fontSize: 12, fontWeight: 800 }}>Kategori Usia *</label>
-                    <Select
-                      value={kategoriUsia}
-                      onChange={(v) => setKategoriUsia(v)}
-                      options={[
-                        { value: "Mandiri", label: "Usia Mandiri" },
-                        { value: "Remaja", label: "Remaja (SMA/SMK)" },
-                        { value: "Pra-remaja", label: "Pra-Remaja (SMP)" },
-                        { value: "Kuliah", label: "Kuliah" },
-                        { value: "Bekerja", label: "Bekerja" },
-                      ]}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div className="field">
-                    <label style={{ fontSize: 12, fontWeight: 800 }}>Tempat Lahir *</label>
+                    <label>Nama Lengkap *</label>
                     <input
-                      type="text"
-                      required
-                      value={tempatLahir}
-                      onChange={(e) => setTempatLahir(e.target.value)}
-                      placeholder="Kota lahir"
+                      value={form.nama}
+                      onChange={(e) => setForm({ ...form, nama: e.target.value })}
+                      placeholder="Nama lengkap sesuai identitas"
                     />
                   </div>
-                  <div className="field">
-                    <label style={{ fontSize: 12, fontWeight: 800 }}>Tanggal Lahir *</label>
-                    <input
-                      type="date"
-                      required
-                      value={tanggalLahir}
-                      onChange={(e) => setTanggalLahir(e.target.value)}
-                    />
-                  </div>
-                </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <div className="field">
-                    <label style={{ fontSize: 12, fontWeight: 800 }}>No. WhatsApp / HP *</label>
+                    <label>Nama Orang Tua</label>
                     <input
-                      type="tel"
-                      required
-                      value={noTelp}
-                      onChange={(e) => setNoTelp(e.target.value)}
-                      placeholder="081234567890"
-                    />
-                  </div>
-                  <div className="field">
-                    <label style={{ fontSize: 12, fontWeight: 800 }}>Nama Orang Tua</label>
-                    <input
-                      type="text"
-                      value={namaOrtu}
-                      onChange={(e) => setNamaOrtu(e.target.value)}
+                      value={form.namaOrtu}
+                      onChange={(e) => setForm({ ...form, namaOrtu: e.target.value })}
                       placeholder="Nama ayah / ibu"
                     />
                   </div>
-                </div>
 
-                <div className="field">
-                  <label style={{ fontSize: 12, fontWeight: 800 }}>No. WhatsApp Orang Tua</label>
-                  <input
-                    type="tel"
-                    value={noTelpOrtu}
-                    onChange={(e) => setNoTelpOrtu(e.target.value)}
-                    placeholder="081234567890"
-                  />
-                </div>
-              </div>
-
-              {/* SECTION 2: STATUS & DOMISILI */}
-              <div style={{ display: "grid", gap: 10 }}>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "var(--ink)", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid var(--line)", paddingBottom: 4 }}>
-                  2. Status &amp; Domisili
-                </div>
-
-                <div className="field">
-                  <label style={{ fontSize: 12, fontWeight: 800 }}>Status Keberadaan *</label>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    <button
-                      type="button"
-                      onClick={() => setKategoriMudaMudi("pribumi")}
-                      style={{
-                        padding: "10px",
-                        borderRadius: 10,
-                        border: kategoriMudaMudi === "pribumi" ? "2px solid var(--primary)" : "1px solid var(--line)",
-                        background: kategoriMudaMudi === "pribumi" ? "#fff1e6" : "#fff",
-                        fontWeight: 800,
-                        fontSize: 13,
-                        cursor: "pointer",
-                        color: kategoriMudaMudi === "pribumi" ? "var(--primary)" : "var(--ink)",
-                      }}
-                    >
-                      Pribumi (Asli)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setKategoriMudaMudi("perantauan")}
-                      style={{
-                        padding: "10px",
-                        borderRadius: 10,
-                        border: kategoriMudaMudi === "perantauan" ? "2px solid var(--primary)" : "1px solid var(--line)",
-                        background: kategoriMudaMudi === "perantauan" ? "#fff1e6" : "#fff",
-                        fontWeight: 800,
-                        fontSize: 13,
-                        cursor: "pointer",
-                        color: kategoriMudaMudi === "perantauan" ? "var(--primary)" : "var(--ink)",
-                      }}
-                    >
-                      Perantauan
-                    </button>
-                  </div>
-                </div>
-
-                {kategoriMudaMudi === "perantauan" && (
-                  <div className="field">
-                    <label style={{ fontSize: 12, fontWeight: 800 }}>Asal Daerah / Kota *</label>
-                    <input
-                      type="text"
-                      required
-                      value={asalDaerah}
-                      onChange={(e) => setAsalDaerah(e.target.value)}
-                      placeholder="Contoh: Solo, Kediri, Lampung"
-                    />
-                  </div>
-                )}
-
-                <div className="field">
-                  <label style={{ fontSize: 12, fontWeight: 800 }}>Alamat Domisili Saat Ini *</label>
-                  <textarea
-                    required
-                    value={domisiliAnak}
-                    onChange={(e) => setDomisiliAnak(e.target.value)}
-                    placeholder="Alamat lengkap tempat tinggal / kos sekarang"
-                    rows={2}
-                    style={{ padding: 10, borderRadius: 10, border: "1.5px solid var(--line)", fontSize: 13 }}
-                  />
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <input
-                    type="checkbox"
-                    id="is-ortu-sama"
-                    checked={isOrtuSama}
-                    onChange={(e) => setIsOrtuSama(e.target.checked)}
-                    style={{ width: 16, height: 16, accentColor: "var(--primary)" }}
-                  />
-                  <label htmlFor="is-ortu-sama" style={{ fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                    Tinggal bersama orang tua
-                  </label>
-                </div>
-
-                {!isOrtuSama && (
-                  <div className="field">
-                    <label style={{ fontSize: 12, fontWeight: 800 }}>Alamat Domisili Orang Tua *</label>
-                    <textarea
-                      required
-                      value={domisiliOrtu}
-                      onChange={(e) => setDomisiliOrtu(e.target.value)}
-                      placeholder="Alamat tempat tinggal orang tua"
-                      rows={2}
-                      style={{ padding: 10, borderRadius: 10, border: "1.5px solid var(--line)", fontSize: 13 }}
-                    />
-                  </div>
-                )}
-
-                {/* Sub-pickers for admin_daerah */}
-                {inviteScope.scopeRole === "admin_daerah" && (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div className="form-grid-2">
                     <div className="field">
-                      <label style={{ fontSize: 12, fontWeight: 800 }}>Pilih Desa</label>
+                      <label>Tempat Lahir *</label>
+                      <input
+                        value={form.tempatLahir}
+                        onChange={(e) => setForm({ ...form, tempatLahir: e.target.value })}
+                        placeholder="Kota lahir"
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Tanggal Lahir *</label>
+                      <input
+                        type="date"
+                        value={form.tanggalLahir}
+                        onChange={(e) => setForm({ ...form, tanggalLahir: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-grid-2">
+                    <div className="field">
+                      <label>No. WhatsApp / HP *</label>
+                      <input
+                        value={form.noTelp}
+                        onChange={(e) => setForm({ ...form, noTelp: e.target.value })}
+                        placeholder="0812..."
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Pendidikan *</label>
                       <Select
-                        value={String(pickedDesaId)}
-                        onChange={(v) => {
-                          const num = v ? Number(v) : "";
-                          setPickedDesaId(num);
-                          setPickedKelompokId("");
+                        value={form.pendidikan}
+                        onChange={(v) => setForm({ ...form, pendidikan: v })}
+                        ariaLabel="Pendidikan"
+                        options={[
+                          { value: "SD", label: "SD" },
+                          { value: "SMP", label: "SMP" },
+                          { value: "SMA", label: "SMA" },
+                          { value: "SMK", label: "SMK" },
+                          { value: "D3", label: "D3" },
+                          { value: "S1", label: "S1" },
+                          { value: "S2", label: "S2" },
+                          { value: "Belum Sekolah", label: "Lainnya" },
+                        ]}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Pekerjaan with Autocomplete dropdown (seperti create) */}
+                  <div className="field" style={{ position: "relative" }} ref={(el) => { if (el) pekerjaanRef.current = el; }}>
+                    <label>Pekerjaan *</label>
+                    <div style={{ display: "flex", gap: 0 }}>
+                      <input
+                        data-pekerjaan-input
+                        value={form.pekerjaan}
+                        onChange={(e) => {
+                          setForm({ ...form, pekerjaan: e.target.value });
+                          setPekerjaanOpen(true);
+                          setPekerjaanFreeMode(true);
                         }}
+                        onFocus={() => setPekerjaanOpen(true)}
+                        placeholder={pekerjaanFreeMode ? "Tulis pekerjaan…" : "Ketik atau pilih pekerjaan…"}
+                        style={{ flex: 1, borderRadius: "12px 0 0 12px", borderRight: "none" }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { setPekerjaanOpen((v) => !v); setPekerjaanFreeMode(true); }}
+                        style={{ padding: "0 10px", borderRadius: "0 12px 12px 0", border: "1px solid var(--line)", background: "#f8fafc", cursor: "pointer", display: "grid", placeItems: "center", color: "var(--muted)" }}
+                        aria-label="Tampilkan opsi pekerjaan"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                      </button>
+                    </div>
+                    {pekerjaanOpen && (() => {
+                      const q = form.pekerjaan.toLowerCase().trim();
+                      const groups = PEKERJAAN_GROUPS.map((g) => ({
+                        ...g,
+                        filtered: g.items.filter((it) => !q || it.toLowerCase().includes(q)),
+                      })).filter((g) => g.filtered.length > 0 || !q);
+                      return (
+                        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 100, background: "#fff", border: "1px solid var(--line)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,.08)", maxHeight: 240, overflowY: "auto", marginTop: 4 }}>
+                          {groups.length === 0 && (
+                            <div style={{ padding: "12px 14px", fontSize: 12, color: "var(--muted)" }}>Tidak ada yang cocok — lanjut ketik bebas</div>
+                          )}
+                          {groups.map((g) => (
+                            <div key={g.label}>
+                              <div style={{ padding: "6px 14px 2px", fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted)", background: "#f8fafc", position: "sticky", top: 0, zIndex: 1 }}>{g.label}</div>
+                              {g.filtered.map((item) => (
+                                <button
+                                  key={item}
+                                  type="button"
+                                  onClick={() => { setForm({ ...form, pekerjaan: item }); setPekerjaanOpen(false); setPekerjaanFreeMode(false); }}
+                                  style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 14px", fontSize: 13, background: form.pekerjaan === item ? "#fff1e6" : "transparent", border: "none", cursor: "pointer", color: form.pekerjaan === item ? "var(--primary)" : "var(--ink)" }}
+                                >{item}</button>
+                              ))}
+                              {!q && (
+                                <button
+                                  type="button"
+                                  onClick={() => { setForm({ ...form, pekerjaan: "" }); setPekerjaanOpen(false); setPekerjaanFreeMode(true); setTimeout(() => { const inp = document.querySelector<HTMLInputElement>("[data-pekerjaan-input]"); inp?.focus(); }, 50); }}
+                                  style={{ display: "block", width: "100%", textAlign: "left", padding: "7px 14px", fontSize: 12, fontWeight: 600, background: "transparent", border: "none", color: "var(--muted)", fontStyle: "italic" }}
+                                >+ Lainnya (ketik sendiri)…</button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="form-grid-2">
+                    <div className="field">
+                      <label>Jenis Kelamin *</label>
+                      <Select
+                        value={form.jenisKelamin}
+                        onChange={(v) => setForm({ ...form, jenisKelamin: v as "L" | "P" })}
+                        ariaLabel="Jenis kelamin"
                         options={[
-                          { value: "", label: "Pilih Desa..." },
-                          ...desaOpts.map((d) => ({ value: String(d.id), label: d.nama })),
+                          { value: "L", label: "Laki-laki (Muda)" },
+                          { value: "P", label: "Perempuan (Mudi)" },
                         ]}
                       />
                     </div>
                     <div className="field">
-                      <label style={{ fontSize: 12, fontWeight: 800 }}>Pilih Kelompok</label>
+                      <label>Kategori *</label>
                       <Select
-                        value={String(pickedKelompokId)}
-                        onChange={(v) => setPickedKelompokId(v ? Number(v) : "")}
+                        value={form.kategoriMudaMudi}
+                        onChange={(v) => setForm({ ...form, kategoriMudaMudi: v as any })}
+                        ariaLabel="Kategori"
                         options={[
-                          { value: "", label: "Pilih Kelompok..." },
-                          ...kelompokOpts.filter((k) => !pickedDesaId || k.desaId === Number(pickedDesaId)).map((k) => ({ value: String(k.id), label: k.nama })),
+                          { value: "pribumi", label: "Pribumi" },
+                          { value: "perantauan", label: "Perantauan" },
                         ]}
                       />
                     </div>
                   </div>
-                )}
 
-                {/* Sub-picker for admin_desa */}
-                {inviteScope.scopeRole === "admin_desa" && !inviteScope.kelompokId && (
-                  <div className="field">
-                    <label style={{ fontSize: 12, fontWeight: 800 }}>Pilih Kelompok</label>
-                    <Select
-                      value={String(pickedKelompokId)}
-                      onChange={(v) => setPickedKelompokId(v ? Number(v) : "")}
-                      options={[
-                        { value: "", label: "Pilih Kelompok di desa ini..." },
-                        ...kelompokOpts.filter((k) => !inviteScope.desaId || k.desaId === Number(inviteScope.desaId)).map((k) => ({ value: String(k.id), label: k.nama })),
-                      ]}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* SECTION 3: PENDIDIKAN & PEKERJAAN */}
-              <div style={{ display: "grid", gap: 10 }}>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "var(--ink)", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid var(--line)", paddingBottom: 4 }}>
-                  3. Pendidikan &amp; Profesi
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div className="field">
-                    <label style={{ fontSize: 12, fontWeight: 800 }}>Pendidikan Terakhir</label>
-                    <Select
-                      value={pendidikan}
-                      onChange={(v) => setPendidikan(v)}
-                      options={[
-                        { value: "SD", label: "SD" },
-                        { value: "SMP", label: "SMP" },
-                        { value: "SMA", label: "SMA" },
-                        { value: "SMK", label: "SMK" },
-                        { value: "D3", label: "D3" },
-                        { value: "S1", label: "S1" },
-                        { value: "S2", label: "S2" },
-                        { value: "Belum Sekolah", label: "Lainnya" },
-                      ]}
-                    />
-                  </div>
-
-                  <div className="field">
-                    <label style={{ fontSize: 12, fontWeight: 800 }}>Pekerjaan / Aktivitas</label>
-                    <input
-                      type="text"
-                      value={pekerjaan}
-                      onChange={(e) => setPekerjaan(e.target.value)}
-                      placeholder="Contoh: Karyawan, Wirausaha, Mahasiswa"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION 4: KREDENSIAL LOGIN */}
-              <div style={{ display: "grid", gap: 10 }}>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "var(--ink)", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid var(--line)", paddingBottom: 4 }}>
-                  4. Akun &amp; Kata Sandi Login
-                </div>
-
-                {/* Google SSO Button Option */}
-                <div style={{
-                  background: "#ffffff",
-                  border: isGoogleLinked ? "1.5px solid #86efac" : "1.5px solid var(--line, #e2e8f0)",
-                  borderRadius: 14,
-                  padding: "14px 16px",
-                  display: "grid",
-                  gap: 8,
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <GoogleIcon size={18} />
-                      <span style={{ fontSize: 13, fontWeight: 800, color: "var(--ink)" }}>Kaitkan Akun Google</span>
-                    </div>
-                    {isGoogleLinked && (
-                      <span style={{ fontSize: 11, fontWeight: 800, color: "#16a34a", background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "2px 8px", borderRadius: 999, display: "flex", alignItems: "center", gap: 4 }}>
-                        <CheckCircle2 size={12} /> Terhubung
-                      </span>
-                    )}
-                  </div>
-
-                  {!isGoogleLinked ? (
-                    <>
-                      <p className="muted" style={{ fontSize: 12, margin: 0, lineHeight: 1.4 }}>
-                        Gunakan akun Google Anda agar email terisi otomatis dan login lebih cepat.
-                      </p>
-                      <button
-                        type="button"
-                        className="auth-google-btn"
-                        onClick={handleGoogleConnect}
-                        disabled={busy}
-                        style={{ marginTop: 2 }}
-                      >
-                        <GoogleIcon size={18} />
-                        <span>Pilih Akun Google</span>
-                      </button>
-                    </>
-                  ) : (
-                    <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: "8px 12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <div style={{ fontSize: 12, fontWeight: 800, color: "#166534" }}>{email}</div>
-                      <button
-                        type="button"
-                        onClick={() => setIsGoogleLinked(false)}
-                        style={{ fontSize: 11, fontWeight: 700, color: "#15803d", background: "#ffffff", border: "1px solid #bbf7d0", padding: "4px 8px", borderRadius: 6, cursor: "pointer" }}
-                      >
-                        Ganti
-                      </button>
+                  {form.kategoriMudaMudi === "perantauan" && (
+                    <div className="field">
+                      <label>Asal Daerah *</label>
+                      <input
+                        value={form.asalDaerah}
+                        onChange={(e) => setForm({ ...form, asalDaerah: e.target.value })}
+                        placeholder="Kabupaten / kota asal (misal: Solo, Kediri)"
+                      />
                     </div>
                   )}
-                </div>
 
-                <div className="field">
-                  <label style={{ fontSize: 12, fontWeight: 800 }}>Email Akun Login *</label>
-                  <div style={{ position: "relative" }}>
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => {
-                        setEmail(e.target.value);
-                        setIsGoogleLinked(false);
-                      }}
-                      placeholder="nama@gmail.com"
-                      style={{ paddingLeft: 36, width: "100%" }}
-                    />
-                    <Mail size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: isGoogleLinked ? "#16a34a" : "var(--muted)" }} />
-                  </div>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <div className="field">
-                    <label style={{ fontSize: 12, fontWeight: 800 }}>Kata Sandi (Min 8) *</label>
-                    <div style={{ position: "relative" }}>
-                      <input
-                        type={showPw ? "text" : "password"}
-                        required
-                        value={pw}
-                        onChange={(e) => setPw(e.target.value)}
-                        placeholder="••••••••"
-                        style={{ paddingLeft: 36, paddingRight: 36, width: "100%" }}
-                      />
-                      <Lock size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--muted)" }} />
-                      <button
-                        type="button"
-                        onClick={() => setShowPw((v) => !v)}
-                        aria-label={showPw ? "Sembunyikan" : "Tampilkan"}
-                        style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", width: 28, height: 28, borderRadius: 6, border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer", color: "var(--muted)" }}
-                      >
-                        {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
-                      </button>
+                  {/* Sub-selects if admin_daerah allows choosing */}
+                  {inviteScope.scopeRole === "admin_daerah" && (
+                    <div className="form-grid-2">
+                      <div className="field">
+                        <label>Desa</label>
+                        <Select
+                          value={form.desa}
+                          onChange={(v) => setForm({ ...form, desa: v, kelompok: "" })}
+                          ariaLabel="Desa"
+                          options={desaOpts.map((d) => ({ value: d.nama, label: d.nama }))}
+                        />
+                      </div>
+                      <div className="field">
+                        <label>Kelompok</label>
+                        <Select
+                          value={form.kelompok}
+                          onChange={(v) => setForm({ ...form, kelompok: v })}
+                          ariaLabel="Kelompok"
+                          options={filteredKelompok.map((k) => ({ value: k.nama, label: k.nama }))}
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  <div className="field">
-                    <label style={{ fontSize: 12, fontWeight: 800 }}>Ulangi Sandi *</label>
-                    <div style={{ position: "relative" }}>
-                      <input
-                        type={showPw ? "text" : "password"}
-                        required
-                        value={pw2}
-                        onChange={(e) => setPw2(e.target.value)}
-                        placeholder="••••••••"
-                        style={{ paddingLeft: 36, width: "100%" }}
+                  {inviteScope.scopeRole === "admin_desa" && !inviteScope.kelompokId && (
+                    <div className="field">
+                      <label>Kelompok</label>
+                      <Select
+                        value={form.kelompok}
+                        onChange={(v) => setForm({ ...form, kelompok: v })}
+                        ariaLabel="Kelompok"
+                        options={filteredKelompok.map((k) => ({ value: k.nama, label: k.nama }))}
                       />
-                      <Lock size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--muted)" }} />
                     </div>
-                  </div>
-                </div>
-              </div>
+                  )}
 
-              {err && (
-                <div style={{ padding: 12, borderRadius: 10, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontSize: 13, fontWeight: 600 }}>
-                  {err}
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={!canNext1 || needAsal}
+                    onClick={() => setS(2)}
+                    style={{ marginTop: 6 }}
+                  >
+                    Lanjut: Domisili &amp; Akun
+                  </button>
                 </div>
               )}
 
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={busy}
-                style={{ width: "100%", padding: "14px", borderRadius: 14, fontWeight: 800, fontSize: 14, marginTop: 6 }}
-              >
-                {busy ? "Mendaftarkan & Menyiapkan Akun…" : "Daftar & Cetak Kartu Anggota"}
-              </button>
+              {/* ── STEP 2: DOMISILI & AKUN LOGIN ── */}
+              {s === 2 && (
+                <div style={{ display: "grid", gap: 14 }}>
+                  <div className="field">
+                    <label>Domisili Tempat Tinggal *</label>
+                    <textarea
+                      rows={2}
+                      value={form.domisiliAnak}
+                      onChange={(e) => setForm({ ...form, domisiliAnak: e.target.value })}
+                      placeholder="Alamat tempat tinggal / kos saat ini"
+                    />
+                  </div>
 
-              <p className="muted" style={{ fontSize: 11, textAlign: "center", margin: 0 }}>
-                Data biodata akan langsung diverifikasi dan akun Anda langsung aktif.
-              </p>
-            </form>
+                  <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={form.isOrtuSama}
+                      onChange={(e) => setForm({ ...form, isOrtuSama: e.target.checked })}
+                      style={{ width: 16, height: 16, accentColor: "var(--primary)" }}
+                    />
+                    Domisili orang tua sama dengan tempat tinggal saya
+                  </label>
+
+                  {!form.isOrtuSama && (
+                    <div className="field">
+                      <label>Domisili Orang Tua *</label>
+                      <textarea
+                        rows={2}
+                        value={form.domisiliOrtu}
+                        onChange={(e) => setForm({ ...form, domisiliOrtu: e.target.value })}
+                        placeholder="Alamat orang tua jika berbeda"
+                      />
+                    </div>
+                  )}
+
+                  <div className="field">
+                    <label>No. WhatsApp Orang Tua</label>
+                    <input
+                      value={form.noTelpOrtu}
+                      onChange={(e) => setForm({ ...form, noTelpOrtu: e.target.value })}
+                      placeholder="0812... (opsional)"
+                    />
+                  </div>
+
+                  {/* Kredensial Akun Login */}
+                  <div style={{
+                    background: "#ffffff",
+                    border: "1px solid var(--line, #e2e8f0)",
+                    borderRadius: 14,
+                    padding: "14px",
+                    display: "grid",
+                    gap: 10,
+                    marginTop: 4,
+                  }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "var(--ink)", textTransform: "uppercase" }}>
+                      Akun &amp; Kata Sandi Login
+                    </div>
+
+                    {/* Google SSO Button Option */}
+                    <div style={{
+                      background: isGoogleLinked ? "#f0fdf4" : "var(--surface-sunken, #f8fafc)",
+                      border: isGoogleLinked ? "1px solid #86efac" : "1px solid var(--line)",
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <GoogleIcon size={16} />
+                        <span style={{ fontSize: 12, fontWeight: 700, color: isGoogleLinked ? "#166534" : "var(--ink)" }}>
+                          {isGoogleLinked ? email : "Kaitkan Akun Google"}
+                        </span>
+                      </div>
+                      {!isGoogleLinked ? (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={handleGoogleConnect}
+                          style={{ fontSize: 11, padding: "4px 8px" }}
+                        >
+                          Pilih Akun Google
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setIsGoogleLinked(false)}
+                          style={{ fontSize: 11, fontWeight: 700, color: "#15803d", background: "#ffffff", border: "1px solid #bbf7d0", padding: "3px 8px", borderRadius: 6, cursor: "pointer" }}
+                        >
+                          Ganti
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="field">
+                      <label>Email Akun Login *</label>
+                      <div style={{ position: "relative" }}>
+                        <input
+                          type="email"
+                          required
+                          value={email}
+                          onChange={(e) => {
+                            setEmail(e.target.value);
+                            setIsGoogleLinked(false);
+                          }}
+                          placeholder="nama@gmail.com"
+                          style={{ paddingLeft: 36, width: "100%" }}
+                        />
+                        <Mail size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: isGoogleLinked ? "#16a34a" : "var(--muted)" }} />
+                      </div>
+                    </div>
+
+                    <div className="form-grid-2">
+                      <div className="field">
+                        <label>Kata Sandi (Min 8) *</label>
+                        <div style={{ position: "relative" }}>
+                          <input
+                            type={showPw ? "text" : "password"}
+                            required
+                            value={pw}
+                            onChange={(e) => setPw(e.target.value)}
+                            placeholder="••••••••"
+                            style={{ paddingLeft: 36, paddingRight: 36, width: "100%" }}
+                          />
+                          <Lock size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--muted)" }} />
+                          <button
+                            type="button"
+                            onClick={() => setShowPw((v) => !v)}
+                            aria-label={showPw ? "Sembunyikan" : "Tampilkan"}
+                            style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", width: 28, height: 28, borderRadius: 6, border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer", color: "var(--muted)" }}
+                          >
+                            {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="field">
+                        <label>Ulangi Sandi *</label>
+                        <div style={{ position: "relative" }}>
+                          <input
+                            type={showPw ? "text" : "password"}
+                            required
+                            value={pw2}
+                            onChange={(e) => setPw2(e.target.value)}
+                            placeholder="••••••••"
+                            style={{ paddingLeft: 36, width: "100%" }}
+                          />
+                          <Lock size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--muted)" }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                    <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setS(1)}>
+                      Kembali
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ flex: 1 }}
+                      disabled={!canNext2}
+                      onClick={() => setS(3)}
+                    >
+                      Lanjut: Ringkasan
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── STEP 3: RINGKASAN & KONFIRMASI ── */}
+              {s === 3 && (
+                <div style={{ display: "grid", gap: 14 }}>
+                  <div className="card" style={{ background: "var(--bg)", border: "1px solid var(--line)", padding: 14, display: "grid", gap: 6 }}>
+                    <div style={{ fontWeight: 800, fontSize: 14, color: "var(--ink)" }}>
+                      {form.nama || "(Nama)"} &bull; {form.pendidikan} &bull; {form.jenisKelamin === "L" ? "Laki-laki" : "Perempuan"}
+                    </div>
+                    <div className="muted" style={{ fontSize: 12 }}>
+                      {form.tempatLahir}, {form.tanggalLahir} &bull; {form.noTelp}
+                    </div>
+                    <div className="muted" style={{ fontSize: 12 }}>
+                      {form.pekerjaan} &bull; {form.kategoriMudaMudi === "perantauan" ? `Perantauan (Asal ${form.asalDaerah})` : "Pribumi"}
+                    </div>
+                    <div className="muted" style={{ fontSize: 12 }}>
+                      Wilayah: {form.desa ? `Desa ${form.desa}` : "Daerah"} {form.kelompok ? `· Kelompok ${form.kelompok}` : ""}
+                    </div>
+                    <div className="muted" style={{ fontSize: 12 }}>
+                      Domisili: {form.domisiliAnak} {form.isOrtuSama ? "(Tinggal bersama ortu)" : `&bull; Ortu: ${form.domisiliOrtu}`}
+                    </div>
+                    <div style={{ borderTop: "1px dashed var(--line)", paddingTop: 6, marginTop: 4, fontSize: 12 }}>
+                      Akun Login: <b>{email}</b>
+                    </div>
+                  </div>
+
+                  {saveErr && (
+                    <div style={{ fontSize: 12, color: "#991b1b", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "8px 10px" }}>
+                      {saveErr}
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                    <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setS(2)}>
+                      Kembali
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ flex: 1 }}
+                      disabled={saving}
+                      onClick={() => void handleRegister()}
+                    >
+                      {saving ? "Menyimpan & Menyiapkan Akun…" : "Simpan & Buat Kartu Anggota"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
