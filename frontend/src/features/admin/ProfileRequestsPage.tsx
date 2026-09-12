@@ -276,20 +276,11 @@ export default function ProfileRequestsPage() {
         <KpiCard icon={<span className="kpi-icon kpi-icon--slate"><IcoShield size={18} /></span>} label="Total (tab)" value={kpi.total} />
       </div>
 
-      <div className="card" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
-        {tabs.map((t) => (
-          <button key={t.key} type="button" className={`chip ${tab === t.key ? "active" : ""}`} onClick={() => setTab(t.key)}>
-            {t.label}
-          </button>
-        ))}
-        <span className="muted" style={{ marginLeft: "auto", fontSize: 11 }}>{filtered.length} entri</span>
-      </div>
-
       <div className="admin-toolbar">
         <SearchInput value={q} onChange={setQ} placeholder="Cari nama / NIK / alasan / payload..." />
         <button
           type="button"
-          className={`btn ${showFilterModal || sectionFilter !== "all" ? "btn-primary has-active" : "btn-ghost"} toolbar-icon-btn`}
+          className={`btn ${showFilterModal || sectionFilter !== "all" || tab !== "pending" ? "btn-primary has-active" : "btn-ghost"} toolbar-icon-btn`}
           aria-expanded={showFilterModal}
           aria-haspopup="dialog"
           aria-label="Filter pengajuan profil"
@@ -297,7 +288,11 @@ export default function ProfileRequestsPage() {
           onClick={() => setShowFilterModal((s) => !s)}
         >
           <IcoFilter size={18} />
-          {sectionFilter !== "all" && <span className="filter-count">1</span>}
+          {((sectionFilter !== "all" ? 1 : 0) + (tab !== "pending" ? 1 : 0)) > 0 && (
+            <span className="filter-count">
+              {(sectionFilter !== "all" ? 1 : 0) + (tab !== "pending" ? 1 : 0)}
+            </span>
+          )}
         </button>
       </div>
 
