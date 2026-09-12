@@ -9,7 +9,7 @@
     "build": "npm run build --prefix frontend",
     "build:frontend": "npm run build --prefix frontend",
     "deploy": "npm run build --prefix frontend && wrangler deploy",
-    "lint": "oxlint --config frontend/.oxlintrc.json",
+    "lint": "npm run lint --prefix frontend",
     "db:push": "drizzle-kit push",
     "db:seed": "node --import tsx/esm server/seed.ts",
     "db:seed:remote": "node --import tsx/esm server/seed.ts --remote",
