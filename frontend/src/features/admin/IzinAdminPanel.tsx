@@ -210,14 +210,14 @@ export default function IzinAdminPanel() {
         </label>
         <button
           type="button"
-          className={`btn btn-sm ${activeFilterCount > 0 ? "btn-primary" : "btn-ghost"}`}
-          style={{ width: "auto", minHeight: 34, padding: "6px 12px", fontSize: 12, borderRadius: 10, fontWeight: 700 }}
+          className={`btn ${activeFilterCount > 0 ? "btn-primary has-active" : "btn-ghost"} toolbar-icon-btn`}
+          aria-label="Filter ajuan izin"
+          title="Filter"
           onClick={() => setFilterOpen(true)}
         >
-          <IcoFilter size={13} />
-          Filter
+          <IcoFilter size={18} />
           {activeFilterCount > 0 && (
-            <span style={{ marginLeft: 4, fontSize: 10, background: activeFilterCount > 0 ? "#fff" : "var(--primary)", color: activeFilterCount > 0 ? "var(--primary)" : "#fff", borderRadius: 99, padding: "0 6px", fontWeight: 800 }}>
+            <span className="filter-count">
               {activeFilterCount}
             </span>
           )}

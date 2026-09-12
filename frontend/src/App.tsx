@@ -3577,14 +3577,31 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
       {kegiatanErr && <div className="card" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#991b1b", display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}><span style={{ fontSize: 13, fontWeight: 700 }}>{kegiatanErr}</span><button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: "auto" }} onClick={() => void loadKegiatan()}>Retry</button></div>}
       <div className="admin-toolbar" style={{ marginBottom: 16 }}>
         <SearchInput value={q} onChange={setQ} placeholder="Cari judul / lokasi..." />
-        <div style={{ display: "flex", gap: 6 }}>
-          <button className="btn btn-ghost btn-sm btn-auto" onClick={() => setShowCalendar(true)} title="Kalender Kegiatan">
-            <IcoCalendar size={14} /> Kalender
-          </button>
-          <button className={`btn ${showFilter ? "btn-primary" : "btn-ghost"} btn-sm btn-auto`} aria-expanded={showFilter} aria-haspopup="dialog" onClick={() => setShowFilter((s) => !s)}>
-            Filter {adaFilterAktif && <span className="filter-count">{(dateFrom ? 1 : 0) + (dateTo ? 1 : 0) + (waktuFilter !== "semua" ? 1 : 0) + (wilayahFilter !== "semua" ? 1 : 0) + (kategoriFilter !== "semua" ? 1 : 0)}</span>}
-          </button>
-        </div>
+        <button
+          type="button"
+          className={`btn ${showCalendar ? "btn-primary has-active" : "btn-ghost"} toolbar-icon-btn`}
+          onClick={() => setShowCalendar(true)}
+          title="Kalender Kegiatan"
+          aria-label="Kalender Kegiatan"
+        >
+          <IcoCalendar size={18} />
+        </button>
+        <button
+          type="button"
+          className={`btn ${showFilter ? "btn-primary has-active" : "btn-ghost"} toolbar-icon-btn`}
+          aria-expanded={showFilter}
+          aria-haspopup="dialog"
+          aria-label="Filter kegiatan"
+          title="Filter"
+          onClick={() => setShowFilter((s) => !s)}
+        >
+          <IcoFilter size={18} />
+          {adaFilterAktif && (
+            <span className="filter-count">
+              {(dateFrom ? 1 : 0) + (dateTo ? 1 : 0) + (waktuFilter !== "semua" ? 1 : 0) + (wilayahFilter !== "semua" ? 1 : 0) + (kategoriFilter !== "semua" ? 1 : 0)}
+            </span>
+          )}
+        </button>
       </div>
 
       {showFilter && (
