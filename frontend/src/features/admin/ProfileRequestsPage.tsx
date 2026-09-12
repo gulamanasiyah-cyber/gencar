@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check as IcoCheck, X as IcoX, Clock3 as IcoClock, Search as IcoSearch, AlertCircle as IcoAlert, ExternalLink as IcoLink, ShieldCheck as IcoShield, User as IcoUser, SlidersHorizontal as IcoFilter } from "lucide-react";
+import { Check as IcoCheck, X as IcoX, Clock3 as IcoClock, Search as IcoSearch, AlertCircle as IcoAlert, ExternalLink as IcoLink, ShieldCheck as IcoShield, User as IcoUser, Filter as IcoFilter } from "lucide-react";
 import KpiCard from "../../components/admin/KpiCard";
 import SearchInput from "../../components/admin/SearchInput";
 import Modal from "../../components/admin/Modal";

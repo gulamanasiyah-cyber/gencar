@@ -24,7 +24,7 @@ import {
   UnfoldVertical as IcoUnfold,
   FileText as IcoFileText,
   FileCheck as IcoFileCheck,
-  SlidersHorizontal as IcoFilter,
+  Filter as IcoFilter,
   Eye as IcoEye,
   List as IcoList,
   LayoutGrid as IcoGrid,
