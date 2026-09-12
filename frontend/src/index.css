@@ -1481,6 +1481,52 @@ table.admin-table tr:hover td {
   align-content: start;
 }
 
+/* Compact user card: 1 baris — avatar | info + pills | aksi */
+.user-card--compact {
+  gap: 0;
+  padding: 12px 14px;
+}
+
+.user-card--compact .user-card-head {
+  gap: 10px;
+}
+
+.user-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.user-card-name-row .member-card-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-card-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  min-width: 0;
+}
+
+.user-card-wilayah {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.user-card-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 /* Info rows: label + value */
 .member-card-info {
   display: grid;

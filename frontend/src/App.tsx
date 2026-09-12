@@ -4365,26 +4365,23 @@ function UsersManage({ role }: { role: AdminRole }) {
       {isMobile ? (
         <div className="cards-grid">
           {filteredUsers.map((u) => (
-            <div key={u.id} className="card user-card">
+            <div key={u.id} className="card user-card user-card--compact">
               <div className="user-card-head">
                 <div className="avatar">{u.nama.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("") || "A"}</div>
                 <div className="member-card-head-info">
-                  <div className="member-card-name">{u.nama}</div>
-                  <div className="muted">{u.wilayah}</div>
+                  <div className="user-card-name-row">
+                    <span className="member-card-name">{u.nama}</span>
+                    <span className={`pill ${u.status === "aktif" ? "pill-emerald" : "pill-amber"}`} style={{ fontSize: 9, padding: "2px 7px" }}>{u.status}</span>
+                  </div>
+                  <div className="user-card-meta-row">
+                    <span className="pill pill-slate" style={{ fontSize: 10, padding: "2px 7px" }}>{u.role}</span>
+                    {u.wilayah && u.wilayah !== "—" && <span className="user-card-wilayah">{u.wilayah}</span>}
+                  </div>
                 </div>
-                <span className={`pill ${u.status === "aktif" ? "pill-emerald" : "pill-amber"}`}>{u.status}</span>
-              </div>
-
-              <div className="member-card-info">
-                <div className="member-info-row">
-                  <span className="detail-label">Role</span>
-                  <span className="member-info-value">{u.role}</span>
+                <div className="user-card-actions">
+                  <button className="btn btn-ghost row-icon-btn" aria-label="Edit" title="Edit" disabled={!canManage(u.role, u.desaId, u.kelompokId)} onClick={() => setEditingUser(u)}><IcoEdit size={16} /></button>
+                  <button className="btn btn-danger row-icon-btn" aria-label="Hapus" title="Hapus" disabled={!canManage(u.role, u.desaId, u.kelompokId)} onClick={() => setDeletingUser({ id: u.id, nama: u.nama })}><IcoTrash size={16} /></button>
                 </div>
-              </div>
-
-              <div className="member-card-actions">
-                <button className="btn btn-ghost row-icon-btn" aria-label="Edit" title="Edit" disabled={!canManage(u.role, u.desaId, u.kelompokId)} onClick={() => setEditingUser(u)}><IcoEdit size={16} /></button>
-                <button className="btn btn-danger row-icon-btn" aria-label="Hapus" title="Hapus" disabled={!canManage(u.role, u.desaId, u.kelompokId)} onClick={() => setDeletingUser({ id: u.id, nama: u.nama })}><IcoTrash size={16} /></button>
               </div>
             </div>
           ))}
