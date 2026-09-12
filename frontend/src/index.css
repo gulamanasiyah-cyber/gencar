@@ -1077,11 +1077,20 @@ a {
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(27, 15, 10, 0.04);
+  transition: all var(--transition);
+}
+.toolbar-icon-btn:hover {
+  background: var(--bg);
+  border-color: rgba(208, 56, 4, 0.3);
 }
 .toolbar-icon-btn.has-active {
-  background: var(--ink);
+  background: var(--primary);
   color: #fff;
-  border-color: var(--ink);
+  border-color: var(--primary);
   position: relative;
 }
 .toolbar-icon-btn .filter-count {
@@ -1093,8 +1102,14 @@ a {
   height: 16px;
   padding: 0 4px;
   font-size: 9px;
+  background: #ef4444;
+  color: #fff;
+  border-radius: 999px;
   border: 2px solid #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  font-weight: 800;
+  display: grid;
+  place-items: center;
 }
 .row-icon-btn {
   width: 36px;
@@ -2543,14 +2558,25 @@ table.admin-table tr:hover td {
 
 @media (max-width: 640px) {
   .admin-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
   }
 
   .search {
-    max-width: none;
+    flex: 1 1 0;
     min-width: 0;
+    max-width: none;
+  }
+
+  .toolbar-icon-btn,
+  .btn.toolbar-icon-btn {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    padding: 0 !important;
+    flex-shrink: 0;
   }
 
   /* iOS Safari input zoom guard: form controls stay at 16px+ */
@@ -2574,8 +2600,14 @@ table.admin-table tr:hover td {
     flex: 1;
   }
 
-  .btn {
+  .btn:not(.toolbar-icon-btn):not(.row-icon-btn):not(.btn-auto) {
     width: 100%;
+  }
+
+  .btn-auto,
+  .btn-primary.btn-auto,
+  .btn.btn-auto {
+    width: auto;
   }
 
   .btn-primary {
