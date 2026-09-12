@@ -519,10 +519,6 @@ export default function RegisterPage() {
       {/* ── Form Pane (Right) ── */}
       <div className="auth-form-pane" style={{ overflowY: "auto" }}>
         <div className="auth-form-inner" style={{ maxWidth: 520, padding: "32px 16px 64px" }}>
-          <Link to="/login" className="auth-back-link no-print" style={{ marginBottom: 16 }}>
-            ← Kembali ke login
-          </Link>
-
           <div style={{ display: "flex", gap: 8, alignItems: "center", color: "var(--primary, #d03804)", fontWeight: 800, fontSize: 12, letterSpacing: "0.06em", textTransform: "uppercase" }}>
             <ShieldCheck size={14} /> Formulir Pendaftaran Anggota
           </div>

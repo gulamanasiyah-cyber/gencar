@@ -400,10 +400,6 @@ export default function AktivasiPage() {
       {/* ── Form Pane (Right) ── */}
       <div className="auth-form-pane">
         <div className="auth-form-inner" style={{ maxWidth: 460 }}>
-          <Link to="/login" className="auth-back-link no-print" style={{ marginBottom: 16 }}>
-            ← Kembali ke login
-          </Link>
-
           <div style={{ display: "flex", gap: 8, alignItems: "center", color: "var(--primary, #d03804)", fontWeight: 800, fontSize: 12, letterSpacing: "0.06em", textTransform: "uppercase" }}>
             <ShieldCheck size={14} /> Aktivasi Akses Login
           </div>
