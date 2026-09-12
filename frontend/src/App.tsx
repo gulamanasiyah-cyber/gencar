@@ -35,6 +35,7 @@ import {
   LogOut as IcoLogOut,
 } from "lucide-react";
 import MapPickerModal from "./components/MapPickerModal";
+import Kalender from "./components/Kalender";
 import AdminModal from "./components/admin/Modal";
 import KpiCard from "./components/admin/KpiCard";
 import PageHeader from "./components/admin/PageHeader";
@@ -3627,11 +3628,20 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
       {showFilter && (
         <AdminModal title="Filter Kegiatan" onClose={() => setShowFilter(false)} className="filter-modal">
           <div className="filter-groups">
-            <div className="filter-group">
-              <span className="filter-label">Tanggal</span>
-              <input type="date" className="filter-input" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} aria-label="Dari tanggal" />
-              <span className="filter-sep">s/d</span>
-              <input type="date" className="filter-input" value={dateTo} onChange={(e) => setDateTo(e.target.value)} aria-label="Sampai tanggal" />
+            <div className="filter-group" style={{ display: "grid", gap: 8, alignItems: "stretch" }}>
+              <span className="filter-label">Rentang Tanggal</span>
+              <div style={{ width: "100%", maxWidth: 380, margin: "0 auto" }}>
+                <Kalender
+                  mode="range"
+                  startDate={dateFrom || null}
+                  endDate={dateTo || null}
+                  onChangeRange={(start, end) => {
+                    setDateFrom(start ?? "");
+                    setDateTo(end ?? "");
+                  }}
+                  presets
+                />
+              </div>
             </div>
             <div className="filter-group">
               <span className="filter-label">Waktu</span>
