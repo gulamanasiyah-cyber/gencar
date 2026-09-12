@@ -9,6 +9,7 @@ import { QRCodeCanvas } from "qrcode.react";
 import { toPng } from "html-to-image";
 import { GoogleIcon } from "../../components/GoogleIcon";
 import { requestGoogleAuth } from "../../lib/googleAuth";
+import { Select } from "../../components/Select";
 import { MOSQUE_PATH, MOSQUE_VIEWBOX } from "../public/mosquePath";
 
 type InviteScope = {
@@ -548,29 +549,29 @@ export default function RegisterPage() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <div className="field">
                     <label style={{ fontSize: 12, fontWeight: 800 }}>Jenis Kelamin *</label>
-                    <select
+                    <Select
                       value={jenisKelamin}
-                      onChange={(e) => setJenisKelamin(e.target.value as "L" | "P")}
-                      style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid var(--line)", background: "#fff", width: "100%", fontSize: 13, fontWeight: 700 }}
-                    >
-                      <option value="L">Laki-laki (Muda)</option>
-                      <option value="P">Perempuan (Mudi)</option>
-                    </select>
+                      onChange={(v) => setJenisKelamin(v as "L" | "P")}
+                      options={[
+                        { value: "L", label: "Laki-laki (Muda)" },
+                        { value: "P", label: "Perempuan (Mudi)" },
+                      ]}
+                    />
                   </div>
 
                   <div className="field">
                     <label style={{ fontSize: 12, fontWeight: 800 }}>Kategori Usia *</label>
-                    <select
+                    <Select
                       value={kategoriUsia}
-                      onChange={(e) => setKategoriUsia(e.target.value)}
-                      style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid var(--line)", background: "#fff", width: "100%", fontSize: 13, fontWeight: 700 }}
-                    >
-                      <option value="Mandiri">Usia Mandiri</option>
-                      <option value="Remaja">Remaja (SMA/SMK)</option>
-                      <option value="Pra-remaja">Pra-Remaja (SMP)</option>
-                      <option value="Kuliah">Kuliah</option>
-                      <option value="Bekerja">Bekerja</option>
-                    </select>
+                      onChange={(v) => setKategoriUsia(v)}
+                      options={[
+                        { value: "Mandiri", label: "Usia Mandiri" },
+                        { value: "Remaja", label: "Remaja (SMA/SMK)" },
+                        { value: "Pra-remaja", label: "Pra-Remaja (SMP)" },
+                        { value: "Kuliah", label: "Kuliah" },
+                        { value: "Bekerja", label: "Bekerja" },
+                      ]}
+                    />
                   </div>
                 </div>
 
@@ -730,29 +731,29 @@ export default function RegisterPage() {
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     <div className="field">
                       <label style={{ fontSize: 12, fontWeight: 800 }}>Pilih Desa</label>
-                      <select
-                        value={pickedDesaId}
-                        onChange={(e) => setPickedDesaId(e.target.value ? Number(e.target.value) : "")}
-                        style={{ padding: "10px", borderRadius: 10, border: "1.5px solid var(--line)", background: "#fff", width: "100%", fontSize: 13 }}
-                      >
-                        <option value="">Pilih Desa...</option>
-                        {desaOpts.map((d) => (
-                          <option key={d.id} value={d.id}>{d.nama}</option>
-                        ))}
-                      </select>
+                      <Select
+                        value={String(pickedDesaId)}
+                        onChange={(v) => {
+                          const num = v ? Number(v) : "";
+                          setPickedDesaId(num);
+                          setPickedKelompokId("");
+                        }}
+                        options={[
+                          { value: "", label: "Pilih Desa..." },
+                          ...desaOpts.map((d) => ({ value: String(d.id), label: d.nama })),
+                        ]}
+                      />
                     </div>
                     <div className="field">
                       <label style={{ fontSize: 12, fontWeight: 800 }}>Pilih Kelompok</label>
-                      <select
-                        value={pickedKelompokId}
-                        onChange={(e) => setPickedKelompokId(e.target.value ? Number(e.target.value) : "")}
-                        style={{ padding: "10px", borderRadius: 10, border: "1.5px solid var(--line)", background: "#fff", width: "100%", fontSize: 13 }}
-                      >
-                        <option value="">Pilih Kelompok...</option>
-                        {kelompokOpts.filter((k) => !pickedDesaId || k.desaId === Number(pickedDesaId)).map((k) => (
-                          <option key={k.id} value={k.id}>{k.nama}</option>
-                        ))}
-                      </select>
+                      <Select
+                        value={String(pickedKelompokId)}
+                        onChange={(v) => setPickedKelompokId(v ? Number(v) : "")}
+                        options={[
+                          { value: "", label: "Pilih Kelompok..." },
+                          ...kelompokOpts.filter((k) => !pickedDesaId || k.desaId === Number(pickedDesaId)).map((k) => ({ value: String(k.id), label: k.nama })),
+                        ]}
+                      />
                     </div>
                   </div>
                 )}
@@ -761,16 +762,14 @@ export default function RegisterPage() {
                 {inviteScope.scopeRole === "admin_desa" && !inviteScope.kelompokId && (
                   <div className="field">
                     <label style={{ fontSize: 12, fontWeight: 800 }}>Pilih Kelompok</label>
-                    <select
-                      value={pickedKelompokId}
-                      onChange={(e) => setPickedKelompokId(e.target.value ? Number(e.target.value) : "")}
-                      style={{ padding: "10px", borderRadius: 10, border: "1.5px solid var(--line)", background: "#fff", width: "100%", fontSize: 13 }}
-                    >
-                      <option value="">Pilih Kelompok di desa ini...</option>
-                      {kelompokOpts.filter((k) => !inviteScope.desaId || k.desaId === Number(inviteScope.desaId)).map((k) => (
-                        <option key={k.id} value={k.id}>{k.nama}</option>
-                      ))}
-                    </select>
+                    <Select
+                      value={String(pickedKelompokId)}
+                      onChange={(v) => setPickedKelompokId(v ? Number(v) : "")}
+                      options={[
+                        { value: "", label: "Pilih Kelompok di desa ini..." },
+                        ...kelompokOpts.filter((k) => !inviteScope.desaId || k.desaId === Number(inviteScope.desaId)).map((k) => ({ value: String(k.id), label: k.nama })),
+                      ]}
+                    />
                   </div>
                 )}
               </div>
@@ -784,20 +783,20 @@ export default function RegisterPage() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <div className="field">
                     <label style={{ fontSize: 12, fontWeight: 800 }}>Pendidikan Terakhir</label>
-                    <select
+                    <Select
                       value={pendidikan}
-                      onChange={(e) => setPendidikan(e.target.value)}
-                      style={{ padding: "10px", borderRadius: 10, border: "1.5px solid var(--line)", background: "#fff", width: "100%", fontSize: 13 }}
-                    >
-                      <option value="SD">SD</option>
-                      <option value="SMP">SMP</option>
-                      <option value="SMA">SMA</option>
-                      <option value="SMK">SMK</option>
-                      <option value="D3">D3</option>
-                      <option value="S1">S1</option>
-                      <option value="S2">S2</option>
-                      <option value="Belum Sekolah">Lainnya</option>
-                    </select>
+                      onChange={(v) => setPendidikan(v)}
+                      options={[
+                        { value: "SD", label: "SD" },
+                        { value: "SMP", label: "SMP" },
+                        { value: "SMA", label: "SMA" },
+                        { value: "SMK", label: "SMK" },
+                        { value: "D3", label: "D3" },
+                        { value: "S1", label: "S1" },
+                        { value: "S2", label: "S2" },
+                        { value: "Belum Sekolah", label: "Lainnya" },
+                      ]}
+                    />
                   </div>
 
                   <div className="field">

@@ -2508,34 +2508,29 @@ function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div className="field">
                   <label style={{ fontSize: 11, fontWeight: 800 }}>Target Desa (Opsional)</label>
-                  <select
-                    value={desaId}
-                    onChange={(e) => {
-                      const v = e.target.value ? Number(e.target.value) : "";
-                      setDesaId(v);
+                  <Select
+                    value={String(desaId)}
+                    onChange={(v) => {
+                      const num = v ? Number(v) : "";
+                      setDesaId(num);
                       setKelompokId("");
                     }}
-                    style={{ padding: "8px 10px", borderRadius: 10, border: "1.5px solid var(--line)", background: "#fff", width: "100%", fontSize: 13 }}
-                  >
-                    <option value="">Semua Desa (Bebas Pilih)</option>
-                    {desaOpts.map((d) => (
-                      <option key={d.id} value={d.id}>{d.nama}</option>
-                    ))}
-                  </select>
+                    options={[
+                      { value: "", label: "Semua Desa (Bebas Pilih)" },
+                      ...desaOpts.map((d) => ({ value: String(d.id), label: d.nama })),
+                    ]}
+                  />
                 </div>
                 <div className="field">
                   <label style={{ fontSize: 11, fontWeight: 800 }}>Target Kelompok</label>
-                  <select
-                    value={kelompokId}
-                    disabled={!desaId}
-                    onChange={(e) => setKelompokId(e.target.value ? Number(e.target.value) : "")}
-                    style={{ padding: "8px 10px", borderRadius: 10, border: "1.5px solid var(--line)", background: "#fff", width: "100%", fontSize: 13 }}
-                  >
-                    <option value="">Semua Kelompok</option>
-                    {kelompokOpts.filter((k) => k.desaId === Number(desaId)).map((k) => (
-                      <option key={k.id} value={k.id}>{k.nama}</option>
-                    ))}
-                  </select>
+                  <Select
+                    value={String(kelompokId)}
+                    onChange={(v) => setKelompokId(v ? Number(v) : "")}
+                    options={[
+                      { value: "", label: "Semua Kelompok" },
+                      ...kelompokOpts.filter((k) => !desaId || k.desaId === Number(desaId)).map((k) => ({ value: String(k.id), label: k.nama })),
+                    ]}
+                  />
                 </div>
               </div>
             )}
@@ -2544,37 +2539,35 @@ function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }
             {role === "admin_desa" && (
               <div className="field">
                 <label style={{ fontSize: 11, fontWeight: 800 }}>Target Kelompok (Opsional)</label>
-                <select
-                  value={kelompokId}
-                  onChange={(e) => setKelompokId(e.target.value ? Number(e.target.value) : "")}
-                  style={{ padding: "8px 10px", borderRadius: 10, border: "1.5px solid var(--line)", background: "#fff", width: "100%", fontSize: 13 }}
-                >
-                  <option value="">Semua Kelompok di Desa Ini</option>
-                  {kelompokOpts.filter((k) => !user?.desaId || k.desaId === user.desaId).map((k) => (
-                    <option key={k.id} value={k.id}>{k.nama}</option>
-                  ))}
-                </select>
+                <Select
+                  value={String(kelompokId)}
+                  onChange={(v) => setKelompokId(v ? Number(v) : "")}
+                  options={[
+                    { value: "", label: "Semua Kelompok di Desa Ini" },
+                    ...kelompokOpts.filter((k) => !user?.desaId || k.desaId === user.desaId).map((k) => ({ value: String(k.id), label: k.nama })),
+                  ]}
+                />
               </div>
             )}
 
             {/* PENGATURAN DURASI (Lama Bertahannya Link) */}
             <div className="field">
               <label style={{ fontSize: 12, fontWeight: 800 }}>Lama Masa Aktif Link (Durasi) *</label>
-              <select
+              <Select
                 value={durationPreset}
-                onChange={(e) => setDurationPreset(e.target.value)}
-                style={{ padding: "10px 12px", borderRadius: 10, border: "1.5px solid var(--line)", background: "#fff", width: "100%", fontSize: 13, fontWeight: 700 }}
-              >
-                <option value="15">15 Menit</option>
-                <option value="60">1 Jam (60 Menit)</option>
-                <option value="360">6 Jam</option>
-                <option value="1440">1 Hari (24 Jam)</option>
-                <option value="4320">3 Hari</option>
-                <option value="10080">7 Hari (1 Minggu) — Standar</option>
-                <option value="43200">30 Hari (1 Bulan)</option>
-                <option value="0">Tanpa Batas Waktu (Permanen sampai dicabut)</option>
-                <option value="custom">Atur Manual (Kustom)...</option>
-              </select>
+                onChange={(v) => setDurationPreset(v)}
+                options={[
+                  { value: "15", label: "15 Menit" },
+                  { value: "60", label: "1 Jam (60 Menit)" },
+                  { value: "360", label: "6 Jam" },
+                  { value: "1440", label: "1 Hari (24 Jam)" },
+                  { value: "4320", label: "3 Hari" },
+                  { value: "10080", label: "7 Hari (1 Minggu) — Standar" },
+                  { value: "43200", label: "30 Hari (1 Bulan)" },
+                  { value: "0", label: "Tanpa Batas Waktu (Permanen sampai dicabut)" },
+                  { value: "custom", label: "Atur Manual (Kustom)..." },
+                ]}
+              />
             </div>
 
             {/* Custom duration fields */}
@@ -2592,15 +2585,15 @@ function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }
                 </div>
                 <div className="field">
                   <label style={{ fontSize: 11, fontWeight: 800 }}>Satuan</label>
-                  <select
+                  <Select
                     value={customUnit}
-                    onChange={(e) => setCustomUnit(e.target.value as any)}
-                    style={{ padding: "9px 10px", borderRadius: 10, border: "1.5px solid var(--line)", background: "#fff", width: "100%", fontSize: 13 }}
-                  >
-                    <option value="minutes">Menit</option>
-                    <option value="hours">Jam</option>
-                    <option value="days">Hari</option>
-                  </select>
+                    onChange={(v) => setCustomUnit(v as any)}
+                    options={[
+                      { value: "minutes", label: "Menit" },
+                      { value: "hours", label: "Jam" },
+                      { value: "days", label: "Hari" },
+                    ]}
+                  />
                 </div>
               </div>
             )}
