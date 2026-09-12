@@ -153,11 +153,11 @@ export default function TentangTab() {
           </p>
         </div>
         <div className="cms-tentang-actions">
-          <a href="/tentang" target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm btn-auto">
-            <ExternalLink size={14} /> <span className="hide-mobile">Web</span> Publik
+          <a href="/tentang" target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm btn-auto cms-action-btn" aria-label="Buka web publik" title="Web Publik">
+            <ExternalLink size={16} /> <span className="hide-mobile">Web Publik</span>
           </a>
-          <button type="button" className="btn btn-primary btn-sm btn-auto" disabled={saving} onClick={save}>
-            <Save size={14} /> {saving ? "Menyimpan..." : "Simpan"}
+          <button type="button" className="btn btn-primary btn-sm btn-auto cms-action-btn" disabled={saving} onClick={save} aria-label="Simpan perubahan" title="Simpan">
+            <Save size={16} /> <span className="hide-mobile">{saving ? "Menyimpan..." : "Simpan"}</span>
           </button>
         </div>
       </div>

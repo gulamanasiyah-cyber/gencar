@@ -270,7 +270,7 @@ function ArtikelEditorPage({
       {/* Top Header */}
       <div className="cms-tentang-header">
         <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
-          <button type="button" className="btn btn-ghost btn-sm btn-auto" onClick={onBack} aria-label="Kembali" style={{ padding: "8px 10px", flexShrink: 0 }}>
+          <button type="button" className="btn btn-ghost btn-sm btn-auto cms-action-btn" onClick={onBack} aria-label="Kembali" title="Kembali">
             <ArrowLeft size={16} /> <span className="hide-mobile">Kembali</span>
           </button>
           <div style={{ minWidth: 0 }}>
@@ -281,8 +281,8 @@ function ArtikelEditorPage({
           </div>
         </div>
         <div className="cms-tentang-actions">
-          <button type="button" className="btn btn-primary btn-sm btn-auto" disabled={!valid || saving} onClick={handleSave} style={{ whiteSpace: "nowrap" }}>
-            <Save size={14} /> {saving ? "Menyimpan..." : role === "admin_daerah" ? "Simpan" : "Kirim Review"}
+          <button type="button" className="btn btn-primary btn-sm btn-auto cms-action-btn" disabled={!valid || saving} onClick={handleSave} aria-label="Simpan" title="Simpan">
+            <Save size={16} /> <span className="hide-mobile">{saving ? "Menyimpan..." : role === "admin_daerah" ? "Simpan" : "Kirim Review"}</span>
           </button>
         </div>
       </div>

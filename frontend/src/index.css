@@ -2614,6 +2614,16 @@ table.admin-table tr:hover td {
     width: auto;
   }
 
+  /* Tombol aksi editor CMS: icon-only persegi di mobile */
+  .btn.cms-action-btn {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    padding: 0 !important;
+    flex-shrink: 0;
+    justify-content: center;
+  }
+
   .btn-primary {
     width: auto;
   }
