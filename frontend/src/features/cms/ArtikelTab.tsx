@@ -116,16 +116,15 @@ export default function ArtikelTab({ tipe = "artikel", role, userId }: { tipe?: 
 
   return (
     <div>
-      <div className="admin-toolbar">
+      <div className="admin-toolbar" style={{ marginBottom: 12 }}>
         <SearchInput value={q} onChange={setQ} placeholder={`Cari ${tipe}...`} />
-        <button type="button" className="btn btn-primary btn-sm btn-auto" onClick={openCreate}>
-          <Plus size={16} /> Buat {tipe === "berita" ? "Berita" : "Artikel"}
+        <button type="button" className="btn btn-primary btn-sm btn-auto" onClick={openCreate} style={{ whiteSpace: "nowrap" }}>
+          <Plus size={16} /> Buat <span className="hide-mobile">{tipe === "berita" ? "Berita" : "Artikel"}</span>
         </button>
-        <span className="pill pill-slate">{rows.length}</span>
       </div>
 
-      <p className="muted" style={{ marginBottom: 14 }}>
-        Kelola {tipe === "berita" ? "Berita" : "Artikel"} publik &mdash; otomatis tampil di halaman <code>/{tipe}</code>. Klik buat untuk masuk ke halaman editor &amp; live preview.
+      <p className="muted hide-mobile" style={{ marginBottom: 14 }}>
+        Kelola {tipe === "berita" ? "Berita" : "Artikel"} publik &mdash; otomatis tampil di halaman <code>/{tipe}</code>.
       </p>
 
       <div style={{ display: "grid", gap: 10 }}>

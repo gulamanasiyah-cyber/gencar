@@ -57,11 +57,12 @@ export default function PengurusTab() {
 
   return (
     <div>
-      <div className="admin-toolbar">
+      <div className="admin-toolbar" style={{ marginBottom: 12 }}>
         <SearchInput value={q} onChange={setQ} placeholder="Cari nama / dapukan..." />
-        <button className="btn btn-primary btn-sm btn-auto" onClick={openCreate}>+ Tambah Pengurus</button>
-        <a href="/pengurus" target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm btn-auto">Lihat publik →</a>
-        <span className="pill pill-slate">{rows.length} pengurus</span>
+        <button className="btn btn-primary btn-sm btn-auto" onClick={openCreate} style={{ whiteSpace: "nowrap" }}>
+          + Tambah <span className="hide-mobile">Pengurus</span>
+        </button>
+        <a href="/pengurus" target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm btn-auto hide-mobile">Lihat publik →</a>
       </div>
 
       <div className="card" style={{ marginTop: 16 }}>

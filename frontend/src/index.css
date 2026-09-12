@@ -2579,6 +2579,10 @@ table.admin-table tr:hover td {
     flex-shrink: 0;
   }
 
+  .hide-mobile {
+    display: none !important;
+  }
+
   /* iOS Safari input zoom guard: form controls stay at 16px+ */
   .field input,
   .field select,

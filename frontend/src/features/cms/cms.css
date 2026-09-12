@@ -1,10 +1,20 @@
 .cms-tabs {
   display: flex;
   gap: 6px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  margin-bottom: 14px;
   border-bottom: 1px solid var(--line);
-  padding-bottom: 10px;
+  padding-bottom: 8px;
+}
+.cms-tabs::-webkit-scrollbar {
+  display: none;
+}
+.cms-tabs .chip {
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .cms-tabs .chip.is-active {
   background: var(--ink);

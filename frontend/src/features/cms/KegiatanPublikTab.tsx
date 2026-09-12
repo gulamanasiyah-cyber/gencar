@@ -93,8 +93,8 @@ export default function KegiatanPublikTab({ role, userId }: { role: AdminRole; u
 
   return (
     <div>
-      <div className="admin-toolbar">
-        <SearchInput value={q} onChange={setQ} placeholder="Cari judul publik..." />
+      <div className="admin-toolbar" style={{ marginBottom: 12 }}>
+        <SearchInput value={q} onChange={setQ} placeholder="Cari judul..." />
         <button
           type="button"
           className="btn btn-primary btn-sm btn-auto"
@@ -102,14 +102,14 @@ export default function KegiatanPublikTab({ role, userId }: { role: AdminRole; u
             setEditing(null);
             setViewMode("editor");
           }}
+          style={{ whiteSpace: "nowrap" }}
         >
-          <Plus size={16} /> Buat Kegiatan Publik
+          <Plus size={16} /> Buat <span className="hide-mobile">Kegiatan</span>
         </button>
-        <span className="pill pill-slate">{rows.length}</span>
       </div>
 
-      <p className="muted" style={{ marginBottom: 14 }}>
-        Kegiatan publik = etalase web (berbeda dengan Kegiatan internal absensi/GPS). Tampil di <code>/kegiatan</code>. Klik buat untuk masuk ke halaman editor &amp; live preview.
+      <p className="muted hide-mobile" style={{ marginBottom: 14 }}>
+        Kegiatan publik = etalase web (berbeda dengan Kegiatan internal absensi/GPS). Tampil di <code>/kegiatan</code>.
       </p>
 
       <div className="cms-card-grid">

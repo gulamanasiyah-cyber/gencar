@@ -80,15 +80,14 @@ export default function GaleriTab({ role, userId }: { role: AdminRole; userId?: 
 
   return (
     <div>
-      <div className="admin-toolbar">
-        <SearchInput value={q} onChange={setQ} placeholder="Cari judul / kategori / lokasi..." />
-        <button type="button" className="btn btn-primary btn-sm btn-auto" onClick={openCreate}>
-          <Plus size={16} /> Tambah Foto Galeri
+      <div className="admin-toolbar" style={{ marginBottom: 12 }}>
+        <SearchInput value={q} onChange={setQ} placeholder="Cari foto..." />
+        <button type="button" className="btn btn-primary btn-sm btn-auto" onClick={openCreate} style={{ whiteSpace: "nowrap" }}>
+          <Plus size={16} /> Tambah <span className="hide-mobile">Foto</span>
         </button>
-        <span className="pill pill-slate">{items.length}</span>
       </div>
 
-      <p className="muted" style={{ marginBottom: 14 }}>
+      <p className="muted hide-mobile" style={{ marginBottom: 14 }}>
         Galeri foto &amp; reel publik &mdash; 1 item = 1 foto langsung tanpa cover terpisah. Tampil interaktif di meja Polaroid <code>/galeri</code>.
       </p>
 
