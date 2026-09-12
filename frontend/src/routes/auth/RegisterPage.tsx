@@ -633,11 +633,8 @@ export default function RegisterPage() {
                           { value: "SD", label: "SD" },
                           { value: "SMP", label: "SMP" },
                           { value: "SMA", label: "SMA" },
-                          { value: "SMK", label: "SMK" },
-                          { value: "D3", label: "D3" },
-                          { value: "S1", label: "S1" },
-                          { value: "S2", label: "S2" },
-                          { value: "Belum Sekolah", label: "Lainnya" },
+                          { value: "Sedang menempuh perguruan tinggi", label: "Sedang menempuh perguruan tinggi" },
+                          { value: "Sarjana", label: "Sarjana" },
                         ]}
                       />
                     </div>
