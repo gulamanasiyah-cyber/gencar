@@ -2360,6 +2360,7 @@ function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }
   const [inviteList, setInviteList] = useState<any[]>([]);
   const [loadingList, setLoadingList] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [selectedInvite, setSelectedInvite] = useState<any | null>(null);
 
   useEffect(() => {
     if (role === "admin_daerah" || role === "admin_desa") {
@@ -2472,26 +2473,120 @@ function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }
     <AdminModal title="Buka Registrasi Mandiri" onClose={onClose}>
       <div style={{ display: "grid", gap: 14 }}>
         {/* Tab Navigation */}
-        <div style={{ display: "flex", gap: 8, borderBottom: "1px solid var(--line)", paddingBottom: 8 }}>
-          <button
-            type="button"
-            className={`chip ${activeTab === "create" ? "active" : ""}`}
-            style={{ fontSize: 13, padding: "8px 14px", fontWeight: 800 }}
-            onClick={() => setActiveTab("create")}
-          >
-            <IcoPlus size={14} /> Buat Link Baru
-          </button>
-          <button
-            type="button"
-            className={`chip ${activeTab === "history" ? "active" : ""}`}
-            style={{ fontSize: 13, padding: "8px 14px", fontWeight: 800 }}
-            onClick={() => setActiveTab("history")}
-          >
-            <IcoClock size={14} /> Riwayat Link Aktif
-          </button>
-        </div>
+        {!selectedInvite && (
+          <div style={{ display: "flex", gap: 8, borderBottom: "1px solid var(--line)", paddingBottom: 8 }}>
+            <button
+              type="button"
+              className={`chip ${activeTab === "create" ? "active" : ""}`}
+              style={{ fontSize: 13, padding: "8px 14px", fontWeight: 800 }}
+              onClick={() => setActiveTab("create")}
+            >
+              <IcoPlus size={14} /> Buat Link Baru
+            </button>
+            <button
+              type="button"
+              className={`chip ${activeTab === "history" ? "active" : ""}`}
+              style={{ fontSize: 13, padding: "8px 14px", fontWeight: 800 }}
+              onClick={() => setActiveTab("history")}
+            >
+              <IcoClock size={14} /> Riwayat Link Aktif
+            </button>
+          </div>
+        )}
 
-        {activeTab === "create" ? (
+        {selectedInvite ? (
+          <div style={{ display: "grid", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setSelectedInvite(null)}
+                style={{ fontSize: 12, padding: "6px 10px", borderRadius: 8, display: "inline-flex", alignItems: "center", gap: 4 }}
+              >
+                ← Kembali ke Daftar
+              </button>
+              <span className={`pill ${selectedInvite.status === "open" ? "pill-emerald" : "pill-slate"}`} style={{ fontSize: 10 }}>
+                {selectedInvite.status === "open" ? "Link Aktif" : selectedInvite.status === "used" ? "Sudah Terpakai" : "Dicabut"}
+              </span>
+            </div>
+
+            <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: 14, padding: 14, display: "grid", gap: 10 }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: "#166534" }}>
+                Detail Link Registrasi Mandiri
+              </div>
+              <div style={{
+                padding: "10px 12px",
+                background: "#ffffff",
+                border: "1px solid #bbf7d0",
+                borderRadius: 10,
+                fontSize: 12,
+                fontFamily: "monospace",
+                wordBreak: "break-all",
+                color: "#0f172a",
+              }}>
+                {`${window.location.origin}/daftar?invite=${encodeURIComponent(selectedInvite.raw_token || "")}`}
+              </div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", fontSize: 11, color: "#15803d" }}>
+                <span>Scope: <b>{selectedInvite.desa_nama ? `Desa ${selectedInvite.desa_nama}` : "Daerah"} {selectedInvite.kelompok_nama ? `· ${selectedInvite.kelompok_nama}` : ""}</b></span>
+                <span>&bull; Durasi: <b>{selectedInvite.duration_label || "Tanpa batas"}</b></span>
+                {selectedInvite.expires_at && <span>&bull; Sampai: <b>{new Date(selectedInvite.expires_at).toLocaleString("id-ID")}</b></span>}
+              </div>
+
+              {/* QR Code */}
+              <div style={{ display: "grid", justifyItems: "center", gap: 6, padding: "8px 0" }}>
+                <div style={{ padding: 10, background: "#fff", borderRadius: 12, border: "1px solid #bbf7d0" }}>
+                  <QRCodeCanvas
+                    value={`${window.location.origin}/daftar?invite=${encodeURIComponent(selectedInvite.raw_token || "")}`}
+                    size={140}
+                    level="M"
+                    bgColor="#ffffff"
+                    fgColor="#1b0f0a"
+                  />
+                </div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#15803d" }}>
+                  Scan QR untuk membuka formulir pendaftaran
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => copyToClipboard(`${window.location.origin}/daftar?invite=${encodeURIComponent(selectedInvite.raw_token || "")}`)}
+                  style={{ flex: 1, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                >
+                  <IcoCopy size={14} /> {copied ? "Tersalin ✓" : "Salin Link"}
+                </button>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(`Assalamu'alaikum, silakan lengkapi formulir pendaftaran anggota Generus melalui tautan resmi berikut: ${window.location.origin}/daftar?invite=${encodeURIComponent(selectedInvite.raw_token || "")}`)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-ghost btn-sm"
+                  style={{ flex: 1, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, textDecoration: "none" }}
+                >
+                  Kirim via WA
+                </a>
+              </div>
+            </div>
+
+            {selectedInvite.status === "open" && (
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  style={{ color: "#dc2626", borderColor: "#fecaca" }}
+                  disabled={revokingId === selectedInvite.id}
+                  onClick={async () => {
+                    await handleRevoke(selectedInvite.id);
+                    setSelectedInvite(null);
+                  }}
+                >
+                  {revokingId === selectedInvite.id ? "Mencabut…" : "Cabut Link Ini"}
+                </button>
+              </div>
+            )}
+          </div>
+        ) : activeTab === "create" ? (
           <>
             <p className="muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
               Buat tautan formulir pendaftaran mandiri untuk calon anggota di wilayah Anda. Calon anggota dapat mengisi biodata sendiri dan langsung mendapatkan akun aktif.
@@ -2672,7 +2767,20 @@ function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }
               const isOpen = it.status === "open" && !isExpired;
 
               return (
-                <div key={it.id} style={{ padding: "12px 14px", borderRadius: 12, border: "1px solid var(--line)", background: isOpen ? "#ffffff" : "#f8fafc", display: "grid", gap: 6 }}>
+                <div
+                  key={it.id}
+                  onClick={() => it.raw_token && setSelectedInvite(it)}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: "1px solid var(--line)",
+                    background: isOpen ? "#ffffff" : "#f8fafc",
+                    display: "grid",
+                    gap: 6,
+                    cursor: it.raw_token ? "pointer" : "default",
+                    transition: "all 0.16s ease",
+                  }}
+                >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <span className={`pill ${isOpen ? "pill-emerald" : isUsed ? "pill-slate" : "pill-amber"}`} style={{ fontSize: 10 }}>
                       {isOpen ? "Aktif" : isUsed ? "Sudah Terpakai" : isRevoked ? "Dicabut" : "Kadaluarsa"}
@@ -2686,19 +2794,27 @@ function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }
                     Masa aktif: <b>{it.duration_label || "Tanpa batas"}</b>
                     {it.expires_at && <span> &bull; Sampai {new Date(it.expires_at).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}</span>}
                   </div>
-                  {isOpen && (
-                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 4 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                    {it.raw_token ? (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <IcoLink size={12} /> Klik untuk buka link &amp; QR →
+                      </span>
+                    ) : <span />}
+                    {isOpen && (
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"
                         style={{ color: "#dc2626", borderColor: "#fecaca", padding: "4px 10px", fontSize: 11, minHeight: 28 }}
                         disabled={revokingId === it.id}
-                        onClick={() => handleRevoke(it.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRevoke(it.id);
+                        }}
                       >
                         {revokingId === it.id ? "Mencabut…" : "Cabut Link"}
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               );
             })}

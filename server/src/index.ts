@@ -225,6 +225,7 @@ app.post("/api/auth/invite/create", async (c) => {
   await d.insert(schema.invites).values({
     id: inviteId,
     tokenHash: hash,
+    rawToken: rawToken,
     scopeRole: role as any,
     desaId,
     kelompokId,
@@ -254,7 +255,7 @@ app.get("/api/auth/invite/list", async (c) => {
   }
 
   const rows: any[] = await (c.env.DB as any).prepare(`
-    SELECT i.id, i.scope_role, i.desa_id, i.kelompok_id, i.status, i.duration_label, i.expires_at, i.consumed_at, i.created_at,
+    SELECT i.id, i.raw_token, i.scope_role, i.desa_id, i.kelompok_id, i.status, i.duration_label, i.expires_at, i.consumed_at, i.created_at,
            d.nama as desa_nama, k.nama as kelompok_nama
     FROM invites i
     LEFT JOIN desa d ON i.desa_id = d.id

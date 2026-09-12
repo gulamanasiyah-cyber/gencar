@@ -195,6 +195,7 @@ export const magicTokens = sqliteTable("magic_tokens", {
 export const invites = sqliteTable("invites", {
   id: text("id").primaryKey(),
   tokenHash: text("token_hash").notNull().unique(),
+  rawToken: text("raw_token"),
   scopeRole: text("scope_role", { enum: ["admin_daerah", "admin_desa", "admin_kelompok"] }).notNull(),
   desaId: integer("desa_id").references(() => desa.id, { onDelete: "cascade" }),
   kelompokId: integer("kelompok_id").references(() => kelompok.id, { onDelete: "cascade" }),

@@ -2,6 +2,7 @@
 CREATE TABLE IF NOT EXISTS `invites` (
 	`id` text PRIMARY KEY NOT NULL,
 	`token_hash` text NOT NULL UNIQUE,
+	`raw_token` text,
 	`scope_role` text NOT NULL,
 	`desa_id` integer,
 	`kelompok_id` integer,
