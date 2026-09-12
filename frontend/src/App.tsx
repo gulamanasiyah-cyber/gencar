@@ -2361,6 +2361,7 @@ function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }
   const [loadingList, setLoadingList] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [selectedInvite, setSelectedInvite] = useState<any | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<{ id: string; label?: string } | null>(null);
 
   useEffect(() => {
     if (role === "admin_daerah" || role === "admin_desa") {
@@ -2446,16 +2447,19 @@ function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }
     }
   }
 
-  async function handleRevoke(id: string) {
-    if (!window.confirm("Cabut link undangan ini? Calon anggota tidak akan bisa mendaftar dengan link ini lagi.")) return;
+  async function confirmRevoke(id: string) {
     setRevokingId(id);
     try {
       await apiFetch("/api/auth/invite/revoke", { method: "POST", body: JSON.stringify({ id }) });
       setInviteList((prev) => prev.map((it) => it.id === id ? { ...it, status: "revoked" } : it));
+      if (selectedInvite?.id === id) {
+        setSelectedInvite((prev: any) => prev ? { ...prev, status: "revoked" } : null);
+      }
     } catch {
       alert("Gagal mencabut link.");
     } finally {
       setRevokingId(null);
+      setRevokeTarget(null);
     }
   }
 
@@ -2597,11 +2601,8 @@ function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }
                   type="button"
                   className="btn btn-ghost btn-auto"
                   style={{ color: "#dc2626", borderColor: "#fecaca", background: "#fef2f2", fontSize: 11, padding: "6px 12px", width: "auto" }}
-                  disabled={revokingId === selectedInvite.id}
-                  onClick={async () => {
-                    await handleRevoke(selectedInvite.id);
-                    setSelectedInvite(null);
-                  }}
+                  disabled={Boolean(revokingId)}
+                  onClick={() => setRevokeTarget({ id: selectedInvite.id, label: selectedInvite.duration_label })}
                 >
                   {revokingId === selectedInvite.id ? "Mencabut…" : "Cabut Link"}
                 </button>
@@ -2859,10 +2860,10 @@ function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }
                         type="button"
                         className="btn btn-ghost btn-sm"
                         style={{ color: "#dc2626", borderColor: "#fecaca", padding: "4px 10px", fontSize: 11, minHeight: 28 }}
-                        disabled={revokingId === it.id}
+                        disabled={Boolean(revokingId)}
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleRevoke(it.id);
+                          setRevokeTarget({ id: it.id, label: it.duration_label });
                         }}
                       >
                         {revokingId === it.id ? "Mencabut…" : "Cabut Link"}
@@ -2873,6 +2874,48 @@ function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }
               );
             })}
           </div>
+        )}
+
+        {/* Custom Confirmation Modal for Revoke */}
+        {revokeTarget && (
+          <AdminModal title="Cabut Link Pendaftaran?" onClose={() => setRevokeTarget(null)}>
+            <div style={{ display: "grid", gap: 14 }}>
+              <div style={{
+                padding: "12px 14px",
+                borderRadius: 12,
+                background: "#fffbeb",
+                border: "1px solid #fde68a",
+                color: "#78350f",
+                fontSize: 13,
+                lineHeight: 1.5,
+              }}>
+                Tautan pendaftaran ini akan <strong>dinonaktifkan secara permanen</strong>. Calon anggota yang membuka tautan tidak akan dapat mendaftar lagi.
+              </div>
+
+              <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ flex: 1 }}
+                  onClick={() => setRevokeTarget(null)}
+                  disabled={Boolean(revokingId)}
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  style={{ flex: 1 }}
+                  disabled={Boolean(revokingId)}
+                  onClick={async () => {
+                    await confirmRevoke(revokeTarget.id);
+                  }}
+                >
+                  {revokingId === revokeTarget.id ? "Mencabut…" : "Ya, Cabut Link"}
+                </button>
+              </div>
+            </div>
+          </AdminModal>
         )}
 
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
