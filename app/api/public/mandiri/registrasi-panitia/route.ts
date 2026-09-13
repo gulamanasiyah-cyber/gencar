@@ -223,7 +223,16 @@ export async function POST(request: NextRequest) {
     });
     const namaKegiatan = kegiatan?.judul || "Kegiatan Mandiri";
 
-    return NextResponse.json({ success: true, nomorUnik, nomorUrut: nextNr, namaKegiatan });
+    return NextResponse.json({ 
+        success: true, 
+        nomorUnik, 
+        nomorUrut: nextNr, 
+        namaKegiatan,
+        nama,
+        jenisKelamin,
+        statusHaid: jenisKelamin === "P" ? statusHaid : "Tidak",
+        dapukan
+    });
 
   } catch (error) {
     console.error("Panitia Registration error:", error);

@@ -212,7 +212,15 @@ export async function POST(request: NextRequest) {
             catatan: catatanPembayaran
         });
 
-        return NextResponse.json({ success: true, generusId: duplicate.id, nomorUnik: duplicate.nomorUnik, nomorUrut: nextNr });
+        return NextResponse.json({ 
+            success: true, 
+            generusId: duplicate.id, 
+            nomorUnik: duplicate.nomorUnik, 
+            nomorUrut: nextNr,
+            nama: duplicate.nama,
+            jenisKelamin,
+            statusHaid: jenisKelamin === "P" ? statusHaid : "Tidak"
+        });
     }
 
     // --- CASE: NEW GENERUS ---
@@ -290,8 +298,15 @@ export async function POST(request: NextRequest) {
       catatan: catatanPembayaran
     });
 
-    return NextResponse.json({ success: true, generusId, nomorUnik, nomorUrut: nextNr });
-  } catch (error) {
+    return NextResponse.json({ 
+      success: true, 
+      generusId, 
+      nomorUnik, 
+      nomorUrut: nextNr,
+      nama,
+      jenisKelamin,
+      statusHaid: jenisKelamin === "P" ? statusHaid : "Tidak"
+    });  } catch (error) {
     console.error("Public Registration error:", error);
     const status = Number((error as any)?.status || 500);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Gagal memproses pendaftaran" }, { status });

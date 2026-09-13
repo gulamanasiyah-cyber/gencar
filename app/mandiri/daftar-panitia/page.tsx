@@ -471,12 +471,12 @@ export default function PanitiaDaftarPage() {
         doc.setFontSize(12);
         doc.setFont("helvetica", "normal");
         doc.text(`Nama Kegiatan   : ${data.namaKegiatan || "Kegiatan Mandiri"}`, 20, 50);
-        doc.text(`Nama Lengkap    : ${form.nama}`, 20, 60);
+        doc.text(`Nama Lengkap    : ${data.nama || form.nama}`, 20, 60);
         doc.text(`Nomor Urut      : ${data.nomorUrut}`, 20, 70);
         doc.text(`Kode Unik Login : ${data.nomorUnik}`, 20, 80);
 
         let qrY = 100;
-        if (form.jenisKelamin === "P" && form.statusHaid === "Ya") {
+        if ((data.jenisKelamin || form.jenisKelamin) === "P" && (data.statusHaid || form.statusHaid) === "Ya") {
           doc.setTextColor(225, 29, 72);
           doc.setFont("helvetica", "bold");
           doc.text(`Status Haid      : Ya (Sedang Haid / Berhalangan)`, 20, 90);
@@ -509,7 +509,8 @@ export default function PanitiaDaftarPage() {
         doc.text("2. Masukkan Kode Unik Login Anda pada halaman login", 105, 202, { align: "center" });
         doc.text("3. Anda kini dapat mengakses data peserta", 105, 208, { align: "center" });
 
-        doc.save(`Bukti_Panitia_${data.nomorUrut}_${form.nama.replace(/\s+/g, '_')}.pdf`);
+        const safeName = (data.nama || form.nama || "Panitia").replace(/\s+/g, '_');
+        doc.save(`Bukti_Panitia_${data.nomorUrut}_${safeName}.pdf`);
         Swal.close();
       } catch (pdfErr) {
         console.error("Gagal membuat PDF:", pdfErr);
@@ -556,6 +557,7 @@ export default function PanitiaDaftarPage() {
           <div style={{ background: "white", padding: "30px", borderRadius: "16px", border: "2px dashed #3b82f6", marginBottom: "24px", position: "relative" }}>
             <p style={{ fontSize: "11px", color: "#64748b", margin: "0 0 8px 0", textTransform: "uppercase", fontWeight: "700", letterSpacing: "1px" }}>Nomor Panitia</p>
             <h3 style={{ fontSize: "42px", color: "var(--primary)", letterSpacing: "2px", margin: "0 0 5px 0", fontWeight: "900" }}>#{result?.nomorUrut}</h3>
+            <p style={{ fontSize: "18px", fontWeight: "700", color: "#1e293b", margin: "0 0 10px 0", textTransform: "capitalize" }}>{result?.nama}</p>
             <p style={{ fontSize: "14px", color: "#3b82f6", fontWeight: "800", marginBottom: "20px", background: "#eff6ff", display: "inline-block", padding: "4px 12px", borderRadius: "20px" }}>ID Login: {result?.nomorUnik}</p>
 
             <div style={{

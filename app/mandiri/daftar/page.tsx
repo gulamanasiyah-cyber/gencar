@@ -685,7 +685,7 @@ export default function MandiriDaftarPage() {
           format: [90, 180]
         });
 
-        const displayName = result?.nama || form.nama || "Peserta Mandiri";
+        const displayName = result?.nama || "Peserta Mandiri";
         const displayKegiatan = regTitle || "PDKT Cengkareng";
         const displayNomorUrut = result?.nomorUrut || "";
         const displayNomorUnik = result?.nomorUnik || "";
@@ -758,7 +758,7 @@ export default function MandiriDaftarPage() {
         doc.addImage(barcodeDataUrl, "PNG", 15, 130, 60, 18);
 
         // 9. Status Haid & Arahan Tempat (If Female & Haid)
-        if (form.jenisKelamin === "P" && form.statusHaid === "Ya") {
+        if (result?.jenisKelamin === "P" && result?.statusHaid === "Ya") {
           doc.setDrawColor(254, 205, 211);
           doc.setFillColor(255, 241, 242);
           doc.roundedRect(8, 151, 74, 13, 2, 2, "FD");
@@ -825,6 +825,7 @@ export default function MandiriDaftarPage() {
           <div style={{ background: "white", padding: "30px", borderRadius: "16px", border: "2px dashed #3b82f6", marginBottom: "24px", position: "relative" }}>
             <p style={{ fontSize: "11px", color: "#64748b", margin: "0 0 8px 0", textTransform: "uppercase", fontWeight: "700", letterSpacing: "1px" }}>Nomor Peserta</p>
             <h3 style={{ fontSize: "42px", color: "var(--primary)", letterSpacing: "2px", margin: "0 0 5px 0", fontWeight: "900" }}>#{result?.nomorUrut}</h3>
+            <p style={{ fontSize: "18px", fontWeight: "700", color: "#1e293b", margin: "0 0 10px 0", textTransform: "capitalize" }}>{result?.nama}</p>
             <p style={{ fontSize: "14px", color: "#3b82f6", fontWeight: "800", marginBottom: "20px", background: "#eff6ff", display: "inline-block", padding: "4px 12px", borderRadius: "20px" }}>ID Login: {result?.nomorUnik}</p>
 
             {/* QR Code Section */}
