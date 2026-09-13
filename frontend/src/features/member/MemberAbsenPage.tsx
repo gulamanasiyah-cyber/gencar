@@ -251,7 +251,22 @@ export default function MemberAbsenPage({ me: _me }: { me: MemberIdentity }) {
               </span>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.judul}</div>
-                <div className="muted" style={{ fontSize: 11 }}>{r.tanggal} · {r.jam}</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>
+                  <span>{r.tanggal}</span>
+                  {r.status === "hadir" && r.jam && r.jam !== "—" ? (
+                    <>
+                      <span>·</span>
+                      <span style={{ fontWeight: 700, color: "#16a34a", display: "inline-flex", gap: 3, alignItems: "center" }}>
+                        <Clock3 size={11} /> Hadir {r.jam} WIB
+                      </span>
+                    </>
+                  ) : r.jam && r.jam !== "—" ? (
+                    <>
+                      <span>·</span>
+                      <span className="muted">{r.jam}</span>
+                    </>
+                  ) : null}
+                </div>
               </div>
             </div>
           ))}

@@ -16,7 +16,18 @@ import shadowUrl from "leaflet/dist/images/marker-shadow.png";
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({ iconRetinaUrl, iconUrl, shadowUrl });
 
-type AbsenRow = { id: string; tanggal: string; judul: string; status: "hadir" | "izin" | "alpha"; jam: string; catatan?: string | null; izinSumber?: string | null };
+type AbsenRow = {
+  id: string;
+  tanggal: string;
+  tanggalSelesai?: string | null;
+  judul: string;
+  status: "hadir" | "izin" | "alpha";
+  jamKegiatan: string;
+  jamAbsen: string | null;
+  timestamp?: string | null;
+  catatan?: string | null;
+  izinSumber?: string | null;
+};
 type GpsState = { lat: number; lng: number; acc: number | null } | null;
 type QrHit = { level: string; nama: string } | null;
 type ConflictKegiatan = {
@@ -155,15 +166,44 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
     };
   }, []);
 
-  const mapRiwayatRow = (r: any): AbsenRow => ({
-    id: r.id,
-    tanggal: r.tanggal ?? (r.timestamp ? String(r.timestamp).slice(0, 10) : ""),
-    judul: r.judul ?? "Kegiatan",
-    status: (r.keterangan === "izin" ? "izin" : r.keterangan === "alpha" ? "alpha" : "hadir") as AbsenRow["status"],
-    jam: r.jam ?? (r.timestamp ? String(r.timestamp).slice(11, 16) : "—"),
-    catatan: r.catatan ?? null,
-    izinSumber: r.izinSumber ?? null,
-  });
+  function formatJamWib(isoOrTime?: string | null): string | null {
+    if (!isoOrTime) return null;
+    const str = String(isoOrTime).trim();
+    if (/^\d{2}:\d{2}$/.test(str)) return str;
+    try {
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+          timeZone: "Asia/Jakarta",
+        }).replace(".", ":");
+      }
+    } catch {}
+    const match = str.match(/(\d{2}):(\d{2})/);
+    return match ? `${match[1]}:${match[2]}` : null;
+  }
+
+  const mapRiwayatRow = (r: any): AbsenRow => {
+    const jmMulai = r.jamMulai || r.jam || null;
+    const jmSelesai = r.jamSelesai || null;
+    const rentangAcara = jmMulai ? `${jmMulai}${jmSelesai ? ` – ${jmSelesai}` : ""} WIB` : "";
+    const jamHadir = formatJamWib(r.timestamp);
+
+    return {
+      id: r.id,
+      tanggal: r.tanggal ?? (r.timestamp ? String(r.timestamp).slice(0, 10) : ""),
+      tanggalSelesai: r.tanggalSelesai ?? null,
+      judul: r.judul ?? "Kegiatan",
+      status: (r.keterangan === "izin" ? "izin" : r.keterangan === "alpha" ? "alpha" : "hadir") as AbsenRow["status"],
+      jamKegiatan: rentangAcara,
+      jamAbsen: jamHadir,
+      timestamp: r.timestamp ?? null,
+      catatan: r.catatan ?? null,
+      izinSumber: r.izinSumber ?? null,
+    };
+  };
 
   async function loadRiwayat() {
     try {
@@ -866,8 +906,22 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
                     {displayCatatan && (
                       <div className="muted" style={{ fontSize: 11, fontStyle: "italic", marginTop: 1 }}>{displayCatatan}</div>
                     )}
-                    <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
-                      {r.tanggal}{r.jam && r.jam !== "—" ? ` · ${r.jam}` : ""}
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", fontSize: 11, color: "var(--text-secondary)", marginTop: 3 }}>
+                      <span>{r.tanggal}</span>
+                      {r.status === "hadir" && r.jamAbsen ? (
+                        <>
+                          <span>·</span>
+                          <span style={{ fontWeight: 700, color: "#16a34a", display: "inline-flex", gap: 3, alignItems: "center" }}>
+                            <Clock3 size={11} /> Hadir {r.jamAbsen} WIB
+                          </span>
+                        </>
+                      ) : null}
+                      {r.jamKegiatan ? (
+                        <>
+                          <span>·</span>
+                          <span className="muted">Jadwal {r.jamKegiatan}</span>
+                        </>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -993,8 +1047,22 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
                         {displayCatatan && (
                           <div className="muted" style={{ fontSize: 11, fontStyle: "italic", marginTop: 1 }}>{displayCatatan}</div>
                         )}
-                        <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
-                          {r.tanggal}{r.jam && r.jam !== "—" ? ` · ${r.jam}` : ""}
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", fontSize: 11, color: "var(--text-secondary)", marginTop: 3 }}>
+                          <span>{r.tanggal}</span>
+                          {r.status === "hadir" && r.jamAbsen ? (
+                            <>
+                              <span>·</span>
+                              <span style={{ fontWeight: 700, color: "#16a34a", display: "inline-flex", gap: 3, alignItems: "center" }}>
+                                <Clock3 size={11} /> Hadir {r.jamAbsen} WIB
+                              </span>
+                            </>
+                          ) : null}
+                          {r.jamKegiatan ? (
+                            <>
+                              <span>·</span>
+                              <span className="muted">Jadwal {r.jamKegiatan}</span>
+                            </>
+                          ) : null}
                         </div>
                       </div>
                     </div>

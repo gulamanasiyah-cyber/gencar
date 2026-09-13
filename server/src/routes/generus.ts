@@ -161,7 +161,9 @@ r.get("/:id", async (c) => {
       timestamp: absensi.timestamp,
       keterangan: absensi.keterangan,
       tanggal: kegiatan.tanggal,
-      jam: kegiatan.jam,
+      jam: sql<string>`COALESCE(${kegiatan.jamMulai}, ${kegiatan.jam})`,
+      jamMulai: kegiatan.jamMulai,
+      jamSelesai: kegiatan.jamSelesai,
       judul: kegiatan.judul,
       kategoriAcara: kegiatan.kategoriAcara,
       desaId: kegiatan.desaId,
@@ -170,7 +172,7 @@ r.get("/:id", async (c) => {
     .from(absensi)
     .innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id))
     .where(eq(absensi.generusId, id))
-    .orderBy(sql`${kegiatan.tanggal} DESC, ${kegiatan.jam} DESC`);
+    .orderBy(sql`${kegiatan.tanggal} DESC, COALESCE(${kegiatan.jamMulai}, ${kegiatan.jam}) DESC`);
 
   const mappedAbsensiRows = absensiRows.map((a) => ({
     ...a,
@@ -207,36 +209,37 @@ r.get("/:id", async (c) => {
   if (currentStreak >= 20) trophiesUnlocked.push("streak_20");
   if (currentStreak >= 40) trophiesUnlocked.push("streak_40");
 
-  // Perhitungan keterlambatan: bandingkan jam kegiatan dengan timestamp absensi
-  const riwayatTelat: { id: string; judul?: string; tanggal: string; jamKegiatan: string; jamAbsen: string; menit: number }[] = [];
+  // Perhitungan keterlambatan: bandingkan jam kegiatan dengan timestamp absensi (WIB)
+  const riwayatTelat: { id: string; judul?: string; tanggal: string; jamKegiatan: string; jamAbsen: string; menit: number; bulan?: number; tahun?: number }[] = [];
   for (const a of absensiRows) {
-    if (a.keterangan === "hadir" && a.jam && a.timestamp) {
+    const rawJamTarget = a.jamMulai || a.jam;
+    if (a.keterangan === "hadir" && rawJamTarget && a.timestamp && a.tanggal) {
       try {
-        const [targetH, targetM] = a.jam.split(":").map(Number);
-        // Tangani format "YYYY-MM-DD HH:mm:ss" atau ISO string
-        let absenH = 0;
-        let absenM = 0;
-        if (a.timestamp.includes(" ")) {
-          const timePart = a.timestamp.split(" ")[1] || "00:00";
-          const [h, m] = timePart.split(":").map(Number);
-          absenH = h ?? 0;
-          absenM = m ?? 0;
+        const [targetH = 0, targetM = 0] = String(rawJamTarget).split(":").map(Number);
+        const targetWibDate = new Date(`${a.tanggal}T${String(targetH).padStart(2, "0")}:${String(targetM).padStart(2, "0")}:00+07:00`);
+
+        let absenDate: Date;
+        if (a.timestamp.includes(" ") && !a.timestamp.includes("T")) {
+          const [dPart, tPart = "00:00:00"] = a.timestamp.split(" ");
+          absenDate = new Date(`${dPart}T${tPart}+07:00`);
         } else {
-          const absenDate = new Date(a.timestamp);
-          absenH = absenDate.getHours();
-          absenM = absenDate.getMinutes();
+          absenDate = new Date(a.timestamp);
         }
-        const targetMinutes = (targetH ?? 0) * 60 + (targetM ?? 0);
-        const absenMinutes = absenH * 60 + absenM;
-        const diff = absenMinutes - targetMinutes;
+
+        const diff = Math.floor((absenDate.getTime() - targetWibDate.getTime()) / (60 * 1000));
+        const wibTime = new Date(absenDate.getTime() + 7 * 60 * 60 * 1000);
+        const absenH = wibTime.getUTCHours();
+        const absenM = wibTime.getUTCMinutes();
+        const jamAbsenStr = `${String(absenH).padStart(2, "0")}:${String(absenM).padStart(2, "0")}`;
+
         if (diff > 0) {
           const tgl = String(a.tanggal || "");
           riwayatTelat.push({
             id: a.id,
             tanggal: a.tanggal,
             judul: a.judul ?? "",
-            jamKegiatan: a.jam,
-            jamAbsen: `${String(absenH).padStart(2, "0")}:${String(absenM).padStart(2, "0")}`,
+            jamKegiatan: rawJamTarget,
+            jamAbsen: jamAbsenStr,
             menit: diff,
             bulan: tgl.length >= 7 ? Number(tgl.slice(5, 7)) - 1 : undefined,
             tahun: tgl.length >= 4 ? Number(tgl.slice(0, 4)) : undefined,

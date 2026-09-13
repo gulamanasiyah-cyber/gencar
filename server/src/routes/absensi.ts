@@ -31,6 +31,9 @@ r.get("/mine", async (c) => {
     timestamp: absensi.timestamp,
     judul: kegiatan.judul,
     tanggal: kegiatan.tanggal,
+    tanggalSelesai: kegiatan.tanggalSelesai,
+    jamMulai: kegiatan.jamMulai,
+    jamSelesai: kegiatan.jamSelesai,
     jam: kegiatan.jamMulai ?? kegiatan.jam ?? null,
   }).from(absensi)
     .innerJoin(kegiatan, eq(absensi.kegiatanId, kegiatan.id))
