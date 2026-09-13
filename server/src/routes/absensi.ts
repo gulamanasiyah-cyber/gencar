@@ -3,7 +3,7 @@ import { eq, and, like, or, sql } from "drizzle-orm";
 import { absensi, generus, kegiatan, desa, kelompok, kegiatanPeserta } from "../../../shared/schema";
 import { getDb } from "../utils/db";
 import { isDiundang } from "../utils/undangan";
-import { isEventActiveNow } from "../utils/kegiatanTime";
+import { isEventActiveNow, getWibDateStr } from "../utils/kegiatanTime";
 import { isGenerusEligibleForKegiatan, matchesQrScope } from "../utils/eligibility";
 import { requireAuth } from "../middleware/auth";
 
@@ -68,10 +68,11 @@ r.get("/upcoming", async (c) => {
     pendidikan: resolvedGenerus.pendidikan ?? null,
     tanggalLahir: resolvedGenerus.tanggalLahir ?? null,
   };
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = getWibDateStr();
   const upcoming = allKegiatan.filter((k: any) => {
     if (doneSet.has(k.id)) return false;
-    if (!k.tanggal || k.tanggal < todayStr) return false; // sudah lewat
+    const tgl = k.tanggalSelesai || k.tanggal;
+    if (!tgl || tgl < todayStr) return false; // sudah lewat
     return isGenerusEligibleForKegiatan(scope, k, byKegiatan.get(k.id) ?? [], null, { skipGps: true });
   });
   return c.json(upcoming.map((k: any) => ({
@@ -101,8 +102,9 @@ r.post("/izin", async (c) => {
   const target: any = await db.query.kegiatan.findFirst({ where: eq(kegiatan.id, kegiatanId) });
   if (!target) return c.json({ error: "Kegiatan tidak ditemukan" }, 404);
   // Kegiatan harus MENDATANG (belum lewat)
-  const todayStr = new Date().toISOString().slice(0, 10);
-  if (target.tanggal < todayStr) return c.json({ error: "Kegiatan sudah lewat, tidak bisa mengajukan izin" }, 400);
+  const todayStr = getWibDateStr();
+  const targetEndTanggal = target.tanggalSelesai || target.tanggal;
+  if (targetEndTanggal < todayStr) return c.json({ error: "Kegiatan sudah lewat, tidak bisa mengajukan izin" }, 400);
   // Belum ada record absensi utk user+kegiatan
   const existing: any = await db.query.absensi.findFirst({
     where: and(eq(absensi.kegiatanId, kegiatanId), eq(absensi.generusId, resolvedGenerus.id)),

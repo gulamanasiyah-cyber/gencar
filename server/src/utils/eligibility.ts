@@ -45,13 +45,17 @@ export function isGenerusEligibleForKegiatan(
         (p.desaId != null && p.desaId === generus.desaId))
   );
 
+  const isDaerahKegiatan = (kegiatan.desaId == null || kegiatan.desaId === 0) && (kegiatan.kelompokId == null || kegiatan.kelompokId === 0);
+  const isDesaKegiatan = (kegiatan.desaId != null && kegiatan.desaId !== 0) && (kegiatan.kelompokId == null || kegiatan.kelompokId === 0);
+  const isKelompokKegiatan = kegiatan.kelompokId != null && kegiatan.kelompokId !== 0;
+
   if (directApproved) {
     isInvitedOrInScope = true;
-  } else if (kegiatan.desaId == null && kegiatan.kelompokId == null) {
+  } else if (isDaerahKegiatan) {
     isInvitedOrInScope = true;
-  } else if (kegiatan.desaId != null && kegiatan.kelompokId == null && kegiatan.desaId === generus.desaId) {
+  } else if (isDesaKegiatan && kegiatan.desaId === generus.desaId) {
     isInvitedOrInScope = true;
-  } else if (kegiatan.kelompokId != null && kegiatan.kelompokId === generus.kelompokId) {
+  } else if (isKelompokKegiatan && kegiatan.kelompokId === generus.kelompokId) {
     isInvitedOrInScope = true;
   }
 
@@ -74,14 +78,26 @@ export function matchesQrScope(
   qrDesaId: number | null,
   qrKelompokId: number | null
 ): boolean {
-  if (qrLevel === "kelompok" && qrKelompokId != null) {
-    return kegiatan.kelompokId === qrKelompokId;
+  const isDaerahKegiatan = (kegiatan.desaId == null || kegiatan.desaId === 0) && (kegiatan.kelompokId == null || kegiatan.kelompokId === 0);
+  // Kegiatan tingkat daerah berlaku di semua QR (Daerah, Desa, maupun Kelompok di daerah tersebut)
+  if (isDaerahKegiatan) {
+    return true;
   }
-  if (qrLevel === "desa" && qrDesaId != null) {
-    return kegiatan.desaId === qrDesaId && kegiatan.kelompokId == null;
+
+  const isDesaKegiatan = (kegiatan.desaId != null && kegiatan.desaId !== 0) && (kegiatan.kelompokId == null || kegiatan.kelompokId === 0);
+  if (isDesaKegiatan) {
+    if (qrLevel === "daerah") return true;
+    if (qrLevel === "desa") return kegiatan.desaId === qrDesaId;
+    if (qrLevel === "kelompok") return qrDesaId != null && kegiatan.desaId === qrDesaId;
+    return true;
   }
-  if (qrLevel === "daerah") {
-    return kegiatan.desaId == null && kegiatan.kelompokId == null;
+
+  if (kegiatan.kelompokId != null && kegiatan.kelompokId !== 0) {
+    if (qrLevel === "kelompok") return kegiatan.kelompokId === qrKelompokId;
+    if (qrLevel === "desa") return qrDesaId != null && kegiatan.desaId === qrDesaId;
+    if (qrLevel === "daerah") return true;
+    return true;
   }
+
   return true;
 }

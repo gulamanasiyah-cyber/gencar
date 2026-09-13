@@ -23,6 +23,5 @@
     "noFallthroughCasesInSwitch": true,
     "paths": { "shared/*": ["../shared/*"] }
   },
-  "include": ["src", "../shared"],
-  "exclude": ["../shared/schema.ts"]
+  "include": ["src", "../shared/validation.ts", "../shared/pekerjaan.ts"]
 }

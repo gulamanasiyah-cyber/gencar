@@ -141,15 +141,24 @@ export default function MemberAbsenPage({ me: _me }: { me: MemberIdentity }) {
       <div className="member-hero-clock">
         <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--muted)" }}>Start Time</div>
         <div className="member-hero-clock-time">{timeStr}</div>
-        <div className="member-hero-clock-sub">
-          <MapPin size={11} /> {today.lokasi} · Radius {today.radiusM}m
+        <div className="member-hero-clock-sub" style={{ display: "grid", gap: 3, justifyContent: "center" }}>
+          <div style={{ fontWeight: 800, color: "var(--ink)", fontSize: 13 }}>{today.judul}</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "center", flexWrap: "wrap", fontSize: 11 }}>
+            <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+              <Clock3 size={11} /> {today.jamMulai || today.jam || "—"}{today.jamSelesai ? ` – ${today.jamSelesai}` : ""} WIB
+            </span>
+            <span>·</span>
+            <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+              <MapPin size={11} /> {today.lokasi} · Radius {today.radiusM}m
+            </span>
+          </div>
         </div>
       </div>
 
       <div className="card" style={{ paddingLeft: 20, paddingRight: 20 }}>
         <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: "-0.02em" }}>{today.judul}</div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 4, fontSize: 12, color: "var(--text-secondary)" }}>
-          <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><Clock3 size={12} /> {today.tanggal} · {today.jam}</span>
+          <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><Clock3 size={12} /> {today.tanggal} · {today.jamMulai || today.jam || "—"}{today.jamSelesai ? ` – ${today.jamSelesai}` : ""} WIB</span>
         </div>
 
         {/* GPS pills */}

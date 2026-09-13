@@ -418,9 +418,20 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
       <div className="member-hero-clock">
         <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--muted)" }}>Working Time</div>
         <div className="member-hero-clock-time">{timeStr}</div>
-        <div className="member-hero-clock-sub">
+        <div className="member-hero-clock-sub" style={{ display: "grid", gap: 3, justifyContent: "center" }}>
           {todayKegiatan ? (
-            <><MapPin size={11} /> {todayKegiatan.lokasi} · Radius {todayKegiatan.radiusM}m</>
+            <>
+              <div style={{ fontWeight: 800, color: "var(--ink)", fontSize: 13 }}>{todayKegiatan.judul}</div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "center", flexWrap: "wrap", fontSize: 11 }}>
+                <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                  <Clock3 size={11} /> {todayKegiatan.jamMulai || todayKegiatan.jam || "—"}{todayKegiatan.jamSelesai ? ` – ${todayKegiatan.jamSelesai}` : ""} WIB
+                </span>
+                <span>·</span>
+                <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                  <MapPin size={11} /> {todayKegiatan.lokasi}
+                </span>
+              </div>
+            </>
           ) : (
             <><CalendarDays size={11} /> Belum ada agenda terjadwal</>
           )}
@@ -673,7 +684,7 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
               <div style={{ fontWeight: 800, lineHeight: 1.25, fontSize: 13 }}>{k.judul}</div>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12, color: "var(--text-secondary)" }}>
                 <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-                  <Clock3 size={12} /> {k.tanggal} · {k.jam}
+                  <Clock3 size={12} /> {k.tanggal} · {k.jamMulai || k.jam || "—"}{k.jamSelesai ? ` – ${k.jamSelesai}` : ""} WIB
                 </span>
                 <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
                   <MapPin size={12} /> {k.lokasi}
@@ -784,7 +795,7 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
                       </button>
                     </div>
                     <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 11, color: "var(--text-secondary)" }}>
-                      <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}><Clock3 size={11} /> {ev.jam}</span>
+                      <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}><Clock3 size={11} /> {ev.jamMulai || ev.jam || "—"}{ev.jamSelesai ? ` – ${ev.jamSelesai}` : ""} WIB</span>
                       <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}><MapPin size={11} /> {ev.lokasi}</span>
                       {ev.tingkat && <span className="pill pill-slate" style={{ fontSize: 9, padding: "1px 6px" }}>{ev.tingkat}</span>}
                     </div>

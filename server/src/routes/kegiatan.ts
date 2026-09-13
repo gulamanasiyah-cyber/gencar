@@ -58,17 +58,24 @@ r.get("/", async (c) => {
     }
   }
 
+  const isDaerahCondition = or(
+    and(isNull(kegiatan.desaId), isNull(kegiatan.kelompokId)),
+    and(eq(kegiatan.desaId, 0), eq(kegiatan.kelompokId, 0)),
+    and(isNull(kegiatan.desaId), eq(kegiatan.kelompokId, 0)),
+    and(eq(kegiatan.desaId, 0), isNull(kegiatan.kelompokId))
+  );
+
   if (session.role === "admin_desa" && session.desaId) {
-    const ors = [eq(kegiatan.desaId, session.desaId), and(isNull(kegiatan.desaId), isNull(kegiatan.kelompokId))];
+    const ors = [eq(kegiatan.desaId, session.desaId), isDaerahCondition];
     if (pesertaKegiatanIds.length > 0) ors.push(inList(kegiatan.id, pesertaKegiatanIds));
     conditions.push(or(...ors));
   } else if (session.role === "admin_kelompok" && session.kelompokId && session.desaId) {
-    const ors = [eq(kegiatan.kelompokId, session.kelompokId), and(eq(kegiatan.desaId, session.desaId), isNull(kegiatan.kelompokId)), and(isNull(kegiatan.desaId), isNull(kegiatan.kelompokId))];
+    const ors = [eq(kegiatan.kelompokId, session.kelompokId), and(eq(kegiatan.desaId, session.desaId), or(isNull(kegiatan.kelompokId), eq(kegiatan.kelompokId, 0))), isDaerahCondition];
     if (pesertaKegiatanIds.length > 0) ors.push(inList(kegiatan.id, pesertaKegiatanIds));
     conditions.push(or(...ors));
   } else if (session.role === "generus") {
-    const ors: any[] = [and(isNull(kegiatan.desaId), isNull(kegiatan.kelompokId))];
-    if (session.desaId) ors.push(and(eq(kegiatan.desaId, session.desaId), isNull(kegiatan.kelompokId)));
+    const ors: any[] = [isDaerahCondition];
+    if (session.desaId) ors.push(and(eq(kegiatan.desaId, session.desaId), or(isNull(kegiatan.kelompokId), eq(kegiatan.kelompokId, 0))));
     if (session.kelompokId) ors.push(eq(kegiatan.kelompokId, session.kelompokId));
     if (pesertaKegiatanIds.length > 0) ors.push(inList(kegiatan.id, pesertaKegiatanIds));
     conditions.push(or(...ors));

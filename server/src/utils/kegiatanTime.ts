@@ -5,9 +5,15 @@ export type EventTimeWindow = {
   windowClose: Date;
 };
 
+/** Format tanggal YYYY-MM-DD di zona waktu Indonesia Barat (WIB / UTC+7) */
+export function getWibDateStr(d: Date = new Date()): string {
+  const wibTime = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+  return wibTime.toISOString().slice(0, 10);
+}
+
 function withTime(dateStr: string, timeStr: string): Date {
   const t = timeStr.length === 5 ? `${timeStr}:00` : timeStr;
-  return new Date(`${dateStr}T${t}`);
+  return new Date(`${dateStr}T${t}+07:00`);
 }
 
 export function getEventTimeWindow(k: {
@@ -29,9 +35,9 @@ export function getEventTimeWindow(k: {
     end = withTime(k.tanggalSelesai, k.jamSelesai);
   } else if (k.jamSelesai) {
     if (k.jamSelesai < startTimeStr) {
-      const nextDay = new Date(start);
-      nextDay.setDate(nextDay.getDate() + 1);
-      end = withTime(nextDay.toISOString().slice(0, 10), k.jamSelesai);
+      const nextDay = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+      const nextDayStr = getWibDateStr(nextDay);
+      end = withTime(nextDayStr, k.jamSelesai);
     } else {
       end = withTime(k.tanggal, k.jamSelesai);
     }
@@ -47,5 +53,5 @@ export function getEventTimeWindow(k: {
 
 export function isEventActiveNow(k: any, now: Date = new Date()): boolean {
   const { windowOpen, windowClose } = getEventTimeWindow(k);
-  return now >= windowOpen && now <= windowClose;
+  return now.getTime() >= windowOpen.getTime() && now.getTime() <= windowClose.getTime();
 }
