@@ -475,7 +475,7 @@ export async function DELETE(request: NextRequest) {
       const query = db.select({ generusId: mandiri.generusId }).from(mandiri);
       const entries = await query.where(and(...conditions));
       
-      const generusIds = entries.map(e => e.generusId).filter(Boolean);
+      const generusIds = entries.map((e: any) => e.generusId).filter(Boolean);
 
       if (generusIds.length > 0) {
         for (const genId of generusIds) {
