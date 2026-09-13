@@ -128,72 +128,104 @@ export default function RomanticRoomTV() {
                 ) : (
                     <div style={{
                         display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(600px, 1fr))",
+                        gridTemplateColumns: "1fr 1fr",
                         gap: "40px",
                         alignItems: "start"
                     }}>
-                        {rooms.map((room) => (
-                            <div key={room.id} style={{
-                                background: "#ffffff",
-                                border: "1px solid rgba(0, 0, 0, 0.05)",
-                                borderRadius: "24px",
-                                overflow: "hidden",
-                                boxShadow: "0 10px 30px rgba(0, 0, 0, 0.05)",
-                                animation: "fadeIn 0.5s ease-out"
+                        {/* Table Laki-Laki */}
+                        <div style={{
+                            background: "#ffffff",
+                            border: "1px solid rgba(0, 0, 0, 0.05)",
+                            borderRadius: "24px",
+                            overflow: "hidden",
+                            boxShadow: "0 10px 30px rgba(0, 0, 0, 0.05)",
+                            animation: "fadeIn 0.5s ease-out"
+                        }}>
+                            <div style={{
+                                backgroundColor: "#e0f2fe",
+                                padding: "20px 30px",
+                                borderBottom: "3px solid #0284c7",
+                                display: "flex",
+                                justifyContent: "center"
                             }}>
-                                <div style={{
-                                    backgroundColor: "rgba(0,0,0,0.02)",
-                                    padding: "20px 30px",
-                                    borderBottom: "1px solid rgba(0,0,0,0.05)",
-                                    display: "flex",
-                                    justifyContent: "center"
-                                }}>
-                                    <h2 style={{ margin: 0, fontSize: "32px", fontWeight: 800, color: "#0f172a", letterSpacing: "1px" }}>
-                                        {room.nama.toUpperCase()}
-                                    </h2>
-                                </div>
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", padding: "40px 30px", alignItems: "center" }}>
-                                    
-                                    {/* Caller / Pemanggil */}
-                                    <div style={{ textAlign: "center" }}>
-                                        <div style={{ fontSize: "16px", color: "#64748b", fontWeight: 600, textTransform: "uppercase", letterSpacing: "2px", marginBottom: "10px" }}>
-                                            Pemanggil
-                                        </div>
-                                        <div style={{
-                                            fontSize: "80px", 
-                                            fontWeight: 900, 
-                                            color: "#0284c7",
-                                            lineHeight: 1,
-                                            textShadow: "0 0 20px rgba(2, 132, 199, 0.2)"
-                                        }}>
-                                            {room.pemilihNomorUrut || "-"}
-                                        </div>
-                                    </div>
-                                    
-                                    {/* Icon */}
-                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                        <Heart size={60} color="#f43f5e" fill="#f43f5e" style={{ filter: "drop-shadow(0 0 15px rgba(244, 63, 94, 0.3))" }} />
-                                    </div>
-                                    
-                                    {/* Called / Terpilih */}
-                                    <div style={{ textAlign: "center" }}>
-                                        <div style={{ fontSize: "16px", color: "#64748b", fontWeight: 600, textTransform: "uppercase", letterSpacing: "2px", marginBottom: "10px" }}>
-                                            Dipanggil
-                                        </div>
-                                        <div style={{
-                                            fontSize: "80px", 
-                                            fontWeight: 900, 
-                                            color: "#7c3aed",
-                                            lineHeight: 1,
-                                            textShadow: "0 0 20px rgba(124, 58, 237, 0.2)"
-                                        }}>
-                                            {room.terpilihNomorUrut || "-"}
-                                        </div>
-                                    </div>
-
-                                </div>
+                                <h2 style={{ margin: 0, fontSize: "28px", fontWeight: 800, color: "#0284c7", letterSpacing: "2px" }}>
+                                    LAKI - LAKI
+                                </h2>
                             </div>
-                        ))}
+                            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "25px", padding: "40px" }}>
+                                {rooms
+                                    .map(room => room.pemilihGender === 'L' ? room.pemilihNomorUrut : room.terpilihGender === 'L' ? room.terpilihNomorUrut : null)
+                                    .filter(Boolean)
+                                    .sort((a,b) => Number(a) - Number(b)) 
+                                    .map((no, idx) => (
+                                        <div key={`L-${no}`} style={{
+                                            fontSize: "60px", fontWeight: 900, color: "#0284c7", 
+                                            textShadow: "0 0 10px rgba(2, 132, 199, 0.1)",
+                                            backgroundColor: "#f0f9ff",
+                                            padding: "15px 35px",
+                                            borderRadius: "24px",
+                                            border: "2px solid #bae6fd"
+                                        }}>
+                                            {no}
+                                        </div>
+                                    ))
+                                }
+                                {rooms.filter(room => room.pemilihGender === 'L' || room.terpilihGender === 'L').length === 0 && (
+                                    <div style={{ padding: "40px", textAlign: "center", color: "#94a3b8", fontStyle: "italic", width: "100%" }}>
+                                        Tidak ada kelompok laki-laki
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Table Perempuan */}
+                        <div style={{
+                            background: "#ffffff",
+                            border: "1px solid rgba(0, 0, 0, 0.05)",
+                            borderRadius: "24px",
+                            overflow: "hidden",
+                            boxShadow: "0 10px 30px rgba(0, 0, 0, 0.05)",
+                            animation: "fadeIn 0.5s ease-out",
+                            animationDelay: "0.1s",
+                            animationFillMode: "both"
+                        }}>
+                            <div style={{
+                                backgroundColor: "#fce7f3",
+                                padding: "20px 30px",
+                                borderBottom: "3px solid #db2777",
+                                display: "flex",
+                                justifyContent: "center"
+                            }}>
+                                <h2 style={{ margin: 0, fontSize: "28px", fontWeight: 800, color: "#db2777", letterSpacing: "2px" }}>
+                                    PEREMPUAN
+                                </h2>
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "25px", padding: "40px" }}>
+                                {rooms
+                                    .map(room => room.pemilihGender === 'P' ? room.pemilihNomorUrut : room.terpilihGender === 'P' ? room.terpilihNomorUrut : null)
+                                    .filter(Boolean)
+                                    .sort((a,b) => Number(a) - Number(b)) 
+                                    .map((no, idx) => (
+                                        <div key={`P-${no}`} style={{
+                                            fontSize: "60px", fontWeight: 900, color: "#ec4899", 
+                                            textShadow: "0 0 10px rgba(236, 72, 153, 0.1)",
+                                            backgroundColor: "#fdf2f8",
+                                            padding: "15px 35px",
+                                            borderRadius: "24px",
+                                            border: "2px solid #fbcfe8"
+                                        }}>
+                                            {no}
+                                        </div>
+                                    ))
+                                }
+                                {rooms.filter(room => room.pemilihGender === 'P' || room.terpilihGender === 'P').length === 0 && (
+                                    <div style={{ padding: "40px", textAlign: "center", color: "#94a3b8", fontStyle: "italic", width: "100%" }}>
+                                        Tidak ada kelompok perempuan
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
                     </div>
                 )}
             </div>

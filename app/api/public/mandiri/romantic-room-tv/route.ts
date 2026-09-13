@@ -26,7 +26,9 @@ export async function GET(request: NextRequest) {
             pemilihNomorUrut: m1.nomorUrut,
             terpilihNomorUrut: m2.nomorUrut,
             pemilihNama: g1.nama,
-            terpilihNama: g2.nama
+            terpilihNama: g2.nama,
+            pemilihGender: g1.jenisKelamin,
+            terpilihGender: g2.jenisKelamin
         })
         .from(mandiriRooms)
         .innerJoin(mandiriPemilihan, eq(mandiriRooms.pemilihanId, mandiriPemilihan.id))
