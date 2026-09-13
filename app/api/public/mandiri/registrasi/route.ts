@@ -52,10 +52,10 @@ export async function POST(request: NextRequest) {
         hobi, makananMinumanFavorit, suku, foto, anakKe, jumlahSaudara, tinggiBadan,
         mandiriDesaId, mandiriKelompokId, instagram,
         statusPeserta, dibayarkanSenilai, buktiPembayaran,
-        kriteriaPasangan, statusHaid
+        kriteriaPasangan, statusHaid, targetMenikah
     } = body;
 
-    if (!nama || !jenisKelamin || !mandiriDesaId || !tempatLahir || !tanggalLahir || !noTelp || !pendidikan || !pekerjaan || !hobi || !foto) {
+    if (!nama || !jenisKelamin || !mandiriDesaId || !tempatLahir || !tanggalLahir || !noTelp || !pendidikan || !pekerjaan || !foto) {
       return NextResponse.json({ error: "Mohon lengkapi semua data wajib." }, { status: 400 });
     }
 
@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
     const minAgePerempuanSet = await db.select().from(settings).where(eq(settings.key, "mandiri_registration_min_age_perempuan"));
     const minAgePerempuan = Number(minAgePerempuanSet[0]?.value || "0");
 
+    let isUnderage = false;
     const birthDate = new Date(tanggalLahir);
     if (!isNaN(birthDate.getTime())) {
         const today = new Date();
@@ -80,12 +81,16 @@ export async function POST(request: NextRequest) {
         }
 
         if (jenisKelamin === "L" && minAgeLaki > 0 && age < minAgeLaki) {
-            return NextResponse.json({ error: `Usia belum mencukupi. Minimal usia laki-laki adalah ${minAgeLaki} tahun.` }, { status: 400 });
+            isUnderage = true;
         }
         
         if (jenisKelamin === "P" && minAgePerempuan > 0 && age < minAgePerempuan) {
-            return NextResponse.json({ error: `Usia belum mencukupi. Minimal usia perempuan adalah ${minAgePerempuan} tahun.` }, { status: 400 });
+            isUnderage = true;
         }
+    }
+
+    if (isUnderage && !targetMenikah) {
+        return NextResponse.json({ error: "Kolom opsi 'Target Menikah' harus diisi apabila umur pendaftar belum mencukupi batas." }, { status: 400 });
     }
 
     if (statusPeserta === "Person" && (!dibayarkanSenilai || !buktiPembayaran)) {
@@ -190,6 +195,7 @@ export async function POST(request: NextRequest) {
             statusHaid: jenisKelamin === "P" ? (statusHaid || "Tidak") : null,
             instagram: instagram || duplicate.instagram, 
             kriteriaPasangan: kriteriaPasangan || duplicate.kriteriaPasangan,
+            targetMenikah: targetMenikah || duplicate.targetMenikah,
             isGenerus: 0,
             updatedAt: new Date().toISOString()
         }).where(eq(generus.id, duplicate.id));
@@ -205,7 +211,7 @@ export async function POST(request: NextRequest) {
             generusId: duplicate.id,
             nomorUrut: nextNr,
             kegiatanId: activeKegiatanId,
-            statusMandiri: "Aktif",
+            statusMandiri: isUnderage ? "Menunggu" : "Aktif",
             statusPeserta: statusPeserta === "Person" ? "Person" : "Utusan Daerah",
             dibayarkanSenilai: statusPeserta === "Person" ? Number(dibayarkanSenilai) : null,
             buktiPembayaran: statusPeserta === "Person" ? buktiPembayaran : null,
@@ -277,6 +283,7 @@ export async function POST(request: NextRequest) {
       statusHaid: jenisKelamin === "P" ? (statusHaid || "Tidak") : null,
       instagram,
       kriteriaPasangan,
+      targetMenikah,
       createdBy: "FORM_MANDIRI",
       isGenerus: 0
     };
@@ -291,7 +298,7 @@ export async function POST(request: NextRequest) {
       generusId,
       nomorUrut: nextNr,
       kegiatanId: activeKegiatanId,
-      statusMandiri: "Aktif",
+      statusMandiri: isUnderage ? "Menunggu" : "Aktif",
       statusPeserta: statusPeserta === "Person" ? "Person" : "Utusan Daerah",
       dibayarkanSenilai: statusPeserta === "Person" ? Number(dibayarkanSenilai) : null,
       buktiPembayaran: statusPeserta === "Person" ? buktiPembayaran : null,

@@ -40,6 +40,7 @@ export default function MandiriDaftarPage() {
     dibayarkanSenilai: "",
     buktiPembayaran: "",
     statusHaid: "Tidak",
+    targetMenikah: "",
   });
 
   const [daerahList, setDaerahList] = useState<Desa[]>([]);
@@ -53,8 +54,6 @@ export default function MandiriDaftarPage() {
   const [minAgePerempuan, setMinAgePerempuan] = useState(25);
 
   const maxDate = new Date();
-  const ageLimit = form.jenisKelamin === "P" ? minAgePerempuan : minAgeLaki;
-  maxDate.setFullYear(maxDate.getFullYear() - ageLimit);
   const maxDateString = maxDate.toISOString().split("T")[0];
 
   const [success, setSuccess] = useState(false);
@@ -141,13 +140,13 @@ export default function MandiriDaftarPage() {
     fetch("/api/public/mandiri/settings?key=mandiri_registration_min_age_laki")
       .then(r => r.json())
       .then(d => {
-        if (d.value) setMinAgeLaki(Number(d.value));
+        if (d.value) setMinAgeLaki(parseInt(d.value) || 25);
       });
 
     fetch("/api/public/mandiri/settings?key=mandiri_registration_min_age_perempuan")
       .then(r => r.json())
       .then(d => {
-        if (d.value) setMinAgePerempuan(Number(d.value));
+        if (d.value) setMinAgePerempuan(parseInt(d.value) || 25);
       });
 
     fetch("/api/public/mandiri/settings?key=mandiri_haid_keterangan")
@@ -1111,8 +1110,8 @@ export default function MandiriDaftarPage() {
 
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Hobi <span className="required">*</span></label>
-                <input name="hobi" className="form-control" value={form.hobi} onChange={handleChange} required placeholder="Hobi anda" />
+                <label className="form-label">Hobi (Opsional)</label>
+                <input name="hobi" className="form-control" value={form.hobi} onChange={handleChange} placeholder="Hobi anda" />
               </div>
               <div className="form-group">
                 <label className="form-label">Favorit Makanan/Minuman (Opsional)</label>
@@ -1149,6 +1148,43 @@ export default function MandiriDaftarPage() {
                 rows={3}
               />
             </div>
+            
+            {(() => {
+              let isUnderage = false;
+              if (form.tanggalLahir) {
+                const lahir = new Date(form.tanggalLahir);
+                const sekarang = new Date();
+                let umurTahun = sekarang.getFullYear() - lahir.getFullYear();
+                const belumUlangTahun = sekarang.getMonth() < lahir.getMonth() || (sekarang.getMonth() === lahir.getMonth() && sekarang.getDate() < lahir.getDate());
+                if (belumUlangTahun) umurTahun--;
+
+                if (form.jenisKelamin === "L") {
+                  isUnderage = umurTahun < minAgeLaki;
+                } else if (form.jenisKelamin === "P") {
+                  isUnderage = umurTahun < minAgePerempuan;
+                }
+              }
+              
+              return (
+                 <div className="form-group">
+                   <label className="form-label">
+                     Target Menikah {isUnderage ? <span className="required">* (Wajib karena belum cukup umur)</span> : "(Opsional)"}
+                   </label>
+                   <select
+                     name="targetMenikah"
+                     className="form-control"
+                     value={form.targetMenikah}
+                     onChange={handleChange}
+                     required={isUnderage}
+                   >
+                     <option value="">-- Pilih Target Menikah --</option>
+                     {Array.from({ length: 15 }, (_, i) => 2026 + i).map(year => (
+                       <option key={year} value={String(year)}>{year}</option>
+                     ))}
+                   </select>
+                 </div>
+              );
+            })()}
 
             {regStatusPeserta === "Person" && (
               <div className="form-group" style={{ padding: "15px", background: "#fffbeb", borderRadius: "10px", border: "1px solid #fde68a" }}>

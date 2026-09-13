@@ -61,6 +61,7 @@ export const generus = sqliteTable("generus", {
   statusHaid: text("status_haid"),
   instagram: text("instagram"),
   kriteriaPasangan: text("kriteria_pasangan"),
+  targetMenikah: text("target_menikah"),
   isGenerus: integer("is_generus").default(0),
   createdBy: text("created_by"),
   createdAt: text("created_at").default(sql`(datetime('now'))`),

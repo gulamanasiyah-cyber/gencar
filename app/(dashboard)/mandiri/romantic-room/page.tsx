@@ -2327,8 +2327,48 @@ export default function RomanticRoomPage() {
                                     <Plus size={16} /> Tambah Manual
                                 </button>
 
+                                <button
+                                    onClick={() => window.open("/mandiri/romantic-room-tv", "_blank")}
+                                    style={{
+                                        marginRight: '10px',
+                                        background: '#0284c7',
+                                        color: 'white',
+                                        border: 'none',
+                                        padding: '4px 10px',
+                                        borderRadius: '6px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        fontSize: '11px',
+                                        fontWeight: '700',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    📺 Buka Monitor Layar TV
+                                </button>
+
                                 <button className="btn-export-excel" onClick={handleExportExcel} style={{ marginRight: '10px', background: '#16a34a' }}>
                                     <Download size={16} /> Export Excel
+                                </button>
+
+                                <button
+                                    onClick={handleExportPDF}
+                                    style={{
+                                        marginRight: '10px',
+                                        background: '#dc2626',
+                                        color: 'white',
+                                        border: 'none',
+                                        padding: '4px 10px',
+                                        borderRadius: '6px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        fontSize: '11px',
+                                        fontWeight: '700',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    <Download size={16} /> Export PDF
                                 </button>
 
                                 <button className="btn-share-wa" onClick={handleShareWhatsApp} style={{ marginRight: '10px', background: '#25d366', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>

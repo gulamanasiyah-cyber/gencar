@@ -32,6 +32,7 @@ interface MandiriItem {
    makananMinumanFavorit?: string | null;
    instagram?: string | null;
    kriteriaPasangan?: string | null;
+   targetMenikah?: string | null;
    desaNama: string;
    desaKota: string;
    kelompokNama?: string;
@@ -120,6 +121,7 @@ export default function MandiriPage() {
       makananMinumanFavorit: "",
       instagram: "",
       kriteriaPasangan: "",
+      targetMenikah: "",
       mandiriDaerahId: "",
       mandiriDesaId: "",
       mandiriKelompokId: "",
@@ -436,6 +438,7 @@ export default function MandiriPage() {
          makananMinumanFavorit: item.makananMinumanFavorit || "",
          instagram: item.instagram || "",
          kriteriaPasangan: item.kriteriaPasangan || "",
+         targetMenikah: item.targetMenikah || "",
          mandiriDaerahId: mDaerahId,
          mandiriDesaId: mDesaId,
          mandiriKelompokId: mKelId,
@@ -462,6 +465,8 @@ export default function MandiriPage() {
             jenisKelamin: editForm.jenisKelamin,
             tanggalLahir: editForm.tanggalLahir || null,
             pekerjaan: editForm.pekerjaan,
+            kriteriaPasangan: editForm.kriteriaPasangan || null,
+            targetMenikah: editForm.targetMenikah || null,
             mandiriDaerahId: editForm.mandiriDaerahId || null,
             mandiriDesaId: editForm.mandiriDesaId || null,
             mandiriKelompokId: editForm.mandiriKelompokId || null,
@@ -534,6 +539,52 @@ export default function MandiriPage() {
          await fetch(`/api/mandiri?id=${id}`, { method: "DELETE" });
          Swal.fire({ icon: "success", title: "Terhapus!", timer: 1500, showConfirmButton: false });
          fetchData();
+      }
+   };
+
+   const handleTolak = async (id: string, nama: string) => {
+      const res = await Swal.fire({
+         title: "Tolak Pendaftaran?",
+         text: `Apakah Anda yakin menolak dan menghapus pendaftaran atas nama ${nama}?`,
+         icon: "warning",
+         showCancelButton: true,
+         confirmButtonColor: "#ef4444",
+         cancelButtonColor: "#64748b",
+         confirmButtonText: "Ya, Tolak!",
+      });
+
+      if (res.isConfirmed) {
+         await fetch(`/api/mandiri?id=${id}`, { method: "DELETE" });
+         Swal.fire({ icon: "success", title: "Ditolak!", timer: 1500, showConfirmButton: false });
+         fetchData();
+      }
+   };
+
+   const handleIzinkan = async (item: MandiriItem) => {
+      const res = await Swal.fire({
+         title: "Izinkan Peserta?",
+         text: `Peserta atas nama ${item.nama} akan diubah statusnya menjadi Aktif.`,
+         icon: "question",
+         showCancelButton: true,
+         confirmButtonColor: "#10b981",
+         cancelButtonColor: "#64748b",
+         confirmButtonText: "Ya, Izinkan!",
+      });
+
+      if (res.isConfirmed) {
+         try {
+            const bodyPayload = { id: item.id, statusMandiri: "Aktif", generusId: item.generusId };
+            const response = await fetch("/api/mandiri", {
+               method: "PUT",
+               headers: { "Content-Type": "application/json" },
+               body: JSON.stringify(bodyPayload),
+            });
+            if (!response.ok) throw new Error("Gagal mengizinkan");
+            Swal.fire({ icon: "success", title: "Berhasil Diizinkan!", timer: 1500, showConfirmButton: false });
+            fetchData();
+         } catch (e: any) {
+            Swal.fire({ icon: "error", title: "Error", text: e.message });
+         }
       }
    };
 
@@ -618,6 +669,7 @@ export default function MandiriPage() {
             { header: "Makanan Favorit", key: "makananMinumanFavorit", width: 25 },
             { header: "Instagram", key: "instagram", width: 20 },
             { header: "Kriteria Pasangan", key: "kriteriaPasangan", width: 30 },
+            { header: "Target Menikah", key: "targetMenikah", width: 15 },
             { header: "Alamat Lengkap", key: "alamat", width: 40 },
             { header: "Daerah", key: "daerah", width: 20 },
             { header: "Desa", key: "desa", width: 15 },
@@ -648,6 +700,7 @@ export default function MandiriPage() {
                makananMinumanFavorit: item.makananMinumanFavorit || "-",
                instagram: item.instagram || "-",
                kriteriaPasangan: item.kriteriaPasangan || "-",
+               targetMenikah: item.targetMenikah || "-",
                alamat: item.alamat || "-",
                daerah: item.desaKota && item.desaKota !== "N/A" ? item.desaKota : "-",
                desa: item.desaNama && item.desaNama !== "N/A" ? item.desaNama : "-",
@@ -1203,6 +1256,7 @@ export default function MandiriPage() {
                                        <th>Dibayarkan Senilai</th>
                                        <th>Foto Bukti Bayar</th>
                                        <th>Catatan</th>
+                                       <th>Target Menikah</th>
                                        {userRole !== "tim_pnkb_gambuh" && <th>Aksi</th>}
                                     </tr>
                                  </thead>
@@ -1316,11 +1370,21 @@ export default function MandiriPage() {
                                           <td data-label="Catatan" style={{ fontSize: 12, maxWidth: "150px", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
                                              {item.catatan || "gratis"}
                                           </td>
+                                          <td data-label="Target Menikah">{item.targetMenikah || "-"}</td>
                                           {userRole !== "tim_pnkb_gambuh" && (
                                           <td data-label="Aksi">
                                              <div className="flex gap-2">
-                                                <button className="btn btn-sm btn-secondary" onClick={() => handleUpdate(item)}>Edit</button>
-                                                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(item.id, item.nama)}>Hapus</button>
+                                                {item.statusMandiri === "Menunggu" ? (
+                                                   <>
+                                                      <button className="btn btn-sm" style={{ backgroundColor: "#10b981", color: "white" }} onClick={() => handleIzinkan(item)}>Izinkan</button>
+                                                      <button className="btn btn-sm btn-danger" onClick={() => handleTolak(item.id, item.nama)}>Tidak Izinkan</button>
+                                                   </>
+                                                ) : (
+                                                   <>
+                                                      <button className="btn btn-sm btn-secondary" onClick={() => handleUpdate(item)}>Edit</button>
+                                                      <button className="btn btn-sm btn-danger" onClick={() => handleDelete(item.id, item.nama)}>Hapus</button>
+                                                   </>
+                                                )}
                                              </div>
                                           </td>
                                           )}
@@ -1421,7 +1485,8 @@ export default function MandiriPage() {
                                           ) : (
                                              <span className="badge badge-gray">Belum Hadir</span>
                                           )}
-                                       </div>
+                                          <div><strong>Target Menikah</strong>: {item.targetMenikah || "-"}</div>
+                                    </div>
 
                                        <div className="status-item">
                                           <span className="status-label">Status Akun</span>
@@ -1474,19 +1539,35 @@ export default function MandiriPage() {
 
                                     {userRole !== "tim_pnkb_gambuh" && (
                                     <div className="card-actions">
-                                       <button className="btn btn-sm btn-secondary flex-grow" onClick={() => handleUpdate(item)}>
-                                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14, marginRight: 6 }}>
-                                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                             <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                          </svg>
-                                          Edit Status
-                                       </button>
-                                       <button className="btn btn-sm btn-danger-outline" onClick={() => handleDelete(item.id, item.nama)}>
-                                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
-                                             <polyline points="3 6 5 6 21 6" />
-                                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                          </svg>
-                                       </button>
+                                       {item.statusMandiri === "Menunggu" ? (
+                                          <>
+                                             <button className="btn btn-sm flex-grow" style={{ backgroundColor: "#10b981", color: "white" }} onClick={() => handleIzinkan(item)}>
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14, marginRight: 6 }}>
+                                                   <path d="M20 6L9 17l-5-5" />
+                                                </svg>
+                                                Izinkan
+                                             </button>
+                                             <button className="btn btn-sm btn-danger-outline" onClick={() => handleTolak(item.id, item.nama)}>
+                                                Tidak Izinkan
+                                             </button>
+                                          </>
+                                       ) : (
+                                          <>
+                                             <button className="btn btn-sm btn-secondary flex-grow" onClick={() => handleUpdate(item)}>
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14, marginRight: 6 }}>
+                                                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                                   <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                                </svg>
+                                                Edit Status
+                                             </button>
+                                             <button className="btn btn-sm btn-danger-outline" onClick={() => handleDelete(item.id, item.nama)}>
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
+                                                   <polyline points="3 6 5 6 21 6" />
+                                                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                                </svg>
+                                             </button>
+                                          </>
+                                       )}
                                     </div>
                                     )}
                                  </div>
@@ -1844,6 +1925,32 @@ export default function MandiriPage() {
                                     onChange={(e) => setEditForm({ ...editForm, dibayarkanSenilai: e.target.value })}
                                  />
                               </div>
+
+                              <div className="form-group" style={{ marginBottom: "16px" }}>
+                                 <label className="form-label">Kriteria Pasangan</label>
+                                 <textarea
+                                    className="form-control"
+                                    value={editForm.kriteriaPasangan || ""}
+                                    onChange={(e) => setEditForm(prev => ({ ...prev, kriteriaPasangan: e.target.value }))}
+                                 />
+                              </div>
+
+                              <div className="form-group" style={{ marginBottom: "16px" }}>
+                                 <label className="form-label">Target Menikah</label>
+                                 <select
+                                    className="form-control"
+                                    value={editForm.targetMenikah || ""}
+                                    onChange={(e) => setEditForm(prev => ({ ...prev, targetMenikah: e.target.value }))}
+                                 >
+                                    <option value="">-- Pilih Target Menikah --</option>
+                                    {Array.from({ length: 15 }, (_, i) => 2026 + i).map(y => (
+                                       <option key={y} value={String(y)}>{y}</option>
+                                    ))}
+                                 </select>
+                              </div>
+
+                              <hr style={{ margin: "24px 0", borderTop: "1px dashed #e2e8f0" }} />
+
                               <div className="form-group" style={{ marginBottom: "24px", textAlign: "center" }}>
                                  <label className="form-label" style={{ textAlign: "left", display: "block" }}>Foto Bukti Bayar</label>
                                  <PhotoUpload

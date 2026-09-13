@@ -115,6 +115,7 @@ export async function GET(request: NextRequest) {
         makananMinumanFavorit: generus.makananMinumanFavorit,
         instagram: generus.instagram,
         kriteriaPasangan: generus.kriteriaPasangan,
+        targetMenikah: generus.targetMenikah,
         desaKota: sql<string>`COALESCE(${mandiriDaerah.nama}, 'Luar JB2')`,
         desaNama: sql<string>`COALESCE(${mandiriDesa.nama}, ${desa.nama}, 'N/A')`,
         kelompokNama: sql<string>`COALESCE(${mandiriKelompok.nama}, ${kelompok.nama}, 'N/A')`,
@@ -348,7 +349,7 @@ export async function PUT(request: NextRequest) {
     const { 
       id: mandiriId, statusMandiri, catatan, resetDevice, statusPeserta, dibayarkanSenilai,
       generusId, nama, foto, noTelp, jenisKelamin, tanggalLahir, pekerjaan, mandiriDesaId, mandiriKelompokId,
-      tempatLahir, alamat, pendidikan, suku, hobi, makananMinumanFavorit, instagram, kriteriaPasangan
+      tempatLahir, alamat, pendidikan, suku, hobi, makananMinumanFavorit, instagram, kriteriaPasangan, targetMenikah
     } = body;
 
     if (!mandiriId) return NextResponse.json({ error: "ID wajib diisi" }, { status: 400 });
@@ -406,6 +407,7 @@ export async function PUT(request: NextRequest) {
       if (makananMinumanFavorit !== undefined) genUpdate.makananMinumanFavorit = makananMinumanFavorit;
       if (instagram !== undefined) genUpdate.instagram = instagram;
       if (kriteriaPasangan !== undefined) genUpdate.kriteriaPasangan = kriteriaPasangan;
+      if (targetMenikah !== undefined) genUpdate.targetMenikah = targetMenikah;
       if (mandiriDesaId !== undefined) genUpdate.mandiriDesaId = mandiriDesaId ? Number(mandiriDesaId) : null;
       if (mandiriKelompokId !== undefined) genUpdate.mandiriKelompokId = mandiriKelompokId ? Number(mandiriKelompokId) : null;
 
