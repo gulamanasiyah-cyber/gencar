@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "concurrently \"npm run dev --prefix frontend\" \"wrangler dev --local --port 8787\"",
+    "dev:remote": "concurrently \"npm run dev --prefix frontend\" \"wrangler dev --remote --port 8787\"",
     "dev:frontend": "npm run dev --prefix frontend",
     "dev:server": "wrangler dev --local",
+    "dev:server:remote": "wrangler dev --remote --port 8787",
     "build": "npm run build --prefix frontend",
     "build:frontend": "npm run build --prefix frontend",
     "deploy": "npm run build --prefix frontend && wrangler deploy",

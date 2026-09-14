@@ -6,6 +6,7 @@ import ArtikelTab from "./ArtikelTab";
 import GaleriTab from "./GaleriTab";
 import TentangTab from "./TentangTab";
 import "./cms.css";
+import { useAdminPageTour } from "../../lib/tours/useAdminPageTour";
 
 const ALL_TABS = [
   { key: "kegiatan", label: "Kegiatan Publik" },
@@ -41,6 +42,8 @@ export default function CmsPage({ role }: { role: AdminRole }) {
     window.history.replaceState(null, "", url.toString());
   };
 
+  useAdminPageTour("cms", { role });
+
   return (
     <div>
       <div className="page-header">
@@ -49,7 +52,7 @@ export default function CmsPage({ role }: { role: AdminRole }) {
           <div className="page-header-sub">Kelola konten web publik — kegiatan, artikel, galeri, pengurus, tentang.</div>
         </div>
       </div>
-      <div className="cms-tabs" role="tablist" aria-label="CMS tabs">
+      <div id="tour-cms-tabs" className="cms-tabs" role="tablist" aria-label="CMS tabs">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -62,11 +65,13 @@ export default function CmsPage({ role }: { role: AdminRole }) {
           </button>
         ))}
       </div>
-      {tab === "kegiatan" && <KegiatanPublikTab role={role} userId={userId} />}
-      {tab === "artikel" && <ArtikelTab tipe="artikel" role={role} userId={userId} />}
-      {tab === "galeri" && <GaleriTab role={role} userId={userId} />}
-      {tab === "pengurus" && <PengurusTab />}
-      {tab === "tentang" && <TentangTab />}
+      <div id="tour-cms-content">
+        {tab === "kegiatan" && <KegiatanPublikTab role={role} userId={userId} />}
+        {tab === "artikel" && <ArtikelTab tipe="artikel" role={role} userId={userId} />}
+        {tab === "galeri" && <GaleriTab role={role} userId={userId} />}
+        {tab === "pengurus" && <PengurusTab />}
+        {tab === "tentang" && <TentangTab />}
+      </div>
     </div>
   );
 }

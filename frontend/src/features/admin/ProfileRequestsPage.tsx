@@ -5,6 +5,7 @@ import SearchInput from "../../components/admin/SearchInput";
 import Modal from "../../components/admin/Modal";
 import { apiFetch, unwrapList } from "../../lib/api";
 import IzinAdminPanel from "./IzinAdminPanel";
+import { useAdminPageTour } from "../../lib/tours/useAdminPageTour";
 
 type ReqStatus = "pending" | "approved" | "rejected";
 type ReqSection = "kontak" | "wilayah" | "identitas";
@@ -246,6 +247,8 @@ export default function ProfileRequestsPage() {
     { key: "all", label: "Semua" },
   ];
 
+  useAdminPageTour("pengajuan", { ready: !loading });
+
   return (
     <div>
       <div className="page-header">
@@ -256,7 +259,7 @@ export default function ProfileRequestsPage() {
       </div>
 
       {/* Mode: pengajuan profil vs izin kegiatan */}
-      <div className="card" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+      <div id="tour-pengajuan-tabs" className="card" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
         <button type="button" className={`chip ${mode === "profile" ? "active" : ""}`} onClick={() => setMode("profile")}>
           Pengajuan Profil
         </button>
@@ -269,14 +272,14 @@ export default function ProfileRequestsPage() {
         <IzinAdminPanel />
       ) : (
         <>
-      <div className="kpi">
+      <div id="tour-pengajuan-kpi" className="kpi">
         <KpiCard icon={<span className="kpi-icon kpi-icon--amber"><IcoClock size={18} /></span>} label="Menunggu" value={kpi.pending} />
         <KpiCard icon={<span className="kpi-icon kpi-icon--emerald"><IcoCheck size={18} /></span>} label="Disetujui" value={kpi.approved} />
         <KpiCard icon={<span className="kpi-icon kpi-icon--peach"><IcoX size={18} /></span>} label="Ditolak" value={kpi.rejected} />
         <KpiCard icon={<span className="kpi-icon kpi-icon--slate"><IcoShield size={18} /></span>} label="Total (tab)" value={kpi.total} />
       </div>
 
-      <div className="admin-toolbar">
+      <div id="tour-pengajuan-toolbar" className="admin-toolbar">
         <SearchInput value={q} onChange={setQ} placeholder="Cari nama / NIK / alasan / payload..." />
         <button
           type="button"

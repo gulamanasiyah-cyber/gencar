@@ -7,6 +7,7 @@ import { haversineM } from "shared/validation";
 import { apiFetch } from "../../lib/api";
 import { Select } from "../../components/Select";
 import { type MemberIdentity, type MemberKegiatan } from "./types";
+import { startMemberTour } from "../../lib/tours/tourMember";
 
 // Fix default marker icons for Vite bundling
 import iconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
@@ -217,6 +218,7 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
 
   useEffect(() => {
     void loadRiwayat();
+    startMemberTour();
   }, []);
 
   async function openHistoryModal() {
@@ -455,7 +457,7 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
   return (
     <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 16, width: "100%", minWidth: 0 }}>
       {/* 1. HERO CLOCK (Start/Working Time) */}
-      <div className="member-hero-clock">
+      <div id="tour-member-hero" className="member-hero-clock">
         <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--muted)" }}>Working Time</div>
         <div className="member-hero-clock-time">{timeStr}</div>
         <div className="member-hero-clock-sub" style={{ display: "grid", gap: 3, justifyContent: "center" }}>
@@ -479,7 +481,7 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
       </div>
 
       {/* 2. FITUR ABSEN UTAMA (Kamera Scanner QR dalam Card + Tombol Check Lokasi) */}
-      <div className="card" style={{ padding: 18, display: "grid", gap: 14 }}>
+      <div id="tour-member-scanner" className="card" style={{ padding: 18, display: "grid", gap: 14 }}>
         {/* Scanner QR */}
         <div style={{ borderRadius: 16, overflow: "hidden", background: "#0f172a", position: "relative" }}>
           <div id="qr-reader" style={{ borderRadius: 14, overflow: "hidden", border: "none", outline: "none", background: "#0f172a", width: "100%", maxHeight: 280 }} />
@@ -503,6 +505,7 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
         {/* Tombol Check Lokasi */}
         <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 4 }}>
           <button
+            id="tour-member-gps"
             type="button"
             className="btn btn-ghost btn-sm"
             disabled={!todayKegiatan}
@@ -700,7 +703,7 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
               className="card"
               onClick={() => {
                 setSelectedDate(k.tanggal);
-                const el = document.getElementById("kalender-section");
+                const el = document.getElementById("tour-member-kalender") || document.getElementById("kalender-section");
                 if (el) el.scrollIntoView({ behavior: "smooth" });
               }}
               style={{
@@ -736,7 +739,7 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
       </div>
 
       {/* 6. KALENDER KEGIATAN TERINTEGRASI */}
-      <div id="kalender-section" className="card" style={{ padding: 16 }}>
+      <div id="tour-member-kalender" className="card" style={{ padding: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <h3 style={{ fontSize: 13, fontWeight: 800, letterSpacing: "-0.02em" }}>Kalender Kegiatan</h3>
           <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
@@ -848,7 +851,7 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
       </div>
 
       {/* 7. AJUKAN IZIN KEGIATAN */}
-      <div className="card" style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+      <div id="tour-member-izin" className="card" style={{ padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
           <div style={{ width: 38, height: 38, borderRadius: 12, background: "rgba(208,56,4,0.1)", color: "var(--primary)", display: "grid", placeItems: "center", flexShrink: 0 }}>
             <Send size={18} />
@@ -873,7 +876,7 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
       </div>
 
       {/* 8. RIWAYAT ABSENSI */}
-      <div id="riwayat-section" className="card" style={{ padding: 16, display: "grid", gap: 12 }}>
+      <div id="tour-member-riwayat" className="card" style={{ padding: 16, display: "grid", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <h3 style={{ fontSize: 14, fontWeight: 800, letterSpacing: "-0.02em", margin: 0 }}>
             Riwayat Absensi

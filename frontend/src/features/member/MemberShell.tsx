@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Users, User, BarChart3, LogOut, Home } from "lucide-react";
+import { Users, User, BarChart3, LogOut, Home, HelpCircle } from "lucide-react";
 import type { MemberIdentity } from "./types";
+import { startMemberTour } from "../../lib/tours/tourMember";
 
 export type MemberPageKey = "beranda" | "profil" | "statistik";
 
@@ -37,6 +38,20 @@ export default function MemberShell({
           </div>
         </div>
         <div className="member-topbar-right">
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => {
+              if (page !== "beranda") setPage("beranda");
+              startMemberTour({ force: true });
+            }}
+            title="Panduan Aplikasi"
+            aria-label="Panduan Aplikasi"
+            style={{ padding: "4px 8px", fontSize: 11, borderRadius: 999, height: "auto", display: "inline-flex", gap: 4, alignItems: "center" }}
+          >
+            <HelpCircle size={14} />
+            <span style={{ fontWeight: 700 }}>Panduan</span>
+          </button>
           <span className="pill" style={{ fontSize: 11 }}>
             <Users size={12} /> {me.nama.split(" ")[0]}
           </span>
@@ -81,6 +96,18 @@ export default function MemberShell({
         {open && (
           <>
             <div style={{ height: 1, background: "var(--line)", margin: "4px 0" }} />
+            <button
+              type="button"
+              className="member-nav-item"
+              onClick={() => {
+                setOpen(false);
+                if (page !== "beranda") setPage("beranda");
+                startMemberTour({ force: true });
+              }}
+            >
+              <HelpCircle size={18} />
+              <span>Panduan Fitur</span>
+            </button>
             <button
               type="button"
               className="member-nav-item"

@@ -38,6 +38,7 @@ import {
   Clock as IcoClock,
   Plus as IcoPlus,
   CheckCircle2 as IcoCheckCircle,
+  HelpCircle as IcoHelp,
 } from "lucide-react";
 import MapPickerModal from "./components/MapPickerModal";
 import Kalender from "./components/Kalender";
@@ -48,6 +49,7 @@ import SearchInput from "./components/admin/SearchInput";
 import { apiFetch, unwrapList } from "./lib/api";
 import { useAuth } from "./lib/auth";
 import { useNavigate } from "react-router-dom";
+import { useAdminPageTour } from "./lib/tours/useAdminPageTour";
 import { computeAchievements, RARITY_META, HOBBY_META, parseHobiDetail, type HobbyKey } from "./features/member/types";
 
 const TROPHY_PNG_MAP: Record<string, string> = {
@@ -549,6 +551,8 @@ function StatistikPage({ role }: { role: AdminRole }) {
     return s.member.byMudaMudi.filter((x) => String(x.name).toLowerCase() === "perantauan").reduce((acc, x) => acc + Number(x.value || 0), 0);
   }, [s?.member?.byMudaMudi]);
 
+  useAdminPageTour("statistik", { role, ready: !loading && s != null });
+
   return (
     <div className="statistik-page" style={{ minWidth: 0 }}>
       <div className="page-header">
@@ -558,7 +562,7 @@ function StatistikPage({ role }: { role: AdminRole }) {
         </div>
       </div>
 
-      <div className="card statistik-filters" style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 16 }}>
+      <div id="tour-statistik-filter" className="card statistik-filters" style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 16 }}>
         <span className="muted" style={{ fontWeight: 700, fontSize: 12, flexShrink: 0 }}>FILTER</span>
         <Select value={f.waktu} onChange={(v) => setF({ ...f, waktu: v as StatFilter["waktu"] })} ariaLabel="Waktu" options={[{ value: "harian", label: "Harian" }, { value: "mingguan", label: "Mingguan" }, { value: "bulanan", label: "Bulanan" }, { value: "tahunan", label: "Tahunan" }]} />
         {role !== "admin_kelompok" && (
@@ -589,7 +593,7 @@ function StatistikPage({ role }: { role: AdminRole }) {
         </div>
       </div>
 
-      <div className="kpi" style={{ marginBottom: 16 }}>
+      <div id="tour-statistik-kpi" className="kpi" style={{ marginBottom: 16 }}>
         <KpiCard icon={<span className="kpi-icon kpi-icon--slate"><IcoCalendar size={18} /></span>} label="Hadir Rate" value={`${s.summary.hadirRate}%`} />
         <KpiCard icon={<span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span>} label="Total Absensi" value={s.summary.totalAbsensi} />
         <KpiCard icon={<span className="kpi-icon kpi-icon--amber"><IcoBarChart size={18} /></span>} label="Total Kegiatan" value={s.summary.totalKegiatan} />
@@ -902,7 +906,7 @@ function AdminShell({
           <div className="brand-mark">G</div>
           <span className="sidebar-brand-text">Gencar</span>
         </div>
-        <div className="admin-mobile-user-pill" onClick={() => setShowMoreMenu(true)} role="button" tabIndex={0}>
+        <div id="tour-admin-badge-mobile" className="admin-mobile-user-pill" onClick={() => setShowMoreMenu(true)} role="button" tabIndex={0}>
           <span className="sidebar-admin-badge">
             {role === "admin_daerah" ? "Daerah" : role === "admin_desa" ? "Desa" : "Kelompok"}
           </span>
@@ -913,7 +917,7 @@ function AdminShell({
       </header>
 
       {/* Sidebar Desktop */}
-      <nav className="admin-sidebar hide-scrollbar" aria-label="Admin navigation">
+      <nav id="tour-admin-sidebar" className="admin-sidebar hide-scrollbar" aria-label="Admin navigation">
         <div className="sidebar-logo">
           <div className="brand-mark">G</div>
           <span className="sidebar-brand-text">Gencar</span>
@@ -922,7 +926,7 @@ function AdminShell({
           <div className="sidebar-admin-email" title={user?.email ?? ""}>
             {user?.email || "—"}
           </div>
-          <div className="sidebar-admin-meta">
+          <div id="tour-admin-badge" className="sidebar-admin-meta">
             <span className="sidebar-admin-badge">
               {role === "admin_daerah" ? "Daerah" : role === "admin_desa" ? "Desa" : "Kelompok"}
             </span>
@@ -967,6 +971,19 @@ function AdminShell({
         ))}
         <div style={{ marginTop: "auto" }} />
         <div className="sidebar-divider" />
+        <button
+          type="button"
+          className="sidebar-logout"
+          style={{ marginBottom: 4, color: "var(--primary)" }}
+          onClick={() => {
+            window.dispatchEvent(
+              new CustomEvent("admin:tour", { detail: { page, force: true } })
+            );
+          }}
+          aria-label="Panduan Fitur Admin"
+        >
+          <IcoHelp size={18} /> <span>Panduan Fitur</span>
+        </button>
         <button className="sidebar-logout" onClick={async () => { await logout(); navigate("/login", { replace: true }); }} aria-label="Logout">
           <IcoLogOut size={18} /> <span>Keluar</span>
         </button>
@@ -976,7 +993,7 @@ function AdminShell({
       <main className="admin-main">{children}</main>
 
       {/* Bottom Tab Bar khusus Mobile (5 Tab Pas & Intuitif) */}
-      <nav className="admin-mobile-bottom-nav" aria-label="Mobile admin navigation">
+      <nav id="tour-admin-mobile-nav" className="admin-mobile-bottom-nav" aria-label="Mobile admin navigation">
         {mobilePrimaryItems.map((it) => {
           const isActive = page === it.key;
           return (
@@ -1083,6 +1100,23 @@ function AdminShell({
                   </button>
                 );
               })}
+              <button
+                type="button"
+                className="admin-more-item-btn"
+                style={{ background: "#fff7ed", borderColor: "#fed7aa" }}
+                onClick={() => {
+                  setShowMoreMenu(false);
+                  window.dispatchEvent(
+                    new CustomEvent("admin:tour", { detail: { page, force: true } })
+                  );
+                }}
+              >
+                <div className="admin-more-item-icon" style={{ color: "var(--primary)" }}><IcoHelp size={20} /></div>
+                <div className="admin-more-item-text">
+                  <strong style={{ color: "var(--primary)" }}>Panduan Fitur</strong>
+                  <span>Putar panduan onboarding</span>
+                </div>
+              </button>
             </div>
 
             <div className="admin-more-sheet-divider" />
@@ -1310,6 +1344,8 @@ function AnggotaPage({ role: _role }: { role: AdminRole }) {
     return () => window.removeEventListener("anggota:refresh" as unknown as string, handler as unknown as EventListener);
   }, []);
 
+  useAdminPageTour("anggota", { role: _role });
+
   const filtered = useMemo(() => {
     let list = members;
     if (kategoriFilter !== "semua") list = list.filter((m) => m.kategoriMudaMudi === kategoriFilter);
@@ -1336,7 +1372,7 @@ function AnggotaPage({ role: _role }: { role: AdminRole }) {
         title="Anggota"
         sub="Kelola data anggota muda-mudi"
         action={
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <div id="tour-admin-actions" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             <button
               type="button"
               className="btn btn-ghost btn-auto"
@@ -1356,14 +1392,14 @@ function AnggotaPage({ role: _role }: { role: AdminRole }) {
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMembersErr(null)}>Tutup</button>
         </div>
       )}
-      <div className="kpi">
+      <div id="tour-admin-kpi" className="kpi">
         <KpiCard icon={<span className="kpi-icon kpi-icon--emerald"><IcoUsers size={18} /></span>} label="Total anggota (scope)" value={totalMeta ?? (loadingMembers ? "…" : filtered.length)} />
         <KpiCard icon={<span className="kpi-icon kpi-icon--slate"><IcoShield size={18} /></span>} label="Aktif" value={filtered.filter((m) => m.status === "aktif").length} />
         <KpiCard icon={<span className="kpi-icon kpi-icon--amber"><IcoCalendar size={18} /></span>} label="Pending" value={filtered.filter((m) => m.status === "pending").length} />
         <KpiCard icon={<span className="kpi-icon kpi-icon--peach"><IcoUsers size={18} /></span>} label="Perantauan" value={filtered.filter((m) => m.kategoriMudaMudi === "perantauan").length} />
       </div>
 
-      <div className="admin-toolbar">
+      <div id="tour-admin-toolbar" className="admin-toolbar">
         <SearchInput value={q} onChange={setQ} placeholder="Cari nama / no telp / kelompok..." />
         <button
           type="button"
@@ -4205,11 +4241,58 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
     setQ("");
   };
 
+  const tourHandlers = useMemo(() => ({
+    openKegiatanForm: () => {
+      setEditingKegiatan(null);
+      setGpsLat("");
+      setGpsLng("");
+      setTingkat(role === "admin_kelompok" ? "kelompok" : role === "admin_desa" ? "desa" : "daerah");
+      setNamaWilayah(role === "admin_kelompok" ? "" : role === "admin_desa" ? "" : "Cengkareng");
+      setTargetedPeserta(false);
+      setPesertaDesaIds([]);
+      setPesertaKelompokIds([]);
+      setPesertaGenerusIds([]);
+      setPesertaFilters({});
+      setShowForm(true);
+    },
+    closeKegiatanForm: () => {
+      setShowForm(false);
+      setEditingKegiatan(null);
+    },
+  }), [role]);
+
+  useAdminPageTour("kegiatan", { role, handlers: tourHandlers });
+
   return (
     <div>
-      <PageHeader title="Kegiatan" sub={`Kelola agenda dan kegiatan${kegiatanErr ? ` · ${kegiatanErr.slice(0, 80)}` : loadingKegiatan ? " · memuat…" : ""}`} action={<button className="btn btn-primary btn-auto" onClick={() => { setEditingKegiatan(null); setGpsLat(""); setGpsLng(""); setTingkat(role === "admin_kelompok" ? "kelompok" : role === "admin_desa" ? "desa" : "daerah"); setNamaWilayah(role === "admin_kelompok" ? "" : role === "admin_desa" ? "" : "Cengkareng"); setTargetedPeserta(false); setPesertaDesaIds([]); setPesertaKelompokIds([]); setPesertaGenerusIds([]); setPesertaFilters({}); setShowForm(true); }}>+ Buat Kegiatan</button>} />
+      <PageHeader
+        title="Kegiatan"
+        sub={`Kelola agenda dan kegiatan${kegiatanErr ? ` · ${kegiatanErr.slice(0, 80)}` : loadingKegiatan ? " · memuat…" : ""}`}
+        action={
+          <div id="tour-kegiatan-actions">
+            <button
+              className="btn btn-primary btn-auto"
+              onClick={() => {
+                setEditingKegiatan(null);
+                setGpsLat("");
+                setGpsLng("");
+                setTingkat(role === "admin_kelompok" ? "kelompok" : role === "admin_desa" ? "desa" : "daerah");
+                setNamaWilayah(role === "admin_kelompok" ? "" : role === "admin_desa" ? "" : "Cengkareng");
+                setTargetedPeserta(false);
+                setPesertaDesaIds([]);
+                setPesertaKelompokIds([]);
+                setPesertaGenerusIds([]);
+                setPesertaFilters({});
+                setShowForm(true);
+              }}
+            >
+              + Buat Kegiatan
+            </button>
+          </div>
+        }
+      />
       {kegiatanErr && <div className="card" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#991b1b", display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}><span style={{ fontSize: 13, fontWeight: 700 }}>{kegiatanErr}</span><button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: "auto" }} onClick={() => void loadKegiatan()}>Retry</button></div>}
-      <div className="admin-toolbar" style={{ marginBottom: 16 }}>
+      <div id="tour-kegiatan-toolbar" className="admin-toolbar" style={{ marginBottom: 16 }}>
         <SearchInput value={q} onChange={setQ} placeholder="Cari judul / lokasi..." />
         <button
           type="button"
@@ -4288,7 +4371,7 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
         </AdminModal>
       )}
 
-      <div className="kegiatan-grid">
+      <div id="tour-kegiatan-grid" className="kegiatan-grid">
         {loadingKegiatan && filtered.length === 0 && <div className="lp-empty-card">Memuat kegiatan dari API…</div>}
         {filtered.map((k) => (
           <div key={k.id} className="card kegiatan-card">
@@ -4358,7 +4441,7 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
       {showForm && (
         <AdminModal title={editingKegiatan ? "Edit Kegiatan" : "Buat Kegiatan"} onClose={() => { setShowForm(false); setEditingKegiatan(null); }} className="modal--kegiatan">
           <div style={{ display: "grid", gap: 12 }}>
-              <div className="field"><label>Kategori Acara</label>
+              <div id="tour-kegiatan-form-kategori" className="field"><label>Kategori Acara</label>
                 <Select
                   value={kategori}
                   onChange={(v) => setKategori(v as Kategori)}
@@ -4380,7 +4463,7 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
                 {kategori === "sambung_rutin" && !editingKegiatan && <span className="muted">Template: {tpl}</span>}
               </div>
               <div className="field"><label>Deskripsi</label><textarea rows={2} placeholder="Detail acara..." id="deskripsi" defaultValue={editingKegiatan?.deskripsi ?? ""} /></div>
-              <div className="kegiatan-form-grid-3">
+              <div id="tour-kegiatan-form-jadwal" className="kegiatan-form-grid-3">
                 <div className="field"><label>Tanggal</label><input type="date" id="tanggal" defaultValue={editingKegiatan?.tanggal ?? new Date().toISOString().slice(0, 10)} /></div>
                 <div className="field"><label>Jam Mulai</label><TimeInput24 key={`jm-${editingKegiatan?.id ?? "new"}`} id="jamMulai" defaultValue={(editingKegiatan as any)?.jamMulai ?? editingKegiatan?.jam ?? ""} /></div>
                 <div className="field"><label>Jam Selesai (Pulang)</label><TimeInput24 key={`js-${editingKegiatan?.id ?? "new"}`} id="jamSelesai" defaultValue={(editingKegiatan as any)?.jamSelesai ?? ""} /></div>
@@ -4393,7 +4476,7 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
                 <div className="field"><label>Tanggal Selesai</label><input type="date" id="tanggalSelesai" defaultValue={(editingKegiatan as any)?.tanggalSelesai ?? editingKegiatan?.tanggal ?? new Date().toISOString().slice(0, 10)} /></div>
               )}
               <div className="field"><label>Lokasi</label><textarea id="lokasi" rows={2} placeholder="Masjid / Aula" defaultValue={editingKegiatan?.lokasi ?? ""} /></div>
-              <div className="field">
+              <div id="tour-kegiatan-form-lokasi" className="field">
                 <label>Lokasi GPS — tap untuk pilih di peta</label>
                 <div className="kegiatan-form-grid-gps">
                   <button
@@ -4425,7 +4508,7 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
                   <span className="muted" style={{ fontSize: 11 }}>Kosong = tanpa validasi GPS (opsional). Pasang pin untuk absen berbasis lokasi.</span>
                 )}
               </div>
-              <div className="field">
+              <div id="tour-kegiatan-form-peserta" className="field">
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                   <div>
                     <label style={{ marginBottom: 0 }}>Peserta Wajib</label>
@@ -4587,6 +4670,7 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
               </div>
               {!canCreate && <div className="pill pill-amber" style={{ justifyContent: "center" }}>Role kamu tidak boleh buat di tingkat {tingkat}</div>}
               <button
+                id="tour-kegiatan-form-submit"
                 className="btn btn-primary" style={{ width: "100%" }} disabled={!canCreate || savingKegiatan}
                 onClick={async () => {
                   if (savingKegiatan) return;
@@ -4960,19 +5044,29 @@ function UsersManage({ role }: { role: AdminRole }) {
     }
   };
 
+  useAdminPageTour("users", { role, ready: !usersLoading });
+
   return (
     <div>
-      <PageHeader title="Kelola User" sub={`Kelola akun admin di bawah kamu${usersErr ? ` · ${usersErr.slice(0, 80)}` : ""}`} action={<button className="btn btn-primary btn-auto" onClick={() => setShowAdd(true)}>+ Tambah Admin</button>} />
+      <PageHeader
+        title="Kelola User"
+        sub={`Kelola akun admin di bawah kamu${usersErr ? ` · ${usersErr.slice(0, 80)}` : ""}`}
+        action={
+          <div id="tour-user-actions">
+            <button className="btn btn-primary btn-auto" onClick={() => setShowAdd(true)}>+ Tambah Admin</button>
+          </div>
+        }
+      />
       {usersErr && <div className="card" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#991b1b", display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}><span style={{ fontSize: 13, fontWeight: 700 }}>{usersErr}</span><button type="button" className="btn btn-ghost btn-sm" style={{ marginLeft: "auto" }} onClick={() => setUsersErr(null)}>Tutup</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => void loadUsers()}>Retry</button></div>}
       {usersLoading && <div className="muted" style={{ marginBottom: 8, fontSize: 12 }}>Memuat user…</div>}
-      <div className="info-banner">
+      <div id="tour-user-info" className="info-banner">
         <span className="info-banner-icon"><IcoShield size={18} /></span>
         <div className="info-banner-body">
           <strong className="info-banner-title">Kelola User di bawah kamu</strong>
           <p className="info-banner-desc">{role === "admin_daerah" ? "Kelola semua admin di wilayah kamu." : role === "admin_desa" ? "Kelola admin desa dan admin kelompok di desamu." : "Kelola admin kelompok di kelompokmu."}</p>
         </div>
       </div>
-      <div className="admin-toolbar" style={{ marginBottom: 16 }}>
+      <div id="tour-user-toolbar" className="admin-toolbar" style={{ marginBottom: 16 }}>
         <SearchInput value={q} onChange={setQ} placeholder="Cari nama / wilayah / role..." />
       </div>
       {isMobile ? (
@@ -5335,22 +5429,26 @@ function QrWilayahPage({ role }: { role: AdminRole }) {
     }),
   ];
 
+  useAdminPageTour("qr", { role, ready: desas.length > 0 || kelompoks.length > 0 });
+
   return (
     <div>
-      <PageHeader
-        title="QR Wilayah"
-        sub="Satu QR per wilayah — ditempel di lokasi, discan anggota wilayah tersebut untuk absensi"
-        action={(
-          <label className="search" style={{ maxWidth: 260 }}>
-            <IcoSearch size={14} />
-            <input placeholder="Cari wilayah..." value={q} onChange={(e) => setQ(e.target.value)} aria-label="Cari wilayah" />
-          </label>
-        )}
-      />
+      <div id="tour-qr-header">
+        <PageHeader
+          title="QR Wilayah"
+          sub="Satu QR per wilayah — ditempel di lokasi, discan anggota wilayah tersebut untuk absensi"
+          action={(
+            <label className="search" style={{ maxWidth: 260 }}>
+              <IcoSearch size={14} />
+              <input placeholder="Cari wilayah..." value={q} onChange={(e) => setQ(e.target.value)} aria-label="Cari wilayah" />
+            </label>
+          )}
+        />
+      </div>
       {cards.length === 0 ? (
         <div className="lp-empty-card">Tidak ada QR wilayah yang cocok.</div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+        <div id="tour-qr-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
           {cards.map((c) => (
             <div key={c.key} className="card" style={{ display: "grid", justifyItems: "center", gap: 8, padding: 16, textAlign: "center" }}>
               <span className={`pill ${c.level === "daerah" ? "pill-emerald" : c.level === "desa" ? "pill-amber" : "pill-slate"}`} style={{ textTransform: "capitalize" }}>{c.level}</span>
@@ -5540,11 +5638,21 @@ function WilayahPage({ role }: { role: AdminRole }) {
     return () => clearTimeout(t);
   }, [firstMatchKelompokId, qWilayah]);
 
+  useAdminPageTour("wilayah", { role, ready: desas.length > 0 || kelompoks.length > 0 });
+
   return (
     <div>
-      <PageHeader title="Manajemen Wilayah" sub={role === "admin_daerah" ? "Kelola desa dan kelompok di bawah Daerah Cengkareng" : role === "admin_desa" ? "Kelola kelompok di desamu" : "Lihat wilayah kelompokmu"} action={canManageWilayah ? <button className="btn btn-primary btn-auto" onClick={() => setShowAddDesa(true)}>+ Tambah Desa</button> : undefined} />
+      <PageHeader
+        title="Manajemen Wilayah"
+        sub={role === "admin_daerah" ? "Kelola desa dan kelompok di bawah Daerah Cengkareng" : role === "admin_desa" ? "Kelola kelompok di desamu" : "Lihat wilayah kelompokmu"}
+        action={canManageWilayah ? (
+          <div id="tour-wilayah-actions">
+            <button className="btn btn-primary btn-auto" onClick={() => setShowAddDesa(true)}>+ Tambah Desa</button>
+          </div>
+        ) : undefined}
+      />
 
-      <div className="kpi">
+      <div id="tour-wilayah-kpi" className="kpi">
         <KpiCard icon={<span className="kpi-icon kpi-icon--emerald"><IcoMapPin size={18} /></span>} label="Desa" value={countDesa} />
         <KpiCard icon={<span className="kpi-icon kpi-icon--slate"><IcoUsers size={18} /></span>} label="Kelompok" value={countKelompok} />
         <KpiCard icon={<span className="kpi-icon kpi-icon--amber"><IcoCalendar size={18} /></span>} label="Total anggota" value={countAnggota} />
@@ -5565,7 +5673,7 @@ function WilayahPage({ role }: { role: AdminRole }) {
         </div>
       </div>
 
-      <div className="admin-toolbar wilayah-toolbar" style={{ marginTop: 16, marginBottom: 12 }}>
+      <div id="tour-wilayah-toolbar" className="admin-toolbar wilayah-toolbar" style={{ marginTop: 16, marginBottom: 12 }}>
         <label className="search" style={{ maxWidth: 420 }}>
           <IcoSearch size={14} />
           <input
