@@ -1022,6 +1022,7 @@ function AdminShell({
         })}
         <button
           type="button"
+          id="tour-admin-mobile-more-tab"
           className={`admin-mobile-tab-btn ${isMoreActive ? "active" : ""}`}
           onClick={() => setShowMoreMenu((prev) => !prev)}
           aria-label="Menu Lainnya"
@@ -4241,27 +4242,7 @@ function KegiatanAdmin({ role }: { role: AdminRole }) {
     setQ("");
   };
 
-  const tourHandlers = useMemo(() => ({
-    openKegiatanForm: () => {
-      setEditingKegiatan(null);
-      setGpsLat("");
-      setGpsLng("");
-      setTingkat(role === "admin_kelompok" ? "kelompok" : role === "admin_desa" ? "desa" : "daerah");
-      setNamaWilayah(role === "admin_kelompok" ? "" : role === "admin_desa" ? "" : "Cengkareng");
-      setTargetedPeserta(false);
-      setPesertaDesaIds([]);
-      setPesertaKelompokIds([]);
-      setPesertaGenerusIds([]);
-      setPesertaFilters({});
-      setShowForm(true);
-    },
-    closeKegiatanForm: () => {
-      setShowForm(false);
-      setEditingKegiatan(null);
-    },
-  }), [role]);
-
-  useAdminPageTour("kegiatan", { role, handlers: tourHandlers });
+  useAdminPageTour("kegiatan", { role });
 
   return (
     <div>

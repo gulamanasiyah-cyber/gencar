@@ -36,6 +36,21 @@ export type TourStepDef = {
 export type TourHandlers = Partial<Record<TourAction, () => void>>;
 
 const STORAGE_PREFIX = "gencar_tour_admin_v2_";
+const SHELL_STORAGE_KEY = "gencar_tour_admin_shell_v2";
+
+export function isShellTourDone(): boolean {
+  try {
+    return localStorage.getItem(SHELL_STORAGE_KEY) === "completed";
+  } catch {
+    return false;
+  }
+}
+
+export function markShellTourDone(): void {
+  try {
+    localStorage.setItem(SHELL_STORAGE_KEY, "completed");
+  } catch {}
+}
 
 export function isPageTourDone(pageKey: AdminPageKey): boolean {
   try {
@@ -64,10 +79,11 @@ export function resetAdminTours(): void {
       "statistik",
     ];
     keys.forEach((k) => localStorage.removeItem(`${STORAGE_PREFIX}${k}`));
+    localStorage.removeItem(SHELL_STORAGE_KEY);
   } catch {}
 }
 
-const SHELL_STEPS: TourStepDef[] = [
+const DESKTOP_SHELL_STEPS: TourStepDef[] = [
   {
     element: "#tour-admin-badge",
     title: "Hak Akses & Wilayah",
@@ -86,9 +102,35 @@ const SHELL_STEPS: TourStepDef[] = [
   },
 ];
 
+const MOBILE_SHELL_STEPS: TourStepDef[] = [
+  {
+    element: "#tour-admin-badge-mobile",
+    title: "Hak Akses & Wilayah",
+    description:
+      "Menampilkan peran kepengurusan Anda dan wilayah yang dikelola. Tap badge untuk melihat profil admin.",
+    side: "bottom",
+    align: "end",
+  },
+  {
+    element: "#tour-admin-mobile-nav",
+    title: "Tab Navigasi Utama",
+    description:
+      "Akses cepat ke 4 modul utama: Anggota (biodata), Kegiatan (presensi), Pengajuan (verifikasi izin), dan CMS (web publik).",
+    side: "top",
+    align: "center",
+  },
+  {
+    element: "#tour-admin-mobile-more-tab",
+    title: "Menu Tambahan (Drawer Sheet)",
+    description:
+      "Tap tab 'Lainnya' untuk membuka laci menu lanjutan: User Admin, Wilayah, QR Presensi, Statistik, dan Keluar Akun.",
+    side: "top",
+    align: "end",
+  },
+];
+
 export const ADMIN_PAGE_STEPS: Record<AdminPageKey, TourStepDef[]> = {
   anggota: [
-    ...SHELL_STEPS,
     {
       element: "#tour-admin-kpi",
       title: "Ringkasan Data Anggota (KPI)",
@@ -116,7 +158,6 @@ export const ADMIN_PAGE_STEPS: Record<AdminPageKey, TourStepDef[]> = {
   ],
 
   kegiatan: [
-    ...SHELL_STEPS,
     {
       element: "#tour-kegiatan-actions",
       title: "Buat Agenda Kegiatan",
@@ -141,53 +182,9 @@ export const ADMIN_PAGE_STEPS: Record<AdminPageKey, TourStepDef[]> = {
       side: "top",
       align: "center",
     },
-    {
-      element: "#tour-kegiatan-form-kategori",
-      title: "Form: Kategori & Judul Acara",
-      description:
-        "Pilih kategori acara (Sambung Rutin auto-template judul, Keakraban, Pemantapan, atau Kategori Custom).",
-      side: "bottom",
-      align: "start",
-      before: "openKegiatanForm",
-      waitFor: 350,
-    },
-    {
-      element: "#tour-kegiatan-form-jadwal",
-      title: "Form: Tanggal & Waktu Acara",
-      description:
-        "Atur tanggal pelaksanaan, jam mulai, jam selesai (waktu pulang), serta opsi acara multi-hari / lintas hari.",
-      side: "bottom",
-      align: "start",
-    },
-    {
-      element: "#tour-kegiatan-form-lokasi",
-      title: "Form: Lokasi & Validasi GPS",
-      description:
-        "Pilih titik koordinat di peta dan radius presensi (50m/100m/200m). Jika dikosongkan, absensi fleksibel tanpa GPS.",
-      side: "bottom",
-      align: "start",
-    },
-    {
-      element: "#tour-kegiatan-form-peserta",
-      title: "Form: Target Peserta Wajib",
-      description:
-        "Tentukan siapa yang wajib hadir: seluruh anggota di wilayah Anda atau filter spesifik (pendidikan, usia, desa/kelompok).",
-      side: "top",
-      align: "start",
-    },
-    {
-      element: "#tour-kegiatan-form-submit",
-      title: "Form: Simpan Kegiatan",
-      description:
-        "Simpan kegiatan untuk mempublikasikannya ke kalender generus dan mengaktifkan jadwal presensi wilayah.",
-      side: "top",
-      align: "center",
-      after: "closeKegiatanForm",
-    },
   ],
 
   pengajuan: [
-    ...SHELL_STEPS,
     {
       element: "#tour-pengajuan-tabs",
       title: "Mode Pengajuan",
@@ -215,7 +212,6 @@ export const ADMIN_PAGE_STEPS: Record<AdminPageKey, TourStepDef[]> = {
   ],
 
   users: [
-    ...SHELL_STEPS,
     {
       element: "#tour-user-info",
       title: "Hak Kelola Akun Admin",
@@ -243,7 +239,6 @@ export const ADMIN_PAGE_STEPS: Record<AdminPageKey, TourStepDef[]> = {
   ],
 
   wilayah: [
-    ...SHELL_STEPS,
     {
       element: "#tour-wilayah-kpi",
       title: "Struktur Wilayah Daerah (KPI)",
@@ -274,7 +269,6 @@ export const ADMIN_PAGE_STEPS: Record<AdminPageKey, TourStepDef[]> = {
   ],
 
   qr: [
-    ...SHELL_STEPS,
     {
       element: "#tour-qr-header",
       title: "Kartu Presensi QR Wilayah",
@@ -294,7 +288,6 @@ export const ADMIN_PAGE_STEPS: Record<AdminPageKey, TourStepDef[]> = {
   ],
 
   cms: [
-    ...SHELL_STEPS,
     {
       element: "#tour-cms-tabs",
       title: "Tab Konten Web Publik",
@@ -314,7 +307,6 @@ export const ADMIN_PAGE_STEPS: Record<AdminPageKey, TourStepDef[]> = {
   ],
 
   statistik: [
-    ...SHELL_STEPS,
     {
       element: "#tour-statistik-filter",
       title: "Filter Analisis & Statistik",
@@ -336,7 +328,7 @@ export const ADMIN_PAGE_STEPS: Record<AdminPageKey, TourStepDef[]> = {
 
 export function startAdminPageTour(
   pageKey: AdminPageKey,
-  opts?: { force?: boolean; role?: AdminRole; handlers?: TourHandlers }
+  opts?: { force?: boolean; role?: AdminRole; handlers?: TourHandlers; includeShell?: boolean }
 ): void {
   if (!opts?.force && isPageTourDone(pageKey)) {
     return;
@@ -347,16 +339,22 @@ export function startAdminPageTour(
   const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
 
   // Filter steps by role
-  const rawSteps = ADMIN_PAGE_STEPS[pageKey] || [];
-  const filteredDefs = rawSteps.filter((s) => !s.roles || s.roles.includes(role));
+  const rawPageSteps = ADMIN_PAGE_STEPS[pageKey] || [];
+  const filteredPageSteps = rawPageSteps.filter((s) => !s.roles || s.roles.includes(role));
 
-  if (filteredDefs.length === 0) return;
+  // Sertakan SHELL_STEPS HANYA 1x di awal (atau jika diminta eksplisit)
+  const shouldIncludeShell = !isShellTourDone() || Boolean(opts?.includeShell);
+  const shellStepsToUse = shouldIncludeShell
+    ? (isMobile ? MOBILE_SHELL_STEPS : DESKTOP_SHELL_STEPS).filter((s) => !s.roles || s.roles.includes(role))
+    : [];
+
+  const combinedDefs = [...shellStepsToUse, ...filteredPageSteps];
+  if (combinedDefs.length === 0) return;
 
   setTimeout(() => {
     let lastActiveAction: TourAction | undefined;
 
-    const driveSteps: DriveStep[] = filteredDefs.map((def) => {
-      // Switch element selector for mobile where needed
+    const driveSteps: DriveStep[] = combinedDefs.map((def) => {
       let selector = def.element;
       if (isMobile) {
         if (selector === "#tour-admin-badge") selector = "#tour-admin-badge-mobile";
@@ -401,13 +399,8 @@ export function startAdminPageTour(
       doneBtnText: "Selesai",
       progressText: "{{current}} dari {{total}}",
       onDestroyStarted: () => {
-        // Cleanup modal if left open
-        if (lastActiveAction === "openKegiatanForm" && handlers.closeKegiatanForm) {
-          handlers.closeKegiatanForm();
-        } else if (lastActiveAction === "openAddAnggota" && handlers.closeAddAnggota) {
-          handlers.closeAddAnggota();
-        } else if (lastActiveAction === "openAddUser" && handlers.closeAddUser) {
-          handlers.closeAddUser();
+        if (shouldIncludeShell) {
+          markShellTourDone();
         }
         markPageTourDone(pageKey);
         driverObj.destroy();
