@@ -830,6 +830,17 @@ function AdminShell({
   }, [role, user?.desaId, user?.kelompokId]);
 
   useEffect(() => {
+    const handleTourSheet = (e: Event) => {
+      const ce = e as CustomEvent<{ open?: boolean }>;
+      if (typeof ce.detail?.open === "boolean") {
+        setShowMoreMenu(ce.detail.open);
+      }
+    };
+    window.addEventListener("admin:tour:set-sheet", handleTourSheet);
+    return () => window.removeEventListener("admin:tour:set-sheet", handleTourSheet);
+  }, []);
+
+  useEffect(() => {
     let cancel = false;
     let hadAuthOnce = false;
     const load = async () => {
@@ -939,6 +950,7 @@ function AdminShell({
         {navItems.map((it) => (
           <button
             key={it.key}
+            id={`tour-sidebar-nav-${it.key}`}
             aria-label={it.label}
             aria-current={page === it.key ? "page" : undefined}
             className={page === it.key ? "active" : ""}
@@ -973,18 +985,24 @@ function AdminShell({
         <div className="sidebar-divider" />
         <button
           type="button"
+          id="tour-sidebar-nav-guide"
           className="sidebar-logout"
           style={{ marginBottom: 4, color: "var(--primary)" }}
           onClick={() => {
             window.dispatchEvent(
-              new CustomEvent("admin:tour", { detail: { page, force: true } })
+              new CustomEvent("admin:tour", { detail: { page, force: true, includeShell: true } })
             );
           }}
           aria-label="Panduan Fitur Admin"
         >
           <IcoHelp size={18} /> <span>Panduan Fitur</span>
         </button>
-        <button className="sidebar-logout" onClick={async () => { await logout(); navigate("/login", { replace: true }); }} aria-label="Logout">
+        <button
+          id="tour-sidebar-nav-logout"
+          className="sidebar-logout"
+          onClick={async () => { await logout(); navigate("/login", { replace: true }); }}
+          aria-label="Logout"
+        >
           <IcoLogOut size={18} /> <span>Keluar</span>
         </button>
       </nav>
@@ -999,6 +1017,7 @@ function AdminShell({
           return (
             <button
               key={it.key}
+              id={`tour-mobile-tab-${it.key}`}
               type="button"
               className={`admin-mobile-tab-btn ${isActive ? "active" : ""}`}
               onClick={() => {
@@ -1040,6 +1059,7 @@ function AdminShell({
       {showMoreMenu && (
         <div className="admin-more-sheet-backdrop" onClick={() => setShowMoreMenu(false)}>
           <div
+            id="tour-admin-more-sheet"
             className="admin-more-sheet"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
@@ -1062,7 +1082,7 @@ function AdminShell({
               </button>
             </div>
 
-            <div className="admin-more-user-card">
+            <div id="tour-more-user-profile" className="admin-more-user-card">
               <div className="admin-more-user-avatar">
                 {user?.name ? user.name.charAt(0).toUpperCase() : "A"}
               </div>
@@ -1086,6 +1106,7 @@ function AdminShell({
                 return (
                   <button
                     key={m.key}
+                    id={`tour-more-item-${m.key}`}
                     type="button"
                     className={`admin-more-item-btn ${isActive ? "active" : ""}`}
                     onClick={() => {
@@ -1103,12 +1124,13 @@ function AdminShell({
               })}
               <button
                 type="button"
+                id="tour-more-item-guide"
                 className="admin-more-item-btn"
                 style={{ background: "#fff7ed", borderColor: "#fed7aa" }}
                 onClick={() => {
                   setShowMoreMenu(false);
                   window.dispatchEvent(
-                    new CustomEvent("admin:tour", { detail: { page, force: true } })
+                    new CustomEvent("admin:tour", { detail: { page, force: true, includeShell: true } })
                   );
                 }}
               >
@@ -1118,22 +1140,24 @@ function AdminShell({
                   <span>Putar panduan onboarding</span>
                 </div>
               </button>
+              <button
+                type="button"
+                id="tour-more-item-logout"
+                className="admin-more-item-btn"
+                style={{ background: "#fef2f2", borderColor: "#fecaca", color: "#dc2626" }}
+                onClick={async () => {
+                  setShowMoreMenu(false);
+                  await logout();
+                  navigate("/login", { replace: true });
+                }}
+              >
+                <div className="admin-more-item-icon" style={{ color: "#dc2626" }}><IcoLogOut size={20} /></div>
+                <div className="admin-more-item-text">
+                  <strong style={{ color: "#dc2626" }}>Keluar</strong>
+                  <span>Akhiri sesi admin</span>
+                </div>
+              </button>
             </div>
-
-            <div className="admin-more-sheet-divider" />
-
-            <button
-              type="button"
-              className="admin-more-logout-btn"
-              onClick={async () => {
-                setShowMoreMenu(false);
-                await logout();
-                navigate("/login", { replace: true });
-              }}
-            >
-              <IcoLogOut size={18} />
-              <span>Keluar dari Akun</span>
-            </button>
           </div>
         </div>
       )}
