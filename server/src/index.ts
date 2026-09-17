@@ -16,6 +16,7 @@ import rundownRoutes from "./routes/rundown";
 import miscRoutes from "./routes/misc";
 import publicRoutes from "./routes/public";
 import cmsRoutes from "./routes/cms";
+import lowonganRoutes from "./routes/lowongan";
 import { uaBlock, rateLimitAuth, bodyLimit } from "./middleware/security";
 import { requireCsrf } from "./middleware/csrf";
 
@@ -67,6 +68,7 @@ app.route("/api/rab", rabRoutes);
 app.route("/api/rundown", rundownRoutes);
 app.route("/api/public", publicRoutes);
 app.route("/api/cms", cmsRoutes);
+app.route("/api/lowongan", lowonganRoutes);
 // misc hosts /api/scanner, /api/sholat, /api/upload, /api/download, /api/images, /api/dashboard/stats, /api/settings, /api/profile, /api/fcm, /api/webhook
 app.route("/api", miscRoutes);
 

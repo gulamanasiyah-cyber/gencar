@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { Users, User, BarChart3, LogOut, Home, HelpCircle } from "lucide-react";
+import { Users, User, BarChart3, LogOut, Home, HelpCircle, Briefcase } from "lucide-react";
 import type { MemberIdentity } from "./types";
 import { startMemberTour } from "../../lib/tours/tourMember";
 
-export type MemberPageKey = "beranda" | "profil" | "statistik";
+export type MemberPageKey = "beranda" | "pekerjaan" | "profil" | "statistik";
 
-const NAV: { key: MemberPageKey; label: string; icon: typeof Home }[] = [
+const NAV: { key: MemberPageKey; label: string; icon: typeof Home; id?: string }[] = [
   { key: "beranda", label: "Beranda", icon: Home },
+  { key: "pekerjaan", label: "Pekerjaan", icon: Briefcase, id: "tour-member-nav-pekerjaan" },
   { key: "profil", label: "Profil", icon: User },
   { key: "statistik", label: "Statistik", icon: BarChart3 },
 ];
@@ -80,8 +81,9 @@ export default function MemberShell({
           return (
             <button
               key={n.key}
+              id={n.id}
               type="button"
-              className={`member-nav-item ${active ? "active" : ""}`}
+              className={`member-nav-item ${n.id ? n.id : ""} ${active ? "active" : ""}`}
               onClick={() => {
                 setPage(n.key);
                 setOpen(false);
@@ -132,8 +134,9 @@ export default function MemberShell({
           return (
             <button
               key={n.key}
+              id={n.id ? `bottom-${n.id}` : undefined}
               type="button"
-              className={page === n.key ? "active" : ""}
+              className={`${n.id ? n.id : ""} ${page === n.key ? "active" : ""}`}
               onClick={() => {
                 setPage(n.key);
                 window.scrollTo({ top: 0, behavior: "smooth" });

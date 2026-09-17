@@ -94,6 +94,15 @@ export function startMemberTour(options?: { force?: boolean }): void {
             align: "center",
           },
         },
+        {
+          element: ".tour-member-nav-pekerjaan",
+          popover: {
+            title: "Menu Pekerjaan & Opportunity",
+            description: "Akses halaman khusus untuk melihat dan membagikan lowongan pekerjaan, peluang usaha, atau kerja sampingan dari sesama anggota se-Daerah.",
+            side: "top",
+            align: "center",
+          },
+        },
       ],
     });
 

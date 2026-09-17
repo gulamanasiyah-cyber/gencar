@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { text, integer, sqliteTable, index, real } from "drizzle-orm/sqlite-core";
+import { text, integer, sqliteTable, index, uniqueIndex, real } from "drizzle-orm/sqlite-core";
 
 // ── Desa / Kelompok (tanpa tabel daerah — singleton Cengkareng implisit) ──
 export const desa = sqliteTable("desa", {
@@ -465,3 +465,38 @@ export const fcmTokens = sqliteTable("fcm_tokens", {
 
 export type FcmToken = typeof fcmTokens.$inferSelect;
 export type NewFcmToken = typeof fcmTokens.$inferInsert;
+
+export const lowongan = sqliteTable("lowongan", {
+  id: text("id").primaryKey(),
+  judul: text("judul").notNull(),
+  deskripsi: text("deskripsi").notNull(),
+  pemberi: text("pemberi").notNull(),
+  tipe: text("tipe", { enum: ["full_time", "part_time", "freelance", "sampingan"] }).notNull(),
+  lokasi: text("lokasi").notNull(),
+  kontak: text("kontak").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  authorId: text("author_id").references(() => users.id, { onDelete: "cascade" }),
+  reportCount: integer("report_count").default(0).notNull(),
+  hidden: integer("hidden").default(0).notNull(),
+  hiddenReason: text("hidden_reason", { enum: ["auto_report", "admin"] }),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+}, (table) => ({
+  hiddenExpiresIdx: index("lowongan_hidden_expires_idx").on(table.hidden, table.expiresAt),
+  tipeIdx: index("lowongan_tipe_idx").on(table.tipe),
+}));
+
+export const lowonganReports = sqliteTable("lowongan_reports", {
+  id: text("id").primaryKey(),
+  lowonganId: text("lowongan_id").notNull().references(() => lowongan.id, { onDelete: "cascade" }),
+  reporterId: text("reporter_id").notNull(),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+}, (table) => ({
+  lowonganReporterUniqueIdx: uniqueIndex("lowongan_reports_unique_idx").on(table.lowonganId, table.reporterId),
+  lowonganIdIdx: index("lowongan_reports_lowongan_id_idx").on(table.lowonganId),
+}));
+
+export type Lowongan = typeof lowongan.$inferSelect;
+export type NewLowongan = typeof lowongan.$inferInsert;
+export type LowonganReport = typeof lowonganReports.$inferSelect;
+export type NewLowonganReport = typeof lowonganReports.$inferInsert;

@@ -5995,6 +5995,7 @@ import ProfileRequestsPage from "./features/admin/ProfileRequestsPage";
 import MemberShell from "./features/member/MemberShell";
 import type { MemberPageKey } from "./features/member/MemberShell";
 import MemberHomePage from "./features/member/MemberHomePage";
+import MemberPekerjaanPage from "./features/member/MemberPekerjaanPage";
 import MemberProfilePage from "./features/member/MemberProfilePage";
 import MemberStatPage from "./features/member/MemberStatPage";
 import { type MemberIdentity, type MemberKehadiran, type MemberKegiatan } from "./features/member/types";
@@ -6156,6 +6157,7 @@ export default function App({ initialMode }: { initialMode?: "admin" | "member" 
         onLogout={async () => { await logout(); navigate("/login", { replace: true }); }}
       >
         {memberPage === "beranda" && <MemberHomePage me={fallbackMe} kegiatanList={memberKegiatanList} />}
+        {memberPage === "pekerjaan" && <MemberPekerjaanPage me={fallbackMe} />}
         {memberPage === "profil" && <MemberProfilePage me={fallbackMe} stat={fallbackStat} kegiatan={effectiveKegiatan} onUpdate={handleProfileUpdate} onLogout={async () => { await logout(); navigate("/login", { replace: true }); }} />}
         {memberPage === "statistik" && <MemberStatPage me={fallbackMe} stat={fallbackStat} />}
       </MemberShell>
@@ -6175,6 +6177,7 @@ export default function App({ initialMode }: { initialMode?: "admin" | "member" 
         onLogout={async () => { await logout(); navigate("/login", { replace: true }); }}
       >
         {memberPage === "beranda" && <MemberHomePage me={fallbackMe} kegiatanList={memberKegiatanList} />}
+        {memberPage === "pekerjaan" && <MemberPekerjaanPage me={fallbackMe} />}
         {memberPage === "profil" && <MemberProfilePage me={fallbackMe} stat={fallbackStat} kegiatan={effectiveKegiatan} onUpdate={handleProfileUpdate} onLogout={async () => { await logout(); navigate("/login", { replace: true }); }} />}
         {memberPage === "statistik" && <MemberStatPage me={fallbackMe} stat={fallbackStat} />}
       </MemberShell>

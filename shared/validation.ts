@@ -309,3 +309,46 @@ export function haversineM(lat1: number, lng1: number, lat2: number, lng2: numbe
     Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(a));
 }
+
+// ── Lowongan / Opportunity / Kerja Sampingan ──
+export const lowonganTipeEnum = ["full_time", "part_time", "freelance", "sampingan"] as const;
+export type LowonganTipe = (typeof lowonganTipeEnum)[number];
+
+export function getTodayJakartaStr(): string {
+  const now = new Date();
+  const wib = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+  return wib.toISOString().slice(0, 10);
+}
+
+export function normalizeExpiresAtToUtc(dateOnlyStr: string): string {
+  return new Date(`${dateOnlyStr}T16:59:59.000Z`).toISOString();
+}
+
+export const lowonganCreateSchema = z.object({
+  judul: z.string().min(5, "Judul minimal 5 karakter").max(120, "Judul maksimal 120 karakter").trim(),
+  deskripsi: z.string().min(20, "Deskripsi minimal 20 karakter").max(5000, "Deskripsi maksimal 5000 karakter").trim(),
+  pemberi: z.string().min(3, "Nama pemberi/perusahaan minimal 3 karakter").max(100, "Nama pemberi/perusahaan maksimal 100 karakter").trim(),
+  tipe: z.enum(lowonganTipeEnum, { message: "Tipe lowongan wajib dipilih" }),
+  lokasi: z.string().min(3, "Lokasi minimal 3 karakter").max(120, "Lokasi maksimal 120 karakter").trim(),
+  kontak: z.string().min(5, "Kontak minimal 5 karakter").max(100, "Kontak maksimal 100 karakter").trim(),
+  expiresAt: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal kedaluwarsa harus YYYY-MM-DD")
+    .refine(
+      (val) => {
+        const d = new Date(`${val}T00:00:00Z`);
+        if (isNaN(d.getTime())) return false;
+        const todayStr = getTodayJakartaStr();
+        if (val < todayStr) return false;
+        const maxDate = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000 + 7 * 60 * 60 * 1000);
+        const maxStr = maxDate.toISOString().slice(0, 10);
+        return val <= maxStr;
+      },
+      { message: "Tanggal kedaluwarsa minimal hari ini dan maksimal 180 hari ke depan" }
+    ),
+});
+
+export const lowonganReportSchema = z.object({}).passthrough().optional();
+
+export type LowonganCreateInput = z.infer<typeof lowonganCreateSchema>;
+
