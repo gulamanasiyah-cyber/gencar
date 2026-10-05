@@ -1,7 +1,12 @@
-name = "gencar-api"
+name = "gencar-v2"
 main = "server/src/index.ts"
 compatibility_date = "2025-05-05"
 compatibility_flags = [ "nodejs_compat" ]
+workers_dev = true
+
+routes = [
+  { pattern = "gencar.my.id", custom_domain = true }
+]
 
 # SPA Vite — di-build ke frontend/dist, Worker serve via assets binding (SPA fallback)
 [assets]
