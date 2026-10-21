@@ -2,6 +2,7 @@ import withBundleAnalyzer from '@next/bundle-analyzer';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   // Performance and Security Optimizations
   compress: true,
   poweredByHeader: false,

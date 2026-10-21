@@ -1,70 +1,71 @@
+# ==================================================================
+#  Gencar — produksi (server Ubuntu 24.04)
+#
+#  Jangan dijalankan langsung dengan "docker compose up": pakai
+#      bash deploy/deploy.sh        (memasang versi terbaru)
+#      bash deploy/dc.sh <perintah> (ps, logs, restart, ...)
+#  yang mengisi variabel GC_* di bawah.
+#
+#  - Database: Turso (libSQL cloud) — bukan di dalam Docker.
+#  - Port 3102 hanya dibuka untuk 127.0.0.1; dari internet hanya lewat
+#    nginx (https) yang berjalan di server (bukan di dalam Docker).
+#  - Wadah berjalan sebagai pengguna deploy (bukan root) dan hanya bisa
+#    menulis ke /tmp (tmpfs).
+#  - Pengaturan & rahasia dibaca aplikasi dari env_file.
+# ==================================================================
+name: gencar
+
 services:
-  # ============================================================
-  # Next.js Application
-  # ============================================================
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runner
-    container_name: gencar-app
+    image: gencar:${GC_TAG:-terbaru}
+    build: .
     restart: unless-stopped
+    user: "${GC_UID:-1001}:${GC_GID:-1001}"
     env_file:
-      - .env.production
+      - path: ${GC_DATA:-/srv/data/gencar}/.env
+        required: false
+      - path: .env.production
+        required: false
     environment:
       NODE_ENV: production
-      PORT: 5315
+      PORT: "3102"
       HOSTNAME: "0.0.0.0"
-    expose:
-      - "5315"
-    networks:
-      - gencar-net
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:5315/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "5"
+      NEXT_TELEMETRY_DISABLED: "1"
+      TZ: Asia/Jakarta
+    ports:
+      - "127.0.0.1:${GC_PORT:-3102}:3102"
     deploy:
       resources:
         limits:
-          memory: 512M
+          cpus: "${GC_CPU_LIMIT:-1.0}"
+          memory: ${GC_MEM_LIMIT:-512M}
+        reservations:
+          cpus: "${GC_CPU_RESERVATION:-0.25}"
+          memory: ${GC_MEM_RESERVATION:-128M}
 
-  # ============================================================
-  # Nginx Reverse Proxy
-  # ============================================================
-  nginx:
-    image: nginx:1.27-alpine
-    container_name: gencar-nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./deploy/nginx/gencar.conf:/etc/nginx/conf.d/default.conf:ro
-      - /srv/data/gencar/ssl:/etc/nginx/ssl:ro
-      - /srv/data/gencar/certbot/www:/var/www/certbot:ro
-      - nginx-cache:/var/cache/nginx
-    networks:
-      - gencar-net
-    depends_on:
-      app:
-        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 15s
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3102/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
         max-size: "10m"
         max-file: "5"
-
-networks:
-  gencar-net:
-    driver: bridge
-
-volumes:
-  nginx-cache:
-    driver: local
