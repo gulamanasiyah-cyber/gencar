@@ -24,7 +24,7 @@ services:
     env_file:
       - path: ${GC_DATA:-/srv/data/gencar}/.env
         required: false
-      - path: .env.production
+      - path: .env
         required: false
     environment:
       NODE_ENV: production
