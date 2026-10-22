@@ -155,9 +155,12 @@ pasang_nginx() {
   # Server tanpa IPv6: hapus baris listen [::] agar Nginx tidak error
   [ -f /proc/net/if_inet6 ] || sed -i '/listen \[::\]/d' "$NGX"
 
-  ln -sf "$NGX" /etc/nginx/sites-enabled/gencar
+  # Hapus file konfigurasi gencar lama (.conf) yang tersisa agar tidak memicu error SSL
+  rm -f /etc/nginx/sites-enabled/gencar.conf /etc/nginx/sites-available/gencar.conf /etc/nginx/conf.d/gencar.conf
   rm -f /etc/nginx/sites-enabled/default
-  nginx -t -q && systemctl reload nginx
+
+  ln -sf "$NGX" /etc/nginx/sites-enabled/gencar
+  nginx -t && systemctl reload nginx
 }
 
 SERT="/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
