@@ -116,14 +116,13 @@ fi
 # ------------------------------------------------------------------
 if [ $UFW -eq 1 ]; then
   langkah "5. Firewall (UFW)"
-  ufw --force reset >/dev/null
-  ufw default deny incoming
-  ufw default allow outgoing
-  ufw allow ssh
-  ufw allow 80/tcp comment "HTTP (nginx)"
-  ufw allow 443/tcp comment "HTTPS (nginx)"
-  ufw --force enable
-  hijau "  ✓ UFW aktif: SSH (22), HTTP (80), HTTPS (443)"
+  # JANGAN me-reset UFW agar rule aplikasi lain di server tidak terhapus!
+  # Hanya izinkan port SSH, HTTP, dan HTTPS jika UFW aktif.
+  PORT_SSH="$(sshd -T 2>/dev/null | awk '$1=="port"{print $2; exit}')" || PORT_SSH="2213"
+  ufw allow "${PORT_SSH:-2213}/tcp" comment "SSH" >/dev/null 2>&1 || true
+  ufw allow 80/tcp comment "HTTP (nginx)" >/dev/null 2>&1 || true
+  ufw allow 443/tcp comment "HTTPS (nginx)" >/dev/null 2>&1 || true
+  hijau "  ✓ Port SSH (${PORT_SSH:-2213}), 80 (HTTP), dan 443 (HTTPS) dipastikan terbuka di UFW."
 fi
 
 # ------------------------------------------------------------------
