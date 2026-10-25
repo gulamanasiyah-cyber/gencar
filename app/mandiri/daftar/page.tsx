@@ -1182,6 +1182,9 @@ export default function MandiriDaftarPage() {
                        <option key={year} value={String(year)}>{year}</option>
                      ))}
                    </select>
+                   <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px", lineHeight: "1.5" }}>
+                     Informasi ini membantu panitia memahami kesiapan dan rencana waktu Anda dalam proses ta&apos;aruf. Tahun yang dipilih adalah perkiraan, bukan janji menikah pada tahun tersebut. Wajib diisi jika usia belum memenuhi batas pendaftaran.
+                   </p>
                  </div>
               );
             })()}
