@@ -1,13 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { saranMasukan } from "@/lib/schema";
-import { eq, desc } from "drizzle-orm";
+import { saranMasukan, mandiriKegiatan } from "@/lib/schema";
+import { and, eq, desc, isNull } from "drizzle-orm";
+import { ensureSaranActivitySchema } from "@/lib/mandiri-schema";
 
 export async function GET(request: NextRequest) {
     try {
-        const records = await db.select()
+        await ensureSaranActivitySchema();
+        const { searchParams } = new URL(request.url);
+        const kegiatanId = searchParams.get("kegiatanId") || "all";
+        const conditions = [eq(saranMasukan.untuk, "Romantic Room")];
+        if (kegiatanId === "none") {
+            conditions.push(isNull(saranMasukan.kegiatanId));
+        } else if (kegiatanId !== "all") {
+            conditions.push(eq(saranMasukan.kegiatanId, kegiatanId));
+        }
+
+        const records = await db.select({
+            id: saranMasukan.id,
+            untuk: saranMasukan.untuk,
+            kepada: saranMasukan.kepada,
+            saran: saranMasukan.saran,
+            kegiatanId: saranMasukan.kegiatanId,
+            kegiatanJudul: mandiriKegiatan.judul,
+            nama: saranMasukan.nama,
+            userId: saranMasukan.userId,
+            isAnonim: saranMasukan.isAnonim,
+            createdAt: saranMasukan.createdAt,
+        })
             .from(saranMasukan)
-            .where(eq(saranMasukan.untuk, "Romantic Room"))
+            .leftJoin(mandiriKegiatan, eq(saranMasukan.kegiatanId, mandiriKegiatan.id))
+            .where(and(...conditions))
             .orderBy(desc(saranMasukan.createdAt));
         
         return NextResponse.json(records);

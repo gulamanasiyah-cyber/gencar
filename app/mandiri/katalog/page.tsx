@@ -345,17 +345,28 @@ export default function PublicKatalogPage() {
       if (json.status === "attended") {
         setHasAttended(true);
         applyAttendanceValidation(json);
-        setCurrentUser((prev: any) => prev ? {
-          ...prev,
+        setCurrentUser((prev: any) => ({
+          ...(prev || {}),
           status: "attended",
-          id: json.id || prev.id,
-          nama: json.nama || prev.nama,
-          nomorUrut: json.nomorUrut || prev.nomorUrut,
-          nomorUnik: json.nomorUnik || prev.nomorUnik,
-        } : prev);
+          id: json.id || prev?.id,
+          nama: json.nama || prev?.nama,
+          nomorUrut: json.nomorUrut || prev?.nomorUrut,
+          nomorUnik: json.nomorUnik || prev?.nomorUnik || storedUnik,
+          role: json.role || prev?.role || "Peserta",
+        }));
       } else if (json.status === "waiting") {
+        // A waiting participant still has a valid catalog session; status is
+        // tracked separately on currentUser and controls the selection CTA.
         setAttendanceValidation(null);
-        setCurrentUser((prev: any) => prev ? { ...prev, status: "waiting" } : prev);
+        setCurrentUser((prev: any) => ({
+          ...(prev || {}),
+          status: "waiting",
+          id: json.id || prev?.id,
+          nama: json.nama || prev?.nama,
+          nomorUrut: json.nomorUrut || prev?.nomorUrut,
+          nomorUnik: json.nomorUnik || prev?.nomorUnik || storedUnik,
+          role: json.role || prev?.role || "Peserta",
+        }));
       }
     } catch (e) {
       console.error("refreshAttendanceStatus error:", e);
@@ -485,7 +496,10 @@ export default function PublicKatalogPage() {
   const fetchUserComments = useCallback(async (userId: string) => {
     try {
       // FIX: Use encodeURIComponent for userId to prevent URL parse errors on mobile
-      const resRec = await fetch(`/api/mandiri/komentar?penerimaId=${encodeURIComponent(userId)}`);
+      const [resRec, resSent] = await Promise.all([
+        fetch(`/api/mandiri/komentar?penerimaId=${encodeURIComponent(userId)}`),
+        fetch(`/api/mandiri/komentar?pengirimId=${encodeURIComponent(userId)}`)
+      ]);
       if (resRec.ok) {
         const data = await resRec.json();
         const lastSeen = localStorage.getItem(`last_seen_comment_${userId}`);
@@ -494,8 +508,6 @@ export default function PublicKatalogPage() {
         }
         setUserComments(data);
       }
-
-      const resSent = await fetch(`/api/mandiri/komentar?pengirimId=${encodeURIComponent(userId)}`);
       if (resSent.ok) {
         const data = await resSent.json();
         setSentComments(data);
@@ -600,7 +612,13 @@ export default function PublicKatalogPage() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const json = await res.json();
-      setData(json.data || []);
+      const nextData = Array.isArray(json.data) ? json.data : [];
+      setData(nextData);
+      setSelectedParticipant((prev: any) => {
+        if (!prev) return prev;
+        const latestParticipant = nextData.find((item: any) => String(item.id) === String(prev.id));
+        return latestParticipant ? { ...prev, ...latestParticipant } : prev;
+      });
       setTotal(json.total || 0);
     } catch (e: any) {
       console.error("fetchData error:", e);
@@ -624,11 +642,18 @@ export default function PublicKatalogPage() {
           localStorage.setItem("mandiri_device_id", deviceId);
         }
 
+        // Filter and location lists are not needed to authorize or paint the first
+        // catalog view, so load them in parallel without holding the page loader.
+        const lookupsPromise = Promise.all([
+          fetch("/api/public/mandiri/filters", { cache: "no-store" }).catch(() => null),
+          fetch("/api/public/mandiri/desa", { cache: "no-store" }).catch(() => null),
+          fetch("/api/public/mandiri/kelompok", { cache: "no-store" }).catch(() => null)
+        ]);
+
         // Concurrent fetching for all parallelizable initial endpoints
-        const [titleRes, descRes, filterRes, boxLoveRes, katalogStatusRes, profileRes, checkStatusRes, desaRes, kelRes] = await Promise.all([
+        const [titleRes, descRes, boxLoveRes, katalogStatusRes, profileRes, checkStatusRes] = await Promise.all([
           fetch("/api/public/mandiri/settings?key=mandiri_registration_title", { cache: "no-store" }),
           fetch("/api/public/mandiri/settings?key=mandiri_registration_description", { cache: "no-store" }),
-          fetch("/api/public/mandiri/filters", { cache: "no-store" }),
           fetch("/api/mandiri/box-love?action=status", { cache: "no-store" }),
           fetch("/api/public/mandiri/settings?key=mandiri_katalog_public_status", { cache: "no-store" }),
           fetch("/api/profile", { cache: "no-store" }).catch(() => null),
@@ -637,46 +662,43 @@ export default function PublicKatalogPage() {
             ...(storedToken ? { sessionToken: storedToken } : {}),
             deviceId,
           })}`, { cache: "no-store" }) : Promise.resolve(null),
-          fetch("/api/public/mandiri/desa", { cache: "no-store" }).catch(() => null),
-          fetch("/api/public/mandiri/kelompok", { cache: "no-store" }).catch(() => null)
         ]);
+
+        void lookupsPromise.then(async ([filterRes, desaRes, kelRes]) => {
+          if (filterRes?.ok) {
+            const filterJson = await filterRes.json();
+            setPendidikanList(filterJson.pendidikan || []);
+            setPekerjaanList(filterJson.pekerjaan || []);
+            setUmurList(filterJson.umur || []);
+            setKriteriaList(filterJson.kriteriaPasangan || []);
+            setHobiList(filterJson.hobi || []);
+            setMakananList(filterJson.makanan || []);
+            setSukuList(filterJson.suku || []);
+            if (filterJson.kota) setFilterKotaList(filterJson.kota.sort());
+            if (filterJson.wilayah) setFilterWilayahList(filterJson.wilayah);
+            if (filterJson.kelompok) setFilterKelompokList(filterJson.kelompok);
+          }
+
+          if (desaRes?.ok) {
+            const desas = await desaRes.json();
+            if (Array.isArray(desas)) {
+              setWilayahList(desas);
+              const cities = Array.from(new Set(desas.map((d: any) => d.kota || d.daerahNama || ""))).filter(Boolean).sort() as string[];
+              setKotaList(cities);
+            }
+          }
+
+          if (kelRes?.ok) {
+            const kelompoks = await kelRes.json();
+            if (Array.isArray(kelompoks)) setKelompokList(kelompoks);
+          }
+        }).catch(e => console.error("catalog lookups error:", e));
 
         let title = "KATALOG PESERTA dan PANITIA";
         let description = "";
         if (titleRes.ok) { const t = await titleRes.json(); if (t.value) title = t.value; }
         if (descRes.ok) { const d = await descRes.json(); if (d.value) description = d.value; }
         setLatestActivity({ title, description });
-
-        if (filterRes.ok) {
-          const filterJson = await filterRes.json();
-          setPendidikanList(filterJson.pendidikan || []);
-          setPekerjaanList(filterJson.pekerjaan || []);
-          setUmurList(filterJson.umur || []);
-          setKriteriaList(filterJson.kriteriaPasangan || []);
-          setHobiList(filterJson.hobi || []);
-          setMakananList(filterJson.makanan || []);
-          setSukuList(filterJson.suku || []);
-
-          if (filterJson.kota) setFilterKotaList(filterJson.kota.sort());
-          if (filterJson.wilayah) setFilterWilayahList(filterJson.wilayah);
-          if (filterJson.kelompok) setFilterKelompokList(filterJson.kelompok);
-        }
-
-        if (desaRes && desaRes.ok) {
-          const desas = await desaRes.json();
-          if (Array.isArray(desas)) {
-            setWilayahList(desas);
-            const cities = Array.from(new Set(desas.map((d: any) => d.kota || d.daerahNama || ""))).filter(Boolean).sort() as string[];
-            setKotaList(cities);
-          }
-        }
-
-        if (kelRes && kelRes.ok) {
-          const kelompoks = await kelRes.json();
-          if (Array.isArray(kelompoks)) {
-            setKelompokList(kelompoks);
-          }
-        }
 
         if (boxLoveRes.ok) {
           const boxLoveJson = await boxLoveRes.json();
@@ -733,16 +755,14 @@ export default function PublicKatalogPage() {
               setKomentarNama(data.nama);
               localStorage.setItem("attended_role", userRole);
 
-              // Parallelize comments check and selections fetch
+              // Comments and selections can load after the first catalog view is ready.
               const selQs = buildQuery({ nomorUnik: storedUnik, token: storedToken || "" });
-              const [commRes, selRes] = await Promise.all([
-                fetchUserComments(data.id),
-                fetch(`/api/mandiri/pilih?${selQs}`, { cache: "no-store" })
-              ]);
-
-              if (selRes && selRes.ok) {
-                const selText = await selRes.text();
-                if (selText) {
+              void fetchUserComments(data.id);
+              void fetch(`/api/mandiri/pilih?${selQs}`, { cache: "no-store" })
+                .then(async selRes => {
+                  if (!selRes.ok) return;
+                  const selText = await selRes.text();
+                  if (!selText) return;
                   try {
                     const selJson = JSON.parse(selText);
                     if (Array.isArray(selJson)) {
@@ -751,8 +771,8 @@ export default function PublicKatalogPage() {
                       setStatusQueue(selJson.find((s: any) => s.status === "Menunggu") || null);
                     }
                   } catch (e) { console.error("selJson parse error:", e); }
-                }
-              }
+                })
+                .catch(e => console.error("initial selections error:", e));
             } else if (data.status === "multi_login") {
               handleLogout();
             } else if (data.status === "not_found" || data.status === "no_activity") {
@@ -782,29 +802,23 @@ export default function PublicKatalogPage() {
             }
           } catch (e) { }
         }
-        // Fetch active rooms for all users (admin, peserta, panitia)
-        // so the banner/button reflects the real room state for everyone
-        try {
-          const storedUnikForRooms = localStorage.getItem("attended_nomor_unik");
-          const storedTokenForRooms = localStorage.getItem("attended_session_token");
-          const roomsRes = await fetch("/api/mandiri/rooms", {
-            headers: {
-              ...(storedUnikForRooms ? { "x-nomor-unik": storedUnikForRooms } : {}),
-              ...(storedTokenForRooms ? { "x-session-token": storedTokenForRooms } : {}),
-            }
-          });
-          if (roomsRes.ok) {
-            setActiveRooms(await roomsRes.json());
-          }
-        } catch (e) { }
+        // Room banners are secondary to the first catalog paint; load them in the
+        // background so a slow rooms query does not hold the whole page behind its loader.
+        void fetchActiveRooms();
       } catch (e) {
         console.error("init error:", e);
       } finally {
+        // The initial status request runs alongside several other requests. Recheck
+        // after initialization so an older "waiting" response cannot overwrite a
+        // newer attendance update received while the page was loading.
+        if (localStorage.getItem("attended_nomor_unik")) {
+          void refreshAttendanceStatus();
+        }
         setVerifying(false);
       }
     }
     init();
-  }, []);
+  }, [fetchActiveRooms, refreshAttendanceStatus]);
 
   useEffect(() => {
     if (!currentUser?.id) return;
@@ -869,7 +883,15 @@ export default function PublicKatalogPage() {
     if (!currentUser?.id) return;
     if (showLoading) setLoadingHasil(true);
     try {
-      const res = await fetch(`/api/mandiri/hasil-rr?generusId=${currentUser.id}`);
+      const nomorUnik = localStorage.getItem("attended_nomor_unik");
+      const sessionToken = localStorage.getItem("attended_session_token");
+      const res = await fetch(`/api/mandiri/hasil-rr?generusId=${encodeURIComponent(currentUser.id)}`, {
+        headers: {
+          ...(nomorUnik ? { "x-nomor-unik": nomorUnik } : {}),
+          ...(sessionToken ? { "x-session-token": sessionToken } : {})
+        },
+        cache: "no-store"
+      });
       if (res.ok) {
         const json = await res.json();
         setHasilRRList(json);
@@ -908,6 +930,27 @@ export default function PublicKatalogPage() {
       fetchHasilRR(false);
     }
   }, [currentUser?.id, fetchHasilRR]);
+
+  // Revalidate attendance when returning to the catalog, including after another tab
+  // records attendance while this page was in the background.
+  useEffect(() => {
+    let lastRefreshAt = 0;
+    const refreshOnResume = () => {
+      if (document.visibilityState !== "visible" || !currentUser?.id) return;
+      const now = Date.now();
+      if (now - lastRefreshAt < 1000) return;
+      lastRefreshAt = now;
+      refreshAttendanceStatus();
+      fetchData();
+    };
+
+    window.addEventListener("focus", refreshOnResume);
+    document.addEventListener("visibilitychange", refreshOnResume);
+    return () => {
+      window.removeEventListener("focus", refreshOnResume);
+      document.removeEventListener("visibilitychange", refreshOnResume);
+    };
+  }, [currentUser?.id, fetchData, refreshAttendanceStatus]);
 
   // Realtime updates using Pusher
   useEffect(() => {
@@ -1029,10 +1072,16 @@ export default function PublicKatalogPage() {
   const submitHasilRR = async (id: string, hasil: string) => {
     setSubmittingHasilId(id);
     try {
+      const nomorUnik = localStorage.getItem("attended_nomor_unik");
+      const sessionToken = localStorage.getItem("attended_session_token");
       const res = await fetch("/api/mandiri/hasil-rr", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, generusId: currentUser?.id, hasil })
+        headers: {
+          "Content-Type": "application/json",
+          ...(nomorUnik ? { "x-nomor-unik": nomorUnik } : {}),
+          ...(sessionToken ? { "x-session-token": sessionToken } : {})
+        },
+        body: JSON.stringify({ id, hasil })
       });
       const data = await res.json();
       if (data.success) {
@@ -1488,12 +1537,17 @@ export default function PublicKatalogPage() {
             return;
           }
           const resultVal = isPengirim ? formValues.hasil_p : formValues.hasil_t;
+          const nomorUnik = localStorage.getItem("attended_nomor_unik");
+          const sessionToken = localStorage.getItem("attended_session_token");
           const res = await fetch("/api/mandiri/hasil-rr", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...(nomorUnik ? { "x-nomor-unik": nomorUnik } : {}),
+              ...(sessionToken ? { "x-session-token": sessionToken } : {})
+            },
             body: JSON.stringify({
               id: room.pemilihanId,
-              generusId: currentUser?.id,
               hasil: resultVal
             })
           });
@@ -1635,6 +1689,10 @@ export default function PublicKatalogPage() {
     setSelectedParticipant(participant);
     setIsModalOpen(true);
     lockBodyScroll();
+    if (currentUser?.status === "waiting") {
+      void refreshAttendanceStatus();
+      void fetchData();
+    }
   };
 
   const closeDetail = () => {
@@ -3589,7 +3647,8 @@ export default function PublicKatalogPage() {
       {/* DETAIL MODAL */}
       {isModalOpen && selectedParticipant && (() => {
         const sp = selectedParticipant;
-        const isMe = sp.nomorUrut === currentUser?.nomorUrut;
+        const isMe = String(sp.id) === String(currentUser?.id) ||
+          (!!sp.nomorUnik && String(sp.nomorUnik) === String(currentUser?.nomorUnik));
         const isSelected = selectedIds.includes(String(sp.id));
         const isFull = (sp.selectedCount || 0) >= 5;
         const isMaxed = selectedIds.length >= 3;

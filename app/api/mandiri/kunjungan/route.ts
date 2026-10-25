@@ -5,6 +5,7 @@ import { mandiriKunjungan, generus, mandiriPemilihan, mandiriRooms, formPanitiaD
 import { eq, sql, desc, isNotNull, and, or } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { aliasedTable } from "drizzle-orm";
+import { ensureMandiriRoomSchema } from "@/lib/mandiri-schema";
 
 export async function GET(request: NextRequest) {
     try {
@@ -13,10 +14,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Self-healing: add staff columns to mandiri_pemilihan if missing
-        try { await db.run(sql`ALTER TABLE mandiri_pemilihan ADD COLUMN assigned_caller_id TEXT`); } catch (e) {}
-        try { await db.run(sql`ALTER TABLE mandiri_pemilihan ADD COLUMN assigned_caller2_id TEXT`); } catch (e) {}
-        try { await db.run(sql`ALTER TABLE mandiri_pemilihan ADD COLUMN assigned_guard_id TEXT`); } catch (e) {}
+        await ensureMandiriRoomSchema();
 
         const { searchParams } = new URL(request.url);
         let kegiatanId = searchParams.get("kegiatanId") || "";

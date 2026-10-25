@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { MessageSquare, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import Swal from "sweetalert2";
@@ -9,24 +9,38 @@ export default function SaranRomanticRoom() {
     const [saranList, setSaranList] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [filterKepada, setFilterKepada] = useState<string>("Semua");
+    const [filterKegiatanId, setFilterKegiatanId] = useState("all");
+    const [kegiatanList, setKegiatanList] = useState<any[]>([]);
+    const requestIdRef = useRef(0);
 
-    useEffect(() => {
-        fetchData();
-    }, []);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async (kegiatanId: string) => {
+        const requestId = ++requestIdRef.current;
+        setLoading(true);
         try {
-            const res = await fetch("/api/mandiri/saran");
+            const res = await fetch(`/api/mandiri/saran?kegiatanId=${encodeURIComponent(kegiatanId)}`, { cache: "no-store" });
             if (res.ok) {
                 const json = await res.json();
-                setSaranList(Array.isArray(json) ? json : []);
+                if (requestId === requestIdRef.current) {
+                    setSaranList(Array.isArray(json) ? json : []);
+                }
             }
         } catch (error) {
             console.error("Error fetching saran:", error);
         } finally {
-            setLoading(false);
+            if (requestId === requestIdRef.current) setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        void fetchData(filterKegiatanId);
+    }, [fetchData, filterKegiatanId]);
+
+    useEffect(() => {
+        fetch("/api/mandiri/kegiatan", { cache: "no-store" })
+            .then(async res => res.ok ? res.json() : [])
+            .then(data => setKegiatanList(Array.isArray(data) ? data : []))
+            .catch(error => console.error("Error fetching kegiatan:", error));
+    }, []);
 
     const handleDelete = async (id: string) => {
         const result = await Swal.fire({
@@ -46,7 +60,7 @@ export default function SaranRomanticRoom() {
                 });
                 if (res.ok) {
                     Swal.fire('Terhapus!', 'Saran telah dihapus.', 'success');
-                    fetchData();
+                    void fetchData(filterKegiatanId);
                 } else {
                     Swal.fire('Gagal', 'Gagal menghapus saran', 'error');
                 }
@@ -89,7 +103,19 @@ export default function SaranRomanticRoom() {
                         </span>
                     </div>
                     
-                    <div style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#475569' }}>Filter Kegiatan:</span>
+                        <select
+                            value={filterKegiatanId}
+                            onChange={(e) => setFilterKegiatanId(e.target.value)}
+                            style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '14px', background: 'white', color: '#1e293b', minWidth: '220px' }}
+                        >
+                            <option value="all">Semua Kegiatan</option>
+                            <option value="none">Belum Dikaitkan</option>
+                            {kegiatanList.map((kegiatan) => (
+                                <option key={kegiatan.id} value={kegiatan.id}>{kegiatan.judul}</option>
+                            ))}
+                        </select>
                         <span style={{ fontSize: '14px', fontWeight: 600, color: '#475569' }}>Filter Kepada:</span>
                         <select
                             value={filterKepada}
@@ -150,6 +176,10 @@ export default function SaranRomanticRoom() {
                                                         <span style={{ background: '#f1f5f9', padding: '2px 8px', borderRadius: '6px' }}>{saran.kepada}</span>
                                                     </div>
                                                 )}
+                                                <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, display: 'flex', gap: '4px', alignItems: 'center', marginLeft: '42px' }}>
+                                                    <span style={{ color: '#94a3b8' }}>Kegiatan:</span>
+                                                    <span style={{ background: '#eff6ff', color: '#1d4ed8', padding: '2px 8px', borderRadius: '6px' }}>{saran.kegiatanJudul || "Belum dikaitkan"}</span>
+                                                </div>
                                             </div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                 <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, background: '#f8fafc', padding: '4px 10px', borderRadius: '20px' }}>

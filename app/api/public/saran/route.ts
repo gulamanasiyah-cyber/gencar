@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { saranMasukan, mandiri } from "@/lib/schema";
+import { saranMasukan, mandiri, settings } from "@/lib/schema";
 import { v4 as uuidv4 } from "uuid";
 import { eq, and } from "drizzle-orm";
+import { ensureSaranActivitySchema } from "@/lib/mandiri-schema";
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,6 +18,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Kolom 'saran/masukan' wajib diisi." }, { status: 400 });
     }
 
+    await ensureSaranActivitySchema();
+    let kegiatanId: string | null = null;
+    if (untuk.trim() === "Romantic Room") {
+      const activeSetting = await db.select({ value: settings.value })
+        .from(settings)
+        .where(eq(settings.key, "mandiri_active_kegiatan_id"))
+        .limit(1);
+      kegiatanId = activeSetting[0]?.value || null;
+    }
+
     const senderName = isAnonim ? "Anonim" : (nama?.trim() || "Anonim");
 
     await db.insert(saranMasukan).values({
@@ -24,6 +35,7 @@ export async function POST(request: NextRequest) {
       untuk: untuk.trim(),
       kepada: kepada?.trim() || null,
       saran: saran.trim(),
+      kegiatanId,
       nama: senderName,
       userId: userId || null,
       isAnonim: isAnonim ? 1 : 0,
@@ -48,6 +60,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
+        await ensureSaranActivitySchema();
         const records = await db.select()
             .from(saranMasukan)
             .where(

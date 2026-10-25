@@ -777,7 +777,7 @@ export default function MandiriDaftarPage() {
           doc.setFont("helvetica", "normal");
           doc.setFontSize(7.5);
           doc.setTextColor(59, 130, 246);
-          doc.text("Akses Katalog: https://gencar.my.id/mandiri/katalog", 45, 168, { align: "center" });
+          doc.text("Akses Katalog: https://gencar.pintarsolusi.com/mandiri/katalog", 45, 168, { align: "center" });
 
           doc.setFontSize(6.5);
           doc.setTextColor(100, 116, 139);
@@ -787,8 +787,8 @@ export default function MandiriDaftarPage() {
           doc.setFont("helvetica", "normal");
           doc.setFontSize(8);
           doc.setTextColor(59, 130, 246);
-          doc.text("Akses Katalog: https://gencar.my.id/mandiri/katalog", 45, 154, { align: "center" });
-          doc.link(15, 150, 60, 6, { url: "https://gencar.my.id/mandiri/katalog" });
+          doc.text("Akses Katalog: https://gencar.pintarsolusi.com/mandiri/katalog", 45, 154, { align: "center" });
+          doc.link(15, 150, 60, 6, { url: "https://gencar.pintarsolusi.com/mandiri/katalog" });
 
           // 10. Login Instructions
           doc.setFontSize(7);
@@ -1168,7 +1168,7 @@ export default function MandiriDaftarPage() {
               return (
                  <div className="form-group">
                    <label className="form-label">
-                     Target Menikah {isUnderage ? <span className="required">* (Wajib karena belum cukup umur)</span> : "(Opsional)"}
+                     Target Menikah
                    </label>
                    <select
                      name="targetMenikah"
