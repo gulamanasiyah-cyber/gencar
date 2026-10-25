@@ -1168,7 +1168,7 @@ export default function MandiriDaftarPage() {
               return (
                  <div className="form-group">
                    <label className="form-label">
-                     Target Menikah {isUnderage ? <span className="required">* (Wajib karena belum cukup umur)</span> : "(Opsional)"}
+                     Target Menikah
                    </label>
                    <select
                      name="targetMenikah"
