@@ -11,13 +11,38 @@ GC_APP="${GC_APP:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 langkah "Memeriksa Status Database Gencar di Container"
 
 dc exec app node -e '
-const { createClient } = require("@libsql/client");
+let createClient;
+try {
+  createClient = require("@libsql/client/web").createClient;
+} catch (e) {
+  try {
+    createClient = require("@libsql/client").createClient;
+  } catch (err2) {
+    console.error("❌ Gagal memuat driver @libsql/client:", err2.message);
+    process.exit(1);
+  }
+}
 
-const url = (process.env.TURSO_DATABASE_URL || "file:local.db").trim();
-const authToken = (process.env.TURSO_AUTH_TOKEN || "").trim();
+const overrideArg = process.argv[1] || "";
+let url = (process.env.TURSO_DATABASE_URL || "").trim();
+let authToken = (process.env.TURSO_AUTH_TOKEN || "").trim();
 
-console.log("📍 DATABASE_URL :", url.startsWith("libsql://") ? url.split("@")[0] : url);
+if (overrideArg) {
+  if (overrideArg.startsWith("libsql://") || overrideArg.startsWith("https://") || overrideArg.startsWith("http://")) {
+    url = overrideArg;
+  } else {
+    authToken = overrideArg;
+  }
+}
+
+console.log("📍 DATABASE_URL :", url ? (url.startsWith("libsql://") ? url.split("@")[0] : url) : "(Kosong / Belum diset)");
 console.log("🔑 AUTH_TOKEN   :", authToken ? "Tersedia (" + authToken.slice(0, 10) + "...)" : "Tidak ada / Kosong");
+
+if (!url) {
+  console.error("\n❌ TURSO_DATABASE_URL belum diatur di file .env container!");
+  console.error("👉 Silakan isi TURSO_DATABASE_URL dan TURSO_AUTH_TOKEN di file .env di server.");
+  process.exit(1);
+}
 
 const client = createClient({ url, authToken });
 
@@ -46,11 +71,11 @@ async function test() {
     console.error("Pesan Error:", err.message || err);
     if (err.message && err.message.includes("URL_INVALID")) {
       console.error("👉 Penyebab: Nilai TURSO_DATABASE_URL di file .env tidak valid.");
-    } else if (err.message && err.message.includes("UNAUTHORIZED")) {
+    } else if (err.message && (err.message.includes("UNAUTHORIZED") || err.message.includes("401"))) {
       console.error("👉 Penyebab: TURSO_AUTH_TOKEN salah atau kadaluarsa.");
     }
   }
 }
 
 test();
-'
+' "$@"

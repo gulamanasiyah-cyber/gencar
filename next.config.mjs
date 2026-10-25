@@ -8,9 +8,12 @@ const nextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   experimental: {
-    serverComponentsExternalPackages: ["@libsql/isomorphic-ws"],
+    serverComponentsExternalPackages: ["@libsql/isomorphic-ws", "@libsql/client"],
     outputFileTracingIncludes: {
-      '/**/*': ['./node_modules/@libsql/isomorphic-ws/**/*'],
+      '/**/*': [
+        './node_modules/@libsql/isomorphic-ws/**/*',
+        './node_modules/@libsql/client/**/*',
+      ],
     },
   },
   typescript: {
