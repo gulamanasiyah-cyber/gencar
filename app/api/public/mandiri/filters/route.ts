@@ -19,13 +19,63 @@ export async function GET(request: NextRequest) {
       kegiatanId = activeSetting[0]?.value || "";
     }
 
-    // Fetch unique pendidikan from registered participants (data pendaftar) depending on kegiatan
-    const pendidikanResult = await db
-      .select({ value: generus.pendidikan })
-      .from(generus)
-      .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-      .where(kegiatanId ? and(isNotNull(generus.pendidikan), eq(mandiri.kegiatanId, kegiatanId)) : isNotNull(generus.pendidikan))
-      .groupBy(generus.pendidikan);
+    // These filter lists are independent reads. Run them together so the catalog
+    // does not pay for five sequential database round trips on every first load.
+    const [pendidikanResult, textDataResult, kotaResult, wilayahResult, kelompokResult] = await Promise.all([
+      db
+        .select({ value: generus.pendidikan })
+        .from(generus)
+        .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
+        .where(kegiatanId ? and(isNotNull(generus.pendidikan), eq(mandiri.kegiatanId, kegiatanId)) : isNotNull(generus.pendidikan))
+        .groupBy(generus.pendidikan),
+      db
+        .select({
+          pekerjaan: generus.pekerjaan,
+          kriteriaPasangan: generus.kriteriaPasangan,
+          hobi: generus.hobi,
+          makanan: generus.makananMinumanFavorit,
+          suku: generus.suku,
+          tanggalLahir: generus.tanggalLahir
+        })
+        .from(generus)
+        .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
+        .where(kegiatanId ? eq(mandiri.kegiatanId, kegiatanId) : sql`1=1`),
+      db
+        .select({ kota: mandiriDaerah.nama })
+        .from(mandiriDesa)
+        .innerJoin(generus, eq(generus.mandiriDesaId, mandiriDesa.id))
+        .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
+        .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
+        .where(kegiatanId ? eq(mandiri.kegiatanId, kegiatanId) : sql`1=1`)
+        .groupBy(mandiriDaerah.nama)
+        .orderBy(mandiriDaerah.nama),
+      db
+        .select({
+          id: mandiriDesa.id,
+          nama: mandiriDesa.nama,
+          kota: mandiriDaerah.nama
+        })
+        .from(mandiriDesa)
+        .innerJoin(generus, eq(generus.mandiriDesaId, mandiriDesa.id))
+        .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
+        .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
+        .where(kegiatanId ? eq(mandiri.kegiatanId, kegiatanId) : sql`1=1`)
+        .groupBy(mandiriDesa.id, mandiriDesa.nama, mandiriDaerah.nama)
+        .orderBy(mandiriDesa.nama),
+      db
+        .select({
+          id: mandiriKelompok.id,
+          nama: mandiriKelompok.nama,
+          desaId: mandiriDesa.id
+        })
+        .from(mandiriKelompok)
+        .innerJoin(generus, eq(generus.mandiriKelompokId, mandiriKelompok.id))
+        .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
+        .innerJoin(mandiriDesa, eq(mandiriKelompok.mandiriDesaId, mandiriDesa.id))
+        .where(kegiatanId ? eq(mandiri.kegiatanId, kegiatanId) : sql`1=1`)
+        .groupBy(mandiriKelompok.id, mandiriKelompok.nama, mandiriDesa.id)
+        .orderBy(mandiriKelompok.nama)
+    ]);
     
     const pendidikan = pendidikanResult
       .map(r => {
@@ -78,20 +128,6 @@ export async function GET(request: NextRequest) {
       return Array.from(map.values()).sort();
     };
 
-    // Fetch all needed textual fields in one go
-    const textDataResult = await db
-      .select({ 
-        pekerjaan: generus.pekerjaan,
-        kriteriaPasangan: generus.kriteriaPasangan,
-        hobi: generus.hobi,
-        makanan: generus.makananMinumanFavorit,
-        suku: generus.suku,
-        tanggalLahir: generus.tanggalLahir
-      })
-      .from(generus)
-      .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-      .where(kegiatanId ? eq(mandiri.kegiatanId, kegiatanId) : sql`1=1`);
-
     const pekerjaan = clusterText(textDataResult, "pekerjaan");
     const kriteriaPasangan = clusterText(textDataResult, "kriteriaPasangan");
     const hobi = clusterText(textDataResult, "hobi");
@@ -111,49 +147,7 @@ export async function GET(request: NextRequest) {
     });
     const umur = Array.from(umurSet).sort((a, b) => a - b);
 
-    const kotaResult = await db
-      .select({ 
-        kota: mandiriDaerah.nama 
-      })
-      .from(mandiriDesa)
-      .innerJoin(generus, eq(generus.mandiriDesaId, mandiriDesa.id))
-      .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
-      .where(kegiatanId ? eq(mandiri.kegiatanId, kegiatanId) : sql`1=1`)
-      .groupBy(mandiriDaerah.nama)
-      .orderBy(mandiriDaerah.nama);
-
     const kota = kotaResult.map(r => r.kota).filter(Boolean);
-
-    // Fetch unique mandiriDesa (Wilayah/Desa Mandiri) from registered participants
-    const wilayahResult = await db
-      .select({ 
-        id: mandiriDesa.id, 
-        nama: mandiriDesa.nama,
-        kota: mandiriDaerah.nama
-      })
-      .from(mandiriDesa)
-      .innerJoin(generus, eq(generus.mandiriDesaId, mandiriDesa.id))
-      .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
-      .where(kegiatanId ? eq(mandiri.kegiatanId, kegiatanId) : sql`1=1`)
-      .groupBy(mandiriDesa.id, mandiriDesa.nama, mandiriDaerah.nama)
-      .orderBy(mandiriDesa.nama);
-
-    // Fetch unique kelompok
-    const kelompokResult = await db
-      .select({ 
-        id: mandiriKelompok.id, 
-        nama: mandiriKelompok.nama,
-        desaId: mandiriDesa.id
-      })
-      .from(mandiriKelompok)
-      .innerJoin(generus, eq(generus.mandiriKelompokId, mandiriKelompok.id))
-      .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-      .innerJoin(mandiriDesa, eq(mandiriKelompok.mandiriDesaId, mandiriDesa.id))
-      .where(kegiatanId ? eq(mandiri.kegiatanId, kegiatanId) : sql`1=1`)
-      .groupBy(mandiriKelompok.id, mandiriKelompok.nama, mandiriDesa.id)
-      .orderBy(mandiriKelompok.nama);
 
     return NextResponse.json({
       pendidikan,

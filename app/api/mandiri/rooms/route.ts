@@ -2,25 +2,17 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriRooms, mandiriPemilihan, generus, mandiri, settings, timGambuh, users, formPanitiaDanPengurus, mandiriDesa, mandiriDaerah } from "@/lib/schema";
+import { mandiriRooms, mandiriPemilihan, generus, mandiri, settings, timGambuh, users, formPanitiaDanPengurus, mandiriDesa, mandiriDaerah, mandiriKegiatan } from "@/lib/schema";
 import { eq, and, or, count, desc, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 import { alias } from "drizzle-orm/sqlite-core";
 import { pusherServer } from "@/lib/pusher";
+import { ensureMandiriRoomSchema } from "@/lib/mandiri-schema";
 
 export async function GET(request: NextRequest) {
     try {
-        // Self-healing migration to automatically add new columns to database if missing
-        try {
-            await db.run(sql`ALTER TABLE mandiri_rooms ADD COLUMN assigned_caller_id TEXT`);
-        } catch (e) {}
-        try {
-            await db.run(sql`ALTER TABLE mandiri_rooms ADD COLUMN assigned_caller2_id TEXT`);
-        } catch (e) {}
-        try {
-            await db.run(sql`ALTER TABLE mandiri_rooms ADD COLUMN assigned_guard_id TEXT`);
-        } catch (e) {}
+        await ensureMandiriRoomSchema();
 
         const session = await getSession();
         let authorized = !!session;
@@ -137,22 +129,27 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { nama } = body;
+        const { nama, kegiatanId: requestedKegiatanId } = body;
 
         if (!nama) return NextResponse.json({ error: "Nama ruangan wajib diisi" }, { status: 400 });
 
         const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-        const activeKegiatanId = activeSetting[0]?.value || "";
+        const kegiatanId = requestedKegiatanId || activeSetting[0]?.value || "";
 
-        if (!activeKegiatanId) {
+        if (!kegiatanId) {
             return NextResponse.json({ error: "Tidak ada kegiatan mandiri yang sedang aktif" }, { status: 400 });
         }
+
+        const targetKegiatan = await db.query.mandiriKegiatan.findFirst({
+            where: eq(mandiriKegiatan.id, kegiatanId)
+        });
+        if (!targetKegiatan) return NextResponse.json({ error: "Kegiatan tidak ditemukan" }, { status: 404 });
 
         const id = uuidv4();
         await db.insert(mandiriRooms).values({
             id,
             nama,
-            kegiatanId: activeKegiatanId,
+            kegiatanId,
             status: "Kosong"
         });
 
@@ -181,19 +178,22 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        const { searchParams } = new URL(request.url);
+        const requestedKegiatanId = searchParams.get("kegiatanId") || "";
         const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-        const activeKegiatanId = activeSetting[0]?.value || "";
+        const kegiatanId = requestedKegiatanId || activeSetting[0]?.value || "";
 
-        if (!activeKegiatanId) {
+        if (!kegiatanId) {
             return NextResponse.json({ error: "Tidak ada kegiatan mandiri yang sedang aktif" }, { status: 400 });
         }
 
-        await db.delete(mandiriRooms).where(eq(mandiriRooms.kegiatanId, activeKegiatanId));
+        await db.delete(mandiriRooms).where(eq(mandiriRooms.kegiatanId, kegiatanId));
 
         // Trigger Pusher update
         try {
             await pusherServer.trigger("taaruf-channel", "room-changed", {
                 action: "delete-all-rooms",
+                kegiatanId,
             });
         } catch (pusherErr) {
             console.error("Pusher trigger error:", pusherErr);

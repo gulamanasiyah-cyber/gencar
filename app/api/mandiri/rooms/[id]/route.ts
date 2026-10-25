@@ -1,8 +1,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriRooms, mandiriPemilihan, mandiriKunjungan, mandiriKegiatan, mandiriAbsensi, settings, generus, mandiri, timGambuh, mandiriDesa, formPanitiaDanPengurus } from "@/lib/schema";
-import { eq, sql, and, desc } from "drizzle-orm";
+import { mandiriRooms, mandiriPemilihan, mandiriKunjungan, mandiriAbsensi, generus, mandiri, timGambuh, mandiriDesa, formPanitiaDanPengurus } from "@/lib/schema";
+import { eq, sql, and, or, desc, isNull } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { pusherServer } from "@/lib/pusher";
 import { sendWhatsApp } from "@/lib/whatsapp";
@@ -36,6 +36,14 @@ export async function PATCH(
         const roomId = params.id;
         const body = await request.json();
         const { pemilihanId, action, timGambuhId, operatorCompanionId, hasilPengirim, hasilPenerima } = body;
+
+        if (action === "clear") {
+            const validResults = ["Lanjut", "Ragu-ragu", "Ragu-Ragu", "Tidak Lanjut"];
+            if ((hasilPengirim != null && !validResults.includes(hasilPengirim)) ||
+                (hasilPenerima != null && !validResults.includes(hasilPenerima))) {
+                return NextResponse.json({ error: "Hasil pertemuan tidak valid" }, { status: 400 });
+            }
+        }
 
         // If user is tim_pnkb_gambuh or peserta_atau_panitia, they can only perform start/clear on rooms assigned to them
         if ((userRole === "tim_pnkb_gambuh" || userRole === "peserta_atau_panitia") && (action === "start" || action === "clear")) {
@@ -133,9 +141,33 @@ export async function PATCH(
                 return NextResponse.json({ error: "Data Pemilihan tidak ditemukan" }, { status: 404 });
             }
 
+            if (pemilihan.status !== "Menunggu") {
+                return NextResponse.json({ error: "Antrean ini sudah diproses" }, { status: 409 });
+            }
+            if (!pemilihan.kegiatanId) {
+                return NextResponse.json({ error: "Kegiatan pada antrean tidak ditemukan" }, { status: 400 });
+            }
+
+            const currentRoom = await db.query.mandiriRooms.findFirst({
+                where: eq(mandiriRooms.id, roomId)
+            });
+            if (!currentRoom) return NextResponse.json({ error: "Room not found" }, { status: 404 });
+            if (currentRoom.kegiatanId !== pemilihan.kegiatanId) {
+                return NextResponse.json({ error: "Kegiatan ruangan dan antrean tidak cocok" }, { status: 400 });
+            }
+            if (currentRoom.status !== "Kosong" || currentRoom.pemilihanId) {
+                return NextResponse.json({ error: "Ruangan sudah terisi" }, { status: 409 });
+            }
+
+            const existingRoom = await db.query.mandiriRooms.findFirst({
+                where: eq(mandiriRooms.pemilihanId, pemilihanId)
+            });
+            if (existingRoom) {
+                return NextResponse.json({ error: "Antrean ini sudah ditempatkan di ruangan lain" }, { status: 409 });
+            }
+
             // 0.1 Check if either participant has logged out/gone home
-            const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-            const kegiatanId = activeSetting[0]?.value || "";
+            const kegiatanId = pemilihan.kegiatanId;
 
             if (kegiatanId) {
                 const checkAttendance = await db.select({
@@ -171,10 +203,6 @@ export async function PATCH(
             }
 
             // Retrieve current room staff assignment so we don't overwrite manual selections
-            const currentRoom = await db.query.mandiriRooms.findFirst({
-                where: eq(mandiriRooms.id, roomId)
-            });
-
             let assignedCallerId: string | null = currentRoom?.assignedCallerId || null;
             let assignedCaller2Id: string | null = currentRoom?.assignedCaller2Id || null;
             let assignedGuardId: string | null = currentRoom?.assignedGuardId || null;
@@ -193,38 +221,26 @@ export async function PATCH(
                 guardNama = staffList.find(s => s.id === assignedGuardId)?.nama ?? null;
             }
 
-            if (pemilihan) {
-                // Insert history for both pengirim and penerima
-                await db.insert(mandiriKunjungan).values([
-                    {
-                        id: crypto.randomUUID(),
-                        generusId: pemilihan.pengirimId,
-                        roomId: roomId,
-                        pemilihanId: pemilihanId,
-                        kegiatanId: kegiatanId
-                    },
-                    {
-                        id: crypto.randomUUID(),
-                        generusId: pemilihan.penerimaId,
-                        roomId: roomId,
-                        pemilihanId: pemilihanId,
-                        kegiatanId: kegiatanId
-                    }
-                ]);
-            }
-
-            // 1. Update selection status + persist staff assignment on pemilihan
-            await db.update(mandiriPemilihan)
+            // Claim the queue item atomically so stale admin screens cannot assign it twice.
+            const claimedSelection = await db.update(mandiriPemilihan)
                 .set({
                     status: "Diterima",
                     assignedCallerId: assignedCallerId || null,
                     assignedCaller2Id: assignedCaller2Id || null,
                     assignedGuardId: assignedGuardId || null,
                 })
-                .where(eq(mandiriPemilihan.id, pemilihanId));
+                .where(and(
+                    eq(mandiriPemilihan.id, pemilihanId),
+                    eq(mandiriPemilihan.status, "Menunggu"),
+                    eq(mandiriPemilihan.kegiatanId, kegiatanId)
+                ))
+                .returning({ id: mandiriPemilihan.id });
+            if (claimedSelection.length === 0) {
+                return NextResponse.json({ error: "Antrean ini baru saja diproses oleh admin lain" }, { status: 409 });
+            }
 
-            // 2. Update room info
-            await db.update(mandiriRooms)
+            // Claim the room atomically. If another request won the room, release the queue item.
+            const claimedRoom = await db.update(mandiriRooms)
                 .set({ 
                     pemilihanId, 
                     timGambuhId: timGambuhId || null,
@@ -235,7 +251,57 @@ export async function PATCH(
                     startedAt: null,
                     updatedAt: sql`(datetime('now'))`
                 })
-                .where(eq(mandiriRooms.id, roomId));
+                .where(and(
+                    eq(mandiriRooms.id, roomId),
+                    eq(mandiriRooms.kegiatanId, kegiatanId),
+                    eq(mandiriRooms.status, "Kosong"),
+                    isNull(mandiriRooms.pemilihanId)
+                ))
+                .returning({ id: mandiriRooms.id });
+            if (claimedRoom.length === 0) {
+                await db.update(mandiriPemilihan)
+                    .set({
+                        status: "Menunggu",
+                        assignedCallerId: pemilihan.assignedCallerId || null,
+                        assignedCaller2Id: pemilihan.assignedCaller2Id || null,
+                        assignedGuardId: pemilihan.assignedGuardId || null
+                    })
+                    .where(and(eq(mandiriPemilihan.id, pemilihanId), eq(mandiriPemilihan.status, "Diterima")));
+                return NextResponse.json({ error: "Ruangan baru saja digunakan admin lain" }, { status: 409 });
+            }
+
+            // Record attendance history only after both the queue item and room are claimed.
+            try {
+                await db.insert(mandiriKunjungan).values([
+                    {
+                        id: crypto.randomUUID(),
+                        generusId: pemilihan.pengirimId,
+                        roomId,
+                        pemilihanId,
+                        kegiatanId
+                    },
+                    {
+                        id: crypto.randomUUID(),
+                        generusId: pemilihan.penerimaId,
+                        roomId,
+                        pemilihanId,
+                        kegiatanId
+                    }
+                ]);
+            } catch (historyError) {
+                await db.update(mandiriRooms)
+                    .set({ pemilihanId: null, status: "Kosong", startedAt: null, updatedAt: sql`(datetime('now'))` })
+                    .where(and(eq(mandiriRooms.id, roomId), eq(mandiriRooms.pemilihanId, pemilihanId)));
+                await db.update(mandiriPemilihan)
+                    .set({
+                        status: "Menunggu",
+                        assignedCallerId: pemilihan.assignedCallerId || null,
+                        assignedCaller2Id: pemilihan.assignedCaller2Id || null,
+                        assignedGuardId: pemilihan.assignedGuardId || null
+                    })
+                    .where(and(eq(mandiriPemilihan.id, pemilihanId), eq(mandiriPemilihan.status, "Diterima")));
+                throw historyError;
+            }
 
             // Trigger Pusher update
             try {
@@ -387,11 +453,31 @@ export async function PATCH(
                     }
                     
                     if (isPengirim || isPenerima) {
+                        if ((isPengirim && hasilPenerima !== undefined) || (isPenerima && hasilPengirim !== undefined)) {
+                            return NextResponse.json({ error: "Anda hanya dapat mengirim hasil milik Anda sendiri" }, { status: 403 });
+                        }
+
                         if (isPengirim && hasilPengirim) {
-                            await db.update(mandiriPemilihan).set({ hasilPengirim }).where(eq(mandiriPemilihan.id, sel.id));
+                            const updated = await db.update(mandiriPemilihan)
+                                .set({ hasilPengirim })
+                                .where(and(
+                                    eq(mandiriPemilihan.id, sel.id),
+                                    eq(mandiriPemilihan.status, "Diterima"),
+                                    or(isNull(mandiriPemilihan.hasilPengirim), eq(mandiriPemilihan.hasilPengirim, ""))
+                                ))
+                                .returning({ id: mandiriPemilihan.id });
+                            if (updated.length === 0) return NextResponse.json({ error: "Hasil Anda sudah pernah dikirim" }, { status: 409 });
                         }
                         if (isPenerima && hasilPenerima) {
-                            await db.update(mandiriPemilihan).set({ hasilPenerima }).where(eq(mandiriPemilihan.id, sel.id));
+                            const updated = await db.update(mandiriPemilihan)
+                                .set({ hasilPenerima })
+                                .where(and(
+                                    eq(mandiriPemilihan.id, sel.id),
+                                    eq(mandiriPemilihan.status, "Diterima"),
+                                    or(isNull(mandiriPemilihan.hasilPenerima), eq(mandiriPemilihan.hasilPenerima, ""))
+                                ))
+                                .returning({ id: mandiriPemilihan.id });
+                            if (updated.length === 0) return NextResponse.json({ error: "Hasil Anda sudah pernah dikirim" }, { status: 409 });
                         }
 
                         // Check if both results are now filled

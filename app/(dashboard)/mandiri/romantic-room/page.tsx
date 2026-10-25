@@ -88,6 +88,10 @@ const calculateAge = (birthDateString: string) => {
 
 export default function RomanticRoomPage() {
     const [loading, setLoading] = useState(true);
+    const fetchInFlightRef = useRef(false);
+    const fetchPendingRef = useRef(false);
+    const skipNextSelectedChangeRef = useRef(false);
+    const eventRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [myProfile, setMyProfile] = useState<any>(null);
     const [allRooms, setAllRooms] = useState<any[]>([]);
     const [staffList, setStaffList] = useState<any[]>([]);
@@ -263,9 +267,37 @@ export default function RomanticRoomPage() {
         return headers;
     };
 
+    const refreshRooms = async () => {
+        try {
+            const ADMIN_ROLES = ["admin", "kmm_daerah", "admin_romantic_room", "pengurus_daerah", "tim_pnkb"];
+            const isSessionAdmin = ADMIN_ROLES.includes(myProfile?.role || "");
+            const roomParam = selectedKegiatanId ? `?kegiatanId=${encodeURIComponent(selectedKegiatanId)}` : "";
+            const res = await fetch(`/api/mandiri/rooms${roomParam}`, {
+                headers: isSessionAdmin ? {} : getAuthHeaders()
+            });
+            if (!res.ok) return;
+            const rooms = await res.json();
+            if (Array.isArray(rooms)) {
+                const sortedRooms = [...rooms].sort((a, b) => a.nama.localeCompare(b.nama, undefined, { numeric: true, sensitivity: "base" }));
+                setAllRooms(lsApplyToRooms(sortedRooms));
+            }
+        } catch (err) {
+            console.error("Refresh rooms error:", err);
+        }
+    };
+    const refreshRoomsRef = useRef(refreshRooms);
+    useEffect(() => {
+        refreshRoomsRef.current = refreshRooms;
+    });
+
     const isAdmin = ["admin", "kmm_daerah", "admin_romantic_room", "pengurus_daerah", "tim_pnkb"].includes(myProfile?.role || "");
 
     const fetchData = async () => {
+        if (fetchInFlightRef.current) {
+            fetchPendingRef.current = true;
+            return;
+        }
+        fetchInFlightRef.current = true;
         setLoading(true);
         try {
             // Cek session admin terlebih dahulu (tanpa independent auth headers)
@@ -309,6 +341,9 @@ export default function RomanticRoomPage() {
                             if (!selectedKegiatanId) {
                                 const s = sRes.ok ? await sRes.json() : {};
                                 targetKgId = s.mandiri_active_kegiatan_id || kList[0]?.id || "";
+                                if (targetKgId !== selectedKegiatanId) {
+                                    skipNextSelectedChangeRef.current = true;
+                                }
                                 setSelectedKegiatanId(targetKgId);
                             }
                         }
@@ -323,6 +358,22 @@ export default function RomanticRoomPage() {
 
             // Fetch Rooms (filtered by target kegiatan ID if available)
             const roomParam = targetKgId ? `?kegiatanId=${targetKgId}` : "";
+            let adminDataPromise: Promise<Response[]> | null = null;
+            if (isUserAdmin) {
+                const kgParam = targetKgId ? `kegiatanId=${targetKgId}` : "";
+                const qParam = kgParam ? `&${kgParam}` : "";
+                const qmParam = kgParam ? `?${kgParam}` : "";
+                // These requests do not depend on the room list. Start them together
+                // to avoid making the initial dashboard wait through a request waterfall.
+                adminDataPromise = Promise.all([
+                    fetch(`/api/mandiri/pilih?all=true${qParam}`),
+                    fetch(`/api/mandiri/kunjungan${qmParam}`, { headers: h }),
+                    fetch(`/api/mandiri?limit=1000&onlyAttended=true${qParam}`, { headers: h }),
+                    fetch(`/api/mandiri/stats/attendance${qmParam}`),
+                    fetch("/api/mandiri/desa"),
+                    fetch(`/api/mandiri/staff${qmParam}`, { headers: h })
+                ]);
+            }
             const roomsRes = await fetch(`/api/mandiri/rooms${roomParam}`, { headers: h });
             const roomsJson = await roomsRes.json();
             const sortedRooms = Array.isArray(roomsJson)
@@ -332,19 +383,7 @@ export default function RomanticRoomPage() {
             setAllRooms(lsApplyToRooms(sortedRooms));
 
             if (isUserAdmin) {
-                const kgParam = targetKgId ? `kegiatanId=${targetKgId}` : "";
-                const qParam = kgParam ? `&${kgParam}` : "";
-                const qmParam = kgParam ? `?${kgParam}` : "";
-
-                // Parallelize all dependent requests to massively improve load speed
-                const [qRes, histRes, pRes, statsRes, desaRes, staffRes] = await Promise.all([
-                    fetch(`/api/mandiri/pilih?all=true${qParam}`),
-                    fetch(`/api/mandiri/kunjungan${qmParam}`, { headers: h }),
-                    fetch(`/api/mandiri?limit=1000&onlyAttended=true${qParam}`, { headers: h }),
-                    fetch(`/api/mandiri/stats/attendance${qmParam}`),
-                    fetch("/api/mandiri/desa"),
-                    fetch(`/api/mandiri/staff${qmParam}`)
-                ]);
+                const [qRes, histRes, pRes, statsRes, desaRes, staffRes] = await adminDataPromise!;
 
                 // 1. Process Queue
                 const qJson = await qRes.json();
@@ -409,7 +448,13 @@ export default function RomanticRoomPage() {
         } catch (err) {
             console.error(err);
         } finally {
-            setLoading(false);
+            fetchInFlightRef.current = false;
+            if (fetchPendingRef.current) {
+                fetchPendingRef.current = false;
+                void fetchData();
+            } else {
+                setLoading(false);
+            }
         }
     };
 
@@ -419,8 +464,12 @@ export default function RomanticRoomPage() {
     });
 
     useEffect(() => {
-        fetchData();
-        const interval = setInterval(fetchData, 10000); // Poll every 10s for status updates
+        if (skipNextSelectedChangeRef.current) {
+            skipNextSelectedChangeRef.current = false;
+        } else {
+            fetchDataRef.current();
+        }
+        const interval = setInterval(() => refreshRoomsRef.current(), 60000); // Keep a light room-state fallback; Pusher refreshes the full dashboard
         return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedKegiatanId]);
@@ -433,13 +482,21 @@ export default function RomanticRoomPage() {
         const channel = pusher.subscribe("taaruf-channel");
 
         const handleUpdate = () => {
-            fetchDataRef.current();
+            if (eventRefreshTimerRef.current) clearTimeout(eventRefreshTimerRef.current);
+            eventRefreshTimerRef.current = setTimeout(() => {
+                eventRefreshTimerRef.current = null;
+                fetchDataRef.current();
+            }, 250);
         };
 
         channel.bind("taaruf-changed", handleUpdate);
         channel.bind("room-changed", handleUpdate);
 
         return () => {
+            if (eventRefreshTimerRef.current) {
+                clearTimeout(eventRefreshTimerRef.current);
+                eventRefreshTimerRef.current = null;
+            }
             channel.unbind("taaruf-changed", handleUpdate);
             channel.unbind("room-changed", handleUpdate);
             pusher.unsubscribe("taaruf-channel");
@@ -702,7 +759,7 @@ export default function RomanticRoomPage() {
                 const res = await fetch("/api/mandiri/rooms", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ nama: roomName })
+                    body: JSON.stringify({ nama: roomName, kegiatanId: selectedKegiatanId || undefined })
                 });
                 if (res.ok) {
                     Swal.fire("Berhasil", `Ruangan ${roomName} berhasil dibuat`, "success");
@@ -745,7 +802,7 @@ export default function RomanticRoomPage() {
                         fetch("/api/mandiri/rooms", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ nama: `${prefix} ${startCount + i}` })
+                            body: JSON.stringify({ nama: `${prefix} ${startCount + i}`, kegiatanId: selectedKegiatanId || undefined })
                         })
                     );
                 }
@@ -1071,7 +1128,7 @@ export default function RomanticRoomPage() {
 
         if (result.isConfirmed) {
             try {
-                const kgParam = selectedKegiatanId ? `?kegiatanId=${selectedKegiatanId}` : "";
+                const kgParam = selectedKegiatanId ? `?kegiatanId=${encodeURIComponent(selectedKegiatanId)}` : "";
                 await fetch(`/api/mandiri/rooms${kgParam}`, { method: "DELETE" });
                 fetchData();
             } catch (err) {
