@@ -18,6 +18,7 @@ const requiredColumns: SchemaColumn[] = [
 
 type SchemaGlobal = typeof globalThis & {
   __mandiriRoomSchemaReady?: Promise<void>;
+  __saranActivitySchemaReady?: Promise<void>;
 };
 
 const schemaGlobal = globalThis as SchemaGlobal;
@@ -58,4 +59,29 @@ export function ensureMandiriRoomSchema(): Promise<void> {
   }
 
   return schemaGlobal.__mandiriRoomSchemaReady!;
+}
+
+/** Add the optional activity link to old suggestion databases only once. */
+export function ensureSaranActivitySchema(): Promise<void> {
+  if (!schemaGlobal.__saranActivitySchemaReady) {
+    schemaGlobal.__saranActivitySchemaReady = (async () => {
+      const tables = await db.select({
+        name: sql<string>`name`,
+        definition: sql<string>`sql`,
+      })
+        .from(sql`sqlite_master`)
+        .where(sql`type = 'table' AND name = 'saran_masukan'`);
+      const tableDefinition = String(tables[0]?.definition || "").toLowerCase();
+      if (!tableDefinition) throw new Error("Missing required table: saran_masukan");
+      if (!tableDefinition.includes("kegiatan_id")) {
+        await db.run(sql`ALTER TABLE saran_masukan ADD COLUMN kegiatan_id TEXT`);
+      }
+      await db.run(sql`CREATE INDEX IF NOT EXISTS saran_masukan_kegiatan_id_idx ON saran_masukan(kegiatan_id)`);
+    })().catch((error) => {
+      schemaGlobal.__saranActivitySchemaReady = undefined;
+      throw error;
+    });
+  }
+
+  return schemaGlobal.__saranActivitySchemaReady!;
 }

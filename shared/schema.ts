@@ -544,10 +544,13 @@ export const saranMasukan = sqliteTable("saran_masukan", {
   untuk: text("untuk").notNull(),
   kepada: text("kepada"),
   saran: text("saran").notNull(),
+  kegiatanId: text("kegiatan_id").references(() => mandiriKegiatan.id, { onDelete: "set null" }),
   nama: text("nama"), userId: text("user_id"),
   isAnonim: integer("is_anonim").default(0),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
-});
+}, (table) => ({
+  kegiatanIdIdx: index("saran_masukan_kegiatan_id_idx").on(table.kegiatanId),
+}));
 
 export type SaranMasukan = typeof saranMasukan.$inferSelect;
 
