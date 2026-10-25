@@ -1,12 +1,102 @@
+# ============================================================
+# Git
+# ============================================================
 .git
+.gitignore
+.github
+
+# ============================================================
+# Next.js / build artifacts (rebuilt inside container)
+# ============================================================
 .next
+/out
+/build
+
+# ============================================================
+# Dependencies (reinstalled inside container)
+# ============================================================
 node_modules
-tsconfig.tsbuildinfo
+
+# ============================================================
+# Environment & secrets
+# ============================================================
+.env
+.env.*
+!.env.example
+
+# ============================================================
+# TypeScript build info
+# ============================================================
 *.tsbuildinfo
-.env*.local
-.pnp
-.pnp.js
-coverage
+tsconfig.tsbuildinfo
+
+# ============================================================
+# Logs
+# ============================================================
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+/logs/
+mydev*.log
+
+# ============================================================
+# Docker-related (not needed inside image)
+# ============================================================
+docker-compose*.yml
+docker-compose*.yaml
+Dockerfile*
+/docker-data/
+
+# ============================================================
+# CI / deploy scripts (not needed inside app)
+# ============================================================
+deploy/
+.github/
+
+# ============================================================
+# OS & editor artifacts
+# ============================================================
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+*.pem
+*.key
+.vscode/
+.idea/
+
+# ============================================================
+# OpenNext / Cloudflare / Wrangler (build for CF, not here)
+# ============================================================
+/open-next-assets
+/.open-next/
+/.wrangler/
+wrangler.toml
+open-next.config.ts
+nixpacks.toml
+vercel.json
+
+# ============================================================
+# Dev/debug/scratch files — never ship these
+# ============================================================
+scratch/
+pages_list.txt
+build_output.txt
+good_route.ts
+tmp_test.ts
+script.js
+sh.exe.stackdump
+README.md
+*.mjs.bak
+test-db.*
+check_db.*
+diff.txt
+
+# ============================================================
+# Local DB
+# ============================================================
+local.db
+local.db-journal
+*.sqlite
+*.sqlite3
