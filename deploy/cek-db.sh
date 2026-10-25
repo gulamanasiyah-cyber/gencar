@@ -49,7 +49,7 @@ const client = createClient({ url, authToken });
 async function test() {
   try {
     console.log("\n🔄 Menghubungi database...");
-    const res = await client.execute("SELECT name FROM sqlite_master WHERE type=\"table\"");
+    const res = await client.execute({sql: "SELECT name FROM sqlite_master WHERE type=?", args: ["table"]});
     const tables = res.rows.map(r => r[0] || r.name);
     console.log("✅ KONEKSI BERHASIL!");
     console.log("📊 Daftar Tabel:", tables.length > 0 ? tables.join(", ") : "(Belum ada tabel!)");
