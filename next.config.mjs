@@ -13,6 +13,8 @@ const nextConfig = {
       '/**/*': [
         './node_modules/@libsql/isomorphic-ws/**/*',
         './node_modules/@libsql/client/**/*',
+        './node_modules/libsql/**/*',
+        './node_modules/@libsql/linux-x64-musl/**/*',
       ],
     },
   },
