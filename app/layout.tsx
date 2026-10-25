@@ -6,6 +6,8 @@ import PageTransition from "@/components/PageTransition";
 import ThemeConfig from "@/components/ThemeConfig";
 import { Suspense } from "react";
 
+const SITE_URL = "https://gencar.pintarsolusi.com";
+
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
@@ -31,7 +33,7 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://gencar.my.id"),
+  metadataBase: new URL(SITE_URL),
   title: {
     template: "%s | GENCAR",
     default: "GENCAR - Sistem Manajemen Generus Cengkareng",
@@ -40,11 +42,11 @@ export const metadata: Metadata = {
   openGraph: {
     title: "GENCAR - Sistem Manajemen Generus Cengkareng",
     description: "Sistem Manajemen Generus Cengkareng, Kegiatan, dan Absensi",
-    url: "https://gencar.my.id",
+    url: SITE_URL,
     siteName: "GENCAR",
     images: [
       {
-        url: "https://gencar.my.id/img/logo-jb2.png",
+        url: `${SITE_URL}/img/logo-jb2.png`,
         width: 800,
         height: 600,
         alt: "Logo GENCAR",
@@ -57,7 +59,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "GENCAR - Sistem Manajemen Generus Cengkareng",
     description: "Sistem Manajemen Generus Cengkareng, Kegiatan, dan Absensi",
-    images: ["https://gencar.my.id/img/logo-jb2.png"],
+    images: [`${SITE_URL}/img/logo-jb2.png`],
   },
 };
 

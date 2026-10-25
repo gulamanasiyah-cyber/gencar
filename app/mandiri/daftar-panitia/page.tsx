@@ -498,8 +498,8 @@ export default function PanitiaDaftarPage() {
 
         doc.setFontSize(11);
         doc.setTextColor(59, 130, 246);
-        doc.text("Akses Katalog: https://gencar.my.id/mandiri/katalog", 105, 180, { align: "center" });
-        doc.link(55, 175, 100, 8, { url: "https://gencar.my.id/mandiri/katalog" });
+        doc.text("Akses Katalog: https://gencar.pintarsolusi.com/mandiri/katalog", 105, 180, { align: "center" });
+        doc.link(55, 175, 100, 8, { url: "https://gencar.pintarsolusi.com/mandiri/katalog" });
 
         doc.setFontSize(10);
         doc.setTextColor(100, 116, 139);
