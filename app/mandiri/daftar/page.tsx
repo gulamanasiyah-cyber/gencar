@@ -93,6 +93,17 @@ export default function MandiriDaftarPage() {
   const [uploadingBukti, setUploadingBukti] = useState(false);
   const [haidKeterangan, setHaidKeterangan] = useState("");
 
+  useEffect(() => {
+    if (!form.targetMenikah && form.tanggalLahir && form.tanggalLahir > minimumAgeBirthDateString) {
+      setForm((prev) => {
+        if (prev.targetMenikah || !prev.tanggalLahir || prev.tanggalLahir <= minimumAgeBirthDateString) {
+          return prev;
+        }
+        return { ...prev, tanggalLahir: minimumAgeBirthDateString };
+      });
+    }
+  }, [form.targetMenikah, form.tanggalLahir, minimumAgeBirthDateString]);
+
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
