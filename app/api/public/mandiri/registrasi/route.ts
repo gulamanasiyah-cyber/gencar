@@ -89,10 +89,6 @@ export async function POST(request: NextRequest) {
         }
     }
 
-    if (isUnderage && !targetMenikah) {
-        return NextResponse.json({ error: "Kolom opsi 'Target Menikah' harus diisi apabila umur pendaftar belum mencukupi batas." }, { status: 400 });
-    }
-
     if (statusPeserta === "Person" && (!dibayarkanSenilai || !buktiPembayaran)) {
       return NextResponse.json({ error: "Mohon lengkapi nominal pembayaran dan bukti pembayaran." }, { status: 400 });
     }

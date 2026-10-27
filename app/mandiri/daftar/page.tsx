@@ -70,9 +70,7 @@ export default function MandiriDaftarPage() {
   const today = new Date();
   const minimumAgeBirthDate = subtractYears(today, minimumAge);
   const minimumAgeBirthDateString = formatDateInputValue(minimumAgeBirthDate);
-  const maxBirthDateString = form.targetMenikah
-    ? formatDateInputValue(today)
-    : minimumAgeBirthDateString;
+  const maxBirthDateString = minimumAgeBirthDateString;
   const formattedMinimumAgeBirthDate = new Intl.DateTimeFormat("id-ID", {
     day: "numeric",
     month: "long",
@@ -94,15 +92,15 @@ export default function MandiriDaftarPage() {
   const [haidKeterangan, setHaidKeterangan] = useState("");
 
   useEffect(() => {
-    if (!form.targetMenikah && form.tanggalLahir && form.tanggalLahir > minimumAgeBirthDateString) {
+    if (form.tanggalLahir && form.tanggalLahir > minimumAgeBirthDateString) {
       setForm((prev) => {
-        if (prev.targetMenikah || !prev.tanggalLahir || prev.tanggalLahir <= minimumAgeBirthDateString) {
+        if (!prev.tanggalLahir || prev.tanggalLahir <= minimumAgeBirthDateString) {
           return prev;
         }
         return { ...prev, tanggalLahir: minimumAgeBirthDateString };
       });
     }
-  }, [form.targetMenikah, form.tanggalLahir, minimumAgeBirthDateString]);
+  }, [form.tanggalLahir, minimumAgeBirthDateString]);
 
 
   useEffect(() => {
@@ -1034,7 +1032,6 @@ export default function MandiriDaftarPage() {
                 />
                 <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px" }}>
                   Batas usia minimal {minimumAge} tahun; tanggal lahir paling baru {formattedMinimumAgeBirthDate}.
-                  {form.targetMenikah ? " Dengan target menikah terisi, batas tanggal mengikuti hari ini." : " Jika belum memenuhi batas usia, isi Target Menikah terlebih dahulu."}
                 </p>
               </div>
             </div>
@@ -1193,45 +1190,23 @@ export default function MandiriDaftarPage() {
               />
             </div>
             
-            {(() => {
-              let isUnderage = false;
-              if (form.tanggalLahir) {
-                const lahir = new Date(form.tanggalLahir);
-                const sekarang = new Date();
-                let umurTahun = sekarang.getFullYear() - lahir.getFullYear();
-                const belumUlangTahun = sekarang.getMonth() < lahir.getMonth() || (sekarang.getMonth() === lahir.getMonth() && sekarang.getDate() < lahir.getDate());
-                if (belumUlangTahun) umurTahun--;
-
-                if (form.jenisKelamin === "L") {
-                  isUnderage = umurTahun < minAgeLaki;
-                } else if (form.jenisKelamin === "P") {
-                  isUnderage = umurTahun < minAgePerempuan;
-                }
-              }
-              
-              return (
-                 <div className="form-group">
-                   <label className="form-label">
-                     Target Menikah
-                   </label>
-                   <select
-                     name="targetMenikah"
-                     className="form-control"
-                     value={form.targetMenikah}
-                     onChange={handleChange}
-                     required={isUnderage}
-                   >
-                     <option value="">-- Pilih Target Menikah --</option>
-                     {Array.from({ length: 15 }, (_, i) => 2026 + i).map(year => (
-                       <option key={year} value={String(year)}>{year}</option>
-                     ))}
-                   </select>
-                   <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px", lineHeight: "1.5" }}>
-                     Informasi ini membantu panitia memahami kesiapan dan rencana waktu Anda dalam proses ta&apos;aruf. Tahun yang dipilih adalah perkiraan, bukan janji menikah pada tahun tersebut. Wajib diisi jika usia belum memenuhi batas pendaftaran.
-                   </p>
-                 </div>
-              );
-            })()}
+            <div className="form-group">
+              <label className="form-label">Target Menikah</label>
+              <select
+                name="targetMenikah"
+                className="form-control"
+                value={form.targetMenikah}
+                onChange={handleChange}
+              >
+                <option value="">-- Pilih Target Menikah --</option>
+                {Array.from({ length: 15 }, (_, i) => 2026 + i).map(year => (
+                  <option key={year} value={String(year)}>{year}</option>
+                ))}
+              </select>
+              <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px", lineHeight: "1.5" }}>
+                Informasi ini membantu panitia memahami kesiapan dan rencana waktu Anda dalam proses ta&apos;aruf. Tahun yang dipilih adalah perkiraan, bukan janji menikah pada tahun tersebut.
+              </p>
+            </div>
 
             {regStatusPeserta === "Person" && (
               <div className="form-group" style={{ padding: "15px", background: "#fffbeb", borderRadius: "10px", border: "1px solid #fde68a" }}>
