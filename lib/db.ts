@@ -33,13 +33,33 @@ function getTursoDb(): any {
     }
   }
 
+  const isLocalFile = url.startsWith("file:");
   const isNode = typeof process !== "undefined" && process.versions && !!process.versions.node;
-  
-  // Lazy imports for Node vs Web/Edge runtime
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { createClient } = isNode ? require("@libsql/client") : require("@libsql/client/web");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { drizzle: drizzleLibsql } = isNode ? require("drizzle-orm/libsql") : require("drizzle-orm/libsql/web");
+
+  // Remote Turso URLs (libsql://, https://, wss://) should always use @libsql/client/web & drizzle-orm/libsql/web
+  // because they do not require native OS/libc binaries (@libsql/linux-x64-musl, etc.) and work seamlessly
+  // across Alpine Docker, Edge, and Node.js.
+  let createClient: any;
+  let drizzleLibsql: any;
+
+  if (isLocalFile && isNode) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      createClient = require("@libsql/client").createClient;
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      drizzleLibsql = require("drizzle-orm/libsql").drizzle;
+    } catch {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      createClient = require("@libsql/client/web").createClient;
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      drizzleLibsql = require("drizzle-orm/libsql/web").drizzle;
+    }
+  } else {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    createClient = require("@libsql/client/web").createClient;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    drizzleLibsql = require("drizzle-orm/libsql/web").drizzle;
+  }
 
   const client = createClient({ url, authToken });
   _tursoDb = drizzleLibsql(client, { schema });

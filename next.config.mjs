@@ -2,14 +2,20 @@ import withBundleAnalyzer from '@next/bundle-analyzer';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   // Performance and Security Optimizations
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
   experimental: {
-    serverComponentsExternalPackages: ["@libsql/isomorphic-ws"],
+    serverComponentsExternalPackages: ["@libsql/isomorphic-ws", "@libsql/client"],
     outputFileTracingIncludes: {
-      '/**/*': ['./node_modules/@libsql/isomorphic-ws/**/*'],
+      '/**/*': [
+        './node_modules/@libsql/isomorphic-ws/**/*',
+        './node_modules/@libsql/client/**/*',
+        './node_modules/libsql/**/*',
+        './node_modules/@libsql/linux-x64-musl/**/*',
+      ],
     },
   },
   typescript: {

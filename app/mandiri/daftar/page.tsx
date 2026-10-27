@@ -15,6 +15,19 @@ import QRCode from "qrcode";
 interface Desa { id: number; nama: string; kota: string; }
 interface Kelompok { id: number; nama: string; }
 
+function formatDateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function subtractYears(date: Date, years: number) {
+  const result = new Date(date);
+  result.setFullYear(result.getFullYear() - years);
+  return result;
+}
+
 export default function MandiriDaftarPage() {
   const [form, setForm] = useState({
     nama: "",
@@ -53,8 +66,18 @@ export default function MandiriDaftarPage() {
   const [minAgeLaki, setMinAgeLaki] = useState(25);
   const [minAgePerempuan, setMinAgePerempuan] = useState(25);
 
-  const maxDate = new Date();
-  const maxDateString = maxDate.toISOString().split("T")[0];
+  const minimumAge = form.jenisKelamin === "P" ? minAgePerempuan : minAgeLaki;
+  const today = new Date();
+  const minimumAgeBirthDate = subtractYears(today, minimumAge);
+  const minimumAgeBirthDateString = formatDateInputValue(minimumAgeBirthDate);
+  const maxBirthDateString = form.targetMenikah
+    ? formatDateInputValue(today)
+    : minimumAgeBirthDateString;
+  const formattedMinimumAgeBirthDate = new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(minimumAgeBirthDate);
 
   const [success, setSuccess] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -69,6 +92,17 @@ export default function MandiriDaftarPage() {
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
   const [uploadingBukti, setUploadingBukti] = useState(false);
   const [haidKeterangan, setHaidKeterangan] = useState("");
+
+  useEffect(() => {
+    if (!form.targetMenikah && form.tanggalLahir && form.tanggalLahir > minimumAgeBirthDateString) {
+      setForm((prev) => {
+        if (prev.targetMenikah || !prev.tanggalLahir || prev.tanggalLahir <= minimumAgeBirthDateString) {
+          return prev;
+        }
+        return { ...prev, tanggalLahir: minimumAgeBirthDateString };
+      });
+    }
+  }, [form.targetMenikah, form.tanggalLahir, minimumAgeBirthDateString]);
 
 
   useEffect(() => {
@@ -140,13 +174,19 @@ export default function MandiriDaftarPage() {
     fetch("/api/public/mandiri/settings?key=mandiri_registration_min_age_laki")
       .then(r => r.json())
       .then(d => {
-        if (d.value) setMinAgeLaki(parseInt(d.value) || 25);
+        const age = Number(d.value);
+        if (d.value !== undefined && d.value !== null && d.value !== "" && Number.isFinite(age) && age >= 0) {
+          setMinAgeLaki(age);
+        }
       });
 
     fetch("/api/public/mandiri/settings?key=mandiri_registration_min_age_perempuan")
       .then(r => r.json())
       .then(d => {
-        if (d.value) setMinAgePerempuan(parseInt(d.value) || 25);
+        const age = Number(d.value);
+        if (d.value !== undefined && d.value !== null && d.value !== "" && Number.isFinite(age) && age >= 0) {
+          setMinAgePerempuan(age);
+        }
       });
 
     fetch("/api/public/mandiri/settings?key=mandiri_haid_keterangan")
@@ -981,17 +1021,21 @@ export default function MandiriDaftarPage() {
                   onChange={handleChange}
                   onFocus={(e) => {
                     if (!form.tanggalLahir) {
-                      setForm(prev => ({ ...prev, tanggalLahir: maxDateString }));
+                      setForm(prev => ({ ...prev, tanggalLahir: maxBirthDateString }));
                     }
                   }}
                   onClick={(e) => {
                     if (!form.tanggalLahir) {
-                      setForm(prev => ({ ...prev, tanggalLahir: maxDateString }));
+                      setForm(prev => ({ ...prev, tanggalLahir: maxBirthDateString }));
                     }
                   }}
                   required
-                  max={maxDateString}
+                  max={maxBirthDateString}
                 />
+                <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px" }}>
+                  Batas usia minimal {minimumAge} tahun; tanggal lahir paling baru {formattedMinimumAgeBirthDate}.
+                  {form.targetMenikah ? " Dengan target menikah terisi, batas tanggal mengikuti hari ini." : " Jika belum memenuhi batas usia, isi Target Menikah terlebih dahulu."}
+                </p>
               </div>
             </div>
 
