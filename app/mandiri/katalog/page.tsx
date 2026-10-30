@@ -548,6 +548,16 @@ export default function PublicKatalogPage() {
     localStorage.setItem("mandiri_selections", JSON.stringify(selectedIds));
   }, [selectedIds]);
 
+  useEffect(() => {
+    try {
+      Object.keys(localStorage)
+        .filter(key => key.startsWith("mandiri_selection_drafts:"))
+        .forEach(key => localStorage.removeItem(key));
+    } catch (error) {
+      console.error("Gagal menghapus draf pilihan lokal lama", error);
+    }
+  }, []);
+
   const fetchActiveRooms = useCallback(async () => {
     const storedUnik = localStorage.getItem("attended_nomor_unik");
     const storedToken = localStorage.getItem("attended_session_token");
@@ -1600,7 +1610,6 @@ export default function PublicKatalogPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ targetId, nomorUnik, token }),
         });
-
         const text = await res.text();
         if (!text) throw new Error("Server tidak mengembalikan data. Coba lagi.");
         let json: any;

@@ -155,15 +155,6 @@ export default function AdminKatalogPage() {
           }
         }
 
-        // Fetch dynamic filters
-        const filterRes = await fetch("/api/generus/filters", { cache: "no-store" });
-        if (filterRes.ok) {
-          const filterJson = await filterRes.json();
-          setPendidikanList(filterJson.pendidikan || []);
-          setDaerahList(filterJson.daerahs || []);
-          setDesaList(filterJson.desas || []);
-          setKelompokList(filterJson.kelompoks || []);
-        }
       } catch (e) {
         console.error(e);
       } finally {
@@ -172,6 +163,35 @@ export default function AdminKatalogPage() {
     }
     init();
   }, []);
+
+  useEffect(() => {
+    if (!selectedKegiatanId) {
+      setPendidikanList([]);
+      setDaerahList([]);
+      setDesaList([]);
+      setKelompokList([]);
+      return;
+    }
+
+    let cancelled = false;
+    const loadActivityFilters = async () => {
+      try {
+        const res = await fetch(`/api/generus/filters?kegiatanId=${encodeURIComponent(selectedKegiatanId)}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const filters = await res.json();
+        if (cancelled) return;
+        setPendidikanList(filters.pendidikan || []);
+        setDaerahList(filters.daerahs || []);
+        setDesaList(filters.desas || []);
+        setKelompokList(filters.kelompoks || []);
+      } catch (error) {
+        console.error("Gagal memuat filter kegiatan", error);
+      }
+    };
+
+    loadActivityFilters();
+    return () => { cancelled = true; };
+  }, [selectedKegiatanId]);
 
   useEffect(() => {
     let interval: any;
@@ -539,15 +559,14 @@ export default function AdminKatalogPage() {
 
       doc.setFontSize(11);
       doc.setFont("helvetica", "normal");
-      doc.text(latestActivity?.judul || "Daftar Peserta Aktif", 15, 28);
+      doc.text(kegiatanList.find(k => k.id === selectedKegiatanId)?.judul || latestActivity?.judul || "Daftar Peserta Aktif", 15, 28);
       
-      let filterText = "Semua Daerah";
-      if (selectedDaerah !== "all") {
-        const dNama = daerahList.find(d => String(d.id) === selectedDaerah)?.nama || "";
-        const dDesa = selectedDesa !== "all" ? desaList.find(d => String(d.id) === selectedDesa)?.nama || "" : "";
-        const dKel = selectedKelompok !== "all" ? kelompokList.find(k => String(k.id) === selectedKelompok)?.nama || "" : "";
-        filterText = dNama + (dDesa ? ` → ${dDesa}` : "") + (dKel ? ` → ${dKel}` : "");
-      }
+      const filterParts = [
+        selectedDaerah !== "all" ? daerahList.find(d => String(d.id) === selectedDaerah)?.nama : "",
+        selectedDesa !== "all" ? desaList.find(d => String(d.id) === selectedDesa)?.nama : "",
+        selectedKelompok !== "all" ? kelompokList.find(k => String(k.id) === selectedKelompok)?.nama : "",
+      ].filter(Boolean);
+      const filterText = filterParts.length ? filterParts.join(" → ") : "Semua Daerah";
       doc.text(`Total: ${allParticipants.length} Orang  |  Filter: ${filterText}`, 15, 34);
 
       doc.setFontSize(9);
@@ -912,7 +931,14 @@ export default function AdminKatalogPage() {
                   <select
                     className="dropdown-box"
                     value={selectedKegiatanId}
-                    onChange={(e) => { setSelectedKegiatanId(e.target.value); setPage(1); }}
+                    onChange={(e) => {
+                      setSelectedKegiatanId(e.target.value);
+                      setPendidikan("all");
+                      setSelectedDaerah("all");
+                      setSelectedDesa("all");
+                      setSelectedKelompok("all");
+                      setPage(1);
+                    }}
                   >
                     {kegiatanList.map(k => (
                       <option key={k.id} value={k.id}>{k.judul} ({k.kota})</option>

@@ -77,13 +77,13 @@ function buildWhereClause(
     conditions.push(eq(generus.kelompokId, Number(kelompokId)));
   }
   if (mandiriDesaId && mandiriDesaId !== "all" && !isNaN(Number(mandiriDesaId))) {
-    conditions.push(eq(generus.mandiriDesaId, Number(mandiriDesaId)));
+    conditions.push(eq(sql`COALESCE(${formPanitiaDanPengurus.mandiriDesaId}, ${generus.mandiriDesaId})`, Number(mandiriDesaId)));
   }
   if (mandiriDaerahId && mandiriDaerahId !== "all" && !isNaN(Number(mandiriDaerahId))) {
-    conditions.push(eq(mandiriDesa.mandiriDaerahId, Number(mandiriDaerahId)));
+    conditions.push(eq(sql`COALESCE((SELECT mandiri_daerah_id FROM mandiri_desa WHERE id = ${formPanitiaDanPengurus.mandiriDesaId}), ${mandiriDaerah.id})`, Number(mandiriDaerahId)));
   }
   if (mandiriKelompokId && mandiriKelompokId !== "all" && !isNaN(Number(mandiriKelompokId))) {
-    conditions.push(eq(generus.mandiriKelompokId, Number(mandiriKelompokId)));
+    conditions.push(eq(sql`COALESCE(${formPanitiaDanPengurus.mandiriKelompokId}, ${generus.mandiriKelompokId})`, Number(mandiriKelompokId)));
   }
 
   // 3. Other filters
@@ -142,19 +142,9 @@ function buildWhereClause(
   }
 
   if (status === "panitia") {
-    conditions.push(
-      or(
-        not(or(isNull(users.role), eq(users.role, "generus"))!),
-        isNotNull(formPanitiaDanPengurus.id)
-      )
-    );
+    conditions.push(isNotNull(formPanitiaDanPengurus.id));
   } else if (status === "peserta") {
-    conditions.push(
-      and(
-        or(isNull(users.role), eq(users.role, "generus")),
-        isNull(formPanitiaDanPengurus.id)
-      )
-    );
+    conditions.push(isNull(formPanitiaDanPengurus.id));
   } else if (status === "all" && isGenerus) {
      // If we are in the main Data Generus view (isGenerus=1), we can skip the role check join 
      // for the 'all' view to maximize performance. The isGenerus flag is our source of truth here.
@@ -242,9 +232,9 @@ export async function GET(request: NextRequest) {
         kategori: generus.kategori,
         jenisKelamin: generus.jenisKelamin,
         nomorUrut: mandiri.nomorUrut,
-        mandiriDesaNama: mandiriDesa.nama,
-        mandiriDesaKota: mandiriDaerah.nama,
-        mandiriKelompokNama: mandiriKelompok.nama,
+        mandiriDesaNama: sql<string | null>`COALESCE((SELECT nama FROM mandiri_desa WHERE id = ${formPanitiaDanPengurus.mandiriDesaId}), ${mandiriDesa.nama})`,
+        mandiriDesaKota: sql<string | null>`COALESCE((SELECT daerah.nama FROM mandiri_daerah AS daerah INNER JOIN mandiri_desa AS panitia_desa ON panitia_desa.mandiri_daerah_id = daerah.id WHERE panitia_desa.id = ${formPanitiaDanPengurus.mandiriDesaId}), ${mandiriDaerah.nama})`,
+        mandiriKelompokNama: sql<string | null>`COALESCE((SELECT nama FROM mandiri_kelompok WHERE id = ${formPanitiaDanPengurus.mandiriKelompokId}), ${mandiriKelompok.nama})`,
         // Added missing fields for Katalog view
         noTelp: canSeePrivateData ? generus.noTelp : sql`NULL`,
         namaOrtu: canSeePrivateData ? generus.namaOrtu : sql`NULL`,
@@ -281,7 +271,10 @@ export async function GET(request: NextRequest) {
         .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
         .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id))
         .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
-        .leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId))
+        .leftJoin(formPanitiaDanPengurus, and(
+          eq(generus.id, formPanitiaDanPengurus.generusId),
+          eq(formPanitiaDanPengurus.kegiatanId, kegiatanId)
+        ))
         .leftJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId)));
 
       if (mandiriOnly) {
@@ -295,7 +288,7 @@ export async function GET(request: NextRequest) {
       
       // DEKRIPSI OTOMATIS: Kembalikan wujud password asli khusus ke layar Admin
       if (session.role === "admin") {
-         data = data.map(item => ({
+         data = data.map((item: any) => ({
             ...item,
             passwordPlain: decryptPasswordSymmetric(item.passwordPlain as string)
          })) as any;
@@ -316,7 +309,10 @@ export async function GET(request: NextRequest) {
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
       .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id))
       .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
-      .leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId))
+      .leftJoin(formPanitiaDanPengurus, and(
+        eq(generus.id, formPanitiaDanPengurus.generusId),
+        eq(formPanitiaDanPengurus.kegiatanId, kegiatanId)
+      ))
       .leftJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId)));
 
     if (mandiriOnly) {
@@ -328,7 +324,7 @@ export async function GET(request: NextRequest) {
 
     // Optimized Count Query: Avoid unnecessary joins for simple counts
     const countQuery = db
-      .select({ count: sql<number>`count(*)` })
+      .select({ count: sql<number>`count(DISTINCT ${generus.id})` })
       .from(generus);
 
     // Only join users if status filtering is happening, it's not simply 'all', or filtering by isGenerus
@@ -336,21 +332,21 @@ export async function GET(request: NextRequest) {
       countQuery.leftJoin(users, eq(generus.id, users.generusId));
     }
 
-    if (search) {
-      countQuery.leftJoin(desa, eq(generus.desaId, desa.id));
-      countQuery.leftJoin(kelompok, eq(generus.kelompokId, kelompok.id));
-      countQuery.leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id));
-      countQuery.leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id));
-      countQuery.leftJoin(mandiri, eq(generus.id, mandiri.generusId));
-    }
-
-    if (search || mandiriOnly || status !== "all") {
-      countQuery.leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId));
-    }
+    countQuery
+      .leftJoin(desa, eq(generus.desaId, desa.id))
+      .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
+      .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
+      .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id))
+      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
+      .leftJoin(formPanitiaDanPengurus, and(
+        eq(generus.id, formPanitiaDanPengurus.generusId),
+        eq(formPanitiaDanPengurus.kegiatanId, kegiatanId)
+      ));
 
     if (mandiriOnly) {
-      countQuery
-        .innerJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, kegiatanId)));
+      countQuery.innerJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, kegiatanId)));
+    } else if (search) {
+      countQuery.leftJoin(mandiri, eq(generus.id, mandiri.generusId));
     }
 
     let [data, countResult] = await Promise.all([
@@ -364,7 +360,7 @@ export async function GET(request: NextRequest) {
     
     // DEKRIPSI OTOMATIS: Kembalikan wujud password asli khusus ke layar Admin (Dashboard)
     if (session.role === "admin") {
-      data = data.map(item => ({
+      data = data.map((item: any) => ({
          ...item,
          passwordPlain: decryptPasswordSymmetric(item.passwordPlain as string)
       })) as any;
