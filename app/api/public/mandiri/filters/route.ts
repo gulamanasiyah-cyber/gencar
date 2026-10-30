@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { generus, mandiri, mandiriDesa, mandiriKelompok, mandiriDaerah, settings } from "@/lib/schema";
-import { eq, isNotNull, and, sql } from "drizzle-orm";
+import { eq, isNotNull, and } from "drizzle-orm";
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const reqKegiatanId = searchParams.get("kegiatanId");
+    const jenisKelamin = searchParams.get("jenisKelamin") || "all";
     
     let kegiatanId = reqKegiatanId;
     if (kegiatanId === "semua" || kegiatanId === "all" || kegiatanId === "undefined" || kegiatanId === "null") {
@@ -19,6 +20,17 @@ export async function GET(request: NextRequest) {
       kegiatanId = activeSetting[0]?.value || "";
     }
 
+    if (!kegiatanId) {
+      return NextResponse.json({
+        pendidikan: [], kota: [], wilayah: [], kelompok: [],
+        pekerjaan: [], kriteriaPasangan: [], hobi: [], makanan: [], suku: [], umur: []
+      });
+    }
+
+    const rosterWhere = jenisKelamin === "L" || jenisKelamin === "P"
+      ? and(eq(mandiri.kegiatanId, kegiatanId), eq(generus.jenisKelamin, jenisKelamin))
+      : eq(mandiri.kegiatanId, kegiatanId);
+
     // These filter lists are independent reads. Run them together so the catalog
     // does not pay for five sequential database round trips on every first load.
     const [pendidikanResult, textDataResult, kotaResult, wilayahResult, kelompokResult] = await Promise.all([
@@ -26,7 +38,7 @@ export async function GET(request: NextRequest) {
         .select({ value: generus.pendidikan })
         .from(generus)
         .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-        .where(kegiatanId ? and(isNotNull(generus.pendidikan), eq(mandiri.kegiatanId, kegiatanId)) : isNotNull(generus.pendidikan))
+        .where(and(isNotNull(generus.pendidikan), rosterWhere))
         .groupBy(generus.pendidikan),
       db
         .select({
@@ -39,14 +51,14 @@ export async function GET(request: NextRequest) {
         })
         .from(generus)
         .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-        .where(kegiatanId ? eq(mandiri.kegiatanId, kegiatanId) : sql`1=1`),
+        .where(rosterWhere),
       db
         .select({ kota: mandiriDaerah.nama })
         .from(mandiriDesa)
         .innerJoin(generus, eq(generus.mandiriDesaId, mandiriDesa.id))
         .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
         .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
-        .where(kegiatanId ? eq(mandiri.kegiatanId, kegiatanId) : sql`1=1`)
+        .where(rosterWhere)
         .groupBy(mandiriDaerah.nama)
         .orderBy(mandiriDaerah.nama),
       db
@@ -59,7 +71,7 @@ export async function GET(request: NextRequest) {
         .innerJoin(generus, eq(generus.mandiriDesaId, mandiriDesa.id))
         .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
         .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
-        .where(kegiatanId ? eq(mandiri.kegiatanId, kegiatanId) : sql`1=1`)
+        .where(rosterWhere)
         .groupBy(mandiriDesa.id, mandiriDesa.nama, mandiriDaerah.nama)
         .orderBy(mandiriDesa.nama),
       db
@@ -72,7 +84,7 @@ export async function GET(request: NextRequest) {
         .innerJoin(generus, eq(generus.mandiriKelompokId, mandiriKelompok.id))
         .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
         .innerJoin(mandiriDesa, eq(mandiriKelompok.mandiriDesaId, mandiriDesa.id))
-        .where(kegiatanId ? eq(mandiri.kegiatanId, kegiatanId) : sql`1=1`)
+        .where(rosterWhere)
         .groupBy(mandiriKelompok.id, mandiriKelompok.nama, mandiriDesa.id)
         .orderBy(mandiriKelompok.nama)
     ]);

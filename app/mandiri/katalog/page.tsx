@@ -652,10 +652,8 @@ export default function PublicKatalogPage() {
           localStorage.setItem("mandiri_device_id", deviceId);
         }
 
-        // Filter and location lists are not needed to authorize or paint the first
-        // catalog view, so load them in parallel without holding the page loader.
+        // Profile editor locations can load while the catalog session is checked.
         const lookupsPromise = Promise.all([
-          fetch("/api/public/mandiri/filters", { cache: "no-store" }).catch(() => null),
           fetch("/api/public/mandiri/desa", { cache: "no-store" }).catch(() => null),
           fetch("/api/public/mandiri/kelompok", { cache: "no-store" }).catch(() => null)
         ]);
@@ -674,21 +672,7 @@ export default function PublicKatalogPage() {
           })}`, { cache: "no-store" }) : Promise.resolve(null),
         ]);
 
-        void lookupsPromise.then(async ([filterRes, desaRes, kelRes]) => {
-          if (filterRes?.ok) {
-            const filterJson = await filterRes.json();
-            setPendidikanList(filterJson.pendidikan || []);
-            setPekerjaanList(filterJson.pekerjaan || []);
-            setUmurList(filterJson.umur || []);
-            setKriteriaList(filterJson.kriteriaPasangan || []);
-            setHobiList(filterJson.hobi || []);
-            setMakananList(filterJson.makanan || []);
-            setSukuList(filterJson.suku || []);
-            if (filterJson.kota) setFilterKotaList(filterJson.kota.sort());
-            if (filterJson.wilayah) setFilterWilayahList(filterJson.wilayah);
-            if (filterJson.kelompok) setFilterKelompokList(filterJson.kelompok);
-          }
-
+        void lookupsPromise.then(async ([desaRes, kelRes]) => {
           if (desaRes?.ok) {
             const desas = await desaRes.json();
             if (Array.isArray(desas)) {
@@ -829,6 +813,49 @@ export default function PublicKatalogPage() {
     }
     init();
   }, [fetchActiveRooms, refreshAttendanceStatus]);
+
+  useEffect(() => {
+    if (verifying) return;
+
+    let cancelled = false;
+    const params = new URLSearchParams({ jenisKelamin: gender });
+
+    // Catalog filter choices must come from the same activity and gender-scoped
+    // roster as the result list. The global location lists above are for profile
+    // editing only and must not be used as a fallback here.
+    setPendidikanList([]);
+    setPekerjaanList([]);
+    setUmurList([]);
+    setKriteriaList([]);
+    setHobiList([]);
+    setMakananList([]);
+    setSukuList([]);
+    setFilterKotaList([]);
+    setFilterWilayahList([]);
+    setFilterKelompokList([]);
+
+    void fetch(`/api/public/mandiri/filters?${params.toString()}`, { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return response.json();
+      })
+      .then((filterJson) => {
+        if (cancelled || !filterJson) return;
+        setPendidikanList(filterJson.pendidikan || []);
+        setPekerjaanList(filterJson.pekerjaan || []);
+        setUmurList(filterJson.umur || []);
+        setKriteriaList(filterJson.kriteriaPasangan || []);
+        setHobiList(filterJson.hobi || []);
+        setMakananList(filterJson.makanan || []);
+        setSukuList(filterJson.suku || []);
+        setFilterKotaList(Array.isArray(filterJson.kota) ? [...filterJson.kota].sort() : []);
+        setFilterWilayahList(Array.isArray(filterJson.wilayah) ? filterJson.wilayah : []);
+        setFilterKelompokList(Array.isArray(filterJson.kelompok) ? filterJson.kelompok : []);
+      })
+      .catch((error) => console.error("gender-scoped catalog filters error:", error));
+
+    return () => { cancelled = true; };
+  }, [gender, verifying]);
 
   useEffect(() => {
     if (!currentUser?.id) return;
@@ -1969,7 +1996,7 @@ export default function PublicKatalogPage() {
                   <div className="select-container">
                     <select className="select-box" value={selectedKota} onChange={(e) => { setSelectedKota(e.target.value); setDesaFilter("all"); setKelompokFilter("all"); setPage(1); }}>
                       <option value="all">Semua Daerah</option>
-                      {(filterKotaList.length > 0 ? filterKotaList : kotaList).map(k => <option key={k} value={k}>{k}</option>)}
+                      {filterKotaList.map(k => <option key={k} value={k}>{k}</option>)}
                     </select>
                     <ChevronDown size={14} className="select-arrow" />
                   </div>
@@ -1980,7 +2007,7 @@ export default function PublicKatalogPage() {
                   <div className="select-container">
                     <select className="select-box" value={desaFilter} onChange={(e) => { setDesaFilter(e.target.value); setKelompokFilter("all"); setPage(1); }}>
                       <option value="all">Semua Desa</option>
-                      {(filterWilayahList.length > 0 ? filterWilayahList : wilayahList).filter(w => selectedKota === "all" || w.kota === selectedKota).map(w => <option key={w.id} value={w.id}>{w.nama}</option>)}
+                      {filterWilayahList.filter(w => selectedKota === "all" || w.kota === selectedKota).map(w => <option key={w.id} value={w.id}>{w.nama}</option>)}
                     </select>
                     <ChevronDown size={14} className="select-arrow" />
                   </div>
@@ -1991,8 +2018,8 @@ export default function PublicKatalogPage() {
                   <div className="select-container">
                     <select className="select-box" value={kelompokFilter} onChange={(e) => { setKelompokFilter(e.target.value); setPage(1); }}>
                       <option value="all">Semua Kelompok</option>
-                      {(filterKelompokList.length > 0 ? filterKelompokList : kelompokList).filter((k: any) => {
-                        let activeWilayahList = filterWilayahList.length > 0 ? filterWilayahList : wilayahList;
+                      {filterKelompokList.filter((k: any) => {
+                        let activeWilayahList = filterWilayahList;
                         let pMatch = true;
                         if (selectedKota !== "all") {
                           const p = activeWilayahList.find((w: any) => String(w.id) === String(k.desaId || k.mandiriDesaId));
