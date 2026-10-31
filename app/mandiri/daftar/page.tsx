@@ -53,7 +53,6 @@ export default function MandiriDaftarPage() {
     dibayarkanSenilai: "",
     buktiPembayaran: "",
     statusHaid: "Tidak",
-    targetMenikah: "",
   });
 
   const [daerahList, setDaerahList] = useState<Desa[]>([]);
@@ -1190,24 +1189,6 @@ export default function MandiriDaftarPage() {
               />
             </div>
             
-            <div className="form-group">
-              <label className="form-label">Target Menikah</label>
-              <select
-                name="targetMenikah"
-                className="form-control"
-                value={form.targetMenikah}
-                onChange={handleChange}
-              >
-                <option value="">-- Pilih Target Menikah --</option>
-                {Array.from({ length: 15 }, (_, i) => 2026 + i).map(year => (
-                  <option key={year} value={String(year)}>{year}</option>
-                ))}
-              </select>
-              <p style={{ fontSize: "10.5px", color: "var(--text-muted)", marginTop: "4px", lineHeight: "1.5" }}>
-                Informasi ini membantu panitia memahami kesiapan dan rencana waktu Anda dalam proses ta&apos;aruf. Tahun yang dipilih adalah perkiraan, bukan janji menikah pada tahun tersebut.
-              </p>
-            </div>
-
             {regStatusPeserta === "Person" && (
               <div className="form-group" style={{ padding: "15px", background: "#fffbeb", borderRadius: "10px", border: "1px solid #fde68a" }}>
                 <h4 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 700, color: "#92400e" }}>Informasi Pembayaran</h4>

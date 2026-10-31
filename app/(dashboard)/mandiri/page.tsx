@@ -536,51 +536,13 @@ export default function MandiriPage() {
       });
 
       if (res.isConfirmed) {
-         await fetch(`/api/mandiri?id=${id}`, { method: "DELETE" });
-         Swal.fire({ icon: "success", title: "Terhapus!", timer: 1500, showConfirmButton: false });
-         fetchData();
-      }
-   };
-
-   const handleTolak = async (id: string, nama: string) => {
-      const res = await Swal.fire({
-         title: "Tolak Pendaftaran?",
-         text: `Apakah Anda yakin menolak dan menghapus pendaftaran atas nama ${nama}?`,
-         icon: "warning",
-         showCancelButton: true,
-         confirmButtonColor: "#ef4444",
-         cancelButtonColor: "#64748b",
-         confirmButtonText: "Ya, Tolak!",
-      });
-
-      if (res.isConfirmed) {
-         await fetch(`/api/mandiri?id=${id}`, { method: "DELETE" });
-         Swal.fire({ icon: "success", title: "Ditolak!", timer: 1500, showConfirmButton: false });
-         fetchData();
-      }
-   };
-
-   const handleIzinkan = async (item: MandiriItem) => {
-      const res = await Swal.fire({
-         title: "Izinkan Peserta?",
-         text: `Peserta atas nama ${item.nama} akan diubah statusnya menjadi Aktif.`,
-         icon: "question",
-         showCancelButton: true,
-         confirmButtonColor: "#10b981",
-         cancelButtonColor: "#64748b",
-         confirmButtonText: "Ya, Izinkan!",
-      });
-
-      if (res.isConfirmed) {
          try {
-            const bodyPayload = { id: item.id, statusMandiri: "Aktif", generusId: item.generusId };
-            const response = await fetch("/api/mandiri", {
-               method: "PUT",
-               headers: { "Content-Type": "application/json" },
-               body: JSON.stringify(bodyPayload),
-            });
-            if (!response.ok) throw new Error("Gagal mengizinkan");
-            Swal.fire({ icon: "success", title: "Berhasil Diizinkan!", timer: 1500, showConfirmButton: false });
+            const response = await fetch(`/api/mandiri?id=${id}`, { method: "DELETE" });
+            if (!response.ok) {
+               const errorData = await response.json().catch(() => ({}));
+               throw new Error(errorData.error || "Gagal menghapus peserta");
+            }
+            Swal.fire({ icon: "success", title: "Terhapus!", timer: 1500, showConfirmButton: false });
             fetchData();
          } catch (e: any) {
             Swal.fire({ icon: "error", title: "Error", text: e.message });
@@ -1374,17 +1336,8 @@ export default function MandiriPage() {
                                           {userRole !== "tim_pnkb_gambuh" && (
                                           <td data-label="Aksi">
                                              <div className="flex gap-2">
-                                                {item.statusMandiri === "Menunggu" ? (
-                                                   <>
-                                                      <button className="btn btn-sm" style={{ backgroundColor: "#10b981", color: "white" }} onClick={() => handleIzinkan(item)}>Izinkan</button>
-                                                      <button className="btn btn-sm btn-danger" onClick={() => handleTolak(item.id, item.nama)}>Tidak Izinkan</button>
-                                                   </>
-                                                ) : (
-                                                   <>
-                                                      <button className="btn btn-sm btn-secondary" onClick={() => handleUpdate(item)}>Edit</button>
-                                                      <button className="btn btn-sm btn-danger" onClick={() => handleDelete(item.id, item.nama)}>Hapus</button>
-                                                   </>
-                                                )}
+                                                <button className="btn btn-sm btn-secondary" onClick={() => handleUpdate(item)}>Edit</button>
+                                                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(item.id, item.nama)}>Hapus</button>
                                              </div>
                                           </td>
                                           )}
@@ -1539,35 +1492,20 @@ export default function MandiriPage() {
 
                                     {userRole !== "tim_pnkb_gambuh" && (
                                     <div className="card-actions">
-                                       {item.statusMandiri === "Menunggu" ? (
-                                          <>
-                                             <button className="btn btn-sm flex-grow" style={{ backgroundColor: "#10b981", color: "white" }} onClick={() => handleIzinkan(item)}>
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14, marginRight: 6 }}>
-                                                   <path d="M20 6L9 17l-5-5" />
-                                                </svg>
-                                                Izinkan
-                                             </button>
-                                             <button className="btn btn-sm btn-danger-outline" onClick={() => handleTolak(item.id, item.nama)}>
-                                                Tidak Izinkan
-                                             </button>
-                                          </>
-                                       ) : (
-                                          <>
-                                             <button className="btn btn-sm btn-secondary flex-grow" onClick={() => handleUpdate(item)}>
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14, marginRight: 6 }}>
-                                                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                                   <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                                </svg>
-                                                Edit Status
-                                             </button>
-                                             <button className="btn btn-sm btn-danger-outline" onClick={() => handleDelete(item.id, item.nama)}>
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
-                                                   <polyline points="3 6 5 6 21 6" />
-                                                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                                </svg>
-                                             </button>
-                                          </>
-                                       )}
+                                       <button className="btn btn-sm btn-secondary flex-grow" onClick={() => handleUpdate(item)}>
+                                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14, marginRight: 6 }}>
+                                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14v-7" />
+                                             <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                          </svg>
+                                          Edit
+                                       </button>
+                                       <button className="btn btn-sm btn-danger-outline" onClick={() => handleDelete(item.id, item.nama)}>
+                                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 14, height: 14 }}>
+                                             <polyline points="3 6 5 6 21 6" />
+                                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                          </svg>
+                                          Hapus
+                                       </button>
                                     </div>
                                     )}
                                  </div>
@@ -1894,6 +1832,7 @@ export default function MandiriPage() {
                                  value={editForm.statusMandiri}
                                  onChange={(e) => setEditForm({ ...editForm, statusMandiri: e.target.value })}
                               >
+                                 <option value="Menunggu">Menunggu</option>
                                  <option value="Aktif">Aktif</option>
                                  <option value="Selesai">Selesai</option>
                                  <option value="Batal">Batal</option>
