@@ -8,6 +8,65 @@ export default function KatalogLoginPage() {
   const [unik, setUnik] = useState("");
   const [status, setStatus] = useState<"idle" | "verifying" | "error" | "waiting">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [checkingSavedSession, setCheckingSavedSession] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const restoreSavedSession = async () => {
+      const storedUnik = localStorage.getItem("attended_nomor_unik");
+      const storedToken = localStorage.getItem("attended_session_token");
+      if (!storedUnik || !storedToken) {
+        setCheckingSavedSession(false);
+        return;
+      }
+
+      let deviceId = localStorage.getItem("mandiri_device_id");
+      if (!deviceId) {
+        deviceId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        localStorage.setItem("mandiri_device_id", deviceId);
+      }
+
+      try {
+        const params = new URLSearchParams({ nomorUnik: storedUnik, sessionToken: storedToken, deviceId });
+        const res = await fetch(`/api/public/mandiri/katalog/check-status?${params}`, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (cancelled) return;
+
+        if (data.status === "attended" || data.status === "waiting") {
+          localStorage.setItem("attended_id", data.id || localStorage.getItem("attended_id") || "");
+          localStorage.setItem("attended_nama", data.nama || localStorage.getItem("attended_nama") || "Peserta");
+          localStorage.setItem("attended_nomor_urut_peserta", String(data.nomorUrut || ""));
+          localStorage.setItem("attended_role", data.role || localStorage.getItem("attended_role") || "Peserta");
+          if (data.sessionToken) localStorage.setItem("attended_session_token", data.sessionToken);
+          window.location.replace("/mandiri/katalog");
+          return;
+        }
+
+        if (data.status === "multi_login" || data.status === "not_found" || data.status === "no_activity") {
+          localStorage.removeItem("attended_nomor_unik");
+          localStorage.removeItem("attended_session_token");
+          localStorage.removeItem("attended_id");
+          localStorage.removeItem("attended_nama");
+          localStorage.removeItem("attended_nomor_urut_peserta");
+          localStorage.removeItem("attended_role");
+          if (data.status === "multi_login") {
+            setErrorMsg("Sesi ini sudah digunakan di perangkat lain. Masukkan Nomor Unik untuk masuk kembali.");
+            setStatus("error");
+          }
+        }
+      } catch (error) {
+        // If the server is temporarily unavailable, keep the saved login and return
+        // to the catalog; its own session check will retry without discarding it.
+        if (!cancelled) window.location.replace("/mandiri/katalog");
+      } finally {
+        if (!cancelled) setCheckingSavedSession(false);
+      }
+    };
+
+    void restoreSavedSession();
+    return () => { cancelled = true; };
+  }, []);
 
   const verify = async () => {
     if (!unik.trim()) return;
@@ -37,6 +96,8 @@ export default function KatalogLoginPage() {
       if (resData.status === "attended" || resData.status === "waiting") {
         localStorage.setItem("attended_nomor_unik", resData.nomorUnik || unik.trim());
         localStorage.setItem("attended_session_token", resData.sessionToken);
+        localStorage.setItem("attended_id", resData.id || "");
+        localStorage.setItem("attended_nama", resData.nama || "Peserta");
         localStorage.setItem("attended_nomor_urut_peserta", resData.nomorUrut);
         localStorage.setItem("attended_role", resData.role || "Peserta");
 
@@ -74,6 +135,9 @@ export default function KatalogLoginPage() {
 
   return (
     <div className="login-backdrop">
+      {checkingSavedSession ? (
+        <div className="restoring-session">Memeriksa sesi tersimpan...</div>
+      ) : (
       <div className="lm-box">
         <div className="lm-header">
           <div className="lm-icon-badge">
@@ -128,6 +192,7 @@ export default function KatalogLoginPage() {
           )}
         </div>
       </div>
+      )}
 
       <style jsx>{`
         .login-backdrop {
@@ -152,6 +217,7 @@ export default function KatalogLoginPage() {
           border: 1px solid rgba(255,255,255,0.5);
           animation: modalFadeIn 0.5s cubic-bezier(0.16,1,0.3,1);
         }
+        .restoring-session { color: #475569; font-size: 14px; font-weight: 700; }
         @keyframes modalFadeIn { from { opacity:0; transform:translateY(20px) scale(0.95); } to { opacity:1; transform:translateY(0) scale(1); } }
         .lm-header { text-align:center; margin-bottom:32px; display: block; }
         .lm-icon-badge { width:64px; height:64px; background:#eff6ff; color:#3b82f6; display:flex; align-items:center; justify-content:center; border-radius:20px; margin:0 auto 20px; box-shadow:inset 0 0 0 1px rgba(59,130,246,0.1); }

@@ -4,23 +4,40 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, settings, mandiriKegiatan, mandiriAbsensi, mandiriDaerah } from "@/lib/schema";
 import { eq, sql, and, desc } from "drizzle-orm";
+import { getSession } from "@/lib/auth";
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { id } = params;
-    
-    // 1. Check Public Access Status
-    const publicStatus = await db.select().from(settings).where(eq(settings.key, "mandiri_katalog_public_status"));
-    if (!publicStatus[0] || publicStatus[0].value !== "open") {
-      return NextResponse.json({ error: "Katalog sedang tidak dibuka untuk publik." }, { status: 403 });
+    const { searchParams } = new URL(request.url);
+    const nomorUnik = request.headers.get("x-nomor-unik") || searchParams.get("nomorUnik") || "";
+    const token = request.headers.get("x-session-token") || searchParams.get("token") || "";
+    const session = await getSession();
+    const isStaff = !!session && ["admin", "admin_romantic_room", "tim_pnkb", "tim_pnkb_gambuh"].includes(session.role);
+
+    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+    const kegiatanId = activeSetting[0]?.value || "";
+    if (!kegiatanId) {
+      return NextResponse.json({ error: "Belum ada kegiatan aktif." }, { status: 404 });
     }
 
-    // 2. Get active activity to filter by attendance
-    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-    const kegiatanId = activeSetting[0]?.value;
+    const participantSession = await db
+      .select({ id: mandiri.generusId, nomorUnik: generus.nomorUnik, token: mandiri.lastSessionToken })
+      .from(mandiri)
+      .innerJoin(generus, eq(mandiri.generusId, generus.id))
+      .where(and(
+        eq(mandiri.generusId, id),
+        eq(mandiri.kegiatanId, kegiatanId),
+        eq(generus.nomorUnik, nomorUnik),
+        eq(mandiri.lastSessionToken, token)
+      ))
+      .limit(1);
+    const hasValidParticipantSession = !!nomorUnik && !!token && participantSession.length > 0;
 
-    if (!kegiatanId) {
-      return NextResponse.json({ error: "Data tidak ditemukan (Belum absensi)" }, { status: 404 });
+    // Logged-in participants can still see their own profile if the public catalog is closed.
+    const publicStatus = await db.select().from(settings).where(eq(settings.key, "mandiri_katalog_public_status"));
+    if (publicStatus[0]?.value !== "open" && !isStaff && !hasValidParticipantSession) {
+      return NextResponse.json({ error: "Katalog sedang tidak dibuka untuk publik." }, { status: 403 });
     }
 
     const data = await db
@@ -58,8 +75,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         jumlahSaudara: generus.jumlahSaudara,
       })
       .from(generus)
-      .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-      .leftJoin(mandiriAbsensi, eq(generus.id, mandiriAbsensi.generusId))
+      .innerJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, kegiatanId)))
+      .leftJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId)))
       .leftJoin(desa, eq(generus.desaId, desa.id))
       .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))

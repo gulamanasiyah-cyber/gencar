@@ -62,6 +62,12 @@ export default function AdminKatalogPage() {
 
   const fetchData = useCallback(async () => {
     if (!isAuthorized) return;
+    if (!selectedKegiatanId) {
+      setData([]);
+      setTotal(0);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -104,26 +110,21 @@ export default function AdminKatalogPage() {
           setGender("all");
         }
 
-        // Fetch activity info + kegiatan list + active setting
-        const [activityRes, kegiatanRes, settingsRes] = await Promise.all([
-          fetch("/api/mandiri/kegiatan?limit=1", { cache: "no-store" }),
+        // Only expose the activity selected as active in system settings.
+        const [kegiatanRes, settingsRes] = await Promise.all([
           fetch("/api/mandiri/kegiatan", { cache: "no-store" }),
-          fetch("/api/settings", { cache: "no-store" }),
+          fetch("/api/mandiri/settings?key=mandiri_active_kegiatan_id", { cache: "no-store" }),
         ]);
-        if (activityRes.ok) {
-          const activities = await activityRes.json();
-          if (activities.length > 0) setLatestActivity(activities[0]);
-        }
-        if (kegiatanRes.ok) {
-          const kList = await kegiatanRes.json();
-          if (Array.isArray(kList)) {
-            setKegiatanList(kList);
-            const s = settingsRes.ok ? await settingsRes.json() : {};
-            const activeId = s.mandiri_active_kegiatan_id || "";
-            if (activeId) setSelectedKegiatanId(activeId);
-            else if (kList.length > 0) setSelectedKegiatanId(kList[0].id);
-          }
-        }
+        const kList = kegiatanRes.ok ? await kegiatanRes.json() : [];
+        const activeSetting = settingsRes.ok ? await settingsRes.json() : {};
+        const activeId = activeSetting.value || "";
+        const activeActivity = Array.isArray(kList)
+          ? kList.find((activity: any) => String(activity.id) === String(activeId)) || null
+          : null;
+        const activeActivities = activeActivity ? [activeActivity] : [];
+        setKegiatanList(activeActivities);
+        setSelectedKegiatanId(activeActivity?.id || "");
+        setLatestActivity(activeActivity);
         // Fetch public status
         const statusRes = await fetch("/api/mandiri/settings?key=mandiri_katalog_public_status", { cache: "no-store" });
         if (statusRes.ok) {
@@ -840,7 +841,7 @@ export default function AdminKatalogPage() {
 
             {kegiatanList.length > 0 && (
               <div className="filter-group">
-                <label>Kegiatan</label>
+                <label>Kegiatan Aktif</label>
                 <div className="select-box-wrapper">
                   <select
                     className="dropdown-box"
@@ -896,7 +897,11 @@ export default function AdminKatalogPage() {
       </div>
 
       <div className="grid-section">
-        {data.map((item) => {
+        {!selectedKegiatanId ? (
+          <div className="empty-state">Belum ada kegiatan aktif yang dipilih.</div>
+        ) : data.length === 0 && !loading ? (
+          <div className="empty-state">Belum ada peserta pada kegiatan aktif ini.</div>
+        ) : data.map((item) => {
           const isPulang = item.keterangan === "pulang";
           const isTidakHadir = item.keterangan === "alpha" || item.keterangan === "izin";
           const isUnavailable = isPulang || isTidakHadir;

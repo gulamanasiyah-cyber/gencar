@@ -78,6 +78,9 @@ export default function TimGambuhOperatorPage() {
     const [allRooms, setAllRooms] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [userRole, setUserRole] = useState("");
+    const [activeKegiatanTitle, setActiveKegiatanTitle] = useState("");
+    const [activeKegiatanResolved, setActiveKegiatanResolved] = useState(false);
+    const activeKegiatanIdRef = useRef("");
     const [roomSearch, setRoomSearch] = useState("");
     const [selectedRoom, setSelectedRoom] = useState<any>(null);
     const [visitHistory, setVisitHistory] = useState<any[]>([]);
@@ -91,29 +94,71 @@ export default function TimGambuhOperatorPage() {
         setLoading(true);
         const t = new Date().getTime();
         try {
-            const roomsRes = await fetch(`/api/mandiri/rooms?t=${t}`);
+            const activeSettingRes = await fetch("/api/mandiri/settings?key=mandiri_active_kegiatan_id", { cache: "no-store" });
+            const activeSetting = activeSettingRes.ok ? await activeSettingRes.json() : {};
+            const kegiatanId = activeSetting.value || "";
+
+            if (!kegiatanId) {
+                activeKegiatanIdRef.current = "";
+                setActiveKegiatanTitle("");
+                setActiveKegiatanResolved(true);
+                setAllRooms([]);
+                setVisitHistory([]);
+                setQueueData([]);
+                setSelectedRoom(null);
+                return;
+            }
+
+            if (activeKegiatanIdRef.current !== kegiatanId) {
+                setActiveKegiatanTitle("");
+                setActiveKegiatanResolved(false);
+                setAllRooms([]);
+                setVisitHistory([]);
+                setQueueData([]);
+                setSelectedRoom(null);
+            }
+            activeKegiatanIdRef.current = kegiatanId;
+
+            const kegiatanQuery = new URLSearchParams({ kegiatanId, t: String(t) });
+            const [roomsRes, kunjunganRes, queueRes, kegiatanRes] = await Promise.all([
+                fetch(`/api/mandiri/rooms?${kegiatanQuery}`),
+                fetch(`/api/mandiri/kunjungan?${kegiatanQuery}`, { credentials: "include" }),
+                fetch(`/api/mandiri/pilih?all=true&${kegiatanQuery}`, { credentials: "include" }),
+                fetch(`/api/mandiri/kegiatan/${encodeURIComponent(kegiatanId)}`, { cache: "no-store" }),
+            ]);
+
+            if (kegiatanRes.ok) {
+                const kegiatanJson = await kegiatanRes.json();
+                setActiveKegiatanTitle(kegiatanJson.judul || kegiatanId);
+            } else {
+                setActiveKegiatanTitle(kegiatanId);
+            }
+            setActiveKegiatanResolved(true);
+
             if (roomsRes.ok) {
                 const roomsJson = await roomsRes.json();
                 const sortedRooms = Array.isArray(roomsJson)
                     ? [...roomsJson].sort((a, b) => a.nama.localeCompare(b.nama, undefined, { numeric: true, sensitivity: 'base' }))
                     : [];
                 setAllRooms(sortedRooms);
+            } else {
+                setAllRooms([]);
             }
 
-            const kunjunganRes = await fetch(`/api/mandiri/kunjungan?t=${t}`, { credentials: "include" });
             if (kunjunganRes.ok) {
                 const kunjunganJson = await kunjunganRes.json();
                 setVisitHistory(Array.isArray(kunjunganJson) ? kunjunganJson : []);
             } else {
+                setVisitHistory([]);
                 console.error("Failed to fetch visit history", kunjunganRes.status, await kunjunganRes.text());
             }
 
-            const queueRes = await fetch(`/api/mandiri/pilih?all=true&t=${t}`, { credentials: "include" });
             if (queueRes.ok) {
                 const queueJson = await queueRes.json();
                 const waiting = Array.isArray(queueJson) ? queueJson.filter((q: any) => q.status === "Menunggu") : [];
                 setQueueData(waiting);
             } else {
+                setQueueData([]);
                 console.error("Failed to fetch queue", queueRes.status, await queueRes.text());
             }
             
@@ -604,6 +649,11 @@ export default function TimGambuhOperatorPage() {
                     <div>
                         <h2>Panel Tim PNKB & Ibu Gambuh</h2>
                         <p>Kelola sesi taaruf di dalam ruangan: Mulai timer, dampingi, dan simpan hasil pertemuan.</p>
+                        {activeKegiatanResolved && (
+                            <p style={{ marginTop: "6px", fontWeight: 700, color: activeKegiatanTitle ? "#166534" : "#b45309" }}>
+                                {activeKegiatanTitle ? `Kegiatan aktif: ${activeKegiatanTitle}` : "Belum ada kegiatan aktif yang dipilih."}
+                            </p>
+                        )}
                     </div>
                     <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
                         <Link href="/tim-gambuh/katalog" className="btn-refresh" title="Katalog Peserta" style={{
@@ -650,7 +700,11 @@ export default function TimGambuhOperatorPage() {
                     <div className="grid-rooms">
                         {filteredRooms.length === 0 ? (
                             <div className="empty-state">
-                                {roomSearch ? "Tidak ada ruangan ditemukan" : "Belum ada ruangan yang ditugaskan untuk Anda saat ini"}
+                                {roomSearch
+                                    ? "Tidak ada ruangan ditemukan"
+                                    : activeKegiatanResolved && !activeKegiatanTitle
+                                        ? "Belum ada kegiatan aktif yang dipilih"
+                                        : "Belum ada ruangan yang ditugaskan untuk Anda saat ini"}
                             </div>
                         ) : (
                             filteredRooms.map((room) => (

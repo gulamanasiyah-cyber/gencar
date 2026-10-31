@@ -126,6 +126,7 @@ export default function PublicKatalogPage() {
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [catalogLoadError, setCatalogLoadError] = useState(false);
   const [search, setSearch] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [gender, setGender] = useState("all");
@@ -211,6 +212,7 @@ export default function PublicKatalogPage() {
   } | null>(null);
   const [myFullProfile, setMyFullProfile] = useState<any>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [profileLoadError, setProfileLoadError] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editProfileForm, setEditProfileForm] = useState<any>({});
   const [savingProfile, setSavingProfile] = useState(false);
@@ -342,6 +344,10 @@ export default function PublicKatalogPage() {
       if (!res.ok) return;
 
       const json = await res.json();
+      if (json.id) localStorage.setItem("attended_id", json.id);
+      if (json.nama) localStorage.setItem("attended_nama", json.nama);
+      if (json.nomorUrut) localStorage.setItem("attended_nomor_urut_peserta", String(json.nomorUrut));
+      if (json.role) localStorage.setItem("attended_role", json.role);
       if (json.status === "attended") {
         setHasAttended(true);
         applyAttendanceValidation(json);
@@ -578,6 +584,7 @@ export default function PublicKatalogPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setCatalogLoadError(false);
     try {
       const storedUnik = localStorage.getItem("attended_nomor_unik");
       const storedToken = localStorage.getItem("attended_session_token");
@@ -632,6 +639,9 @@ export default function PublicKatalogPage() {
       setTotal(json.total || 0);
     } catch (e: any) {
       console.error("fetchData error:", e);
+      setData([]);
+      setTotal(0);
+      setCatalogLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -659,17 +669,29 @@ export default function PublicKatalogPage() {
         ]);
 
         // Concurrent fetching for all parallelizable initial endpoints
+        if (storedUnik && storedToken) {
+          setHasAttended(true);
+          setCurrentUser({
+            id: localStorage.getItem("attended_id") || undefined,
+            nama: localStorage.getItem("attended_nama") || "Peserta",
+            nomorUnik: storedUnik,
+            nomorUrut: localStorage.getItem("attended_nomor_urut_peserta") || "",
+            role: localStorage.getItem("attended_role") || "Peserta",
+            status: "waiting",
+          });
+        }
+
         const [titleRes, descRes, boxLoveRes, katalogStatusRes, profileRes, checkStatusRes] = await Promise.all([
-          fetch("/api/public/mandiri/settings?key=mandiri_registration_title", { cache: "no-store" }),
-          fetch("/api/public/mandiri/settings?key=mandiri_registration_description", { cache: "no-store" }),
-          fetch("/api/mandiri/box-love?action=status", { cache: "no-store" }),
-          fetch("/api/public/mandiri/settings?key=mandiri_katalog_public_status", { cache: "no-store" }),
+          fetch("/api/public/mandiri/settings?key=mandiri_registration_title", { cache: "no-store" }).catch(() => null),
+          fetch("/api/public/mandiri/settings?key=mandiri_registration_description", { cache: "no-store" }).catch(() => null),
+          fetch("/api/mandiri/box-love?action=status", { cache: "no-store" }).catch(() => null),
+          fetch("/api/public/mandiri/settings?key=mandiri_katalog_public_status", { cache: "no-store" }).catch(() => null),
           fetch("/api/profile", { cache: "no-store" }).catch(() => null),
           storedUnik ? fetch(`/api/public/mandiri/katalog/check-status?${buildQuery({
             nomorUnik: storedUnik,
             ...(storedToken ? { sessionToken: storedToken } : {}),
             deviceId,
-          })}`, { cache: "no-store" }) : Promise.resolve(null),
+          })}`, { cache: "no-store" }).catch(() => null) : Promise.resolve(null),
         ]);
 
         void lookupsPromise.then(async ([desaRes, kelRes]) => {
@@ -690,16 +712,16 @@ export default function PublicKatalogPage() {
 
         let title = "KATALOG PESERTA dan PANITIA";
         let description = "";
-        if (titleRes.ok) { const t = await titleRes.json(); if (t.value) title = t.value; }
-        if (descRes.ok) { const d = await descRes.json(); if (d.value) description = d.value; }
+        if (titleRes?.ok) { const t = await titleRes.json(); if (t.value) title = t.value; }
+        if (descRes?.ok) { const d = await descRes.json(); if (d.value) description = d.value; }
         setLatestActivity({ title, description });
 
-        if (boxLoveRes.ok) {
+        if (boxLoveRes?.ok) {
           const boxLoveJson = await boxLoveRes.json();
           setBoxLoveStatus(boxLoveJson.value || "closed");
         }
 
-        if (katalogStatusRes && katalogStatusRes.ok) {
+        if (katalogStatusRes?.ok) {
           const json = await katalogStatusRes.json();
           setKatalogPublicStatus(json.value || "closed");
         }
@@ -747,6 +769,9 @@ export default function PublicKatalogPage() {
                 setGender(data.jenisKelamin === "L" ? "P" : "L");
               }
               setKomentarNama(data.nama);
+              localStorage.setItem("attended_id", data.id || "");
+              localStorage.setItem("attended_nama", data.nama || "Peserta");
+              localStorage.setItem("attended_nomor_urut_peserta", String(data.nomorUrut || ""));
               localStorage.setItem("attended_role", userRole);
 
               // Comments and selections can load after the first catalog view is ready.
@@ -773,6 +798,10 @@ export default function PublicKatalogPage() {
               localStorage.removeItem("attended_nomor_unik");
               localStorage.removeItem("attended_session_token");
               localStorage.removeItem("attended_role");
+              localStorage.removeItem("attended_id");
+              localStorage.removeItem("attended_nama");
+              localStorage.removeItem("attended_nomor_urut_peserta");
+              setCurrentUser(null);
               setHasAttended(false);
               window.location.href = "/mandiri/katalog/login";
               return;
@@ -857,24 +886,36 @@ export default function PublicKatalogPage() {
     return () => { cancelled = true; };
   }, [gender, verifying]);
 
-  useEffect(() => {
+  const fetchMyProfile = useCallback(async () => {
     if (!currentUser?.id) return;
-    async function fetchMyProfile() {
-      setLoadingProfile(true);
-      try {
-        const res = await fetch(`/api/public/mandiri/katalog/${currentUser.id}`);
-        if (res.ok) {
-          const json = await res.json();
-          setMyFullProfile(json);
-        }
-      } catch (err) {
-        console.error("fetchMyProfile error:", err);
-      } finally {
-        setLoadingProfile(false);
+    setLoadingProfile(true);
+    setProfileLoadError(false);
+    try {
+      const nomorUnik = localStorage.getItem("attended_nomor_unik");
+      const token = localStorage.getItem("attended_session_token");
+      const res = await fetch(`/api/public/mandiri/katalog/${encodeURIComponent(currentUser.id)}`, {
+        headers: {
+          ...(nomorUnik ? { "x-nomor-unik": nomorUnik } : {}),
+          ...(token ? { "x-session-token": token } : {}),
+        },
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || `HTTP ${res.status}`);
       }
+      setMyFullProfile(await res.json());
+    } catch (err) {
+      console.error("fetchMyProfile error:", err);
+      setProfileLoadError(true);
+    } finally {
+      setLoadingProfile(false);
     }
-    fetchMyProfile();
   }, [currentUser?.id]);
+
+  useEffect(() => {
+    void fetchMyProfile();
+  }, [fetchMyProfile]);
 
 
 
@@ -1310,6 +1351,10 @@ export default function PublicKatalogPage() {
     }
     localStorage.removeItem("attended_nomor_unik");
     localStorage.removeItem("attended_session_token");
+    localStorage.removeItem("attended_id");
+    localStorage.removeItem("attended_nama");
+    localStorage.removeItem("attended_nomor_urut_peserta");
+    localStorage.removeItem("attended_role");
     setHasAttended(false);
     unlockBodyScroll();
     Swal.close();
@@ -1376,6 +1421,10 @@ export default function PublicKatalogPage() {
 
     localStorage.removeItem("attended_nomor_unik");
     localStorage.removeItem("attended_session_token");
+    localStorage.removeItem("attended_id");
+    localStorage.removeItem("attended_nama");
+    localStorage.removeItem("attended_nomor_urut_peserta");
+    localStorage.removeItem("attended_role");
     setHasAttended(false);
     unlockBodyScroll();
     window.location.href = "/mandiri/katalog/login";
@@ -1963,7 +2012,7 @@ export default function PublicKatalogPage() {
             <div className="toolbar-status-row">
               <div className="status-badge">
                 <Users size={14} />
-                <span>{total} Peserta</span>
+                <span>{catalogLoadError ? "Katalog gagal dimuat" : `${total} Peserta`}</span>
               </div>
             </div>
 
@@ -2161,7 +2210,12 @@ export default function PublicKatalogPage() {
           </div>
 
           <main className="grid-container">
-            {loading && data.length === 0 ? (
+            {catalogLoadError ? (
+              <div style={{ gridColumn: "1 / -1", padding: "24px", textAlign: "center", color: "#475569", background: "white", borderRadius: "16px", border: "1px solid #e2e8f0" }}>
+                <p style={{ margin: "0 0 12px", fontWeight: 700 }}>Katalog belum berhasil dimuat. Periksa koneksi lalu coba lagi.</p>
+                <button onClick={() => void fetchData()} style={{ border: 0, borderRadius: "10px", padding: "10px 16px", background: "#2563eb", color: "white", fontWeight: 700, cursor: "pointer" }}>Coba lagi</button>
+              </div>
+            ) : loading && data.length === 0 ? (
               [...Array(6)].map((_, i) => <div key={i} className="skeleton-card" />)
             ) : (
               data.filter(item => item.id !== currentUser?.id && item.nomorUrut !== currentUser?.nomorUrut).map((item) => {
@@ -3407,7 +3461,17 @@ export default function PublicKatalogPage() {
               </div>
             </div>
           ) : (
-            <div className="profile-error">Gagal memuat profil Anda. Silakan coba lagi.</div>
+            <div className="profile-error">
+              {profileLoadError ? "Gagal memuat profil Anda." : "Profil sedang disiapkan."}
+              <button
+                type="button"
+                onClick={() => void fetchMyProfile()}
+                disabled={!currentUser?.id || loadingProfile}
+                style={{ marginLeft: "10px", border: 0, borderRadius: "8px", padding: "8px 12px", background: "#2563eb", color: "white", fontWeight: 700, cursor: currentUser?.id ? "pointer" : "not-allowed", opacity: currentUser?.id ? 1 : 0.6 }}
+              >
+                Coba lagi
+              </button>
+            </div>
           )}
         </div>
       )}
