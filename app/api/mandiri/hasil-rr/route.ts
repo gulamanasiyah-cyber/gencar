@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriPemilihan, generus, mandiri, mandiriRooms } from "@/lib/schema";
+import { mandiriPemilihan, generus, mandiri, mandiriRooms, settings } from "@/lib/schema";
 import { eq, and, or, desc, sql, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { pusherServer } from "@/lib/pusher";
@@ -49,6 +49,15 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
         }
 
+        const activeSetting = await db.select({ value: settings.value })
+            .from(settings)
+            .where(eq(settings.key, "mandiri_active_kegiatan_id"))
+            .limit(1);
+        const activeKegiatanId = activeSetting[0]?.value;
+        if (!activeKegiatanId) {
+            return NextResponse.json([]);
+        }
+
         const gPengirim = alias(generus, "g1");
         const gPenerima = alias(generus, "g2");
         const mPenerima = alias(mandiri, "m2");
@@ -73,10 +82,17 @@ export async function GET(request: NextRequest) {
         .leftJoin(mandiriRooms, eq(mandiriRooms.pemilihanId, mandiriPemilihan.id))
         .innerJoin(gPengirim, eq(mandiriPemilihan.pengirimId, gPengirim.id))
         .innerJoin(gPenerima, eq(mandiriPemilihan.penerimaId, gPenerima.id))
-        .leftJoin(mPengirim, eq(gPengirim.id, mPengirim.generusId))
-        .leftJoin(mPenerima, eq(gPenerima.id, mPenerima.generusId))
+        .leftJoin(mPengirim, and(
+            eq(gPengirim.id, mPengirim.generusId),
+            eq(mPengirim.kegiatanId, activeKegiatanId)
+        ))
+        .leftJoin(mPenerima, and(
+            eq(gPenerima.id, mPenerima.generusId),
+            eq(mPenerima.kegiatanId, activeKegiatanId)
+        ))
         .where(
             and(
+                eq(mandiriPemilihan.kegiatanId, activeKegiatanId),
                 or(
                     eq(mandiriPemilihan.status, "Diterima"),
                     eq(mandiriPemilihan.status, "Selesai")

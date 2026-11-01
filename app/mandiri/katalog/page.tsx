@@ -648,8 +648,8 @@ export default function PublicKatalogPage() {
   }, [search, page, gender, category, pendidikan, selectedKota, desaFilter, kelompokFilter, pekerjaanFilter, umurFilter, umurMinFilter, umurMaxFilter, sukuFilter, anakKeFilter, jumlahSaudaraFilter, tinggiMinFilter, tinggiMaxFilter, kriteriaFilter, hobiFilter, makananFilter, hasAttended, isAdmin]);
 
   useEffect(() => {
-    if (hasAttended) fetchData();
-  }, [fetchData, hasAttended]);
+    if (hasAttended && !verifying) fetchData();
+  }, [fetchData, hasAttended, verifying]);
 
   useEffect(() => {
     async function init() {

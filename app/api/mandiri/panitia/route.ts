@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { formPanitiaDanPengurus, mandiriDesa, mandiriAbsensi, mandiriKegiatan, settings, mandiriDaerah, mandiriKelompok, generus } from "@/lib/schema";
-import { eq, and, or, like, sql, desc } from "drizzle-orm";
+import { eq, and, or, like, sql, desc, isNull } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
@@ -43,7 +43,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (kegiatanId) {
-      conditions.push(eq(formPanitiaDanPengurus.kegiatanId, kegiatanId));
+      conditions.push(or(
+        eq(formPanitiaDanPengurus.kegiatanId, kegiatanId),
+        isNull(formPanitiaDanPengurus.kegiatanId)
+      ));
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
