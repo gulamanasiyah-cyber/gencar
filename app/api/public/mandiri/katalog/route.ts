@@ -73,7 +73,17 @@ export async function GET(request: NextRequest) {
     const page = Number(searchParams.get("page") || "1");
     const limit = Number(searchParams.get("limit") || "20");
     const offset = (page - 1) * limit;
-    const jenisKelamin = searchParams.get("jenisKelamin") || "all";
+    let jenisKelamin = searchParams.get("jenisKelamin") || "all";
+    if (currentParticipantId && !isAuthorizedModifier) {
+      const participant = await db.select({ jenisKelamin: generus.jenisKelamin })
+        .from(generus)
+        .where(eq(generus.id, currentParticipantId))
+        .limit(1);
+      const participantGender = participant[0]?.jenisKelamin;
+      if (participantGender === "L" || participantGender === "P") {
+        jenisKelamin = participantGender === "L" ? "P" : "L";
+      }
+    }
     const status = searchParams.get("status") || "all";
     const pendidikan = searchParams.get("pendidikan") || "all";
     const mandiriDesaId = searchParams.get("mandiriDesaId") || "all";
@@ -232,7 +242,10 @@ export async function GET(request: NextRequest) {
       if (currentParticipantId) {
         const chosenIdsQuery = await db.select({ id: mandiriPemilihan.penerimaId })
           .from(mandiriPemilihan)
-          .where(eq(mandiriPemilihan.pengirimId, currentParticipantId));
+          .where(and(
+            eq(mandiriPemilihan.pengirimId, currentParticipantId),
+            eq(mandiriPemilihan.kegiatanId, kegiatanId)
+          ));
         const chosenIds = chosenIdsQuery.map(c => c.id);
         if (chosenIds.length > 0) {
           conditions.push(inArray(generus.id, chosenIds));
@@ -247,10 +260,12 @@ export async function GET(request: NextRequest) {
     // Exclude matched participants (where both results are 'Lanjut')
     conditions.push(sql`${generus.id} NOT IN (
       SELECT pengirim_id FROM mandiri_pemilihan 
-      WHERE status = 'Selesai' AND hasil_pengirim = 'Lanjut' AND hasil_penerima = 'Lanjut'
+      WHERE kegiatan_id = ${kegiatanId}
+        AND status = 'Selesai' AND hasil_pengirim = 'Lanjut' AND hasil_penerima = 'Lanjut'
       UNION
       SELECT penerima_id FROM mandiri_pemilihan 
-      WHERE status = 'Selesai' AND hasil_pengirim = 'Lanjut' AND hasil_penerima = 'Lanjut'
+      WHERE kegiatan_id = ${kegiatanId}
+        AND status = 'Selesai' AND hasil_pengirim = 'Lanjut' AND hasil_penerima = 'Lanjut'
     )`);
 
     const finalWhere = conditions.length > 0 ? and(...conditions) : undefined;
@@ -318,11 +333,17 @@ export async function GET(request: NextRequest) {
       .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id))
       .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
       .leftJoin(users, eq(generus.id, users.generusId))
-      .leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId));
+      .leftJoin(formPanitiaDanPengurus, and(
+        eq(generus.id, formPanitiaDanPengurus.generusId),
+        or(
+          eq(formPanitiaDanPengurus.kegiatanId, kegiatanId),
+          isNull(formPanitiaDanPengurus.kegiatanId)
+        )
+      ));
 
     // Count Query - only join mandiri (required)
     const countQuery = db
-      .select({ count: sql<number>`count(*)` })
+      .select({ count: sql<number>`count(DISTINCT ${generus.id})` })
       .from(generus)
       .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
       .leftJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId)));
@@ -330,7 +351,13 @@ export async function GET(request: NextRequest) {
     // Dynamic joins for count query if filters are present
     if (search || status !== "all") {
         countQuery.leftJoin(users, eq(generus.id, users.generusId));
-        countQuery.leftJoin(formPanitiaDanPengurus, eq(generus.id, formPanitiaDanPengurus.generusId));
+        countQuery.leftJoin(formPanitiaDanPengurus, and(
+          eq(generus.id, formPanitiaDanPengurus.generusId),
+          or(
+            eq(formPanitiaDanPengurus.kegiatanId, kegiatanId),
+            isNull(formPanitiaDanPengurus.kegiatanId)
+          )
+        ));
     }
     if (search || mandiriDesaId !== "all" || kota !== "all") {
         countQuery.leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id));
@@ -346,6 +373,7 @@ export async function GET(request: NextRequest) {
     const [data, countResult] = await Promise.all([
       dataQuery
         .where(finalWhere)
+        .groupBy(generus.id)
         .orderBy(generus.nama)
         .limit(limit)
         .offset(offset),
