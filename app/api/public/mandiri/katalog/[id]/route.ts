@@ -66,7 +66,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         makananMinumanFavorit: generus.makananMinumanFavorit,
         role: users.role,
         nomorUrut: mandiri.nomorUrut,
-        noTelp: sql<string>`NULL`,
+        noTelp: hasValidParticipantSession ? generus.noTelp : sql<string>`NULL`,
         alamat: generus.alamat,
         instagram: generus.instagram,
         kriteriaPasangan: generus.kriteriaPasangan,
@@ -101,10 +101,65 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   try {
     const { id } = params;
     const body = await request.json();
-    const { nomorUnik, token, nama, tempatLahir, tanggalLahir, jenisKelamin, alamat, suku, pendidikan, pekerjaan, statusNikah, hobi, makananMinumanFavorit, instagram, kriteriaPasangan, mandiriDesaId, mandiriKelompokId, tinggiBadan, anakKe, jumlahSaudara } = body;
+    const {
+      nomorUnik,
+      token,
+      nama,
+      tempatLahir,
+      tanggalLahir,
+      jenisKelamin,
+      alamat,
+      noTelp,
+      suku,
+      pendidikan,
+      pekerjaan,
+      statusNikah,
+      hobi,
+      makananMinumanFavorit,
+      instagram,
+      kriteriaPasangan,
+      foto,
+      mandiriDesaId,
+      mandiriKelompokId,
+      tinggiBadan,
+      anakKe,
+      jumlahSaudara,
+    } = body;
 
     if (!nomorUnik || !token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (typeof nama !== "string" || !nama.trim()) {
+      return NextResponse.json({ error: "Nama lengkap wajib diisi." }, { status: 400 });
+    }
+    if (jenisKelamin !== "L" && jenisKelamin !== "P") {
+      return NextResponse.json({ error: "Jenis kelamin tidak valid." }, { status: 400 });
+    }
+    if (statusNikah && !["Belum Menikah", "Menikah"].includes(statusNikah)) {
+      return NextResponse.json({ error: "Status pernikahan tidak valid." }, { status: 400 });
+    }
+    if (foto !== undefined && (typeof foto !== "string" || foto.length > 2048)) {
+      return NextResponse.json({ error: "Foto profil tidak valid." }, { status: 400 });
+    }
+
+    const parseOptionalNumber = (value: unknown, label: string) => {
+      if (value === undefined || value === null || value === "") return null;
+      const parsed = Number(value);
+      if (!Number.isSafeInteger(parsed) || parsed < 0) {
+        throw new Error(`${label} tidak valid.`);
+      }
+      return parsed;
+    };
+
+    let parsedTinggiBadan: number | null;
+    let parsedAnakKe: number | null;
+    let parsedJumlahSaudara: number | null;
+    try {
+      parsedTinggiBadan = parseOptionalNumber(tinggiBadan, "Tinggi badan");
+      parsedAnakKe = parseOptionalNumber(anakKe, "Anak ke");
+      parsedJumlahSaudara = parseOptionalNumber(jumlahSaudara, "Jumlah saudara");
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : "Angka tidak valid." }, { status: 400 });
     }
 
     const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
@@ -130,24 +185,26 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     await db.update(generus).set({
-      nama,
-      tempatLahir,
-      tanggalLahir,
+      nama: nama.trim(),
+      tempatLahir: tempatLahir || null,
+      tanggalLahir: tanggalLahir || null,
       jenisKelamin,
-      alamat,
-      suku,
-      pendidikan,
-      pekerjaan,
-      statusNikah,
-      hobi,
-      makananMinumanFavorit,
-      instagram,
-      kriteriaPasangan,
+      alamat: alamat || null,
+      noTelp: noTelp || null,
+      suku: suku || null,
+      pendidikan: pendidikan || null,
+      pekerjaan: pekerjaan || null,
+      statusNikah: statusNikah || "Belum Menikah",
+      hobi: hobi || null,
+      makananMinumanFavorit: makananMinumanFavorit || null,
+      instagram: instagram || null,
+      kriteriaPasangan: kriteriaPasangan || null,
+      ...(foto !== undefined ? { foto: foto || null } : {}),
       mandiriDesaId: mandiriDesaId || null,
       mandiriKelompokId: mandiriKelompokId || null,
-      tinggiBadan: tinggiBadan ? Number(tinggiBadan) : null,
-      anakKe: anakKe ? Number(anakKe) : null,
-      jumlahSaudara: jumlahSaudara ? Number(jumlahSaudara) : null,
+      tinggiBadan: parsedTinggiBadan,
+      anakKe: parsedAnakKe,
+      jumlahSaudara: parsedJumlahSaudara,
       updatedAt: new Date().toISOString()
     }).where(eq(generus.id, id));
 
@@ -157,4 +214,3 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: "Gagal menyimpan data" }, { status: 500 });
   }
 }
-

@@ -1,8 +1,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-// Max file size: 5 MB (in bytes)
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+// Max file size: 10 MB (in bytes)
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_MULTIPART_OVERHEAD = 64 * 1024;
 
 // Allowed MIME types for photo uploads
 const ALLOWED_MIME_TYPES = [
@@ -17,6 +18,11 @@ const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
 
 export async function POST(request: NextRequest) {
   try {
+    const contentLength = Number(request.headers.get("content-length"));
+    if (Number.isFinite(contentLength) && contentLength > MAX_FILE_SIZE + MAX_MULTIPART_OVERHEAD) {
+      return NextResponse.json({ error: "Ukuran file terlalu besar. Maksimal 10 MB." }, { status: 413 });
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as any;
 
@@ -39,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: `Ukuran file terlalu besar (${(file.size / 1024 / 1024).toFixed(1)} MB). Maksimal 5 MB.` },
+        { error: `Ukuran file terlalu besar (${(file.size / 1024 / 1024).toFixed(1)} MB). Maksimal 10 MB.` },
         { status: 400 }
       );
     }

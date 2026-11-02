@@ -15,6 +15,70 @@ import Link from "next/link";
 import { getPusherClient } from "@/lib/pusher-client";
 import JsBarcode from "jsbarcode";
 
+const MAX_PROFILE_PHOTO_SIZE = 10 * 1024 * 1024;
+
+async function compressProfilePhoto(file: File): Promise<File> {
+  if (file.size <= MAX_PROFILE_PHOTO_SIZE) return file;
+
+  const isHeic = /\.(heic|heif)$/i.test(file.name) || /image\/hei[cf]/i.test(file.type);
+  let source: Blob = file;
+  if (isHeic) {
+    const heic2any = (await import("heic2any")).default;
+    const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.95 });
+    source = Array.isArray(converted) ? converted[0] : converted;
+  }
+
+  const image = await createImageBitmap(source);
+  try {
+    const scale = Math.min(1, 4096 / Math.max(image.width, image.height));
+    let width = Math.max(1, Math.round(image.width * scale));
+    let height = Math.max(1, Math.round(image.height * scale));
+
+    while (Math.max(width, height) >= 320) {
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Browser tidak mendukung kompresi foto.");
+
+      context.fillStyle = "#fff";
+      context.fillRect(0, 0, width, height);
+      context.drawImage(image, 0, 0, width, height);
+
+      let lowerQuality = 0.5;
+      let upperQuality = 0.95;
+      let bestBlob: Blob | null = null;
+      for (let attempt = 0; attempt < 7; attempt++) {
+        const quality = (lowerQuality + upperQuality) / 2;
+        const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/jpeg", quality));
+        if (!blob) throw new Error("Gagal memproses foto di perangkat ini.");
+
+        if (blob.size <= MAX_PROFILE_PHOTO_SIZE) {
+          bestBlob = blob;
+          lowerQuality = quality;
+        } else {
+          upperQuality = quality;
+        }
+      }
+
+      if (bestBlob) {
+        const baseName = file.name.replace(/\.[^.]+$/, "") || "foto-profil";
+        return new File([bestBlob], `${baseName}.jpg`, {
+          type: "image/jpeg",
+          lastModified: Date.now(),
+        });
+      }
+
+      width = Math.round(width * 0.85);
+      height = Math.round(height * 0.85);
+    }
+
+    throw new Error("Ukuran foto tetap melebihi 10 MB setelah dikompres.");
+  } finally {
+    image.close();
+  }
+}
+
 function LocalBarcode({ value }: { value: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -3395,6 +3459,10 @@ export default function PublicKatalogPage() {
                 <div className="profile-info-section">
                   <h4>Domisili & Kontak</h4>
                   <div className="profile-info-row">
+                    <span className="label">Nomor WA</span>
+                    <span className="value">{myFullProfile.noTelp || "-"}</span>
+                  </div>
+                  <div className="profile-info-row">
                     <span className="label">Daerah/Kota</span>
                     <span className="value">{myFullProfile.mandiriDesaKota || "-"}</span>
                   </div>
@@ -3444,6 +3512,12 @@ export default function PublicKatalogPage() {
                     jenisKelamin: myFullProfile.jenisKelamin || "L",
                     tempatLahir: myFullProfile.tempatLahir || "",
                     tanggalLahir: myFullProfile.tanggalLahir || "",
+                    tinggiBadan: myFullProfile.tinggiBadan ?? "",
+                    statusNikah: myFullProfile.statusNikah || "Belum Menikah",
+                    anakKe: myFullProfile.anakKe ?? "",
+                    jumlahSaudara: myFullProfile.jumlahSaudara ?? "",
+                    alamat: myFullProfile.alamat || "",
+                    noTelp: myFullProfile.noTelp || "",
                     suku: myFullProfile.suku || "",
                     pendidikan: myFullProfile.pendidikan || "",
                     pekerjaan: myFullProfile.pekerjaan || "",
@@ -3522,30 +3596,28 @@ export default function PublicKatalogPage() {
                     <input
                       type="file"
                       hidden
-                      accept="image/jpeg,image/png,image/webp"
+                      accept="image/*"
                       disabled={uploadingFoto}
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
-                        if (file.size > 5 * 1024 * 1024) {
-                          Swal.fire("File Terlalu Besar", "Maksimal ukuran foto adalah 5MB.", "warning");
-                          return;
-                        }
                         setUploadingFoto(true);
-                        const formData = new FormData();
-                        formData.append("file", file);
                         try {
+                          const compressedFile = await compressProfilePhoto(file);
+                          const formData = new FormData();
+                          formData.append("file", compressedFile);
                           const res = await fetch("/api/upload", { method: "POST", body: formData });
                           const data = await res.json();
                           if (res.ok && data.url) {
-                            setEditProfileForm({ ...editProfileForm, foto: data.url });
+                            setEditProfileForm((prev: any) => ({ ...prev, foto: data.url }));
                           } else {
                             throw new Error(data.error || "Gagal upload");
                           }
                         } catch (err) {
-                          Swal.fire("Error", "Gagal mengunggah foto.", "error");
+                          Swal.fire("Foto gagal diproses", err instanceof Error ? err.message : "Gagal mengunggah foto.", "error");
                         } finally {
                           setUploadingFoto(false);
+                          e.target.value = "";
                         }
                       }}
                     />
@@ -3556,11 +3628,15 @@ export default function PublicKatalogPage() {
                     </button>
                   )}
                 </div>
-                <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "8px" }}>Format JPG/PNG/WEBP maks 5MB.</div>
+                <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "8px" }}>Format JPG/PNG/WEBP maks 10 MB.</div>
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Nama Lengkap</label>
                 <input type="text" value={editProfileForm.nama} onChange={e => setEditProfileForm({ ...editProfileForm, nama: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Nomor WA</label>
+                <input type="tel" value={editProfileForm.noTelp || ""} onChange={e => setEditProfileForm({ ...editProfileForm, noTelp: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
               </div>
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ flex: 1 }}>
@@ -3593,9 +3669,8 @@ export default function PublicKatalogPage() {
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Status Nikah</label>
                   <select value={editProfileForm.statusNikah || ""} onChange={e => setEditProfileForm({ ...editProfileForm, statusNikah: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }}>
-                    <option value="">Pilih Status</option>
-                    <option value="Lajang / Perjaka / Perawan">Lajang / Perjaka / Perawan</option>
-                    <option value="Duda / Janda">Duda / Janda</option>
+                    <option value="Belum Menikah">Belum Menikah</option>
+                    <option value="Menikah">Menikah</option>
                   </select>
                 </div>
               </div>
@@ -3665,6 +3740,7 @@ export default function PublicKatalogPage() {
             <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
               <button onClick={() => setIsEditingProfile(false)} disabled={savingProfile} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', background: 'white', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>Batal</button>
               <button onClick={async () => {
+                if (uploadingFoto) return;
                 setSavingProfile(true);
                 try {
                   const storedUnik = localStorage.getItem("attended_nomor_unik");
@@ -3674,7 +3750,10 @@ export default function PublicKatalogPage() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ nomorUnik: storedUnik, token: storedToken, ...editProfileForm }),
                   });
-                  if (!res.ok) throw new Error("Gagal menyimpan");
+                  if (!res.ok) {
+                    const error = await res.json().catch(() => ({}));
+                    throw new Error(error.error || "Gagal menyimpan biodata.");
+                  }
 
                   const selectedWilayah = wilayahList.find(w => String(w.id) === String(editProfileForm.mandiriDesaId));
 
@@ -3687,7 +3766,7 @@ export default function PublicKatalogPage() {
                   setIsEditingProfile(false);
                   Swal.fire({ title: "Berhasil!", text: "Biodata berhasil diperbarui.", icon: "success", timer: 2000, showConfirmButton: false });
                 } catch (e) {
-                  Swal.fire("Gagal", "Terjadi kesalahan saat menyimpan.", "error");
+                  Swal.fire("Gagal", e instanceof Error ? e.message : "Terjadi kesalahan saat menyimpan.", "error");
                 } finally {
                   setSavingProfile(false);
                 }
