@@ -127,6 +127,7 @@ export default function PublicKatalogPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [catalogLoadError, setCatalogLoadError] = useState(false);
+  const catalogRequestRef = useRef<AbortController | null>(null);
   const [search, setSearch] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [gender, setGender] = useState("all");
@@ -583,6 +584,9 @@ export default function PublicKatalogPage() {
   }, []);
 
   const fetchData = useCallback(async () => {
+    catalogRequestRef.current?.abort();
+    const controller = new AbortController();
+    catalogRequestRef.current = controller;
     setLoading(true);
     setCatalogLoadError(false);
     try {
@@ -618,17 +622,22 @@ export default function PublicKatalogPage() {
         onlyChosen: category === "pilihan" ? "true" : "",
       });
 
-      const res = await fetch(`/api/public/mandiri/katalog?${qs}`, { cache: "no-store" });
+      const res = await fetch(`/api/public/mandiri/katalog?${qs}`, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
 
       if (res.status === 403) {
         setIsLocked(true);
-        setLoading(false);
+        setData([]);
+        setTotal(0);
         return;
       }
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const json = await res.json();
+      if (controller.signal.aborted) return;
       const nextData = Array.isArray(json.data) ? json.data : [];
       setData(nextData);
       setSelectedParticipant((prev: any) => {
@@ -638,18 +647,18 @@ export default function PublicKatalogPage() {
       });
       setTotal(json.total || 0);
     } catch (e: any) {
+      if (e?.name === "AbortError") return;
       console.error("fetchData error:", e);
       setData([]);
       setTotal(0);
       setCatalogLoadError(true);
     } finally {
-      setLoading(false);
+      if (catalogRequestRef.current === controller) {
+        catalogRequestRef.current = null;
+        setLoading(false);
+      }
     }
-  }, [search, page, gender, category, pendidikan, selectedKota, desaFilter, kelompokFilter, pekerjaanFilter, umurFilter, umurMinFilter, umurMaxFilter, sukuFilter, anakKeFilter, jumlahSaudaraFilter, tinggiMinFilter, tinggiMaxFilter, kriteriaFilter, hobiFilter, makananFilter, hasAttended, isAdmin]);
-
-  useEffect(() => {
-    if (hasAttended && !verifying) fetchData();
-  }, [fetchData, hasAttended, verifying]);
+  }, [search, page, gender, category, pendidikan, selectedKota, desaFilter, kelompokFilter, pekerjaanFilter, umurFilter, umurMinFilter, umurMaxFilter, sukuFilter, anakKeFilter, jumlahSaudaraFilter, tinggiMinFilter, tinggiMaxFilter, kriteriaFilter, hobiFilter, makananFilter]);
 
   useEffect(() => {
     async function init() {
@@ -932,6 +941,8 @@ export default function PublicKatalogPage() {
     const timer = setTimeout(fetchData, 100);
     return () => clearTimeout(timer);
   }, [fetchData, verifying]);
+
+  useEffect(() => () => catalogRequestRef.current?.abort(), []);
 
   const fetchSelections = useCallback(async () => {
     const storedUnik = localStorage.getItem("attended_nomor_unik");

@@ -3,13 +3,27 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, settings, formPanitiaDanPengurus, mandiriKegiatan, mandiriAbsensi, mandiriPemilihan, mandiriDaerah } from "@/lib/schema";
-import { eq, and, or, like, sql, isNull, isNotNull, desc, inArray } from "drizzle-orm";
+import { eq, and, or, like, sql, isNull, isNotNull, desc, exists } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const nUnik = searchParams.get("nomorUnik");
     const sToken = searchParams.get("sessionToken");
+    const requestedPage = Number(searchParams.get("page") || "1");
+    const requestedLimit = Number(searchParams.get("limit") || "20");
+
+    if (!Number.isSafeInteger(requestedPage) || requestedPage < 1 ||
+        !Number.isSafeInteger(requestedLimit) || requestedLimit < 1) {
+      return NextResponse.json({ error: "Parameter halaman tidak valid." }, { status: 400 });
+    }
+
+    const page = requestedPage;
+    const limit = Math.min(requestedLimit, 50);
+    const offset = (page - 1) * limit;
+    if (!Number.isSafeInteger(offset)) {
+      return NextResponse.json({ error: "Parameter halaman di luar batas." }, { status: 400 });
+    }
 
     let isAuthorizedModifier = false;
     
@@ -43,17 +57,6 @@ export async function GET(request: NextRequest) {
         }
       }
     }
-    
-    // Robust fallback to find participant ID by nomorUnik if token query fails
-    if (!currentParticipantId && nUnik) {
-      const fallbackCheck = await db.select({ id: generus.id })
-        .from(generus)
-        .where(eq(generus.nomorUnik, nUnik))
-        .limit(1);
-      if (fallbackCheck.length > 0) {
-        currentParticipantId = fallbackCheck[0].id;
-      }
-    }
 
     // 1. Check Public Access Status
     const publicStatusSet = await db.select().from(settings).where(eq(settings.key, "mandiri_katalog_public_status"));
@@ -70,11 +73,8 @@ export async function GET(request: NextRequest) {
     }
 
     const search = (searchParams.get("search") || "").trim();
-    const page = Number(searchParams.get("page") || "1");
-    const limit = Number(searchParams.get("limit") || "20");
-    const offset = (page - 1) * limit;
     let jenisKelamin = searchParams.get("jenisKelamin") || "all";
-    if (currentParticipantId && !isAuthorizedModifier) {
+    if (currentParticipantId) {
       const participant = await db.select({ jenisKelamin: generus.jenisKelamin })
         .from(generus)
         .where(eq(generus.id, currentParticipantId))
@@ -240,18 +240,15 @@ export async function GET(request: NextRequest) {
 
     if (onlyChosen) {
       if (currentParticipantId) {
-        const chosenIdsQuery = await db.select({ id: mandiriPemilihan.penerimaId })
-          .from(mandiriPemilihan)
-          .where(and(
-            eq(mandiriPemilihan.pengirimId, currentParticipantId),
-            eq(mandiriPemilihan.kegiatanId, kegiatanId)
-          ));
-        const chosenIds = chosenIdsQuery.map(c => c.id);
-        if (chosenIds.length > 0) {
-          conditions.push(inArray(generus.id, chosenIds));
-        } else {
-          conditions.push(eq(generus.id, "none"));
-        }
+        conditions.push(exists(
+          db.select({ id: mandiriPemilihan.id })
+            .from(mandiriPemilihan)
+            .where(and(
+              eq(mandiriPemilihan.penerimaId, generus.id),
+              eq(mandiriPemilihan.pengirimId, currentParticipantId),
+              eq(mandiriPemilihan.kegiatanId, kegiatanId)
+            ))
+        ));
       } else {
         conditions.push(eq(generus.id, "none"));
       }
