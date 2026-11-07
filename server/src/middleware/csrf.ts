@@ -16,7 +16,7 @@ export function generateCsrfToken(): string {
 
 export function setCsrfCookie(c: Context, token?: string): string {
   const t = token ?? generateCsrfToken();
-  const prod = isProd((c as unknown as { env: unknown }).env);
+  const prod = isProd((c as unknown as { env: unknown }).env) || c.req.url.startsWith("https://");
   setCookie(c, CSRF_COOKIE, t, {
     httpOnly: false,
     secure: prod,

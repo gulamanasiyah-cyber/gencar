@@ -15,7 +15,7 @@ export function rateLimitAuth(limit = 10, windowMs = 60_000) {
   return async (c: Context, next: Next) => {
     const path = new URL(c.req.url).pathname;
     if (path === "/api/auth/login" || path === "/api/auth/register") {
-      const ip = c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || c.req.header("x-real-ip") || "unknown";
+      const ip = c.req.header("cf-connecting-ip") || c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || c.req.header("x-real-ip") || "unknown";
       const { success } = checkRateLimit(ip, limit, windowMs);
       if (!success) return c.json({ error: "Terlalu banyak percobaan. Coba lagi setelah 1 menit." }, 429);
     }
@@ -41,5 +41,22 @@ export function bodyLimit(maxBytes = 10 * 1024 * 1024) {
     // do NOT clone+arrayBuffer here — it consumes the request stream and breaks
     // downstream c.req.json()/parseBody() with "Body already used".
     await next();
+  };
+}
+
+// Pesan error DB (drizzle "Failed query: ...", D1_ERROR, SQLITE_*) tidak boleh sampai ke UI.
+const SQL_LEAK = /Failed query|D1_ERROR|SQLITE_|\bselect\b[\s\S]*\bfrom\b|\binsert into\b|\bupdate\b[\s\S]*\bset\b|\bdelete from\b|no such (table|column)|constraint failed/i;
+
+export function hideDbErrors() {
+  return async (c: Context, next: Next) => {
+    await next();
+    if (c.res.status < 400 || !c.res.headers.get("content-type")?.includes("json")) return;
+    const body: any = await c.res.clone().json().catch(() => null);
+    const msg = body?.error ?? body?.message;
+    if (typeof msg !== "string" || !SQL_LEAK.test(msg)) return;
+    console.error("[db-error]", new URL(c.req.url).pathname, msg);
+    const status = c.res.status;
+    c.res = undefined;
+    c.res = c.json({ error: status >= 500 ? "Terjadi kesalahan pada server" : "Permintaan tidak dapat diproses" }, status as any);
   };
 }

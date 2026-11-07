@@ -1,3 +1,10 @@
+// Jangan tampilkan pesan DB/SQL atau HTML mentah ke pengguna.
+const SQL_LEAK = /Failed query|D1_ERROR|SQLITE_|select[\s\S]*from|insert into|delete from|no such (table|column)|constraint failed|<html|<!doctype/i;
+function safeMsg(msg: string, status: number): string {
+  if (!SQL_LEAK.test(msg) && msg.length <= 300) return msg;
+  return status >= 500 ? "Terjadi kesalahan pada server. Coba lagi nanti." : "Permintaan tidak dapat diproses.";
+}
+
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string; status: number };
 
 function getCsrfToken(): string | null {
@@ -82,7 +89,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
       const j = JSON.parse(text);
       msg = j.error || j.message || msg || "Unauthorized";
     } catch { if (text.trim()) msg = text.trim(); }
-    const err = new Error(msg) as Error & { status: number; body: string };
+    const err = new Error(safeMsg(msg, res.status)) as Error & { status: number; body: string };
     err.status = 401;
     err.body = text;
     throw err;
@@ -94,7 +101,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
       const j = JSON.parse(text);
       msg = j.error || j.message || msg;
     } catch {}
-    const err = new Error(msg) as Error & { status: number; body: string };
+    const err = new Error(safeMsg(msg, res.status)) as Error & { status: number; body: string };
     err.status = res.status;
     err.body = text;
     throw err;

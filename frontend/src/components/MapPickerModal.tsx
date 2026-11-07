@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Search as IcoSearch, X as IcoX, MapPin, Crosshair, Loader2 } from "lucide-react";
+import { getPosition, geoErrorMessage } from "../lib/geo";
 
 // Fix default marker icons for Vite bundling
 import iconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
@@ -181,16 +182,11 @@ export default function MapPickerModal({
   }, [open, picked]);
 
   function useMyLocation() {
-    if (!navigator.geolocation) return;
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setPicked({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        setLocating(false);
-      },
-      () => setLocating(false),
-      { enableHighAccuracy: true, timeout: 12000 }
-    );
+    getPosition()
+      .then((p) => setPicked({ lat: p.lat, lng: p.lng }))
+      .catch((err) => alert(geoErrorMessage(err)))
+      .finally(() => setLocating(false));
   }
 
   if (!open) return null;

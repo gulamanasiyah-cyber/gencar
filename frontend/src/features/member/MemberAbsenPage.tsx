@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { MapPin, Clock3, ShieldCheck, AlertTriangle, QrCode, Camera, CameraOff, LocateFixed } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
 import { haversineM } from "shared/validation";
+import { getPosition, geoErrorMessage } from "../../lib/geo";
 import { DEMO_KEGIATAN_MEMBER as DEMO, type MemberIdentity } from "./types";
 
 type AbsenRow = { id: string; tanggal: string; judul: string; status: "hadir" | "izin" | "alpha"; jam: string };
@@ -45,26 +46,10 @@ export default function MemberAbsenPage({ me: _me }: { me: MemberIdentity }) {
   function ambilGps() {
     setGpsLoading(true);
     setGpsErr(null);
-    if (!navigator.geolocation) {
-      setGpsErr("Geolocation tidak tersedia di browser ini.");
-      setGpsLoading(false);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (p) => {
-        setGps({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy ?? null });
-        setGpsLoading(false);
-      },
-      (err) => {
-        setGpsErr(
-          err.code === err.PERMISSION_DENIED
-            ? "Permission GPS ditolak. Izinkan lokasi di browser."
-            : "Gagal ambil GPS. Coba lagi di area terbuka."
-        );
-        setGpsLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 15000 }
-    );
+    getPosition()
+      .then(setGps)
+      .catch((err) => setGpsErr(geoErrorMessage(err)))
+      .finally(() => setGpsLoading(false));
   }
 
   useEffect(() => {

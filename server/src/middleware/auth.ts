@@ -55,7 +55,7 @@ export function extractToken(c: Context): string | null {
 
 export async function setSessionCookie(c: Context, payload: JWTPayload, env: any) {
   const token = await createToken(payload, env);
-  const isProd = env?.NODE_ENV === "production" || env?.ENV === "production";
+  const isProd = env?.NODE_ENV === "production" || env?.ENV === "production" || c.req.url.startsWith("https://");
   setCookie(c, "auth-token", token, {
     httpOnly: true,
     secure: isProd,

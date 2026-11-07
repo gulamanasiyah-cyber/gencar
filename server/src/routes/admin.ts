@@ -80,7 +80,8 @@ r.delete("/desa", async (c) => {
     return c.json({ success: true, logs });
   } catch (e: unknown) {
     const msg = e instanceof Error ? String((e as any)?.message ?? e) : String(e);
-    return c.json({ error: `Gagal hapus desa: ${msg}` }, 500);
+    console.error("[hapus desa]", msg);
+    return c.json({ error: "Gagal hapus desa. Coba lagi atau hubungi admin." }, 500);
   }
 });
 
@@ -157,7 +158,8 @@ r.delete("/kelompok", async (c) => {
     return c.json({ success: true, logs });
   } catch (e: unknown) {
     const msg = e instanceof Error ? String((e as any)?.message ?? e) : String(e);
-    return c.json({ error: `Gagal hapus kelompok: ${msg}` }, 500);
+    console.error("[hapus kelompok]", msg);
+    return c.json({ error: "Gagal hapus kelompok. Coba lagi atau hubungi admin." }, 500);
   }
 });
 

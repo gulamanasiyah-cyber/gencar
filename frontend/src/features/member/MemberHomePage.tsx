@@ -13,6 +13,7 @@ import { startMemberTour } from "../../lib/tours/tourMember";
 import iconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
 import iconUrl from "leaflet/dist/images/marker-icon.png";
 import shadowUrl from "leaflet/dist/images/marker-shadow.png";
+import { getPosition, geoErrorMessage } from "../../lib/geo";
 // @ts-ignore
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({ iconRetinaUrl, iconUrl, shadowUrl });
@@ -143,20 +144,10 @@ export default function MemberHomePage({ me, kegiatanList = [] }: { me: MemberId
 
   function ambilGps() {
     setGpsLoading(true);
-    if (!navigator.geolocation) {
-      setGpsLoading(false);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (p) => {
-        setGps({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy ?? null });
-        setGpsLoading(false);
-      },
-      (_err) => {
-        setGpsLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 15000 }
-    );
+    getPosition()
+      .then((p) => setGps(p))
+      .catch((err) => setMsg(geoErrorMessage(err)))
+      .finally(() => setGpsLoading(false));
   }
 
   useEffect(() => {

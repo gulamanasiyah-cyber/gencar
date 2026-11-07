@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { secureHeaders } from "hono/secure-headers";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "../../shared/schema";
 import { haversineM } from "../../shared/validation";
@@ -17,22 +18,36 @@ import miscRoutes from "./routes/misc";
 import publicRoutes from "./routes/public";
 import cmsRoutes from "./routes/cms";
 import lowonganRoutes from "./routes/lowongan";
-import { uaBlock, rateLimitAuth, bodyLimit } from "./middleware/security";
+import { uaBlock, rateLimitAuth, bodyLimit, hideDbErrors } from "./middleware/security";
 import { requireCsrf } from "./middleware/csrf";
 
 type Env = { DB: D1Database; KV?: KVNamespace; R2_BUCKET?: R2Bucket; JWT_SECRET: string; DAERAH_NAMA?: string } & Record<string, unknown>;
 
 const app = new Hono<{ Bindings: Env }>();
 
+// Frontend SPA disajikan dari origin yang sama; cross-origin hanya untuk origin yang dikenal.
+const ALLOWED_ORIGIN = /^https:\/\/((www\.)?gencar\.my\.id|gencar-v2\.[a-z0-9-]+\.workers\.dev|gencar\.lamanin\.id)$|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+
+app.use(
+  "/*",
+  secureHeaders({
+    strictTransportSecurity: "max-age=31536000; includeSubDomains",
+    xFrameOptions: "DENY",
+    referrerPolicy: "strict-origin-when-cross-origin",
+    crossOriginResourcePolicy: false,
+    crossOriginOpenerPolicy: false,
+  }),
+);
 app.use(
   "/*",
   cors({
-    origin: (origin: string) => (origin ? origin : "*"),
+    origin: (origin: string) => (origin && ALLOWED_ORIGIN.test(origin) ? origin : null),
     credentials: true,
     allowHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-CSRF-Token"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   }),
 );
+app.use("/*", hideDbErrors());
 app.use("/*", uaBlock());
 app.use("/*", rateLimitAuth());
 app.use("/*", bodyLimit());
@@ -43,9 +58,9 @@ app.onError((err, c) => {
   console.error("[onError]", msg);
   // Return JSON even for DELETE — ensure 500 body is readable
   try {
-    return c.json({ error: err instanceof Error ? err.message : String(err), stack: err instanceof Error ? err.stack?.slice(0, 2000) : undefined }, 500);
+    return c.json({ error: "Terjadi kesalahan pada server" }, 500);
   } catch {
-    return c.text(`onError: ${msg}`, 500);
+    return c.text("Internal Server Error", 500);
   }
 });
 
@@ -492,6 +507,10 @@ app.post("/api/auth/invite/register", async (c) => {
 
 // ── Internal / Test trigger: manual sweep alpha (bisa dipanggil admin atau test script) ──
 app.post("/api/_internal/alpha-sweep", async (c) => {
+  const { extractToken, verifyToken } = await import("./middleware/auth");
+  const token = extractToken(c);
+  const payload: any = token ? await verifyToken(token, c.env) : null;
+  if (String(payload?.role ?? "").toLowerCase() !== "admin_daerah") return c.json({ error: "Forbidden" }, 403);
   const { runAlphaSweep } = await import("./jobs/alphaSweep");
   const summary = await runAlphaSweep({ DB: c.env.DB });
   return c.json({ success: true, ...summary });
