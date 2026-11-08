@@ -2571,9 +2571,16 @@ function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }
               >
                 <IcoChevronLeft size={14} /> <span>Kembali ke Riwayat</span>
               </button>
-              <span className={`pill ${selectedInvite.status === "open" ? "pill-emerald" : selectedInvite.status === "used" ? "pill-slate" : "pill-amber"}`} style={{ fontSize: 10 }}>
-                {selectedInvite.status === "open" ? "Link Aktif" : selectedInvite.status === "used" ? "Sudah Terpakai" : "Dicabut"}
-              </span>
+              {(() => {
+                const isExpired = selectedInvite.expires_at && new Date(selectedInvite.expires_at).getTime() < Date.now();
+                const isRevoked = selectedInvite.status === "revoked";
+                const isOpen = !isRevoked && !isExpired;
+                return (
+                  <span className={`pill ${isOpen ? "pill-emerald" : isRevoked ? "pill-amber" : "pill-slate"}`} style={{ fontSize: 10 }}>
+                    {isOpen ? "Link Aktif" : isRevoked ? "Dicabut" : "Kadaluarsa"}
+                  </span>
+                );
+              })()}
             </div>
 
             {/* Clean Card Content */}
@@ -2657,17 +2664,22 @@ function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }
 
             {/* Footer with revoke & close */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
-              {selectedInvite.status === "open" ? (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-auto"
-                  style={{ color: "#dc2626", borderColor: "#fecaca", background: "#fef2f2", fontSize: 11, padding: "6px 12px", width: "auto" }}
-                  disabled={Boolean(revokingId)}
-                  onClick={() => setRevokeTarget({ id: selectedInvite.id, label: selectedInvite.duration_label })}
-                >
-                  {revokingId === selectedInvite.id ? "Mencabut…" : "Cabut Link"}
-                </button>
-              ) : <span />}
+              {(() => {
+                const isExpired = selectedInvite.expires_at && new Date(selectedInvite.expires_at).getTime() < Date.now();
+                const isRevoked = selectedInvite.status === "revoked";
+                const isOpen = !isRevoked && !isExpired;
+                return isOpen ? (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-auto"
+                    style={{ color: "#dc2626", borderColor: "#fecaca", background: "#fef2f2", fontSize: 11, padding: "6px 12px", width: "auto" }}
+                    disabled={Boolean(revokingId)}
+                    onClick={() => setRevokeTarget({ id: selectedInvite.id, label: selectedInvite.duration_label })}
+                  >
+                    {revokingId === selectedInvite.id ? "Mencabut…" : "Cabut Link"}
+                  </button>
+                ) : <span />;
+              })()}
               <button type="button" className="btn btn-ghost btn-auto" onClick={onClose} style={{ borderRadius: 8, fontSize: 12, padding: "6px 14px", width: "auto" }}>
                 Tutup
               </button>
@@ -2878,9 +2890,8 @@ function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }
             )}
             {!loadingList && inviteList.map((it) => {
               const isExpired = it.expires_at && new Date(it.expires_at).getTime() < Date.now();
-              const isUsed = it.status === "used";
               const isRevoked = it.status === "revoked";
-              const isOpen = it.status === "open" && !isExpired;
+              const isOpen = !isRevoked && !isExpired;
 
               return (
                 <div
@@ -2898,8 +2909,8 @@ function InviteModal({ role, onClose }: { role: AdminRole; onClose: () => void }
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <span className={`pill ${isOpen ? "pill-emerald" : isUsed ? "pill-slate" : "pill-amber"}`} style={{ fontSize: 10 }}>
-                      {isOpen ? "Aktif" : isUsed ? "Sudah Terpakai" : isRevoked ? "Dicabut" : "Kadaluarsa"}
+                    <span className={`pill ${isOpen ? "pill-emerald" : isRevoked ? "pill-amber" : "pill-slate"}`} style={{ fontSize: 10 }}>
+                      {isOpen ? "Aktif" : isRevoked ? "Dicabut" : "Kadaluarsa"}
                     </span>
                     <span className="muted" style={{ fontSize: 11 }}>{new Date(it.created_at).toLocaleDateString("id-ID")}</span>
                   </div>

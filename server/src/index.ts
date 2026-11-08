@@ -314,7 +314,6 @@ app.get("/api/auth/invite/resolve", async (c) => {
   const found: any = await (c.env.DB as any).prepare("SELECT * FROM invites WHERE token_hash = ?").bind(hash).first();
   if (!found) return c.json({ error: "Link pendaftaran tidak valid atau tidak ditemukan" }, 404);
   if (found.status === "revoked") return c.json({ error: "Link pendaftaran ini telah dicabut oleh admin" }, 410);
-  if (found.status === "used") return c.json({ error: "Link pendaftaran ini sudah pernah digunakan" }, 410);
   if (found.expires_at && new Date(found.expires_at).getTime() < Date.now()) {
     return c.json({ error: "Link pendaftaran telah kadaluarsa" }, 410);
   }
@@ -355,7 +354,6 @@ app.post("/api/auth/invite/register", async (c) => {
   const invite: any = await (c.env.DB as any).prepare("SELECT * FROM invites WHERE token_hash = ?").bind(hash).first();
   if (!invite) return c.json({ error: "Link registrasi tidak valid" }, 404);
   if (invite.status === "revoked") return c.json({ error: "Link registrasi ini telah dicabut oleh admin" }, 410);
-  if (invite.status === "used") return c.json({ error: "Link registrasi ini sudah pernah digunakan" }, 410);
   if (invite.expires_at && new Date(invite.expires_at).getTime() < Date.now()) {
     return c.json({ error: "Link registrasi telah kadaluarsa" }, 410);
   }
@@ -461,8 +459,8 @@ app.post("/api/auth/invite/register", async (c) => {
     kelompokId: finalKelompokId,
   } as any);
 
-  // Tandai invite digunakan
-  await (c.env.DB as any).prepare("UPDATE invites SET status = 'used', consumed_at = datetime('now') WHERE id = ?").bind(invite.id).run();
+  // Catat waktu pendaftaran terakhir (link tetap aktif hingga masa aktif berakhir atau dicabut)
+  await (c.env.DB as any).prepare("UPDATE invites SET status = 'open', consumed_at = datetime('now') WHERE id = ?").bind(invite.id).run();
 
   // Ambil nama desa & kelompok untuk info kartu
   let desaNama = "";
