@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Camera, Upload, X, Check, RefreshCw, Image as ImageIcon, Info } from "lucide-react";
 import Swal from "sweetalert2";
+import { compressProfilePhoto } from "@/lib/profile-photo";
 
 interface PhotoUploadProps {
   value?: string;
@@ -12,7 +13,7 @@ interface PhotoUploadProps {
   maxSizeMb?: number;
 }
 
-export default function PhotoUpload({ value, onChange, label, helperText, maxSizeMb = 1 }: PhotoUploadProps) {
+export default function PhotoUpload({ value, onChange, label, helperText, maxSizeMb = 10 }: PhotoUploadProps) {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -95,99 +96,18 @@ export default function PhotoUpload({ value, onChange, label, helperText, maxSiz
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Show loading UI immediately if it's HEIC because conversion takes time
-    const fileName = file.name.toLowerCase();
-    const isHeic = fileName.endsWith(".heic") || fileName.endsWith(".heif") || file.type.includes("heic");
-
-    setUploading(true);
-
-    let fileToProcess = file;
-
-    // Handle HEIC/HEIF conversion for iOS compatibility
-    if (isHeic) {
-      try {
-        const heic2any = (await import("heic2any")).default;
-        const convertedBlob = await heic2any({
-          blob: file,
-          toType: "image/jpeg",
-          quality: 0.8
-        });
-
-        const blobArray = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
-        fileToProcess = new File([blobArray], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
-          type: "image/jpeg"
-        });
-      } catch (err) {
-        console.error("HEIC conversion failed:", err);
-        // Fallback to original file, server might handle it
-      }
-    }
-
-    // Validate format after possible conversion
-    const allowedExts = ["jpg", "jpeg", "png", "webp", "heic", "heif"];
-    const fileExt = fileToProcess.name.split('.').pop()?.toLowerCase() || "";
-
-    if (!allowedExts.includes(fileExt) && !fileToProcess.type.startsWith("image/")) {
-      setUploading(false);
-      Swal.fire({
-        icon: "error",
-        title: "Format Tidak Didukung",
-        text: `Format file ${fileExt.toUpperCase()} tidak didukung. Mohon gunakan JPG, PNG, WEBP, atau HEIC.`,
-        confirmButtonColor: "#3b82f6"
-      });
+    try {
+      await uploadFile(file);
+    } finally {
       e.target.value = "";
-      return;
     }
-
-    // Max size check
-    if (fileToProcess.size > maxSizeMb * 1024 * 1024) {
-      setUploading(false);
-      Swal.fire({
-        icon: "error",
-        title: "File Terlalu Besar",
-        text: `Ukuran foto maksimal adalah ${maxSizeMb} MB.`,
-        confirmButtonColor: "#3b82f6"
-      });
-      e.target.value = "";
-      return;
-    }
-
-    uploadFile(fileToProcess);
-    e.target.value = ""; // Reset
-  };
-
-  const toJpegFile = (source: File): Promise<File> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      const url = URL.createObjectURL(source);
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        const canvas = document.createElement("canvas");
-        const MAX_DIM = 800;
-        let { width, height } = img;
-        if (width > MAX_DIM) { height = Math.round(height * MAX_DIM / width); width = MAX_DIM; }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d")!;
-        ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => {
-          if (blob) {
-            resolve(new File([blob], "photo.jpg", { type: "image/jpeg" }));
-          } else {
-            resolve(source);
-          }
-        }, "image/jpeg", 0.75);
-      };
-      img.onerror = () => { URL.revokeObjectURL(url); resolve(source); };
-      img.src = url;
-    });
   };
 
   const uploadFile = async (file: File) => {
     setUploading(true);
-    setPreview(URL.createObjectURL(file));
+
     try {
-      const compressed = await toJpegFile(file);
+      const compressed = await compressProfilePhoto(file, maxSizeMb);
       const fd = new FormData();
       fd.append("file", compressed);
 
@@ -202,7 +122,7 @@ export default function PhotoUpload({ value, onChange, label, helperText, maxSiz
         throw new Error(`Server error (${res.status}): ${text.substring(0, 200)}`);
       }
 
-      if (json.url) {
+      if (res.ok && json.url) {
         setPreview(json.url);
         onChange(json.url);
         Swal.fire({
@@ -305,7 +225,7 @@ export default function PhotoUpload({ value, onChange, label, helperText, maxSiz
         justifyContent: "center",
         gap: "6px"
       }}>
-        <Info size={14} /> Perhatian: Ukuran maksimal foto {maxSizeMb} MB
+        <Info size={14} /> Foto dikompres otomatis. Maksimal hasil unggahan {Math.min(maxSizeMb, 10)} MB
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "10px", marginTop: "12px" }}>
@@ -362,7 +282,8 @@ export default function PhotoUpload({ value, onChange, label, helperText, maxSiz
           type="file"
           ref={fileInputRef}
           hidden
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+          disabled={uploading}
           onChange={handleFileChange}
         />
       </div>

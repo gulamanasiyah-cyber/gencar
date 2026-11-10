@@ -15,69 +15,7 @@ import Link from "next/link";
 import { getPusherClient } from "@/lib/pusher-client";
 import JsBarcode from "jsbarcode";
 
-const MAX_PROFILE_PHOTO_SIZE = 10 * 1024 * 1024;
-
-async function compressProfilePhoto(file: File): Promise<File> {
-  if (file.size <= MAX_PROFILE_PHOTO_SIZE) return file;
-
-  const isHeic = /\.(heic|heif)$/i.test(file.name) || /image\/hei[cf]/i.test(file.type);
-  let source: Blob = file;
-  if (isHeic) {
-    const heic2any = (await import("heic2any")).default;
-    const converted = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.95 });
-    source = Array.isArray(converted) ? converted[0] : converted;
-  }
-
-  const image = await createImageBitmap(source);
-  try {
-    const scale = Math.min(1, 4096 / Math.max(image.width, image.height));
-    let width = Math.max(1, Math.round(image.width * scale));
-    let height = Math.max(1, Math.round(image.height * scale));
-
-    while (Math.max(width, height) >= 320) {
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const context = canvas.getContext("2d");
-      if (!context) throw new Error("Browser tidak mendukung kompresi foto.");
-
-      context.fillStyle = "#fff";
-      context.fillRect(0, 0, width, height);
-      context.drawImage(image, 0, 0, width, height);
-
-      let lowerQuality = 0.5;
-      let upperQuality = 0.95;
-      let bestBlob: Blob | null = null;
-      for (let attempt = 0; attempt < 7; attempt++) {
-        const quality = (lowerQuality + upperQuality) / 2;
-        const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/jpeg", quality));
-        if (!blob) throw new Error("Gagal memproses foto di perangkat ini.");
-
-        if (blob.size <= MAX_PROFILE_PHOTO_SIZE) {
-          bestBlob = blob;
-          lowerQuality = quality;
-        } else {
-          upperQuality = quality;
-        }
-      }
-
-      if (bestBlob) {
-        const baseName = file.name.replace(/\.[^.]+$/, "") || "foto-profil";
-        return new File([bestBlob], `${baseName}.jpg`, {
-          type: "image/jpeg",
-          lastModified: Date.now(),
-        });
-      }
-
-      width = Math.round(width * 0.85);
-      height = Math.round(height * 0.85);
-    }
-
-    throw new Error("Ukuran foto tetap melebihi 10 MB setelah dikompres.");
-  } finally {
-    image.close();
-  }
-}
+import { compressProfilePhoto } from "@/lib/profile-photo";
 
 function LocalBarcode({ value }: { value: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -3592,7 +3530,7 @@ export default function PublicKatalogPage() {
                 </div>
                 <div style={{ display: "flex", gap: "8px" }}>
                   <label style={{ background: "#3b82f6", color: "white", padding: "8px 16px", borderRadius: "8px", fontSize: "12px", fontWeight: "bold", cursor: uploadingFoto ? "not-allowed" : "pointer", opacity: uploadingFoto ? 0.7 : 1 }}>
-                    {uploadingFoto ? "Mengunggah..." : "Ganti Foto"}
+                    {uploadingFoto ? "Memproses foto..." : "Ganti Foto"}
                     <input
                       type="file"
                       hidden
@@ -3628,7 +3566,7 @@ export default function PublicKatalogPage() {
                     </button>
                   )}
                 </div>
-                <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "8px" }}>Format JPG/PNG/WEBP maks 10 MB.</div>
+                <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "8px" }}>Format JPG/PNG/WEBP/HEIC. Foto dikompres otomatis, maksimal hasil unggahan 10 MB.</div>
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Nama Lengkap</label>
