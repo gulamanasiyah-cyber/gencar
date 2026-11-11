@@ -1,36 +1,11 @@
 
 import type { Metadata } from "next";
-import { Inter, Plus_Jakarta_Sans, Merriweather, Montserrat } from "next/font/google";
 import "./globals.css";
 import PageTransition from "@/components/PageTransition";
 import ThemeConfig from "@/components/ThemeConfig";
 import { Suspense } from "react";
 
 const SITE_URL = "https://gencar.pintarsolusi.com";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  weight: ["300", "400", "500", "600", "700"],
-});
-
-const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  variable: "--font-plus-jakarta-sans",
-  weight: ["300", "400", "500", "600", "700", "800"],
-});
-
-const merriweather = Merriweather({
-  subsets: ["latin"],
-  variable: "--font-merriweather",
-  weight: ["300", "400", "700", "900"],
-});
-
-const montserrat = Montserrat({
-  subsets: ["latin"],
-  variable: "--font-montserrat",
-  weight: ["400", "500", "600", "700", "800", "900"],
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -72,8 +47,14 @@ export default function RootLayout({
     <html lang="id">
       <head>
         <link rel="icon" href="/favicon.ico" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:wght@300;400;700;900&family=Montserrat:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        />
       </head>
-      <body className={`${inter.variable} ${plusJakartaSans.variable} ${merriweather.variable} ${montserrat.variable}`} suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <Suspense fallback={null}>
           <ThemeConfig />
           <PageTransition />

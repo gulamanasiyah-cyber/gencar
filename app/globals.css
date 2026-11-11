@@ -1,6 +1,11 @@
-/* Next.js font optimizations used in layout.tsx */
+/* Google Fonts CSS variables */
 
 :root {
+  --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-plus-jakarta-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-merriweather: 'Merriweather', Georgia, serif;
+  --font-montserrat: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+
   --primary: #dc2626;
   --primary-dark: #b91c1c;
   --primary-dk: #b91c1c;

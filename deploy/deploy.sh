@@ -63,6 +63,7 @@ UID_SEKARANG="$(id -u)"
 MODE="pasang"
 JALANKAN_SETUP=0
 DOMAIN_ARG=""
+PAKSA_BUILD=0
 
 for a in "$@"; do
   case "$a" in
@@ -70,6 +71,7 @@ for a in "$@"; do
     --kembali|--rollback) MODE="kembali" ;;
     --setup|--init) JALANKAN_SETUP=1 ;;
     --domain) DOMAIN_ARG="${2:-}"; shift 2 ;;
+    --build|--build-lokal) PAKSA_BUILD=1 ;;
     *) ;;
   esac
 done
@@ -183,9 +185,32 @@ if [ "$TAG" = "$AKTIF" ] && [ "$MODE" = "pasang" ]; then
   fi
 fi
 
-langkah "2. Membangun Docker image (gencar:$TAG)"
-docker build --pull -t "gencar:$TAG" -t "gencar:terbaru" . \
-  || berhenti "Build Docker gagal — versi yang sedang aktif tidak disentuh."
+GC_IMAGE="${GC_IMAGE:-$(baca_env GC_IMAGE)}"
+GC_IMAGE="${GC_IMAGE:-ghcr.io/gulamanasiyah-cyber/gencar}"
+
+langkah "2. Menyiapkan Docker image ($GC_IMAGE:$TAG)"
+DAPAT_IMAGE=0
+
+# Jika bukan mode build lokal paksa, coba unduh image pre-built dari registry (CI/CD GHCR)
+if [ "$PAKSA_BUILD" -eq 0 ]; then
+  echo "Mengecek ketersediaan image di registry ($GC_IMAGE:$TAG)..."
+  if docker pull "$GC_IMAGE:$TAG" >/dev/null 2>&1; then
+    hijau "Pre-built image berhasil diunduh dari registry ($GC_IMAGE:$TAG)!"
+    docker tag "$GC_IMAGE:$TAG" "$GC_IMAGE:terbaru" 2>/dev/null || true
+    DAPAT_IMAGE=1
+  elif docker pull "$GC_IMAGE:terbaru" >/dev/null 2>&1; then
+    hijau "Image tag $TAG belum ada di registry, tetapi tag 'terbaru' berhasil diunduh!"
+    docker tag "$GC_IMAGE:terbaru" "$GC_IMAGE:$TAG" 2>/dev/null || true
+    DAPAT_IMAGE=1
+  fi
+fi
+
+if [ "$DAPAT_IMAGE" -eq 0 ]; then
+  kuning "Pre-built image tidak ditemukan di registry (atau dipaksa build lokal)."
+  langkah "Membangun Docker image di server ($GC_IMAGE:$TAG)..."
+  docker build --network=host -t "$GC_IMAGE:$TAG" -t "$GC_IMAGE:terbaru" . \
+    || berhenti "Build Docker gagal — versi yang sedang aktif tidak disentuh."
+fi
 
 langkah "3. Menyalakan container baru"
 if JAWAB="$(nyalakan "$TAG")"; then

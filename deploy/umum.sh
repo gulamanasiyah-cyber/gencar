@@ -13,6 +13,7 @@ GC_APP="${GC_APP:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 GC_DATA="${GC_DATA:-/srv/data/gencar}"
 GC_ENV="$GC_DATA/.env"
 GC_PORT="${GC_PORT:-3102}"
+GC_IMAGE="${GC_IMAGE:-ghcr.io/gulamanasiyah-cyber/gencar}"
 
 merah()  { printf '\033[31m%s\033[0m\n' "$*"; }
 hijau()  { printf '\033[32m%s\033[0m\n' "$*"; }
@@ -29,7 +30,10 @@ baca_env() {
 
 # docker compose dengan pengaturan yang benar.
 dc() {
+  local IMG="${GC_IMAGE:-$(baca_env GC_IMAGE)}"
+  IMG="${IMG:-ghcr.io/gulamanasiyah-cyber/gencar}"
   GC_DATA="$GC_DATA" GC_PORT="$GC_PORT" GC_UID="$(id -u)" GC_GID="$(id -g)" \
+  GC_IMAGE="$IMG" \
   GC_TAG="${GC_TAG:-$(cat "$GC_DATA/.tag-aktif" 2>/dev/null || echo terbaru)}" \
     docker compose --project-directory "$GC_APP" -p "$GC_NAMA" -f "$GC_APP/docker-compose.yml" "$@"
 }

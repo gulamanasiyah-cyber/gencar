@@ -2,6 +2,7 @@
 # Database: Turso (libSQL) cloud — TIDAK di dalam wadah ini.
 # Build standalone agar image sekecil mungkin & CPU minimal.
 FROM node:20-alpine AS base
+ENV NODE_OPTIONS="--dns-result-order=ipv4first"
 
 # ============================================================
 # Stage 1: Install dependencies
@@ -25,11 +26,10 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-# Dummy JWT_SECRET untuk lolos validasi saat build (tidak dipakai saat runtime)
-ARG JWT_SECRET="build-time-placeholder-secret-not-for-production-use!!"
-
+# Dummy JWT_SECRET untuk lolos validasi saat build (tidak dipakai saat runtime).
+# Diberikan langsung di perintah RUN agar tidak memicu peringatan Docker SecretsUsedInArgOrEnv.
 # next.config.mjs sudah memiliki output: 'standalone'
-RUN JWT_SECRET="${JWT_SECRET}" npm run build
+RUN JWT_SECRET="build-time-placeholder-secret-not-for-production-use!!" npm run build
 
 # ============================================================
 # Stage 3: Production runner (minimal image)
