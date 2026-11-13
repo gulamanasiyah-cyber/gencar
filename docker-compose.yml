@@ -17,7 +17,7 @@ name: gencar
 
 services:
   app:
-    image: gencar:${GC_TAG:-terbaru}
+    image: ${GC_IMAGE:-ghcr.io/gulamanasiyah-cyber/gencar}:${GC_TAG:-terbaru}
     build: .
     restart: unless-stopped
     user: "${GC_UID:-1001}:${GC_GID:-1001}"
