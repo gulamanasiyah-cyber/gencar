@@ -5,6 +5,8 @@ import { generus, mandiriDesa, mandiri, mandiriKelompok, mandiriDaerah, formPani
 import { sql, eq, isNotNull, and } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { getSession } from "@/lib/auth";
+import { getSettingRows } from "@/lib/cached-queries";
+import { batchQueries } from "@/lib/db-batch";
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +18,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     let kegiatanId = searchParams.get("kegiatanId") || "";
     if (!kegiatanId) {
-      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+      const activeSetting = await getSettingRows("mandiri_active_kegiatan_id");
       kegiatanId = activeSetting[0]?.value || "";
     }
 
@@ -26,12 +28,55 @@ export async function GET(request: NextRequest) {
 
     // Filter choices must come from the selected activity roster. Committee
     // locations are activity-specific, so prefer the committee form values.
-    const pendidikanResult = await db
-      .select({ value: generus.pendidikan })
-      .from(generus)
-      .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-      .where(and(eq(mandiri.kegiatanId, kegiatanId), isNotNull(generus.pendidikan)))
-      .groupBy(generus.pendidikan);
+    const panitiaDesa = alias(mandiriDesa, "filter_panitia_desa");
+    const pesertaDesa = alias(mandiriDesa, "filter_peserta_desa");
+    const panitiaDaerah = alias(mandiriDaerah, "filter_panitia_daerah");
+    const pesertaDaerah = alias(mandiriDaerah, "filter_peserta_daerah");
+    const panitiaKelompok = alias(mandiriKelompok, "filter_panitia_kelompok");
+    const pesertaKelompok = alias(mandiriKelompok, "filter_peserta_kelompok");
+
+    type RosterLocation = {
+      daerahId: number | null;
+      daerahNama: string | null;
+      desaId: number | null;
+      desaNama: string | null;
+      kelompokId: number | null;
+      kelompokNama: string | null;
+      kelompokDesaId: number | null;
+    };
+
+    // Kedua query independen: kirim dalam satu round-trip ke database.
+    const [pendidikanResult, rosterLocations] = (await batchQueries([
+      db
+        .select({ value: generus.pendidikan })
+        .from(generus)
+        .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
+        .where(and(eq(mandiri.kegiatanId, kegiatanId), isNotNull(generus.pendidikan)))
+        .groupBy(generus.pendidikan),
+      db
+        .selectDistinct({
+          daerahId: sql<number | null>`COALESCE(${panitiaDaerah.id}, ${pesertaDaerah.id})`,
+          daerahNama: sql<string | null>`COALESCE(${panitiaDaerah.nama}, ${pesertaDaerah.nama})`,
+          desaId: sql<number | null>`COALESCE(${panitiaDesa.id}, ${pesertaDesa.id})`,
+          desaNama: sql<string | null>`COALESCE(${panitiaDesa.nama}, ${pesertaDesa.nama})`,
+          kelompokId: sql<number | null>`COALESCE(${panitiaKelompok.id}, ${pesertaKelompok.id})`,
+          kelompokNama: sql<string | null>`COALESCE(${panitiaKelompok.nama}, ${pesertaKelompok.nama})`,
+          kelompokDesaId: sql<number | null>`COALESCE(${panitiaKelompok.mandiriDesaId}, ${pesertaKelompok.mandiriDesaId})`,
+        })
+        .from(mandiri)
+        .innerJoin(generus, eq(mandiri.generusId, generus.id))
+        .leftJoin(formPanitiaDanPengurus, and(
+          eq(formPanitiaDanPengurus.generusId, generus.id),
+          eq(formPanitiaDanPengurus.kegiatanId, kegiatanId)
+        ))
+        .leftJoin(panitiaDesa, eq(formPanitiaDanPengurus.mandiriDesaId, panitiaDesa.id))
+        .leftJoin(pesertaDesa, eq(generus.mandiriDesaId, pesertaDesa.id))
+        .leftJoin(panitiaDaerah, eq(panitiaDesa.mandiriDaerahId, panitiaDaerah.id))
+        .leftJoin(pesertaDaerah, eq(pesertaDesa.mandiriDaerahId, pesertaDaerah.id))
+        .leftJoin(panitiaKelompok, eq(formPanitiaDanPengurus.mandiriKelompokId, panitiaKelompok.id))
+        .leftJoin(pesertaKelompok, eq(generus.mandiriKelompokId, pesertaKelompok.id))
+        .where(eq(mandiri.kegiatanId, kegiatanId)),
+    ] as const)) as [{ value: string | null }[], RosterLocation[]];
     
     const pendidikan: string[] = pendidikanResult
       .map((r: { value: string | null }) => {
@@ -65,46 +110,6 @@ export async function GET(request: NextRequest) {
         if (idxB !== -1) return 1;
         return a.localeCompare(b);
       });
-
-    const panitiaDesa = alias(mandiriDesa, "filter_panitia_desa");
-    const pesertaDesa = alias(mandiriDesa, "filter_peserta_desa");
-    const panitiaDaerah = alias(mandiriDaerah, "filter_panitia_daerah");
-    const pesertaDaerah = alias(mandiriDaerah, "filter_peserta_daerah");
-    const panitiaKelompok = alias(mandiriKelompok, "filter_panitia_kelompok");
-    const pesertaKelompok = alias(mandiriKelompok, "filter_peserta_kelompok");
-
-    type RosterLocation = {
-      daerahId: number | null;
-      daerahNama: string | null;
-      desaId: number | null;
-      desaNama: string | null;
-      kelompokId: number | null;
-      kelompokNama: string | null;
-      kelompokDesaId: number | null;
-    };
-    const rosterLocations: RosterLocation[] = await db
-      .selectDistinct({
-        daerahId: sql<number | null>`COALESCE(${panitiaDaerah.id}, ${pesertaDaerah.id})`,
-        daerahNama: sql<string | null>`COALESCE(${panitiaDaerah.nama}, ${pesertaDaerah.nama})`,
-        desaId: sql<number | null>`COALESCE(${panitiaDesa.id}, ${pesertaDesa.id})`,
-        desaNama: sql<string | null>`COALESCE(${panitiaDesa.nama}, ${pesertaDesa.nama})`,
-        kelompokId: sql<number | null>`COALESCE(${panitiaKelompok.id}, ${pesertaKelompok.id})`,
-        kelompokNama: sql<string | null>`COALESCE(${panitiaKelompok.nama}, ${pesertaKelompok.nama})`,
-        kelompokDesaId: sql<number | null>`COALESCE(${panitiaKelompok.mandiriDesaId}, ${pesertaKelompok.mandiriDesaId})`,
-      })
-      .from(mandiri)
-      .innerJoin(generus, eq(mandiri.generusId, generus.id))
-      .leftJoin(formPanitiaDanPengurus, and(
-        eq(formPanitiaDanPengurus.generusId, generus.id),
-        eq(formPanitiaDanPengurus.kegiatanId, kegiatanId)
-      ))
-      .leftJoin(panitiaDesa, eq(formPanitiaDanPengurus.mandiriDesaId, panitiaDesa.id))
-      .leftJoin(pesertaDesa, eq(generus.mandiriDesaId, pesertaDesa.id))
-      .leftJoin(panitiaDaerah, eq(panitiaDesa.mandiriDaerahId, panitiaDaerah.id))
-      .leftJoin(pesertaDaerah, eq(pesertaDesa.mandiriDaerahId, pesertaDaerah.id))
-      .leftJoin(panitiaKelompok, eq(formPanitiaDanPengurus.mandiriKelompokId, panitiaKelompok.id))
-      .leftJoin(pesertaKelompok, eq(generus.mandiriKelompokId, pesertaKelompok.id))
-      .where(eq(mandiri.kegiatanId, kegiatanId));
 
     const daerahById = new Map<number, { id: number; nama: string }>();
     const desaById = new Map<number, { id: number; nama: string; daerahId: number | null }>();

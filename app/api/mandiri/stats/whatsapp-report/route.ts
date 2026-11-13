@@ -15,6 +15,7 @@ import {
 } from "@/lib/schema";
 import { eq, desc, and, sql, or, count } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { getSettingRows } from "@/lib/cached-queries";
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
         }
 
         // 1. Get the active activity from settings
-        const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+        const activeSetting = await getSettingRows("mandiri_active_kegiatan_id");
         const kegiatanId = activeSetting[0]?.value || "";
 
         if (!kegiatanId) {

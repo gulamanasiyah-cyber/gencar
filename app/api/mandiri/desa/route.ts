@@ -1,9 +1,10 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriDesa, mandiriDaerah } from "@/lib/schema";
+import { mandiriDesa } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { getAllDesaWithDaerah, invalidateWilayahCache } from "@/lib/cached-queries";
 
 export async function GET() {
   try {
@@ -11,17 +12,7 @@ export async function GET() {
     if (!session || !["admin", "pengurus_daerah", "kmm_daerah", "tim_pnkb", "admin_romantic_room", "admin_kegiatan"].includes(session.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const data = await db
-      .select({
-        id: mandiriDesa.id,
-        nama: mandiriDesa.nama,
-        mandiriDaerahId: mandiriDesa.mandiriDaerahId,
-        kota: mandiriDaerah.nama,
-        daerahNama: mandiriDaerah.nama,
-      })
-      .from(mandiriDesa)
-      .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
-      .orderBy(mandiriDesa.nama);
+    const data = await getAllDesaWithDaerah();
     return NextResponse.json(data);
   } catch (error) {
     console.error(error);
@@ -42,6 +33,7 @@ export async function POST(request: NextRequest) {
       nama: nama.trim(),
       mandiriDaerahId: Number(mandiriDaerahId),
     });
+    invalidateWilayahCache();
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error(error);
@@ -64,6 +56,7 @@ export async function PUT(request: NextRequest) {
         mandiriDaerahId: Number(mandiriDaerahId),
       })
       .where(eq(mandiriDesa.id, Number(id)));
+    invalidateWilayahCache();
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error(error);
@@ -82,6 +75,7 @@ export async function DELETE(request: NextRequest) {
     if (!id) return NextResponse.json({ error: "ID diperlukan" }, { status: 400 });
     
     await db.delete(mandiriDesa).where(eq(mandiriDesa.id, Number(id)));
+    invalidateWilayahCache();
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error(error);

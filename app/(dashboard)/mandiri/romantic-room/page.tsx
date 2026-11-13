@@ -303,8 +303,13 @@ export default function RomanticRoomPage() {
             // Cek session admin terlebih dahulu (tanpa independent auth headers)
             // agar admin yang juga punya localStorage tokens tidak ter-redirect ke tampilan peserta
             const ADMIN_ROLES = ["admin", "kmm_daerah", "admin_romantic_room", "pengurus_daerah", "tim_pnkb"];
-            const sessionRes = await fetch("/api/profile");
-            const sessionJson = sessionRes.ok ? await sessionRes.json() : {};
+            // Profil admin yang sudah dimuat dipakai ulang saat refresh (mis. dari Pusher)
+            // supaya tidak menambah satu request berurutan sebelum data utama diambil.
+            const knownAdminProfile = ADMIN_ROLES.includes(myProfile?.role || "") ? myProfile : null;
+            const sessionJson = knownAdminProfile ?? await (async () => {
+                const sessionRes = await fetch("/api/profile");
+                return sessionRes.ok ? await sessionRes.json() : {};
+            })();
             const isSessionAdmin = ADMIN_ROLES.includes(sessionJson.role || "");
 
             const h = isSessionAdmin ? {} : getAuthHeaders();

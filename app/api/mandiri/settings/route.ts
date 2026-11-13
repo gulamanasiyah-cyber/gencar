@@ -4,23 +4,29 @@ import { db } from "@/lib/db";
 import { settings, mandiriKegiatan, kegiatan } from "@/lib/schema";
 import { eq, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import {
+  getSettingRows,
+  getLatestMandiriKegiatan,
+  invalidateSettingsCache,
+  invalidateKegiatanCache,
+} from "@/lib/cached-queries";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const key = searchParams.get("key") || "mandiri_registration_deadline";
     
-    // Fetch manual setting
-    const data = await db.select().from(settings).where(eq(settings.key, key));
-    
+    // Fetch manual setting (dari cache memori, lihat lib/cached-queries.ts)
+    const data = await getSettingRows(key);
+
     // Fallback logic for Mandiri
     if (key === "mandiri_registration_title" && !data[0]?.value) {
-        const latest = await db.select({ value: mandiriKegiatan.judul }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-        return NextResponse.json({ key, value: latest[0]?.value || "Peserta Mandiri" });
+        const latest = await getLatestMandiriKegiatan();
+        return NextResponse.json({ key, value: latest?.judul || "Peserta Mandiri" });
     }
     if (key === "mandiri_registration_description" && !data[0]?.value) {
-        const latest = await db.select({ value: mandiriKegiatan.deskripsi }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-        return NextResponse.json({ key, value: latest[0]?.value || "" });
+        const latest = await getLatestMandiriKegiatan();
+        return NextResponse.json({ key, value: latest?.deskripsi || "" });
     }
 
     // Fallback logic for Generus
@@ -80,10 +86,12 @@ export async function POST(request: NextRequest) {
             const updateField = field === "title" ? { judul: value } : field === "description" ? { deskripsi: value } : null;
             if (updateField) {
                 await db.update(mandiriKegiatan).set(updateField).where(eq(mandiriKegiatan.id, targetActivityId));
+                invalidateKegiatanCache();
             }
         }
     }
-    
+    invalidateSettingsCache();
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error(error);

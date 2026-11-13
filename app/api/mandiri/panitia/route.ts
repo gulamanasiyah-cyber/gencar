@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { formPanitiaDanPengurus, mandiriDesa, mandiriAbsensi, mandiriKegiatan, settings, mandiriDaerah, mandiriKelompok, generus } from "@/lib/schema";
 import { eq, and, or, like, sql, desc, isNull } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { getSettingRows } from "@/lib/cached-queries";
+import { batchQueries } from "@/lib/db-batch";
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,7 +28,7 @@ export async function GET(request: NextRequest) {
     let kegiatanId = searchParams.get("kegiatanId") || "";
 
     if (!kegiatanId) {
-      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+      const activeSetting = await getSettingRows("mandiri_active_kegiatan_id");
       kegiatanId = activeSetting[0]?.value || "";
     }
 
@@ -95,12 +97,14 @@ export async function GET(request: NextRequest) {
       .offset(offset)
       .orderBy(desc(formPanitiaDanPengurus.createdAt));
 
-    const countResult = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(formPanitiaDanPengurus)
-      .where(whereClause);
-
-    const data = await dataQuery;
+    // Data + count dikirim dalam satu round-trip ke database.
+    const [data, countResult] = await batchQueries([
+      dataQuery,
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(formPanitiaDanPengurus)
+        .where(whereClause),
+    ] as const);
 
     return NextResponse.json({
       data,

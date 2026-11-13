@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { timGambuh, settings } from "@/lib/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { getSettingRows } from "@/lib/cached-queries";
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
         let kegiatanId = searchParams.get("kegiatanId") || "";
 
         if (!kegiatanId) {
-            const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+            const activeSetting = await getSettingRows("mandiri_active_kegiatan_id");
             kegiatanId = activeSetting[0]?.value || "";
         }
 

@@ -14,6 +14,7 @@ import {
 } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { invalidateKegiatanCache } from "@/lib/cached-queries";
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -68,6 +69,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         updatedAt: new Date().toISOString(),
       })
       .where(eq(mandiriKegiatan.id, id));
+    invalidateKegiatanCache();
 
     return NextResponse.json({ success: true, id });
   } catch (error) {
@@ -99,6 +101,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     ]);
 
     await db.delete(mandiriKegiatan).where(eq(mandiriKegiatan.id, id));
+    invalidateKegiatanCache();
 
     return NextResponse.json({ success: true, id });
   } catch (error) {

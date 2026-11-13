@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, settings, mandiriKegiatan, mandiriAbsensi, mandiriDaerah } from "@/lib/schema";
 import { eq, sql, and, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { getSettingRows } from "@/lib/cached-queries";
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const session = await getSession();
     const isStaff = !!session && ["admin", "admin_romantic_room", "tim_pnkb", "tim_pnkb_gambuh"].includes(session.role);
 
-    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+    const activeSetting = await getSettingRows("mandiri_active_kegiatan_id");
     const kegiatanId = activeSetting[0]?.value || "";
     if (!kegiatanId) {
       return NextResponse.json({ error: "Belum ada kegiatan aktif." }, { status: 404 });

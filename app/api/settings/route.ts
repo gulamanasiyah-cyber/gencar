@@ -1,54 +1,30 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriKegiatan, settings } from "@/lib/schema";
-import { eq, desc } from "drizzle-orm";
+import { settings } from "@/lib/schema";
+import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { getSettingsObject, getMandiriKegiatanList, invalidateSettingsCache } from "@/lib/cached-queries";
 
 export async function GET(request: NextRequest) {
   const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-real-ip") || "unknown";
   const userAgent = request.headers.get("user-agent") || "unknown";
   console.log(`[API_SETTINGS] GET from IP: ${ip}, UA: ${userAgent}`);
   try {
-    // Explicitly select columns to avoid potential schema mismatch or reserved word issues
-    const data = await db
-      .select({ 
-        key: settings.key, 
-        value: settings.value, 
-        updatedAt: settings.updatedAt 
-      })
-      .from(settings);
+    // Settings & daftar kegiatan dibaca dari cache memori (lib/cached-queries.ts):
+    // endpoint ini dipanggil hampir di setiap halaman, jadi tidak perlu
+    // round-trip ke database setiap kali.
+    const [settingsObj, kegiatanList] = await Promise.all([
+      getSettingsObject(),
+      getMandiriKegiatanList(),
+    ]);
 
-    // Convert to object for easier use
-    const settingsObj: Record<string, string | null> = {};
-    data.forEach((s) => {
-      settingsObj[s.key] = s.value;
-    });
-
-    // Priority for Mandiri if Activity exists
+    // Priority for Mandiri if Activity exists, otherwise latest kegiatan
     const activeKegiatanId = settingsObj["mandiri_active_kegiatan_id"];
-    let activeKegiatan = null;
-    if (activeKegiatanId) {
-      const result = await db
-        .select({ judul: mandiriKegiatan.judul, deskripsi: mandiriKegiatan.deskripsi })
-        .from(mandiriKegiatan)
-        .where(eq(mandiriKegiatan.id, activeKegiatanId))
-        .limit(1);
-      if (result.length > 0) {
-        activeKegiatan = result[0];
-      }
-    }
-
-    if (!activeKegiatan) {
-      const latestKegiatan = await db
-        .select({ judul: mandiriKegiatan.judul, deskripsi: mandiriKegiatan.deskripsi })
-        .from(mandiriKegiatan)
-        .orderBy(desc(mandiriKegiatan.tanggal))
-        .limit(1);
-      if (latestKegiatan.length > 0) {
-        activeKegiatan = latestKegiatan[0];
-      }
-    }
+    const activeKegiatan =
+      (activeKegiatanId ? kegiatanList.find((k) => k.id === activeKegiatanId) : undefined) ||
+      kegiatanList[0] ||
+      null;
 
     if (activeKegiatan) {
       if (activeKegiatan.judul) {
@@ -99,6 +75,7 @@ export async function POST(request: NextRequest) {
     } else {
       await db.insert(settings).values({ key, value });
     }
+    invalidateSettingsCache();
 
     return NextResponse.json({ success: true });
   } catch (error) {

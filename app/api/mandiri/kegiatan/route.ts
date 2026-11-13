@@ -1,9 +1,9 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriKegiatan, mandiriDesa, mandiriKelompok } from "@/lib/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { mandiriKegiatan } from "@/lib/schema";
 import { getSession } from "@/lib/auth";
+import { getMandiriKegiatanList, invalidateKegiatanCache } from "@/lib/cached-queries";
 import { v4 as uuidv4 } from "uuid";
 
 export async function GET(request: NextRequest) {
@@ -11,24 +11,8 @@ export async function GET(request: NextRequest) {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const data = await db
-      .select({
-        id: mandiriKegiatan.id,
-        judul: mandiriKegiatan.judul,
-        deskripsi: mandiriKegiatan.deskripsi,
-        tanggal: mandiriKegiatan.tanggal,
-        lokasi: mandiriKegiatan.lokasi,
-        kota: mandiriKegiatan.kota,
-        desaNama: mandiriDesa.nama,
-        kelompokNama: mandiriKelompok.nama,
-        desaId: mandiriKegiatan.desaId,
-        kelompokId: mandiriKegiatan.kelompokId,
-        createdAt: mandiriKegiatan.createdAt,
-      })
-      .from(mandiriKegiatan)
-      .leftJoin(mandiriDesa, eq(mandiriKegiatan.desaId, mandiriDesa.id))
-      .leftJoin(mandiriKelompok, eq(mandiriKegiatan.kelompokId, mandiriKelompok.id))
-      .orderBy(sql`${mandiriKegiatan.tanggal} DESC`);
+    // Dibaca dari cache memori; di-invalidate setiap kali kegiatan berubah.
+    const data = await getMandiriKegiatanList();
 
     return NextResponse.json(data, {
       headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
@@ -66,6 +50,7 @@ export async function POST(request: NextRequest) {
       kelompokId: kelompokId ? Number(kelompokId) : null,
       createdBy: session.userId,
     });
+    invalidateKegiatanCache();
 
     return NextResponse.json({ success: true, id });
   } catch (error) {

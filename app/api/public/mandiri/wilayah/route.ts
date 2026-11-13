@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { mandiriDaerah, mandiriDesa, mandiriKelompok, settings, mandiriKegiatanDaerah } from "@/lib/schema";
 import { eq, and } from "drizzle-orm";
+import { getActiveMandiriKegiatanId, invalidateWilayahCache } from "@/lib/cached-queries";
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,8 +14,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Nama wajib diisi" }, { status: 400 });
     }
 
-    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-    const activeKegiatanId = activeSetting[0]?.value;
+    const activeKegiatanId = await getActiveMandiriKegiatanId();
 
     if (type === "daerah") {
       let daerahId = null;
@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      invalidateWilayahCache();
       return NextResponse.json({ id: daerahId, nama: daerahNama });
     }
 
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
         } else {
           const newD = await db.insert(mandiriDaerah).values({ nama: kota.trim() }).returning({ id: mandiriDaerah.id });
           daerahId = newD[0].id;
+          invalidateWilayahCache();
         }
       }
 
@@ -86,6 +88,7 @@ export async function POST(request: NextRequest) {
         nama: nama.trim(),
         mandiriDaerahId: Number(daerahId)
       }).returning({ id: mandiriDesa.id });
+      invalidateWilayahCache();
 
       return NextResponse.json({ id: result[0].id, nama: nama.trim() });
     }
@@ -110,6 +113,7 @@ export async function POST(request: NextRequest) {
         nama: nama.trim(),
         mandiriDesaId: Number(parentId)
       }).returning({ id: mandiriKelompok.id });
+      invalidateWilayahCache();
 
       return NextResponse.json({ id: result[0].id, nama: nama.trim() });
     }

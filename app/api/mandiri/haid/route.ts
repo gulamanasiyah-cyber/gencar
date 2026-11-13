@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { generus, mandiri, mandiriDesa, mandiriKelompok, mandiriDaerah, settings } from "@/lib/schema";
 import { eq, and, or, like, desc, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { getSettingRows } from "@/lib/cached-queries";
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
     const search = (searchParams.get("search") || "").trim();
     const filterHaid = searchParams.get("haid"); // "Ya", "Tidak", or undefined/null for all
 
-    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+    const activeSetting = await getSettingRows("mandiri_active_kegiatan_id");
     const activeKegiatanId = activeSetting[0]?.value;
 
     const conditions = [

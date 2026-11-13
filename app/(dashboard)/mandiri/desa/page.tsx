@@ -51,39 +51,32 @@ export default function MandiriDesaTreePage() {
 
   useEffect(() => { 
     async function init() {
+      let activeId = "";
       try {
         const [kegRes, activeRes, statusRes] = await Promise.all([
           fetch("/api/mandiri/kegiatan", { cache: 'no-store' }),
           fetch("/api/public/mandiri/settings?key=mandiri_active_kegiatan_id", { cache: 'no-store' }),
           fetch("/api/public/mandiri/settings?key=mandiri_daftar_wilayah_status", { cache: 'no-store' })
         ]);
-        
-        const kegs = await kegRes.json();
-        setKegiatanList(Array.isArray(kegs) ? kegs : []);
+        const [kegs, activeJson, statusJson] = await Promise.all([
+          kegRes.json(),
+          activeRes.json(),
+          statusRes.json(),
+        ]);
 
-        const activeJson = await activeRes.json();
-        const activeId = activeJson.value || (kegs.length > 0 ? kegs[0].id : "");
+        setKegiatanList(Array.isArray(kegs) ? kegs : []);
+        activeId = activeJson.value || (Array.isArray(kegs) && kegs.length > 0 ? kegs[0].id : "");
         setActiveKegiatanId(activeId);
         setSelectedKegiatan(activeId);
-        
-        const statusJson = await statusRes.json();
         setDaftarWilayahStatus(statusJson.value || "open");
-
-        // Fetch data for initial active kegiatan
-        const daerahUrl = activeId ? `/api/mandiri/daerah?kegiatanId=${activeId}` : "/api/mandiri/daerah";
-        const [da, de, ke] = await Promise.all([
-          fetch(daerahUrl, { cache: 'no-store' }).then((r) => r.json()),
-          fetch("/api/mandiri/desa", { cache: 'no-store' }).then((r) => r.json()),
-          fetch("/api/mandiri/kelompok", { cache: 'no-store' }).then((r) => r.json()),
-        ]);
-        setDaerahList(Array.isArray(da) ? da : []);
-        setDesaList(Array.isArray(de) ? de : []);
-        setKelompokList(Array.isArray(ke) ? ke : []);
       } catch (err) {
         console.error("Init error in MandiriDesaPage:", err);
-      } finally {
-        setLoading(false);
       }
+
+      // Dengan kegiatan aktif, daftar daerah/desa/kelompok dimuat oleh efek
+      // `selectedKegiatan` di bawah (sebelumnya dimuat dua kali). Tanpa kegiatan
+      // aktif efek itu tidak berjalan, jadi muat di sini.
+      if (!activeId) await fetchAll("");
     }
     init();
     fetch("/api/profile", { cache: 'no-store' }).then(r => r.json()).then(d => setUserRole(d.role || ""));

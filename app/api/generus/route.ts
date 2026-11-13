@@ -6,6 +6,8 @@ import { eq, and, or, like, sql, not, isNull, isNotNull, ne, inArray, notInArray
 import { getSession } from "@/lib/auth";
 import { encryptPasswordSymmetric, decryptPasswordSymmetric } from "@/lib/crypto";
 import { v4 as uuidv4 } from "uuid";
+import { getSettingRows } from "@/lib/cached-queries";
+import { batchQueries } from "@/lib/db-batch";
 
 function generateNomorUnik() {
   const prefix = "GNR";
@@ -177,7 +179,7 @@ export async function GET(request: NextRequest) {
 
     let kegiatanId = searchParams.get("kegiatanId") || "";
     if (!kegiatanId) {
-      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+      const activeSetting = await getSettingRows("mandiri_active_kegiatan_id");
       kegiatanId = activeSetting[0]?.value || "";
     }
 
@@ -349,14 +351,15 @@ export async function GET(request: NextRequest) {
       countQuery.leftJoin(mandiri, eq(generus.id, mandiri.generusId));
     }
 
-    let [data, countResult] = await Promise.all([
+    // Data + count dikirim dalam satu round-trip ke database.
+    let [data, countResult] = await batchQueries([
       dataQuery
         .where(whereClause)
         .orderBy(...orderByClause)
         .limit(limit)
         .offset(offset),
       countQuery.where(whereClause),
-    ]);
+    ] as const);
     
     // DEKRIPSI OTOMATIS: Kembalikan wujud password asli khusus ke layar Admin (Dashboard)
     if (session.role === "admin") {

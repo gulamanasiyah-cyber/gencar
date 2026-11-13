@@ -5,6 +5,7 @@ import { mandiriDaerah, mandiriKegiatanDaerah } from "@/lib/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
+import { cachedWilayah, invalidateWilayahCache } from "@/lib/cached-queries";
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,30 +18,34 @@ export async function GET(request: NextRequest) {
 
     let data;
     if (kegiatanId) {
-      data = await db
-        .select({
-          id: mandiriDaerah.id,
-          nama: mandiriDaerah.nama,
-          isActive: sql<number>`COALESCE(${mandiriKegiatanDaerah.isActive}, 0)`.mapWith(Number),
-        })
-        .from(mandiriDaerah)
-        .leftJoin(
-          mandiriKegiatanDaerah,
-          and(
-            eq(mandiriKegiatanDaerah.daerahId, mandiriDaerah.id),
-            eq(mandiriKegiatanDaerah.kegiatanId, kegiatanId)
+      data = await cachedWilayah(`daerah:status:${kegiatanId}`, () =>
+        db
+          .select({
+            id: mandiriDaerah.id,
+            nama: mandiriDaerah.nama,
+            isActive: sql<number>`COALESCE(${mandiriKegiatanDaerah.isActive}, 0)`.mapWith(Number),
+          })
+          .from(mandiriDaerah)
+          .leftJoin(
+            mandiriKegiatanDaerah,
+            and(
+              eq(mandiriKegiatanDaerah.daerahId, mandiriDaerah.id),
+              eq(mandiriKegiatanDaerah.kegiatanId, kegiatanId)
+            )
           )
-        )
-        .orderBy(mandiriDaerah.nama);
+          .orderBy(mandiriDaerah.nama)
+      );
     } else {
-      data = await db
-        .select({
-          id: mandiriDaerah.id,
-          nama: mandiriDaerah.nama,
-          isActive: sql<number>`0`.mapWith(Number)
-        })
-        .from(mandiriDaerah)
-        .orderBy(mandiriDaerah.nama);
+      data = await cachedWilayah("daerah:status:none", () =>
+        db
+          .select({
+            id: mandiriDaerah.id,
+            nama: mandiriDaerah.nama,
+            isActive: sql<number>`0`.mapWith(Number)
+          })
+          .from(mandiriDaerah)
+          .orderBy(mandiriDaerah.nama)
+      );
     }
 
     return NextResponse.json(data);
@@ -69,6 +74,7 @@ export async function POST(request: NextRequest) {
         isActive: 1,
       });
     }
+    invalidateWilayahCache();
     return NextResponse.json({ success: true, data: insertedDaerah });
   } catch (error) {
     console.error(error);
@@ -111,12 +117,14 @@ export async function PUT(request: NextRequest) {
           isActive: isActive ? 1 : 0,
         });
       }
-      return NextResponse.json({ success: true });
+      invalidateWilayahCache();
+    return NextResponse.json({ success: true });
     }
 
     if (!id || !nama || !nama.trim()) return NextResponse.json({ error: "ID dan nama daerah wajib diisi" }, { status: 400 });
     await db.update(mandiriDaerah).set({ nama: nama.trim() }).where(eq(mandiriDaerah.id, Number(id)));
 
+    invalidateWilayahCache();
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error(error);
@@ -135,6 +143,7 @@ export async function DELETE(request: NextRequest) {
     if (!id) return NextResponse.json({ error: "ID diperlukan" }, { status: 400 });
     
     await db.delete(mandiriDaerah).where(eq(mandiriDaerah.id, Number(id)));
+    invalidateWilayahCache();
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error(error);

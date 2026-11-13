@@ -8,6 +8,7 @@ import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 
 import { pusherServer } from "@/lib/pusher";
+import { getSettingRows, getSettingValue, invalidateSettingsCache } from "@/lib/cached-queries";
 
 // GET: Check Box Love status + search participants
 export async function GET(request: NextRequest) {
@@ -17,8 +18,8 @@ export async function GET(request: NextRequest) {
 
     // Action: get Box Love status (public, no auth)
     if (action === "status") {
-      const data = await db.select().from(settings).where(eq(settings.key, "box_love_status"));
-      return NextResponse.json({ value: data[0]?.value || "closed" });
+      const value = await getSettingValue("box_love_status");
+      return NextResponse.json({ value: value || "closed" });
     }
 
     // Action: search participants for Box Love popup
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
       const tokenReq = searchParams.get("token");
 
       // Get the active kegiatan from settings
-      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+      const activeSetting = await getSettingRows("mandiri_active_kegiatan_id");
       const kegiatanId = activeSetting[0]?.value || "";
 
       // Validate user session via token
@@ -128,6 +129,7 @@ export async function POST(request: NextRequest) {
       } else {
         await db.insert(settings).values({ key: "box_love_status", value: newStatus });
       }
+      invalidateSettingsCache();
 
       try {
         await pusherServer.trigger("taaruf-channel", "box-love-status-changed", { status: newStatus });

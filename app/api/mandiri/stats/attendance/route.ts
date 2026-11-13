@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { mandiriAbsensi, mandiriKegiatan, formPanitiaDanPengurus, settings } from "@/lib/schema";
 import { eq, desc, sql, and } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { getSettingRows, getMandiriKegiatanById } from "@/lib/cached-queries";
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,15 +19,15 @@ export async function GET(request: NextRequest) {
     let kegiatanJudul = "";
 
     if (!kegiatanId) {
-      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+      const activeSetting = await getSettingRows("mandiri_active_kegiatan_id");
       kegiatanId = activeSetting[0]?.value || "";
     }
 
     if (!kegiatanId) {
       return NextResponse.json({ count: 0 });
     }
-    const act = await db.select().from(mandiriKegiatan).where(eq(mandiriKegiatan.id, kegiatanId)).limit(1);
-    kegiatanJudul = act[0]?.judul || "Kegiatan Aktif";
+    const act = await getMandiriKegiatanById(kegiatanId);
+    kegiatanJudul = act?.judul || "Kegiatan Aktif";
 
     // 2. Count distinct committee members in attendance
     const attendanceCount = await db

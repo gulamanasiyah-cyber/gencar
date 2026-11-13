@@ -5,6 +5,8 @@ import { mandiri, generus, desa, kelompok, mandiriDesa, mandiriKelompok, users, 
 import { eq, and, or, like, sql, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
+import { getSettingRows } from "@/lib/cached-queries";
+import { batchQueries } from "@/lib/db-batch";
 import {
   getNextMandiriNomorUrut,
   isMandiriJenisKelamin,
@@ -51,7 +53,7 @@ export async function GET(request: NextRequest) {
     let kegiatanId = searchParams.get("kegiatanId") || "";
 
     if (!kegiatanId) {
-      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+      const activeSetting = await getSettingRows("mandiri_active_kegiatan_id");
       kegiatanId = activeSetting[0]?.value || "";
     }
 
@@ -156,7 +158,7 @@ export async function GET(request: NextRequest) {
       ));
     }
 
-    const data = await dataQuery
+    const pagedDataQuery = dataQuery
       .where(whereClause)
       .limit(limit)
       .offset(offset)
@@ -194,8 +196,12 @@ export async function GET(request: NextRequest) {
       countQuery.leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id));
     }
 
-    const countResult = await countQuery.where(baseWhereClause);
-    
+    // Data + count dikirim dalam satu round-trip ke database.
+    const [data, countResult] = await batchQueries([
+      pagedDataQuery,
+      countQuery.where(baseWhereClause),
+    ] as const);
+
     let totalFiltered = Number(countResult[0]?.count || 0);
     if (statusPeserta === "Utusan Daerah") {
         totalFiltered = Number(countResult[0]?.utusanDaerah || 0);

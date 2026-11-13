@@ -1,49 +1,37 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { settings, mandiriKegiatan, kegiatan } from "@/lib/schema";
-import { eq, desc } from "drizzle-orm";
+import { kegiatan } from "@/lib/schema";
+import { desc } from "drizzle-orm";
+import {
+  getSettingRows,
+  getActiveMandiriKegiatanId,
+  getMandiriKegiatanById,
+  getLatestMandiriKegiatan,
+} from "@/lib/cached-queries";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const key = searchParams.get("key") || "mandiri_registration_deadline";
 
-    // Priority for Mandiri Kegiatan (Automatic)
-    if (key === "mandiri_registration_title") {
-      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-      let kegiatanId = activeSetting[0]?.value || "";
-      if (kegiatanId) {
-        const active = await db.select({ value: mandiriKegiatan.judul }).from(mandiriKegiatan).where(eq(mandiriKegiatan.id, kegiatanId)).limit(1);
-        if (active[0]?.value) return NextResponse.json({ key, value: active[0].value });
-      }
-      const latest = await db.select({ value: mandiriKegiatan.judul }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-      if (latest[0]?.value) return NextResponse.json({ key, value: latest[0].value });
+    // Priority for Mandiri Kegiatan (Automatic): kegiatan aktif, lalu kegiatan terbaru.
+    // Semua dibaca dari cache memori (lib/cached-queries.ts).
+    const mandiriKegiatanField: Record<string, "judul" | "lokasi" | "deskripsi"> = {
+      mandiri_registration_title: "judul",
+      mandiri_registration_location: "lokasi",
+      mandiri_registration_description: "deskripsi",
+    };
+    const field = mandiriKegiatanField[key];
+    if (field) {
+      const kegiatanId = await getActiveMandiriKegiatanId();
+      const active = kegiatanId ? await getMandiriKegiatanById(kegiatanId) : undefined;
+      if (active?.[field]) return NextResponse.json({ key, value: active[field] });
+      const latest = await getLatestMandiriKegiatan();
+      if (latest?.[field]) return NextResponse.json({ key, value: latest[field] });
     }
 
-    if (key === "mandiri_registration_location") {
-      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-      let kegiatanId = activeSetting[0]?.value || "";
-      if (kegiatanId) {
-        const active = await db.select({ value: mandiriKegiatan.lokasi }).from(mandiriKegiatan).where(eq(mandiriKegiatan.id, kegiatanId)).limit(1);
-        if (active[0]?.value) return NextResponse.json({ key, value: active[0].value });
-      }
-      const latest = await db.select({ value: mandiriKegiatan.lokasi }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-      if (latest[0]?.value) return NextResponse.json({ key, value: latest[0].value });
-    }
-
-    if (key === "mandiri_registration_description") {
-      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-      let kegiatanId = activeSetting[0]?.value || "";
-      if (kegiatanId) {
-        const active = await db.select({ value: mandiriKegiatan.deskripsi }).from(mandiriKegiatan).where(eq(mandiriKegiatan.id, kegiatanId)).limit(1);
-        if (active[0]?.value) return NextResponse.json({ key, value: active[0].value });
-      }
-      const latest = await db.select({ value: mandiriKegiatan.deskripsi }).from(mandiriKegiatan).orderBy(desc(mandiriKegiatan.tanggal)).limit(1);
-      if (latest[0]?.value) return NextResponse.json({ key, value: latest[0].value });
-    }
-
-    const data = await db.select().from(settings).where(eq(settings.key, key));
+    const data = await getSettingRows(key);
 
     // Fallbacks for Mandiri if no Kegiatan found
     if (key === "mandiri_registration_title" && !data[0]?.value) {

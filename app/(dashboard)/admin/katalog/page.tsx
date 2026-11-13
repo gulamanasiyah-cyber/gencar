@@ -60,8 +60,10 @@ export default function AdminKatalogPage() {
   const [zoomPhoto, setZoomPhoto] = useState<GenerusItem | null>(null);
   const limit = 20;
 
+  const fetchRequestIdRef = useRef(0);
   const fetchData = useCallback(async () => {
     if (!isAuthorized) return;
+    const requestId = ++fetchRequestIdRef.current;
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -82,59 +84,59 @@ export default function AdminKatalogPage() {
       });
       const res = await fetch(`/api/generus?${params}`, { cache: "no-store" });
       const json = await res.json();
+      // Abaikan respons lama bila sudah ada request yang lebih baru.
+      if (requestId !== fetchRequestIdRef.current) return;
       setData(json.data || []);
       setTotal(json.total || 0);
     } catch (e: any) {
       console.error(e);
     } finally {
-      setLoading(false);
+      if (requestId === fetchRequestIdRef.current) setLoading(false);
     }
   }, [isAuthorized, search, page, gender, status, pendidikan, selectedDaerah, selectedDesa, selectedKelompok, sortOrder, selectedKegiatanId]);
+  const fetchDataRef = useRef(fetchData);
+  useEffect(() => {
+    fetchDataRef.current = fetchData;
+  }, [fetchData]);
 
   useEffect(() => {
     async function init() {
       try {
-        const profileRes = await fetch("/api/profile", { cache: "no-store" });
+        // Semua data awal diambil paralel (sebelumnya 5 request berurutan).
+        // `/api/mandiri/kegiatan` sudah memuat kegiatan terbaru di urutan pertama,
+        // dan `/api/settings` sekaligus memuat logo situs.
+        const [profileRes, kegiatanRes, settingsRes, statusRes, boxLoveRes] = await Promise.all([
+          fetch("/api/profile", { cache: "no-store" }),
+          fetch("/api/mandiri/kegiatan", { cache: "no-store" }),
+          fetch("/api/settings", { cache: "no-store" }),
+          fetch("/api/mandiri/settings?key=mandiri_katalog_public_status", { cache: "no-store" }),
+          fetch("/api/mandiri/box-love?action=status", { cache: "no-store" }),
+        ]);
         if (!profileRes.ok) throw new Error("Gagal mengambil profil");
-        const profileJson = await profileRes.json();
+        const [profileJson, kList, s, statusJson, boxLoveJson] = await Promise.all([
+          profileRes.json(),
+          kegiatanRes.ok ? kegiatanRes.json() : null,
+          settingsRes.ok ? settingsRes.json() : ({} as Record<string, any>),
+          statusRes.ok ? statusRes.json() : null,
+          boxLoveRes.ok ? boxLoveRes.json() : null,
+        ]);
+
+        // Semua state diset dalam tick yang sama → satu render, sehingga daftar
+        // peserta hanya dimuat sekali (dengan kegiatan yang sudah benar).
         setMyProfile(profileJson);
         setIsAuthorized(!!profileJson.isInPdkt || ["admin", "tim_pnkb", "admin_romantic_room", "kmm_daerah", "pengurus_daerah", "admin_pdkt", "tim_pnkb_gambuh"].includes(profileJson.role));
 
-        // Fetch activity info + kegiatan list + active setting
-        const [activityRes, kegiatanRes, settingsRes] = await Promise.all([
-          fetch("/api/mandiri/kegiatan?limit=1", { cache: "no-store" }),
-          fetch("/api/mandiri/kegiatan", { cache: "no-store" }),
-          fetch("/api/settings", { cache: "no-store" }),
-        ]);
-        if (activityRes.ok) {
-          const activities = await activityRes.json();
-          if (activities.length > 0) setLatestActivity(activities[0]);
+        if (Array.isArray(kList)) {
+          if (kList.length > 0) setLatestActivity(kList[0]);
+          setKegiatanList(kList);
+          const activeId = s.mandiri_active_kegiatan_id || "";
+          if (activeId) setSelectedKegiatanId(activeId);
+          else if (kList.length > 0) setSelectedKegiatanId(kList[0].id);
         }
-        if (kegiatanRes.ok) {
-          const kList = await kegiatanRes.json();
-          if (Array.isArray(kList)) {
-            setKegiatanList(kList);
-            const s = settingsRes.ok ? await settingsRes.json() : {};
-            const activeId = s.mandiri_active_kegiatan_id || "";
-            if (activeId) setSelectedKegiatanId(activeId);
-            else if (kList.length > 0) setSelectedKegiatanId(kList[0].id);
-          }
-        }
-        // Fetch public status
-        const statusRes = await fetch("/api/mandiri/settings?key=mandiri_katalog_public_status", { cache: "no-store" });
-        if (statusRes.ok) {
-          const statusJson = await statusRes.json();
-          setPublicStatus(statusJson.value || "closed");
-        }
+        if (statusJson) setPublicStatus(statusJson.value || "closed");
+        if (boxLoveJson) setBoxLoveStatus(boxLoveJson.value || "closed");
 
-        // Fetch Box Love status
-        const boxLoveRes = await fetch("/api/mandiri/box-love?action=status", { cache: "no-store" });
-        if (boxLoveRes.ok) {
-          const boxLoveJson = await boxLoveRes.json();
-          setBoxLoveStatus(boxLoveJson.value || "closed");
-        }
-
-        // Fetch site logo
+        // Site logo
         if (typeof window !== 'undefined') {
           const handleLogoUpdate = () => {
             setSiteLogo((window as any).__SITE_LOGO__ || null);
@@ -142,16 +144,10 @@ export default function AdminKatalogPage() {
           handleLogoUpdate();
           window.addEventListener('site-logo-updated', handleLogoUpdate);
 
-          if (!(window as any).__SITE_LOGO__) {
-            const settingsRes = await fetch("/api/settings");
-            if (settingsRes.ok) {
-              const settingsData = await settingsRes.json();
-              if (settingsData.site_logo) {
-                setSiteLogo(settingsData.site_logo);
-                (window as any).__SITE_LOGO__ = settingsData.site_logo;
-                window.dispatchEvent(new Event('site-logo-updated'));
-              }
-            }
+          if (!(window as any).__SITE_LOGO__ && s.site_logo) {
+            setSiteLogo(s.site_logo);
+            (window as any).__SITE_LOGO__ = s.site_logo;
+            window.dispatchEvent(new Event('site-logo-updated'));
           }
         }
 
@@ -212,24 +208,32 @@ export default function AdminKatalogPage() {
       const pusher = getPusherClient();
       if (pusher) {
         const channel = pusher.subscribe("taaruf-channel");
-        channel.bind("room-changed", () => {
-          fetchRooms();
-          fetchData();
-        });
-        channel.bind("taaruf-changed", () => {
-          fetchRooms();
-          fetchData();
-        });
+        // Event bisa datang beruntun saat acara berlangsung; gabungkan menjadi
+        // satu refresh agar katalog lengkap tidak dimuat ulang berkali-kali.
+        let eventTimer: ReturnType<typeof setTimeout> | null = null;
+        const handleChange = () => {
+          if (eventTimer) clearTimeout(eventTimer);
+          eventTimer = setTimeout(() => {
+            eventTimer = null;
+            fetchRooms();
+            fetchDataRef.current();
+          }, 300);
+        };
+        channel.bind("room-changed", handleChange);
+        channel.bind("taaruf-changed", handleChange);
         return () => {
           clearInterval(interval);
-          channel.unbind("room-changed");
-          channel.unbind("taaruf-changed");
+          if (eventTimer) clearTimeout(eventTimer);
+          channel.unbind("room-changed", handleChange);
+          channel.unbind("taaruf-changed", handleChange);
           pusher.unsubscribe("taaruf-channel");
         };
       }
     }
     return () => clearInterval(interval);
-  }, [isAuthorized, fetchData]);
+    // fetchData dibaca lewat ref supaya polling & langganan Pusher tidak
+    // di-reset setiap kali filter berubah.
+  }, [isAuthorized]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

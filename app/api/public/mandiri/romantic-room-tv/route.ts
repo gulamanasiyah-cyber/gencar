@@ -4,10 +4,11 @@ import { db } from "@/lib/db";
 import { mandiriRooms, mandiriPemilihan, generus, mandiri, settings, formPanitiaDanPengurus } from "@/lib/schema";
 import { eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
+import { getSettingRows } from "@/lib/cached-queries";
 
 export async function GET(request: NextRequest) {
     try {
-        const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+        const activeSetting = await getSettingRows("mandiri_active_kegiatan_id");
         const kegiatanId = activeSetting[0]?.value || "";
 
         if (!kegiatanId) {

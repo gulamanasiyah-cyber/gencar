@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { generus, mandiri, mandiriDesa, idCardBuilderData, formPanitiaDanPengurus, settings, mandiriDaerah, timGambuh } from "@/lib/schema";
 import { eq, or, like, and, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { getSettingRows } from "@/lib/cached-queries";
+import { batchQueries } from "@/lib/db-batch";
 
 // Search specifically for generus who are in the mandiri list for the specified kegiatan
 export async function GET(request: NextRequest) {
@@ -19,7 +21,7 @@ export async function GET(request: NextRequest) {
     if (!q && !showAll) return NextResponse.json([]);
 
     if (!kegiatanId) {
-      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+      const activeSetting = await getSettingRows("mandiri_active_kegiatan_id");
       kegiatanId = activeSetting[0]?.value || "";
     }
 
@@ -28,7 +30,7 @@ export async function GET(request: NextRequest) {
     const limitRecords = showAll ? 2000 : 10;
     const limitCombined = showAll ? 4000 : 15;
 
-    const dataGenerus = await db
+    const dataGenerusQuery = db
       .select({
         id: generus.id,
         nama: generus.nama,
@@ -64,7 +66,7 @@ export async function GET(request: NextRequest) {
       .limit(limitRecords);
 
     // Also search specifically in form_panitia_dan_pengurus for those not yet in generus or those with different info
-    const dataPanitia = await db
+    const dataPanitiaQuery = db
       .select({
         id: sql<string>`COALESCE(${formPanitiaDanPengurus.generusId}, ${formPanitiaDanPengurus.id})`,
         nama: formPanitiaDanPengurus.nama,
@@ -89,7 +91,7 @@ export async function GET(request: NextRequest) {
       .limit(limitRecords);
 
     // Also search specifically in tim_gambuh for Tim PNKB and Ibu Gambuh
-    const dataTimGambuh = await db
+    const dataTimGambuhQuery = db
       .select({
         id: timGambuh.id,
         nama: timGambuh.nama,
@@ -113,6 +115,13 @@ export async function GET(request: NextRequest) {
         )
       )
       .limit(limitRecords);
+
+    // Ketiga pencarian independen: kirim dalam satu round-trip ke database.
+    const [dataGenerus, dataPanitia, dataTimGambuh] = await batchQueries([
+      dataGenerusQuery,
+      dataPanitiaQuery,
+      dataTimGambuhQuery,
+    ] as const);
 
     // Combine and deduplicate by nama + nomorUnik
     const combined = [...dataGenerus, ...dataPanitia, ...dataTimGambuh];

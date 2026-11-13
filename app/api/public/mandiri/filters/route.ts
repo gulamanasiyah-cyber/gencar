@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { generus, mandiri, mandiriDesa, mandiriKelompok, mandiriDaerah, settings } from "@/lib/schema";
 import { eq, isNotNull, and } from "drizzle-orm";
+import { getSettingRows } from "@/lib/cached-queries";
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
     if (kegiatanId === "semua" || kegiatanId === "all" || kegiatanId === "undefined" || kegiatanId === "null") {
       kegiatanId = "";
     } else if (!kegiatanId) {
-      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+      const activeSetting = await getSettingRows("mandiri_active_kegiatan_id");
       kegiatanId = activeSetting[0]?.value || "";
     }
 

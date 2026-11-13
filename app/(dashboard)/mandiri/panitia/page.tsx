@@ -53,6 +53,11 @@ export default function MandiriPanitiaPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  // Pencarian dikirim ke server setelah pengguna berhenti mengetik (bukan per ketikan).
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  // Daftar baru dimuat setelah kegiatan aktif diketahui, agar tidak fetch dua kali.
+  const [initReady, setInitReady] = useState(false);
+  const fetchRequestIdRef = useRef(0);
   const [page, setPage] = useState(1);
   const [userRole, setUserRole] = useState("");
   const [kegiatanList, setKegiatanList] = useState<KegiatanOption[]>([]);
@@ -128,30 +133,41 @@ export default function MandiriPanitiaPage() {
         if (Array.isArray(kl)) setKelompokList(kl);
       } catch (e) {
         console.error("Failed to fetch init data:", e);
+      } finally {
+        setInitReady(true);
       }
     };
     fetchInit();
   }, []);
 
   useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
     setPage(1);
-  }, [search, selectedKegiatanId]);
+  }, [debouncedSearch, selectedKegiatanId]);
 
   const fetchData = useCallback(async () => {
+    if (!initReady) return;
+    const requestId = ++fetchRequestIdRef.current;
     setLoading(true);
     try {
-      const params = new URLSearchParams({ search, page: String(page), limit: String(limit) });
+      const params = new URLSearchParams({ search: debouncedSearch, page: String(page), limit: String(limit) });
       if (selectedKegiatanId) params.set("kegiatanId", selectedKegiatanId);
       const res = await fetch(`/api/mandiri/panitia?${params}`);
       const json = await res.json();
+      // Abaikan respons lama bila sudah ada request yang lebih baru.
+      if (requestId !== fetchRequestIdRef.current) return;
       setData(json.data || []);
       setTotal(json.total || 0);
     } catch (e) {
       console.error(e);
     } finally {
-      setLoading(false);
+      if (requestId === fetchRequestIdRef.current) setLoading(false);
     }
-  }, [search, page, selectedKegiatanId]);
+  }, [initReady, debouncedSearch, page, selectedKegiatanId]);
 
   const handleTogglePanitiaReg = async () => {
     try {

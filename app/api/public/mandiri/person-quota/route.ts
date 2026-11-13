@@ -5,14 +5,11 @@ import { db } from "@/lib/db";
 import { settings } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { getMandiriPersonPerempuanQuotaStatus } from "@/lib/mandiriNomorUrut";
+import { getSettingRows } from "@/lib/cached-queries";
 
 export async function GET() {
   try {
-    const activeSetting = await db
-      .select()
-      .from(settings)
-      .where(eq(settings.key, "mandiri_active_kegiatan_id"))
-      .limit(1);
+    const activeSetting = await getSettingRows("mandiri_active_kegiatan_id");
     const kegiatanId = activeSetting[0]?.value || "";
 
     const quota = await getMandiriPersonPerempuanQuotaStatus(db, kegiatanId);

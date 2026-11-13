@@ -35,6 +35,14 @@ import {
   isNotNull,
   like,
 } from "drizzle-orm";
+import { batchQueries } from "@/lib/db-batch";
+import {
+  cachedWilayah,
+  getActiveMandiriKegiatanId,
+  getAllDesaWithDaerah,
+  getAllKelompokWithDesa,
+  getMandiriKegiatanById,
+} from "@/lib/cached-queries";
 
 async function getStats(session: any, searchParams?: any) {
   try {
@@ -100,23 +108,12 @@ async function getStats(session: any, searchParams?: any) {
       ? and(generusFilter, roleExclusion)
       : (roleExclusion as any);
 
-    // Active Mandiri Kegiatan from settings
-    const activeSetting = await db
-      .select()
-      .from(settings)
-      .where(eq(settings.key, "mandiri_active_kegiatan_id"));
-    const currentActivityId = activeSetting[0]?.value || undefined;
+    // Active Mandiri Kegiatan from settings (cache memori, tanpa round-trip DB)
+    const currentActivityId = (await getActiveMandiriKegiatanId()) || undefined;
 
     let activeKegiatanTitle = "";
     if (currentActivityId) {
-      const kegiatanInfo = await db
-        .select({ judul: mandiriKegiatan.judul })
-        .from(mandiriKegiatan)
-        .where(eq(mandiriKegiatan.id, currentActivityId))
-        .limit(1);
-      if (kegiatanInfo.length > 0) {
-        activeKegiatanTitle = kegiatanInfo[0].judul;
-      }
+      activeKegiatanTitle = (await getMandiriKegiatanById(currentActivityId))?.judul || "";
     }
 
     const attendanceFilter = (extra?: any) => {
@@ -167,18 +164,12 @@ async function getStats(session: any, searchParams?: any) {
 
     let mandiriDesaIds: number[] | undefined = undefined;
     if (mCity || mVillage) {
-      const conditions = [];
-      if (mCity) conditions.push(eq(mandiriDaerah.nama, mCity));
-      if (mVillage) conditions.push(eq(mandiriDesa.nama, mVillage));
-
-      const matchedDesas = await db
-        .select({ id: mandiriDesa.id })
-        .from(mandiriDesa)
-        .leftJoin(
-          mandiriDaerah,
-          eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id),
-        )
-        .where(and(...conditions));
+      // Dicocokkan dari daftar desa ter-cache (setara query desa ⟕ daerah
+      // dengan kondisi nama daerah/desa).
+      const allDesa = await getAllDesaWithDaerah();
+      const matchedDesas = allDesa.filter(
+        (d) => (!mCity || d.kota === mCity) && (!mVillage || d.nama === mVillage),
+      );
       mandiriDesaIds = matchedDesas.map((d: { id: number }) => d.id);
 
       if (mandiriDesaIds && mandiriDesaIds.length === 0) {
@@ -195,10 +186,9 @@ async function getStats(session: any, searchParams?: any) {
     }
 
     if (mGroup) {
-      const matchedGroups = await db
-        .select({ id: mandiriKelompok.id })
-        .from(mandiriKelompok)
-        .where(eq(mandiriKelompok.nama, mGroup));
+      const matchedGroups = (await getAllKelompokWithDesa()).filter(
+        (g) => g.nama === mGroup,
+      );
       const mandiriKelompokIds = matchedGroups.map((g) => g.id);
       if (mandiriKelompokIds.length === 0) {
         mandiriUserConditions.push(sql`1=0`);
@@ -240,6 +230,80 @@ async function getStats(session: any, searchParams?: any) {
         ? and(...artikelAuthorConditions)
         : undefined;
 
+    // Session Results Stats (riwayat kunjungan) — ikut dikirim di batch yang sama
+    const g1 = aliasedTable(generus, "g1");
+    const g2 = aliasedTable(generus, "g2");
+    const md1 = aliasedTable(mandiriDesa, "md1");
+    const md2 = aliasedTable(mandiriDesa, "md2");
+    const mda1 = aliasedTable(mandiriDaerah, "mda1");
+    const mda2 = aliasedTable(mandiriDaerah, "mda2");
+    const mk1 = aliasedTable(mandiriKelompok, "mk1");
+    const mk2 = aliasedTable(mandiriKelompok, "mk2");
+    const pan1 = aliasedTable(formPanitiaDanPengurus, "pan1");
+    const pan2 = aliasedTable(formPanitiaDanPengurus, "pan2");
+
+    const allVisitsQuery = db
+      .select({
+        h1: mandiriPemilihan.hasilPengirim,
+        h2: mandiriPemilihan.hasilPenerima,
+        city1: mda1.nama,
+        village1: md1.nama,
+        group1: mk1.nama,
+        city2: mda2.nama,
+        village2: md2.nama,
+        group2: mk2.nama,
+      })
+      .from(mandiriKunjungan)
+      .innerJoin(
+        mandiriPemilihan,
+        eq(mandiriKunjungan.pemilihanId, mandiriPemilihan.id),
+      )
+      .leftJoin(
+        g1,
+        eq(
+          sql`COALESCE(${mandiriPemilihan.pengirimId}, ${mandiriKunjungan.generusId})`,
+          g1.id,
+        ),
+      )
+      .leftJoin(g2, eq(mandiriPemilihan.penerimaId, g2.id))
+      .leftJoin(pan1, eq(g1.id, pan1.generusId))
+      .leftJoin(pan2, eq(g2.id, pan2.generusId))
+      .leftJoin(
+        md1,
+        eq(sql`COALESCE(${g1.mandiriDesaId}, ${pan1.mandiriDesaId})`, md1.id),
+      )
+      .leftJoin(
+        md2,
+        eq(sql`COALESCE(${g2.mandiriDesaId}, ${pan2.mandiriDesaId})`, md2.id),
+      )
+      .leftJoin(mda1, eq(md1.mandiriDaerahId, mda1.id))
+      .leftJoin(mda2, eq(md2.mandiriDaerahId, mda2.id))
+      .leftJoin(
+        mk1,
+        eq(
+          sql`COALESCE(${g1.mandiriKelompokId}, ${pan1.mandiriKelompokId})`,
+          mk1.id,
+        ),
+      )
+      .leftJoin(
+        mk2,
+        eq(
+          sql`COALESCE(${g2.mandiriKelompokId}, ${pan2.mandiriKelompokId})`,
+          mk2.id,
+        ),
+      )
+      .where(
+        currentActivityId
+          ? and(
+              isNotNull(mandiriKunjungan.pemilihanId),
+              eq(mandiriKunjungan.kegiatanId, currentActivityId),
+            )
+          : isNotNull(mandiriKunjungan.pemilihanId),
+      )
+      .groupBy(mandiriKunjungan.pemilihanId);
+
+    // Semua statistik di atas + riwayat kunjungan dikirim dalam SATU round-trip
+    // ke database (db.batch), bukan ±32 request terpisah.
     const [
       generusCount,
       kegiatanCount,
@@ -272,7 +336,8 @@ async function getStats(session: any, searchParams?: any) {
       mandiriTerdaftarPesertaPerempuan,
       mandiriTerdaftarPanitiaLaki,
       mandiriTerdaftarPanitiaPerempuan,
-    ] = await Promise.all([
+      allVisits,
+    ] = await batchQueries([
       db
         .select({ count: sql<number>`count(DISTINCT ${generus.id})` })
         .from(generus)
@@ -681,79 +746,8 @@ async function getStats(session: any, searchParams?: any) {
               : undefined,
           ),
         ),
-    ]);
-
-    // Session Results Stats
-    const g1 = aliasedTable(generus, "g1");
-    const g2 = aliasedTable(generus, "g2");
-    const md1 = aliasedTable(mandiriDesa, "md1");
-    const md2 = aliasedTable(mandiriDesa, "md2");
-    const mda1 = aliasedTable(mandiriDaerah, "mda1");
-    const mda2 = aliasedTable(mandiriDaerah, "mda2");
-    const mk1 = aliasedTable(mandiriKelompok, "mk1");
-    const mk2 = aliasedTable(mandiriKelompok, "mk2");
-    const pan1 = aliasedTable(formPanitiaDanPengurus, "pan1");
-    const pan2 = aliasedTable(formPanitiaDanPengurus, "pan2");
-
-    const allVisits = await db
-      .select({
-        h1: mandiriPemilihan.hasilPengirim,
-        h2: mandiriPemilihan.hasilPenerima,
-        city1: mda1.nama,
-        village1: md1.nama,
-        group1: mk1.nama,
-        city2: mda2.nama,
-        village2: md2.nama,
-        group2: mk2.nama,
-      })
-      .from(mandiriKunjungan)
-      .innerJoin(
-        mandiriPemilihan,
-        eq(mandiriKunjungan.pemilihanId, mandiriPemilihan.id),
-      )
-      .leftJoin(
-        g1,
-        eq(
-          sql`COALESCE(${mandiriPemilihan.pengirimId}, ${mandiriKunjungan.generusId})`,
-          g1.id,
-        ),
-      )
-      .leftJoin(g2, eq(mandiriPemilihan.penerimaId, g2.id))
-      .leftJoin(pan1, eq(g1.id, pan1.generusId))
-      .leftJoin(pan2, eq(g2.id, pan2.generusId))
-      .leftJoin(
-        md1,
-        eq(sql`COALESCE(${g1.mandiriDesaId}, ${pan1.mandiriDesaId})`, md1.id),
-      )
-      .leftJoin(
-        md2,
-        eq(sql`COALESCE(${g2.mandiriDesaId}, ${pan2.mandiriDesaId})`, md2.id),
-      )
-      .leftJoin(mda1, eq(md1.mandiriDaerahId, mda1.id))
-      .leftJoin(mda2, eq(md2.mandiriDaerahId, mda2.id))
-      .leftJoin(
-        mk1,
-        eq(
-          sql`COALESCE(${g1.mandiriKelompokId}, ${pan1.mandiriKelompokId})`,
-          mk1.id,
-        ),
-      )
-      .leftJoin(
-        mk2,
-        eq(
-          sql`COALESCE(${g2.mandiriKelompokId}, ${pan2.mandiriKelompokId})`,
-          mk2.id,
-        ),
-      )
-      .where(
-        currentActivityId
-          ? and(
-              isNotNull(mandiriKunjungan.pemilihanId),
-              eq(mandiriKunjungan.kegiatanId, currentActivityId),
-            )
-          : isNotNull(mandiriKunjungan.pemilihanId),
-      )
-      .groupBy(mandiriKunjungan.pemilihanId);
+      allVisitsQuery,
+    ] as const);
 
     const filteredVisits = allVisits.filter((v: any) => {
       let match = true;
@@ -850,93 +844,92 @@ async function getStats(session: any, searchParams?: any) {
 import Topbar from "@/components/Topbar";
 import DashboardFilter from "@/components/mandiri/DashboardFilter";
 
+/**
+ * Daftar Kota/Desa/Kelompok untuk filter dashboard, dibatasi pada daerah yang
+ * aktif di kegiatan berjalan. Hasilnya di-cache (di-invalidate saat data
+ * wilayah/kegiatan berubah) dan kedua query dikirim dalam satu batch.
+ */
+function getDashboardFilterLists(currentActivityId?: string) {
+  return cachedWilayah(`dashboard-filters:${currentActivityId || "none"}`, async () => {
+    // Daerah aktif via subquery: bila tidak ada daerah aktif hasilnya kosong,
+    // sama seperti filter `1=0` sebelumnya.
+    const activeDaerahFilter = () =>
+      currentActivityId
+        ? inArray(
+            mandiriDesa.mandiriDaerahId,
+            db
+              .select({ id: mandiriKegiatanDaerah.daerahId })
+              .from(mandiriKegiatanDaerah)
+              .where(
+                and(
+                  eq(mandiriKegiatanDaerah.kegiatanId, currentActivityId),
+                  eq(mandiriKegiatanDaerah.isActive, 1),
+                ),
+              ),
+          )
+        : undefined;
+
+    const [villages, groups] = await batchQueries([
+      db
+        .select({
+          id: mandiriDesa.id,
+          nama: mandiriDesa.nama,
+          mandiriDaerahId: mandiriDesa.mandiriDaerahId,
+          kota: mandiriDaerah.nama,
+        })
+        .from(mandiriDesa)
+        .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
+        .where(activeDaerahFilter())
+        .orderBy(mandiriDesa.nama),
+      db
+        .select({
+          id: mandiriKelompok.id,
+          nama: mandiriKelompok.nama,
+          mandiriDesaId: mandiriKelompok.mandiriDesaId,
+          desa: mandiriDesa.nama,
+          kota: mandiriDaerah.nama,
+        })
+        .from(mandiriKelompok)
+        .leftJoin(mandiriDesa, eq(mandiriKelompok.mandiriDesaId, mandiriDesa.id))
+        .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
+        .where(activeDaerahFilter())
+        .orderBy(mandiriKelompok.nama),
+    ] as const);
+
+    return { villages, groups };
+  });
+}
+
 export default async function DashboardPage({
   searchParams,
 }: {
   searchParams: any;
 }) {
   const session = await getSession();
-  const stats = await getStats(session, searchParams);
+  const currentActivityId = (await getActiveMandiriKegiatanId()) || undefined;
 
-  // Fetch Cities, Villages & Groups for Filter based on active kegiatan
-  const activeSetting = await db
-    .select()
-    .from(settings)
-    .where(eq(settings.key, "mandiri_active_kegiatan_id"));
-  const currentActivityId = activeSetting[0]?.value || undefined;
+  // Statistik, daftar filter wilayah, dan foto user tidak saling bergantung:
+  // jalankan bersamaan, bukan berurutan.
+  const [stats, filterLists, userFotoRows] = await Promise.all([
+    getStats(session, searchParams),
+    getDashboardFilterLists(currentActivityId),
+    session?.generusId
+      ? db
+          .select({ foto: generus.foto })
+          .from(generus)
+          .where(eq(generus.id, session.generusId))
+          .limit(1)
+      : Promise.resolve([] as { foto: string | null }[]),
+  ]);
 
-  let activeDaerahIds: number[] = [];
-  if (currentActivityId) {
-    const active = await db
-      .select({ daerahId: mandiriKegiatanDaerah.daerahId })
-      .from(mandiriKegiatanDaerah)
-      .where(
-        and(
-          eq(mandiriKegiatanDaerah.kegiatanId, currentActivityId),
-          eq(mandiriKegiatanDaerah.isActive, 1),
-        ),
-      );
-    activeDaerahIds = active.map((a: any) => a.daerahId);
-  }
-
-  let villageQuery = db
-    .select({
-      id: mandiriDesa.id,
-      nama: mandiriDesa.nama,
-      mandiriDaerahId: mandiriDesa.mandiriDaerahId,
-      kota: mandiriDaerah.nama,
-    })
-    .from(mandiriDesa)
-    .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id));
-
-  if (currentActivityId) {
-    if (activeDaerahIds.length > 0) {
-      villageQuery = villageQuery.where(
-        inArray(mandiriDesa.mandiriDaerahId, activeDaerahIds),
-      ) as any;
-    } else {
-      villageQuery = villageQuery.where(sql`1=0`) as any;
-    }
-  }
-  const villages = await villageQuery.orderBy(mandiriDesa.nama);
+  const { villages, groups } = filterLists;
   const cities = Array.from(
     new Set(villages.map((v: any) => v.kota).filter(Boolean)),
   ).sort();
 
-  let groupQuery = db
-    .select({
-      id: mandiriKelompok.id,
-      nama: mandiriKelompok.nama,
-      mandiriDesaId: mandiriKelompok.mandiriDesaId,
-      desa: mandiriDesa.nama,
-      kota: mandiriDaerah.nama,
-    })
-    .from(mandiriKelompok)
-    .leftJoin(mandiriDesa, eq(mandiriKelompok.mandiriDesaId, mandiriDesa.id))
-    .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id));
-
-  if (currentActivityId) {
-    if (activeDaerahIds.length > 0) {
-      groupQuery = groupQuery.where(
-        inArray(mandiriDesa.mandiriDaerahId, activeDaerahIds),
-      ) as any;
-    } else {
-      groupQuery = groupQuery.where(sql`1=0`) as any;
-    }
-  }
-  const groups = await groupQuery.orderBy(mandiriKelompok.nama);
-
   const isUser = session?.role === "generus" || session?.role === "creator";
 
-  let userFoto = "";
-  if (session?.generusId) {
-    const res = await db
-      .select({ foto: generus.foto })
-      .from(generus)
-      .where(eq(generus.id, session.generusId))
-      .limit(1);
-    if (res.length > 0) userFoto = res[0].foto || "";
-  }
+  const userFoto = userFotoRows[0]?.foto || "";
 
   const displayName =
     session?.role === "tim_pnkb_gambuh"

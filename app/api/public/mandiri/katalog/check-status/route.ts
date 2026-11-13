@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { mandiriAbsensi, mandiriKegiatan, generus, mandiri, mandiriDesa, formPanitiaDanPengurus, settings, mandiriDaerah } from "@/lib/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
+import { getSettingRows } from "@/lib/cached-queries";
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 1. Get the active kegiatan from settings
-    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+    const activeSetting = await getSettingRows("mandiri_active_kegiatan_id");
     let kegiatanId = activeSetting[0]?.value || "";
     let activeKegiatan = null;
 

@@ -1,28 +1,21 @@
-import { db } from "@/lib/db";
-import { settings } from "@/lib/schema";
-import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { getSettingValue } from "@/lib/cached-queries";
 
 export async function checkMaintenance() {
   try {
-    const maintenanceSetting = await db
-      .select({ value: settings.value })
-      .from(settings)
-      .where(eq(settings.key, "MAINTENANCE_MODE"))
-      .limit(1);
+    // Dibaca dari cache settings (di-invalidate saat POST /api/settings), sehingga
+    // layout dashboard tidak perlu round-trip ke database di setiap render.
+    const isMaintenance = (await getSettingValue("MAINTENANCE_MODE")) === "true";
 
-    const isMaintenance = maintenanceSetting.length > 0 && maintenanceSetting[0].value === "true";
-    
     if (isMaintenance) {
       const session = await getSession();
       const isPanitia = [
-        "admin", 
-        "pengurus_daerah", 
-        "kmm_daerah", 
-        "tim_pnkb", 
-        "admin_romantic_room", 
-        "admin_keuangan", 
+        "admin",
+        "pengurus_daerah",
+        "kmm_daerah",
+        "tim_pnkb",
+        "admin_romantic_room",
+        "admin_keuangan",
         "admin_kegiatan"
       ].includes(session?.role || "");
 

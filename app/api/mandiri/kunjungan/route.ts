@@ -6,6 +6,7 @@ import { eq, sql, desc, isNotNull, and, or } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { aliasedTable } from "drizzle-orm";
 import { ensureMandiriRoomSchema } from "@/lib/mandiri-schema";
+import { getSettingRows } from "@/lib/cached-queries";
 
 export async function GET(request: NextRequest) {
     try {
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         let kegiatanId = searchParams.get("kegiatanId") || "";
         if (!kegiatanId) {
-            const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+            const activeSetting = await getSettingRows("mandiri_active_kegiatan_id");
             kegiatanId = activeSetting[0]?.value || "";
         }
 

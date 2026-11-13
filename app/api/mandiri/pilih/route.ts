@@ -9,6 +9,7 @@ import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 import { pusherServer } from "@/lib/pusher";
 import { sendWhatsApp } from "@/lib/whatsapp";
+import { getSettingRows } from "@/lib/cached-queries";
 
 export async function GET(request: NextRequest) {
     try {
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
         }
 
         // If not logged in but has token, verify token
-        const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+        const activeSetting = await getSettingRows("mandiri_active_kegiatan_id");
         const kegiatanId = activeSetting[0]?.value || "";
 
         if (!currentGenerusId && nomorUnikReq && tokenReq && kegiatanId) {

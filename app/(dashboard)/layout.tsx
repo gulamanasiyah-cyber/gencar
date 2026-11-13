@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { generus, mandiri } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { checkMaintenance } from "@/lib/maintenance";
+import { batchQueries } from "@/lib/db-batch";
 import AccessDenied from "@/components/AccessDenied";
 import AutoLogout from "@/components/AutoLogout";
 
@@ -49,13 +50,15 @@ export default async function DashboardLayout({
   let isInMandiri = ["admin", "pengurus_daerah", "kmm_daerah", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "tim_pnkb_gambuh"].includes(session.role);
 
   if (session.generusId) {
-    const res = await db.select({ foto: generus.foto }).from(generus).where(eq(generus.id, session.generusId)).limit(1);
+    // Foto + status mandiri diambil dalam satu round-trip ke database.
+    const [res, mandiriRes] = await batchQueries([
+      db.select({ foto: generus.foto }).from(generus).where(eq(generus.id, session.generusId)).limit(1),
+      isInMandiri
+        ? Promise.resolve([] as { id: string }[])
+        : db.select({ id: mandiri.id }).from(mandiri).where(eq(mandiri.generusId, session.generusId)).limit(1),
+    ] as const);
     if (res.length > 0) userFoto = res[0].foto || "";
-    
-    if (!isInMandiri) {
-      const mandiriRes = await db.select({ id: mandiri.id }).from(mandiri).where(eq(mandiri.generusId, session.generusId)).limit(1);
-      isInMandiri = mandiriRes.length > 0;
-    }
+    if (!isInMandiri) isInMandiri = mandiriRes.length > 0;
   }
 
   return (

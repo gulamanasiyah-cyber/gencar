@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, settings, formPanitiaDanPengurus, mandiriKegiatan, mandiriAbsensi, mandiriPemilihan, mandiriDaerah } from "@/lib/schema";
 import { eq, and, or, like, sql, isNull, isNotNull, desc, exists } from "drizzle-orm";
+import { getSettingRows } from "@/lib/cached-queries";
 
 export async function GET(request: NextRequest) {
   try {
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
       isAuthorizedModifier = true;
     }
 
-    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+    const activeSetting = await getSettingRows("mandiri_active_kegiatan_id");
     const kegiatanId = activeSetting[0]?.value || "";
 
     let currentParticipantId: string | null = null;

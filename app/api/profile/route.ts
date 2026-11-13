@@ -5,6 +5,8 @@ import { generus, desa, kelompok, users, mandiri, mandiriDesa, settings, mandiri
 import { eq, and, desc } from "drizzle-orm";
 import { getSession, setSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
+import { getSettingRow } from "@/lib/cached-queries";
+import { batchQueries } from "@/lib/db-batch";
 
 export async function GET(request: NextRequest) {
   try {
@@ -91,9 +93,7 @@ export async function GET(request: NextRequest) {
       // --- Tim PNKB & Ibu Gambuh: ambil biodata dari tabel timGambuh ---
       if (["tim_pnkb", "tim_pnkb_gambuh"].includes(u.role)) {
         // Cari kegiatan aktif
-        const activeKegSetting = await db.query.settings.findFirst({
-          where: eq(settings.key, "mandiri_active_kegiatan_id")
-        });
+        const activeKegSetting = await getSettingRow("mandiri_active_kegiatan_id");
         const activeKegiatanId = activeKegSetting?.value || null;
 
         // Cari record timGambuh berdasarkan nama user + kegiatan aktif
@@ -211,7 +211,13 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const data = await db
+    // Kegiatan aktif dibaca dari cache; data profil + status mandiri diambil
+    // dalam satu round-trip ke database.
+    const activeSetting = await getSettingRow("mandiri_active_kegiatan_id");
+    const activeKegiatanId = activeSetting?.value || null;
+
+    const [data, mandiriRows] = await batchQueries([
+      db
       .select({
         id: generus.id,
         nomorUnik: generus.nomorUnik,
@@ -247,27 +253,24 @@ export async function GET(request: NextRequest) {
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
       .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
       .where(eq(generus.id, currentGenerusId))
-      .limit(1);
+      .limit(1),
+      db
+        .select({ nomorUrut: mandiri.nomorUrut })
+        .from(mandiri)
+        .where(
+          activeKegiatanId
+            ? and(eq(mandiri.generusId, currentGenerusId), eq(mandiri.kegiatanId, activeKegiatanId))
+            : eq(mandiri.generusId, currentGenerusId)
+        )
+        .limit(1),
+    ] as const);
 
     if (data.length === 0) {
       console.log("Profile API - Generus data not found for ID:", currentGenerusId);
       return NextResponse.json({ error: "Data profil tidak ditemukan" }, { status: 404 });
     }
 
-    // Fetch active activity
-    const activeSetting = await db.query.settings.findFirst({
-        where: eq(settings.key, "mandiri_active_kegiatan_id")
-    });
-    const activeKegiatanId = activeSetting?.value || null;
-
-    const mandiriData = activeKegiatanId 
-        ? await db.query.mandiri.findFirst({ 
-            where: and(
-                eq(mandiri.generusId, currentGenerusId),
-                eq(mandiri.kegiatanId, activeKegiatanId)
-            )
-          })
-        : await db.query.mandiri.findFirst({ where: eq(mandiri.generusId, currentGenerusId) });
+    const mandiriData = mandiriRows[0];
 
     // Include the current session role and PDKT status in the response
     const profile = {

@@ -5,7 +5,7 @@
 import Topbar from "@/components/Topbar";
 import PhotoUpload from "@/components/mandiri/PhotoUpload";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Swal from "sweetalert2";
 import * as XLSX from "xlsx";
 import ExcelJS from "exceljs";
@@ -66,6 +66,11 @@ export default function MandiriPage() {
    const [total, setTotal] = useState(0);
    const [loading, setLoading] = useState(true);
    const [search, setSearch] = useState("");
+   // Pencarian dikirim ke server setelah pengguna berhenti mengetik (bukan per ketikan).
+   const [debouncedSearch, setDebouncedSearch] = useState("");
+   // Daftar baru dimuat setelah kegiatan aktif diketahui, agar tidak fetch dua kali.
+   const [initReady, setInitReady] = useState(false);
+   const fetchRequestIdRef = useRef(0);
    const [sort, setSort] = useState(""); // "" (default), "asc", "desc"
    const [page, setPage] = useState(1);
    const [userRole, setUserRole] = useState("");
@@ -177,10 +182,17 @@ export default function MandiriPage() {
 
          } catch (e) {
             console.error("Failed to fetch unified settings:", e);
+         } finally {
+            setInitReady(true);
          }
       };
       fetchSettings();
    }, []);
+
+   useEffect(() => {
+      const timer = setTimeout(() => setDebouncedSearch(search), 300);
+      return () => clearTimeout(timer);
+   }, [search]);
 
 
    const handleSettings = async () => {
@@ -347,10 +359,12 @@ export default function MandiriPage() {
    };
 
    const fetchData = useCallback(async () => {
+      if (!initReady) return;
+      const requestId = ++fetchRequestIdRef.current;
       setLoading(true);
       try {
          const params = new URLSearchParams({
-            search,
+            search: debouncedSearch,
             page: String(page),
             limit: String(limit),
             sort: sort
@@ -362,6 +376,8 @@ export default function MandiriPage() {
          params.set("_t", Date.now().toString());
          const res = await fetch(`/api/mandiri?${params}`);
          const json = await res.json();
+         // Abaikan respons lama bila sudah ada request yang lebih baru.
+         if (requestId !== fetchRequestIdRef.current) return;
          setData(json.data || []);
          setTotal(json.total || 0);
          if (json.counts) {
@@ -377,14 +393,14 @@ export default function MandiriPage() {
       } catch (e) {
          console.error(e);
       } finally {
-         setLoading(false);
+         if (requestId === fetchRequestIdRef.current) setLoading(false);
       }
-   }, [search, page, sort, selectedKegiatanId, filterStatusPeserta]);
+   }, [initReady, debouncedSearch, page, sort, selectedKegiatanId, filterStatusPeserta]);
 
 
    useEffect(() => {
       setPage(1);
-   }, [search, sort, selectedKegiatanId, filterStatusPeserta]);
+   }, [debouncedSearch, sort, selectedKegiatanId, filterStatusPeserta]);
 
 
    useEffect(() => {
