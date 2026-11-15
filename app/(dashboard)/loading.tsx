@@ -16,6 +16,7 @@ export default function DashboardLoading() {
   }, []);
 
   return (
+    <div>
     <div className="page-loader-overlay">
       <div className="loader-progress-bar" />
       <div className="loader-logo" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
@@ -44,6 +45,7 @@ export default function DashboardLoading() {
         color: 'var(--text-muted)', 
         fontWeight: 500 
       }}>Memuat halaman...</p>
+    </div>
     </div>
   );
 }
