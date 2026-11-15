@@ -640,7 +640,15 @@ export default function PublicKatalogPage() {
 
       const json = await res.json();
       if (controller.signal.aborted) return;
-      const nextData = Array.isArray(json.data) ? json.data : [];
+      const rawData = Array.isArray(json.data) ? json.data : [];
+      // Hapus duplikat id agar key React unik
+      const seenIds = new Set<string>();
+      const nextData = rawData.filter((item: any) => {
+        const id = String(item?.id);
+        if (seenIds.has(id)) return false;
+        seenIds.add(id);
+        return true;
+      });
       setData(nextData);
       setSelectedParticipant((prev: any) => {
         if (!prev) return prev;
