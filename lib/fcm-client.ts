@@ -15,7 +15,6 @@ export async function registerFCM(phone: string) {
 
   // Lewati jika konfigurasi Firebase belum diisi di environment
   if (!firebaseConfig.apiKey || !firebaseConfig.appId || !firebaseConfig.messagingSenderId) {
-    console.warn("FCM dilewati: variabel NEXT_PUBLIC_FIREBASE_* belum diatur.");
     return;
   }
 
