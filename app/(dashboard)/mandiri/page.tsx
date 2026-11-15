@@ -3,6 +3,7 @@
 
 
 import Topbar from "@/components/Topbar";
+import { fetchRetry, safeJson } from "@/lib/fetch-retry";
 import PhotoUpload from "@/components/mandiri/PhotoUpload";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -147,13 +148,13 @@ export default function MandiriPage() {
       const fetchSettings = async () => {
          try {
             const [settingsRes, kegiatanRes, daerahRes, desaRes, kelRes] = await Promise.all([
-               fetch("/api/settings"),
-               fetch("/api/mandiri/kegiatan"),
-               fetch("/api/public/mandiri/daerah"),
-               fetch("/api/public/mandiri/desa?scope=all"),
-               fetch("/api/public/mandiri/kelompok?scope=all")
+               fetchRetry("/api/settings"),
+               fetchRetry("/api/mandiri/kegiatan"),
+               fetchRetry("/api/public/mandiri/daerah"),
+               fetchRetry("/api/public/mandiri/desa?scope=all"),
+               fetchRetry("/api/public/mandiri/kelompok?scope=all")
             ]);
-            const s = await settingsRes.json();
+            const s = await safeJson<any>(settingsRes, {});
             const statusVal = s.mandiri_registration_status || "1";
             setRegStatus(statusVal);
             setIsClosed(statusVal === "0");
@@ -165,7 +166,7 @@ export default function MandiriPage() {
             setRegMinAgeLaki(s.mandiri_registration_min_age_laki || "");
             setRegMinAgePerempuan(s.mandiri_registration_min_age_perempuan || "");
 
-            const kList = await kegiatanRes.json();
+            const kList = await safeJson<any>(kegiatanRes, null);
             if (Array.isArray(kList)) {
                setKegiatanList(kList);
                const activeId = s.mandiri_active_kegiatan_id || "";
@@ -173,11 +174,11 @@ export default function MandiriPage() {
                else if (kList.length > 0) setSelectedKegiatanId(kList[0].id);
             }
 
-            const ds = await daerahRes.json();
+            const ds = await safeJson<any>(daerahRes, null);
             if (Array.isArray(ds)) setDaerahList(ds);
-            const de = await desaRes.json();
+            const de = await safeJson<any>(desaRes, null);
             if (Array.isArray(de)) setDesaList(de);
-            const kl = await kelRes.json();
+            const kl = await safeJson<any>(kelRes, null);
             if (Array.isArray(kl)) setKelompokList(kl);
 
          } catch (e) {

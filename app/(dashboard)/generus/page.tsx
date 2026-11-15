@@ -3,6 +3,7 @@
 
 
 import Topbar from "@/components/Topbar";
+import { fetchRetry, safeJson } from "@/lib/fetch-retry";
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
@@ -52,8 +53,8 @@ export default function GenerusPage() {
 
     const fetchSettings = async () => {
         try {
-            const res = await fetch("/api/settings");
-            const s = await res.json();
+            const res = await fetchRetry("/api/settings");
+            const s = await safeJson<any>(res, {});
             setIsActive(s.generus_registration_active ?? "true");
         } catch (e) {
             console.error("Failed to fetch unified settings:", e);
