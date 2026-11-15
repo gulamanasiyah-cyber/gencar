@@ -13,6 +13,12 @@ const firebaseConfig = {
 export async function registerFCM(phone: string) {
   if (typeof window === "undefined") return;
 
+  // Lewati jika konfigurasi Firebase belum diisi di environment
+  if (!firebaseConfig.apiKey || !firebaseConfig.appId || !firebaseConfig.messagingSenderId) {
+    console.warn("FCM dilewati: variabel NEXT_PUBLIC_FIREBASE_* belum diatur.");
+    return;
+  }
+
   // Check if browser supports notifications and service worker
   if (!("Notification" in window)) {
     console.warn("This browser does not support desktop notifications.");
