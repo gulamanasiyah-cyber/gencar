@@ -203,7 +203,7 @@ export default function AdminKatalogPage() {
 
     if (isAuthorized) {
       fetchRooms();
-      interval = setInterval(fetchRooms, 10000);
+      interval = setInterval(() => { if (!document.hidden) fetchRooms(); }, 30000); // Pusher menangani realtime; polling hanya cadangan
 
       const pusher = getPusherClient();
       if (pusher) {

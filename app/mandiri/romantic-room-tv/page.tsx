@@ -32,7 +32,7 @@ export default function RomanticRoomTV() {
 
     useEffect(() => {
         fetchData();
-        const interval = setInterval(fetchData, 10000); // fallback polling
+        const interval = setInterval(() => { if (!document.hidden) fetchData(); }, 15000); // fallback polling (dilewati saat tab tersembunyi)
         const timeInterval = setInterval(() => setCurrentTime(new Date()), 1000); // Clock update
         return () => {
             clearInterval(interval);

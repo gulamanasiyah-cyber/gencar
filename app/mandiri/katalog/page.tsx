@@ -530,7 +530,7 @@ export default function PublicKatalogPage() {
   useEffect(() => {
     if (currentUser?.id) {
       const interval = setInterval(() => {
-        fetchUserComments(currentUser.id);
+        if (!document.hidden) fetchUserComments(currentUser.id);
       }, 30000);
       return () => clearInterval(interval);
     }
@@ -1711,7 +1711,8 @@ export default function PublicKatalogPage() {
         if (!text) throw new Error("Server tidak mengembalikan data. Coba lagi.");
         let json: any;
         try { json = JSON.parse(text); } catch { throw new Error("Respons server tidak valid. Coba lagi."); }
-        if (!res.ok) throw new Error(json.error || "Gagal melakukan pemilihan");
+        if (res.status === 401) throw new Error("Sesi peserta Anda tidak dikenali. Silakan login atau scan ulang QR peserta, lalu coba lagi. (Akun admin/panitia tanpa data peserta tidak bisa memilih.)");
+        if (!res.ok) throw new Error((json.error || "Gagal melakukan pemilihan") + (json.detail ? ` (${json.detail})` : ""));
 
         if (json.selections) {
           setSelections(json.selections);

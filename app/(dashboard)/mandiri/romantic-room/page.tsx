@@ -487,7 +487,7 @@ export default function RomanticRoomPage() {
         } else {
             fetchDataRef.current();
         }
-        const interval = setInterval(() => refreshRoomsRef.current(), 60000); // Keep a light room-state fallback; Pusher refreshes the full dashboard
+        const interval = setInterval(() => { if (!document.hidden) refreshRoomsRef.current(); }, 60000); // Keep a light room-state fallback; Pusher refreshes the full dashboard
         return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedKegiatanId]);

@@ -290,7 +290,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, id, selections: updatedSelections });
     } catch (error) {
         console.error("POST selection error:", error);
-        return NextResponse.json({ error: "Gagal memproses pilihan" }, { status: 500 });
+        return NextResponse.json({
+            error: "Gagal memproses pilihan",
+            // Detail error hanya dikirim saat development agar mudah ditelusuri
+            detail: process.env.NODE_ENV !== "production" ? String((error as any)?.message || error) : undefined,
+        }, { status: 500 });
     }
 }
 

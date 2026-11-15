@@ -199,11 +199,11 @@ function AbsensiContent() {
   useEffect(() => {
     fetchAbsensi();
 
-    // Polling setiap 5 detik
+    // Polling setiap 10 detik (dilewati saat tab tersembunyi)
     if (selectedKegiatan) {
       const interval = setInterval(() => {
-        fetchAbsensi(true);
-      }, 5000);
+        if (!document.hidden) fetchAbsensi(true);
+      }, 10000);
       return () => clearInterval(interval);
     }
   }, [fetchAbsensi, selectedKegiatan]);
