@@ -85,3 +85,23 @@ export function ensureSaranActivitySchema(): Promise<void> {
 
   return schemaGlobal.__saranActivitySchemaReady!;
 }
+
+/** Create the push notification history table on databases that predate it. */
+export function ensurePushNotificationSchema(): Promise<void> {
+  const g = globalThis as typeof globalThis & { __pushNotifSchemaReady?: Promise<void> };
+  if (!g.__pushNotifSchemaReady) {
+    g.__pushNotifSchemaReady = db.run(sql`CREATE TABLE IF NOT EXISTS push_notifications (
+      id TEXT PRIMARY KEY NOT NULL,
+      judul TEXT NOT NULL,
+      deskripsi TEXT NOT NULL,
+      sent_count INTEGER NOT NULL DEFAULT 0,
+      failed_count INTEGER NOT NULL DEFAULT 0,
+      created_by TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`).then(() => undefined).catch((error: unknown) => {
+      g.__pushNotifSchemaReady = undefined;
+      throw error;
+    });
+  }
+  return g.__pushNotifSchemaReady!;
+}

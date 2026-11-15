@@ -636,3 +636,16 @@ export const fcmTokens = sqliteTable("fcm_tokens", {
 
 export type FcmToken = typeof fcmTokens.$inferSelect;
 export type NewFcmToken = typeof fcmTokens.$inferInsert;
+
+export const pushNotifications = sqliteTable("push_notifications", {
+  id: text("id").primaryKey(),
+  judul: text("judul").notNull(),
+  deskripsi: text("deskripsi").notNull(),
+  sentCount: integer("sent_count").notNull().default(0),
+  failedCount: integer("failed_count").notNull().default(0),
+  createdBy: text("created_by"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type PushNotification = typeof pushNotifications.$inferSelect;
+export type NewPushNotification = typeof pushNotifications.$inferInsert;

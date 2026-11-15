@@ -9,6 +9,30 @@ const messagingSenderId = urlParams.get("messagingSenderId");
 const appId = urlParams.get("appId");
 const projectId = urlParams.get("projectId") || "gencar-340ef";
 
+// Pesan dikirim data-only ({title, body, link, tag}); tampilan dibuat di sini
+// supaya konsisten dan tidak muncul ganda. Pesan lama berformat `notification`
+// tetap didukung lewat fallback.
+function buildNotification(payload) {
+  const data = payload.data || {};
+  const n = payload.notification || {};
+  const title = data.title || n.title || "Notifikasi GENCAR";
+  return {
+    title,
+    options: {
+      body: data.body || n.body || "",
+      icon: "/img/logo-jb2.png",
+      badge: "/img/logo-jb2.png",
+      tag: data.tag || undefined,
+      renotify: !!data.tag,
+      vibrate: [200, 100, 200],
+      timestamp: Date.now(),
+      lang: "id",
+      actions: [{ action: "open", title: "Buka" }],
+      data: { click_action: data.link || "/mandiri/katalog" },
+    },
+  };
+}
+
 if (apiKey && messagingSenderId && appId) {
   firebase.initializeApp({
     apiKey,
@@ -20,42 +44,28 @@ if (apiKey && messagingSenderId && appId) {
 
   const messaging = firebase.messaging();
 
-  // Handle background notifications
   messaging.onBackgroundMessage((payload) => {
-    console.log("[firebase-messaging-sw.js] Received background message ", payload);
-    const notificationTitle = payload.notification.title || "Notifikasi Gencar";
-    const notificationOptions = {
-      body: payload.notification.body || "",
-      icon: "/favicon.ico",
-      badge: "/favicon.ico",
-      data: {
-        click_action: "/mandiri/katalog",
-      },
-    };
-
-    self.registration.showNotification(notificationTitle, notificationOptions);
+    // Pesan berformat `notification` sudah ditampilkan otomatis oleh FCM.
+    if (payload.notification && !payload.data) return;
+    const { title, options } = buildNotification(payload);
+    self.registration.showNotification(title, options);
   });
 } else {
   console.warn("[firebase-messaging-sw.js] Missing config parameters in URL query string.");
 }
 
-// Handle notification click event
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const clickAction = event.notification.data?.click_action || "/";
+  const target = event.notification.data?.click_action || "/";
 
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      // If a window is already open, focus it
       for (const client of clientList) {
-        if (client.url.includes(clickAction) && "focus" in client) {
+        if (new URL(client.url).pathname === target && "focus" in client) {
           return client.focus();
         }
       }
-      // Otherwise, open a new window
-      if (clients.openWindow) {
-        return clients.openWindow(clickAction);
-      }
+      if (clients.openWindow) return clients.openWindow(target);
     })
   );
 });

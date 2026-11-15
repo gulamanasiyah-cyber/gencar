@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db";
 import { fcmTokens } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
+import { sendLatestNotificationToToken } from "@/lib/push-notifications";
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,11 +35,14 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // Insert new token
+      const newId = uuidv4();
       await db.insert(fcmTokens).values({
-        id: uuidv4(),
+        id: newId,
         phone: cleanPhone,
         token
       });
+      // Perangkat baru: langsung terima notifikasi admin terbaru yang masih berlaku.
+      await sendLatestNotificationToToken({ id: newId, token }).catch((e) => console.error("Welcome push failed:", e));
       console.log(`Registered new FCM token for phone: ${cleanPhone}`);
     }
 

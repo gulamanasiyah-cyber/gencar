@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from "firebase/app";
-import { getMessaging, getToken } from "firebase/messaging";
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -59,6 +59,23 @@ export async function registerFCM(phone: string) {
       serviceWorkerRegistration: registration,
       vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
     });
+
+    // Saat aplikasi sedang dibuka, FCM tidak menampilkan apa pun otomatis: tampilkan manual.
+    if (!(window as any).__fcmForegroundBound) {
+      (window as any).__fcmForegroundBound = true;
+      onMessage(messaging, (payload) => {
+        const d: any = payload.data || {};
+        const title = d.title || payload.notification?.title;
+        if (!title) return;
+        registration.showNotification(title, {
+          body: d.body || payload.notification?.body || "",
+          icon: "/img/logo-jb2.png",
+          badge: "/img/logo-jb2.png",
+          tag: d.tag || undefined,
+          data: { click_action: d.link || "/mandiri/katalog" },
+        } as NotificationOptions);
+      });
+    }
 
     if (token) {
       console.log("Retrieved FCM Token:", token);

@@ -61,84 +61,104 @@ async function getGoogleAccessToken() {
   }
 }
 
+export type PushContent = {
+  title: string;
+  body: string;
+  /** Halaman yang dibuka saat notifikasi diklik. */
+  link?: string;
+  /** Notifikasi dengan tag sama saling menggantikan di perangkat. */
+  tag?: string;
+};
+
+type TokenRow = { id: string; token: string };
+
+const SEND_CONCURRENCY = 20;
+
+/**
+ * Kirim satu konten ke banyak token FCM. Pesan bersifat data-only sehingga
+ * tampilan (ikon, getar, tombol) sepenuhnya dikontrol service worker dan tidak
+ * muncul ganda. Token yang sudah tidak valid otomatis dihapus dari DB.
+ */
+export async function sendFCMToTokens(
+  tokens: TokenRow[],
+  content: PushContent
+): Promise<{ sent: number; failed: number }> {
+  if (tokens.length === 0) return { sent: 0, failed: 0 };
+
+  const accessToken = await getGoogleAccessToken();
+  if (!accessToken) return { sent: 0, failed: tokens.length };
+
+  const projectId = process.env.FIREBASE_PROJECT_ID || "gencar-340ef";
+  const url = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
+  const db = getDb();
+  let sent = 0;
+  let failed = 0;
+
+  const sendOne = async (item: TokenRow) => {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: {
+            token: item.token,
+            data: {
+              title: content.title,
+              body: content.body,
+              link: content.link || "/mandiri/katalog",
+              tag: content.tag || "",
+            },
+            webpush: { headers: { Urgency: "high", TTL: "86400" } },
+          },
+        }),
+      });
+      const resData: any = await res.json();
+      if (resData.error) {
+        failed++;
+        const code = resData.error.details?.[0]?.errorCode;
+        if (code === "UNREGISTERED" || resData.error.status === "NOT_FOUND") {
+          await db.delete(fcmTokens).where(eq(fcmTokens.id, item.id));
+        } else {
+          console.error(`FCM send error for token ${item.id}:`, resData.error);
+        }
+      } else {
+        sent++;
+      }
+    } catch (err) {
+      failed++;
+      console.error(`Failed to send FCM to token ID ${item.id}:`, err);
+    }
+  };
+
+  // Batasi paralelisme agar aman di runtime Worker (batas subrequest/koneksi).
+  for (let i = 0; i < tokens.length; i += SEND_CONCURRENCY) {
+    await Promise.all(tokens.slice(i, i + SEND_CONCURRENCY).map(sendOne));
+  }
+  return { sent, failed };
+}
+
 export async function sendFCMNotification(phone: string, title: string, body: string) {
   if (!phone) return;
 
-  // Normalize phone
   let cleanPhone = phone.trim().replace(/[^0-9]/g, "");
   if (cleanPhone.startsWith("0")) {
     cleanPhone = "62" + cleanPhone.slice(1);
   }
 
   const db = getDb();
-
-  // Find all tokens for this phone number
-  const tokensList = await db.select()
+  const tokensList = await db.select({ id: fcmTokens.id, token: fcmTokens.token })
     .from(fcmTokens)
     .where(eq(fcmTokens.phone, cleanPhone));
 
-  if (tokensList.length === 0) {
-    console.log(`No active FCM device tokens found for phone: ${cleanPhone}`);
-    return;
-  }
+  await sendFCMToTokens(tokensList, { title, body });
+}
 
-  const accessToken = await getGoogleAccessToken();
-  if (!accessToken) return;
-
-  const projectId = process.env.FIREBASE_PROJECT_ID || "gencar-340ef";
-  const url = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
-
-  console.log(`Sending FCM push notification to ${tokensList.length} device(s) for phone: ${cleanPhone}`);
-
-  // Send notifications in parallel
-  const sendPromises = tokensList.map(async (item) => {
-    try {
-      const payload = {
-        message: {
-          token: item.token,
-          notification: {
-            title,
-            body,
-          },
-          webpush: {
-            notification: {
-              icon: "/favicon.ico",
-              badge: "/favicon.ico",
-              click_action: "/mandiri/katalog",
-            }
-          }
-        },
-      };
-
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const resData = await res.json();
-
-      if (resData.error) {
-        console.error(`FCM send error for token ${item.id}:`, resData.error);
-        // If token is invalid or unregistered, clean it from DB
-        if (
-          resData.error.status === "INVALID_ARGUMENT" ||
-          resData.error.message?.includes("UNREGISTERED") ||
-          resData.error.details?.[0]?.errorCode === "UNREGISTERED"
-        ) {
-          await db.delete(fcmTokens).where(eq(fcmTokens.id, item.id));
-          console.log(`Deleted unregistered FCM token ID: ${item.id}`);
-        }
-      } else {
-        console.log(`FCM notification sent successfully to token ID: ${item.id}`);
-      }
-    } catch (err) {
-      console.error(`Failed to send FCM to token ID ${item.id}:`, err);
-    }
-  });
-
-  await Promise.all(sendPromises);
+/** Kirim ke seluruh perangkat yang terdaftar (broadcast dari admin). */
+export async function broadcastFCM(content: PushContent) {
+  const db = getDb();
+  const tokensList = await db.select({ id: fcmTokens.id, token: fcmTokens.token }).from(fcmTokens);
+  return { total: tokensList.length, ...(await sendFCMToTokens(tokensList, content)) };
 }
