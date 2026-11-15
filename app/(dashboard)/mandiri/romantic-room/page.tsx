@@ -1888,10 +1888,10 @@ export default function RomanticRoomPage() {
                             <h1>Management <span>Romantic Room</span> <Sparkles size={24} className="sparkle-icon" /></h1>
                             <p>Pantau antrean, alokasi ruangan, dan hasil pertemuan secara real-time</p>
                             {kegiatanList.length > 0 && (
-                                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px", minWidth: 0, maxWidth: "100%" }}>
                                     <label style={{ fontSize: 13, fontWeight: 600, color: "#64748b", whiteSpace: "nowrap" }}>Kegiatan:</label>
                                     <select
-                                        style={{ fontSize: 13, padding: "5px 10px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer" }}
+                                        style={{ fontSize: 13, padding: "5px 10px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", minWidth: 0, flex: "0 1 auto", maxWidth: "100%" }}
                                         value={selectedKegiatanId}
                                         onChange={e => setSelectedKegiatanId(e.target.value)}
                                     >
@@ -3438,8 +3438,9 @@ export default function RomanticRoomPage() {
                         .admin-layout { padding: 16px; }
                         .admin-grid { grid-template-columns: 1fr; gap: 16px; }
                         .history-box { grid-column: span 1; }
-                        .header-top { flex-direction: column; align-items: flex-start; gap: 12px; }
-                        .stats-row { flex-wrap: wrap; gap: 8px; }
+                        .header-top { flex-direction: column; align-items: stretch; gap: 12px; }
+                        .title-area { flex: 0 0 auto; width: 100%; }
+                        .stats-row { flex-wrap: wrap; gap: 8px; flex-shrink: 1; width: 100%; min-width: 0; }
                         .mini-stat { flex: 1; min-width: calc(50% - 4px); }
                         .queue-box { height: auto; min-height: 0; }
                         .queue-box .scrollable { max-height: 500px; }
