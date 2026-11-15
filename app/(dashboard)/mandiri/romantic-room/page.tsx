@@ -3405,6 +3405,19 @@ export default function RomanticRoomPage() {
                     .font-bold { font-weight: 700; color: #1e293b; }
                     
                     .manual-record-box { display: flex; align-items: center; gap: 12px; }
+                    /* Laporan hasil: judul di atas, toolbar membungkus ke baris berikutnya, tabel scroll horizontal */
+                    .history-box { min-width: 0; }
+                    .history-box .card-header { flex-direction: column; align-items: stretch; gap: 12px; }
+                    .history-box .header-title h3 { white-space: normal; }
+                    .history-box .manual-record-box { flex-wrap: wrap; gap: 8px; width: 100%; min-width: 0; }
+                    .history-box .manual-record-box > button { margin-right: 0 !important; white-space: nowrap; flex: 0 0 auto; padding: 8px 12px !important; }
+                    .history-box .manual-record-box .dropdown-peserta { min-width: 0; flex: 1 1 150px; max-width: 100%; }
+                    .history-box .manual-record-box .search-bar-container { flex: 1 1 200px !important; min-width: 160px !important; }
+                    .history-box .card-body { min-width: 0; max-width: 100%; overflow-x: auto; }
+                    .history-box .desktop-only { width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+                    .history-box .history-table { min-width: 1700px; }
+                    .history-box .history-table th, .history-box .history-table td { white-space: nowrap; }
+                    .history-box .history-table td:nth-child(3), .history-box .history-table td:nth-child(9) { white-space: normal; min-width: 150px; }
                     .dropdown-peserta { padding: 8px 12px; border-radius: 10px; border: 1px solid #e2e8f0; font-size: 13px; font-weight: 600; outline: none; min-width: 150px; background: white; cursor: pointer; }
                     .dropdown-peserta:focus { border-color: #f43f5e; box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.1); }
 
@@ -3455,6 +3468,8 @@ export default function RomanticRoomPage() {
                         .room-tile { padding: 8px; gap: 5px; }
                         .manual-record-box { flex-direction: column; align-items: stretch; width: 100%; gap: 8px; }
                         .manual-record-box select, .manual-record-box button { width: 100%; margin-right: 0 !important; }
+                        .history-box .manual-record-box > button { flex: 1 1 calc(50% - 4px); justify-content: center; }
+                        .history-box .manual-record-box .dropdown-peserta { flex: 1 1 100%; }
                         .queue-box .scrollable { max-height: 450px; }
                         .p-name { font-size: 13px; }
                         .search-bar-container { padding: 10px 12px; }
