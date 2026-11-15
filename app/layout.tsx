@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import PageTransition from "@/components/PageTransition";
 import ThemeConfig from "@/components/ThemeConfig";
+import FetchRetry from "@/components/FetchRetry";
 import { Suspense } from "react";
 
 const SITE_URL = "https://gencar.pintarsolusi.com";
@@ -55,6 +56,7 @@ export default function RootLayout({
         />
       </head>
       <body suppressHydrationWarning>
+        <FetchRetry />
         <Suspense fallback={null}>
           <ThemeConfig />
           <PageTransition />
