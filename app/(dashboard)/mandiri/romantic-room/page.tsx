@@ -3438,9 +3438,11 @@ export default function RomanticRoomPage() {
                         .admin-layout { padding: 16px; }
                         .admin-grid { grid-template-columns: 1fr; gap: 16px; }
                         .history-box { grid-column: span 1; }
-                        .header-top { flex-direction: column; align-items: stretch; gap: 12px; }
-                        .title-area { flex: 0 0 auto; width: 100%; }
-                        .stats-row { flex-wrap: wrap; gap: 8px; flex-shrink: 1; width: 100%; min-width: 0; }
+                        .room-header-modern { margin-bottom: 16px; }
+                        .header-top { display: block; height: auto; min-height: 0; }
+                        .title-area { flex: none; width: 100%; height: auto; min-height: 0; }
+                        .stats-row { flex-wrap: wrap; gap: 8px; flex-shrink: 1; width: 100%; min-width: 0; height: auto; margin-top: 12px; }
+                        .summary-section-container { margin-top: 12px; }
                         .mini-stat { flex: 1; min-width: calc(50% - 4px); }
                         .queue-box { height: auto; min-height: 0; }
                         .queue-box .scrollable { max-height: 500px; }
