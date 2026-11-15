@@ -985,7 +985,13 @@ export default function AdminKatalogPage() {
         </div>
       </div>
 
-      <div className="grid-section">
+      <div className="grid-section" style={loading && data.length > 0 ? { opacity: 0.5, pointerEvents: "none", transition: "opacity 0.2s" } : undefined}>
+        {loading && data.length === 0 && (
+          <div style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "48px 16px", color: "#475569", fontWeight: 700, fontSize: 14 }}>
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-t-blue-500 border-slate-200"></div>
+            <p style={{ margin: 0 }}>Memuat data peserta dan panitia...</p>
+          </div>
+        )}
         {data.map((item) => {
           const isPulang = item.keterangan === "pulang";
           return (

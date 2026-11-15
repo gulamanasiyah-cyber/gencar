@@ -99,6 +99,7 @@ function uniqueById<T extends { id?: any }>(list: T[]): T[] {
 
 export default function RomanticRoomPage() {
     const [loading, setLoading] = useState(true);
+    const [initialLoaded, setInitialLoaded] = useState(false);
     const fetchInFlightRef = useRef(false);
     const fetchPendingRef = useRef(false);
     const skipNextSelectedChangeRef = useRef(false);
@@ -470,6 +471,7 @@ export default function RomanticRoomPage() {
                 void fetchData();
             } else {
                 setLoading(false);
+                setInitialLoaded(true);
             }
         }
     };
@@ -1782,7 +1784,20 @@ export default function RomanticRoomPage() {
         return matchResult && matchCity && matchVillage && matchSearch;
     });
 
-    if (loading && !myProfile) return <div className="room-loading">Membuka Romantic Room...</div>;
+    if (!initialLoaded) {
+        return (
+            <div className="rr-initial-loading">
+                <div className="rr-initial-spinner" />
+                <p>Memuat data Romantic Room...</p>
+                <style>{`
+                    .rr-initial-loading { min-height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: #475569; font-weight: 700; font-size: 14px; }
+                    .rr-initial-loading p { margin: 0; }
+                    .rr-initial-spinner { width: 44px; height: 44px; border: 4px solid #e2e8f0; border-top-color: #ec4899; border-radius: 50%; animation: rr-spin 0.9s linear infinite; }
+                    @keyframes rr-spin { to { transform: rotate(360deg); } }
+                `}</style>
+            </div>
+        );
+    }
 
     if (isAdmin) {
         const sessionStats = {
