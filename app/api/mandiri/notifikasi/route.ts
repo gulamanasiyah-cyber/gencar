@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { desc, eq, sql } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "@/lib/db";
-import { fcmTokens, pushNotifications } from "@/lib/schema";
+import { fcmTokens, mandiri, pushNotifications } from "@/lib/schema";
 import { getSession } from "@/lib/auth";
 import { ensurePushNotificationSchema } from "@/lib/mandiri-schema";
 import { broadcastFCM } from "@/lib/fcm";
@@ -23,14 +23,16 @@ export async function GET() {
   try {
     if (!(await authorize())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     await ensurePushNotificationSchema();
-    const [history, devices] = await Promise.all([
+    const [history, devices, registered] = await Promise.all([
       db.select().from(pushNotifications).orderBy(desc(pushNotifications.createdAt)).limit(100),
       db.select({ total: sql<number>`count(*)`, users: sql<number>`count(distinct ${fcmTokens.phone})` }).from(fcmTokens),
+      db.select({ total: sql<number>`count(distinct ${mandiri.generusId})` }).from(mandiri),
     ]);
     return NextResponse.json({
       history,
       deviceCount: Number(devices[0]?.total || 0),
       userCount: Number(devices[0]?.users || 0),
+      registeredCount: Number(registered[0]?.total || 0),
     });
   } catch (error) {
     console.error("GET notifikasi error:", error);

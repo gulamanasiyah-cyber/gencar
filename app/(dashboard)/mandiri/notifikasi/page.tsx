@@ -30,6 +30,7 @@ export default function NotifikasiRomanticRoom() {
     const [history, setHistory] = useState<Notif[]>([]);
     const [deviceCount, setDeviceCount] = useState(0);
     const [userCount, setUserCount] = useState(0);
+    const [registeredCount, setRegisteredCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
 
@@ -41,6 +42,7 @@ export default function NotifikasiRomanticRoom() {
                 setHistory(Array.isArray(json.history) ? json.history : []);
                 setDeviceCount(json.deviceCount || 0);
                 setUserCount(json.userCount || 0);
+                setRegisteredCount(json.registeredCount || 0);
             }
         } catch (error) {
             console.error("Error fetching notifikasi:", error);
@@ -60,7 +62,7 @@ export default function NotifikasiRomanticRoom() {
         }
         const confirm = await Swal.fire({
             title: "Kirim Notifikasi?",
-            html: `Notifikasi akan dikirim ke <b>${deviceCount}</b> perangkat (${userCount} pengguna). Pendaftar baru dalam 7 hari ke depan juga akan menerimanya.`,
+            html: `Notifikasi akan dikirim ke <b>${deviceCount}</b> perangkat aktif (${userCount} dari ${registeredCount} pengguna terdaftar). Pendaftar baru dalam 7 hari ke depan juga akan menerimanya.`,
             icon: "question",
             showCancelButton: true,
             confirmButtonColor: "#dc2626",
@@ -129,7 +131,8 @@ export default function NotifikasiRomanticRoom() {
 
             <div className="stats">
                 <div className="stat"><Smartphone size={18} /><b>{deviceCount}</b><span>Perangkat aktif</span></div>
-                <div className="stat"><Users size={18} /><b>{userCount}</b><span>Pengguna</span></div>
+                <div className="stat"><Users size={18} /><b>{registeredCount}</b><span>Pengguna terdaftar</span></div>
+                <div className="stat"><Bell size={18} /><b>{userCount}</b><span>Pengguna aktif notifikasi</span></div>
             </div>
 
             <div className="grid">
