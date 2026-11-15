@@ -10,7 +10,8 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-export async function registerFCM(phone: string) {
+// prompt=false: jangan memunculkan dialog izin otomatis (harus lewat klik pengguna).
+export async function registerFCM(phone: string, prompt = true) {
   if (typeof window === "undefined") return;
 
   // Lewati jika konfigurasi Firebase belum diisi di environment
@@ -31,7 +32,7 @@ export async function registerFCM(phone: string) {
   try {
     // Request notification permission if not granted
     let permission = Notification.permission;
-    if (permission === "default") {
+    if (permission === "default" && prompt) {
       console.log("Requesting browser notification permission...");
       permission = await Notification.requestPermission();
     }

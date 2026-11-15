@@ -12,6 +12,7 @@ import {
   X, ShieldCheck, Star, UtilityPole as UtensilsIcon, ArrowLeft, Instagram, Timer, MessageSquare, Clock, QrCode, Send
 } from "lucide-react";
 import Link from "next/link";
+import NotifPermissionBanner from "@/components/NotifPermissionBanner";
 import { getPusherClient } from "@/lib/pusher-client";
 import JsBarcode from "jsbarcode";
 
@@ -777,7 +778,7 @@ export default function PublicKatalogPage() {
               // Bind FCM to existing user phone number
               if (typeof window !== "undefined" && data.noTelp) {
                 import("@/lib/fcm-client").then(({ registerFCM }) => {
-                  registerFCM(data.noTelp);
+                  registerFCM(data.noTelp, false);
                 }).catch(e => console.error("FCM client import failed:", e));
               }
 
@@ -2230,6 +2231,8 @@ export default function PublicKatalogPage() {
               </div>
             )}
           </div>
+
+          {currentUser?.noTelp && <NotifPermissionBanner phone={currentUser.noTelp} />}
 
           <main className="grid-container">
             {catalogLoadError ? (
