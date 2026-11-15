@@ -93,10 +93,10 @@ export async function GET(request: NextRequest) {
             .from(mandiriPemilihan)
             .innerJoin(g1, eq(mandiriPemilihan.pengirimId, g1.id))
             .innerJoin(g2, eq(mandiriPemilihan.penerimaId, g2.id))
-            .leftJoin(m1, eq(g1.id, m1.generusId))
-            .leftJoin(m2, eq(g2.id, m2.generusId))
-            .leftJoin(pan1, eq(g1.id, pan1.generusId))
-            .leftJoin(pan2, eq(g2.id, pan2.generusId))
+            .leftJoin(m1, and(eq(g1.id, m1.generusId), eq(m1.kegiatanId, adminKegiatanId)))
+            .leftJoin(m2, and(eq(g2.id, m2.generusId), eq(m2.kegiatanId, adminKegiatanId)))
+            .leftJoin(pan1, and(eq(g1.id, pan1.generusId), eq(pan1.kegiatanId, adminKegiatanId)))
+            .leftJoin(pan2, and(eq(g2.id, pan2.generusId), eq(pan2.kegiatanId, adminKegiatanId)))
             .leftJoin(md1, eq(sql`COALESCE(${g1.mandiriDesaId}, ${pan1.mandiriDesaId})`, md1.id))
             .leftJoin(md2, eq(sql`COALESCE(${g2.mandiriDesaId}, ${pan2.mandiriDesaId})`, md2.id))
             .leftJoin(mda1, eq(md1.mandiriDaerahId, mda1.id))
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
         })
         .from(mandiriPemilihan)
         .innerJoin(generus, eq(mandiriPemilihan.penerimaId, generus.id))
-        .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
+        .leftJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, mandiriPemilihan.kegiatanId)))
         .where(and(
             eq(mandiriPemilihan.pengirimId, targetPengirimId),
             eq(mandiriPemilihan.kegiatanId, kegiatanId)
@@ -269,7 +269,7 @@ export async function POST(request: NextRequest) {
         })
         .from(mandiriPemilihan)
         .innerJoin(generus, eq(mandiriPemilihan.penerimaId, generus.id))
-        .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
+        .leftJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, mandiriPemilihan.kegiatanId)))
         .where(and(
             eq(mandiriPemilihan.pengirimId, pengirimId),
             eq(mandiriPemilihan.kegiatanId, kegiatanId)
@@ -359,7 +359,7 @@ export async function DELETE(request: NextRequest) {
         })
         .from(mandiriPemilihan)
         .innerJoin(generus, eq(mandiriPemilihan.penerimaId, generus.id))
-        .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
+        .leftJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, mandiriPemilihan.kegiatanId)))
         .where(and(
             eq(mandiriPemilihan.pengirimId, pengirimId),
             eq(mandiriPemilihan.kegiatanId, kegiatanId)
@@ -437,7 +437,7 @@ export async function PATCH(request: NextRequest) {
                         nomorUrut: mandiri.nomorUrut
                     })
                     .from(generus)
-                    .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
+                    .leftJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, selection.kegiatanId)))
                     .where(eq(generus.id, selection.pengirimId))
                     .limit(1);
 
@@ -448,7 +448,7 @@ export async function PATCH(request: NextRequest) {
                         nomorUrut: mandiri.nomorUrut
                     })
                     .from(generus)
-                    .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
+                    .leftJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, selection.kegiatanId)))
                     .where(eq(generus.id, selection.penerimaId))
                     .limit(1);
 
@@ -488,12 +488,12 @@ export async function PATCH(request: NextRequest) {
             if (selection) {
                 const g1Data = await db.select({ nama: generus.nama, nomorUrut: mandiri.nomorUrut })
                     .from(generus)
-                    .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
+                    .leftJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, selection.kegiatanId)))
                     .where(eq(generus.id, selection.pengirimId))
                     .limit(1);
                 const g2Data = await db.select({ nama: generus.nama, nomorUrut: mandiri.nomorUrut })
                     .from(generus)
-                    .leftJoin(mandiri, eq(generus.id, mandiri.generusId))
+                    .leftJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, selection.kegiatanId)))
                     .where(eq(generus.id, selection.penerimaId))
                     .limit(1);
                 
