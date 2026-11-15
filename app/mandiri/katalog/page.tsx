@@ -2033,7 +2033,7 @@ export default function PublicKatalogPage() {
             <div className="toolbar-status-row">
               <div className="status-badge">
                 <Users size={14} />
-                <span>{catalogLoadError ? "Katalog gagal dimuat" : `${total} Peserta`}</span>
+                <span>{catalogLoadError ? "Katalog gagal dimuat" : (loading && data.length === 0) ? "Memuat data..." : `${total} Peserta`}</span>
               </div>
             </div>
 
@@ -2237,7 +2237,13 @@ export default function PublicKatalogPage() {
                 <button onClick={() => void fetchData()} style={{ border: 0, borderRadius: "10px", padding: "10px 16px", background: "#2563eb", color: "white", fontWeight: 700, cursor: "pointer" }}>Coba lagi</button>
               </div>
             ) : loading && data.length === 0 ? (
-              [...Array(6)].map((_, i) => <div key={i} className="skeleton-card" />)
+              <>
+                <div className="catalog-loading-box" style={{ gridColumn: "1 / -1" }}>
+                  <div className="catalog-spinner" />
+                  <p>Memuat data peserta dan panitia...</p>
+                </div>
+                {[...Array(3)].map((_, i) => <div key={i} className="skeleton-card" />)}
+              </>
             ) : (
               data.filter(item => item.id !== currentUser?.id && item.nomorUrut !== currentUser?.nomorUrut).map((item) => {
                 const isPulang = item.keterangan?.toLowerCase() === "pulang";
@@ -4193,6 +4199,10 @@ export default function PublicKatalogPage() {
         .page-numbers button { width:40px; height:40px; padding:0; display:flex; align-items:center; justify-content:center; }
         .page-numbers button.active { background:#1e293b; color:white; border-color:#1e293b; }
 
+        .catalog-loading-box { display:flex; flex-direction:column; align-items:center; gap:12px; padding:32px 16px; color:#475569; font-weight:700; font-size:14px; }
+        .catalog-loading-box p { margin:0; }
+        .catalog-spinner { width:40px; height:40px; border:4px solid #e2e8f0; border-top-color:#3b82f6; border-radius:50%; animation:catalog-spin 0.9s linear infinite; }
+        @keyframes catalog-spin { to { transform:rotate(360deg); } }
         .skeleton-card { height:600px; background:#f1f5f9; border-radius:32px; animation:pulse 1.5s infinite; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
 
