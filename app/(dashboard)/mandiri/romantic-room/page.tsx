@@ -86,6 +86,17 @@ const calculateAge = (birthDateString: string) => {
     return age;
 };
 
+// Hapus item duplikat (id sama) agar key React unik
+function uniqueById<T extends { id?: any }>(list: T[]): T[] {
+    const seen = new Set<any>();
+    return list.filter((x) => {
+        if (x?.id == null) return true;
+        if (seen.has(x.id)) return false;
+        seen.add(x.id);
+        return true;
+    });
+}
+
 export default function RomanticRoomPage() {
     const [loading, setLoading] = useState(true);
     const fetchInFlightRef = useRef(false);
@@ -279,7 +290,7 @@ export default function RomanticRoomPage() {
             const rooms = await res.json();
             if (Array.isArray(rooms)) {
                 const sortedRooms = [...rooms].sort((a, b) => a.nama.localeCompare(b.nama, undefined, { numeric: true, sensitivity: "base" }));
-                setAllRooms(lsApplyToRooms(sortedRooms));
+                setAllRooms(lsApplyToRooms(uniqueById(sortedRooms)));
             }
         } catch (err) {
             console.error("Refresh rooms error:", err);
@@ -385,7 +396,7 @@ export default function RomanticRoomPage() {
                 ? [...roomsJson].sort((a, b) => a.nama.localeCompare(b.nama, undefined, { numeric: true, sensitivity: 'base' }))
                 : [];
             // Apply localStorage backup for KOSONG rooms whose DB staff came back null
-            setAllRooms(lsApplyToRooms(sortedRooms));
+            setAllRooms(lsApplyToRooms(uniqueById(sortedRooms)));
 
             if (isUserAdmin) {
                 const [qRes, histRes, pRes, statsRes, desaRes, staffRes] = await adminDataPromise!;
@@ -399,7 +410,7 @@ export default function RomanticRoomPage() {
                     const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
                     return dateA - dateB;
                 });
-                setAllQueue(waiting);
+                setAllQueue(uniqueById(waiting));
 
                 // 2. Process Visit History
                 const histJson = await histRes.json();
