@@ -1455,21 +1455,8 @@ export default function MandiriPage() {
                                           ) : (
                                              <span className="badge badge-gray">Belum Hadir</span>
                                           )}
-                                          <div><strong>Target Menikah</strong>: {item.targetMenikah || "-"}</div>
-                                    </div>
+                                       </div>
 
-                                       <div className="status-item">
-                                          <span className="status-label">Status Akun</span>
-                                          <span className={`badge ${item.statusMandiri === "Aktif" ? "badge-blue" : "badge-gray"}`}>
-                                             {item.statusMandiri}
-                                          </span>
-                                       </div>
-                                       <div className="status-item">
-                                          <span className="status-label">Status Peserta</span>
-                                          <span className={`badge ${item.statusPeserta === "Person" ? "badge-purple" : "badge-blue"}`}>
-                                             {item.statusPeserta || "Utusan Daerah"}
-                                          </span>
-                                       </div>
                                        <div className="status-item">
                                           <span className="status-label">Dibayarkan Senilai</span>
                                           {item.statusPeserta !== "Person" ? (
@@ -2224,201 +2211,6 @@ export default function MandiriPage() {
                .card-actions {
                   display: flex;
                   gap: 8px;
-                  padding: 14px;
-                  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
-                  display: flex;
-                  flex-direction: column;
-gap: 12px;
-                  transition: transform 0.2s, box-shadow 0.2s;
-               }
-               .mobile-card:hover {
-                  transform: translateY(-1px);
-                  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-               }
-               .card-top-row {
-                  display: flex;
-                  justify-content: space-between;
-                  align-items: center;
-                  border-bottom: 1px solid #f1f5f9;
-                  padding-bottom: 8px;
-               }
-               .no-urut-badge {
-                  background: #f1f5f9;
-                  color: #475569;
-                  font-weight: 700;
-                  font-size: 12px;
-                  padding: 4px 8px;
-                  border-radius: 6px;
-               }
-               .unik-badge-container {
-                  display: flex;
-                  align-items: center;
-                  gap: 4px;
-                  background: #f0fdf4;
-                  border: 1px solid #bbf7d0;
-                  padding: 2px 8px;
-                  border-radius: 6px;
-               }
-               .unik-label {
-                  font-size: 10px;
-                  font-weight: 600;
-                  color: #16a34a;
-                  text-transform: uppercase;
-               }
-               .unik-value {
-                  font-family: monospace;
-                  font-size: 13px;
-                  font-weight: 700;
-                  color: #15803d;
-               }
-               .btn-copy-unik {
-                  background: none;
-                  border: none;
-                  padding: 2px;
-                  cursor: pointer;
-                  color: #16a34a;
-                  display: inline-flex;
-                  align-items: center;
-                  border-radius: 4px;
-               }
-               .btn-copy-unik:hover {
-                  background: #dcfce7;
-               }
-               .profile-row {
-                  display: flex;
-                  gap: 12px;
-                  align-items: center;
-               }
-               .avatar-wrapper {
-                  width: 48px;
-                  height: 48px;
-                  border-radius: 50%;
-                  overflow: hidden;
-                  background: #f1f5f9;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  border: 2px solid #e2e8f0;
-                  flex-shrink: 0;
-               }
-               .avatar-img {
-                  width: 100%;
-                  height: 100%;
-                  object-fit: cover;
-               }
-               .avatar-initial {
-                  font-size: 18px;
-                  font-weight: 700;
-                  color: #64748b;
-               }
-               .profile-info {
-                  display: flex;
-                  flex-direction: column;
-                  gap: 4px;
-               }
-               .profile-name {
-                  margin: 0;
-                  font-size: 15px;
-                  font-weight: 700;
-                  color: #1e293b;
-               }
-               .profile-badges {
-                  display: flex;
-                  gap: 6px;
-                  flex-wrap: wrap;
-               }
-               .gender-badge {
-                  font-size: 11px;
-                  padding: 2px 6px;
-                  border-radius: 4px;
-                  font-weight: 500;
-               }
-               .gender-badge.male {
-                  background: #e0f2fe;
-                  color: #0369a1;
-               }
-               .gender-badge.female {
-                  background: #fce7f3;
-                  color: #be185d;
-               }
-               .category-badge {
-                  background: #f3f4f6;
-                  color: #4b5563;
-                  font-size: 11px;
-                  padding: 2px 6px;
-                  border-radius: 4px;
-                  font-weight: 500;
-               }
-               .location-row {
-                  display: flex;
-                  align-items: center;
-                  gap: 6px;
-                  color: #64748b;
-                  font-size: 12.5px;
-               }
-               .loc-icon {
-                  width: 14px;
-                  height: 14px;
-                  color: #94a3b8;
-                  flex-shrink: 0;
-               }
-               .location-text {
-                  font-weight: 500;
-               }
-               .status-row {
-                  display: grid;
-                  grid-template-columns: 1fr 1fr;
-                  gap: 12px;
-                  background: #f8fafc;
-                  padding: 10px;
-                  border-radius: 10px;
-               }
-               .status-item {
-                  display: flex;
-                  flex-direction: column;
-                  gap: 4px;
-               }
-               .status-label {
-                  font-size: 10px;
-                  font-weight: 600;
-                  color: #94a3b8;
-                  text-transform: uppercase;
-                  letter-spacing: 0.5px;
-               }
-               .attendance-present {
-                  display: flex;
-                  flex-direction: column;
-                  gap: 2px;
-               }
-               .attendance-time {
-                  font-size: 9.5px;
-                  color: #64748b;
-                  font-weight: 500;
-                  padding-left: 2px;
-               }
-               .notes-box {
-                  background: #fffbeb;
-                  border: 1px dashed #fef3c7;
-                  border-radius: 8px;
-                  padding: 8px 12px;
-               }
-               .notes-title {
-                  font-size: 10px;
-                  font-weight: 700;
-                  color: #b45309;
-                  text-transform: uppercase;
-                  display: block;
-                  margin-bottom: 2px;
-               }
-               .notes-content {
-                  margin: 0;
-                  font-size: 12px;
-                  color: #78350f;
-                  line-height: 1.4;
-               }
-               .card-actions {
-                  display: flex;
-                  gap: 8px;
                   margin-top: 4px;
                }
                .flex-grow {
@@ -2481,11 +2273,54 @@ gap: 12px;
                }
                .card-header > div {
                   width: 100%;
+                  min-width: 0;
                   justify-content: space-between;
+                  flex-wrap: wrap;
+               }
+               .card-header div[style*="width: 1px"] {
+                  display: none;
+               }
+               .card-header > div:last-child {
+                  flex-wrap: nowrap;
                }
                .search-bar {
                   max-width: none !important;
-                  flex-grow: 1;
+                  flex: 1 1 0;
+                  min-width: 0;
+               }
+               .search-bar input {
+                  width: 100%;
+                  min-width: 0;
+                  box-sizing: border-box;
+               }
+               .table-wrapper {
+                  max-width: 100%;
+                  min-width: 0;
+                  overflow-x: hidden;
+               }
+               .mobile-card {
+                  min-width: 0;
+                  max-width: 100%;
+                  box-sizing: border-box;
+               }
+               .location-text,
+               .profile-name {
+                  overflow-wrap: anywhere;
+                  min-width: 0;
+               }
+               .profile-info {
+                  min-width: 0;
+               }
+               .status-row > .status-item {
+                  min-width: 0;
+               }
+               .card-actions {
+                  flex-direction: column;
+                  align-items: stretch;
+               }
+               .card-actions > :global(button) {
+                  width: 100%;
+                  justify-content: center;
                }
             }
          `}</style>

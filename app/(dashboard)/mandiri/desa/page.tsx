@@ -397,15 +397,15 @@ export default function MandiriDesaTreePage() {
   return (
     <div>
       <Topbar title="Usia Mandiri/Nikah - Kelola Wilayah" role={userRole} />
-      <div className="page-content" style={{ maxWidth: "1400px", margin: "0 auto", padding: "24px" }}>
+      <div className="page-content wil-page" style={{ maxWidth: "1400px", margin: "0 auto", padding: "24px" }}>
         
         <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px", marginBottom: "28px" }}>
           <div className="page-header-left">
             <h2 style={{ fontSize: "24px", fontWeight: 700, color: "#0f172a", marginBottom: "6px" }}>Kelola Wilayah & Kelompok (Tree View)</h2>
             <p style={{ color: "#64748b", fontSize: "14px" }}>Kelola daerah rujukan, desa, dan kelompok peserta dalam satu peta hirarki struktur</p>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#f8fafc", padding: "8px 14px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+          <div className="wil-header-actions" style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <div className="wil-wrapbox" style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", background: "#f8fafc", padding: "8px 14px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
               <span style={{ fontSize: "14px", fontWeight: 600, color: "#475569" }}>Filter Kegiatan:</span>
               <select
                 value={selectedKegiatan}
@@ -494,10 +494,10 @@ export default function MandiriDesaTreePage() {
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 2.5fr", gap: "24px", alignItems: "start" }}>
+        <div className="wil-grid" style={{ display: "grid", gridTemplateColumns: "1fr 2.5fr", gap: "24px", alignItems: "start" }}>
           
           {/* Left Panel: Form Tambah Daerah */}
-          <div className="card" style={{ padding: "24px", borderRadius: "16px", border: "1px solid #e2e8f0", background: "#fff", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)" }}>
+          <div className="card wil-card" style={{ padding: "24px", borderRadius: "16px", border: "1px solid #e2e8f0", background: "#fff", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
               <div style={{ background: "#eff6ff", color: "#2563eb", padding: "10px", borderRadius: "10px" }}>
                 <MapPin size={20} />
@@ -526,7 +526,7 @@ export default function MandiriDesaTreePage() {
           </div>
 
           {/* Right Panel: Tree View Map */}
-          <div className="card" style={{ padding: "24px", borderRadius: "16px", border: "1px solid #e2e8f0", background: "#fff", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", minHeight: "500px" }}>
+          <div className="card wil-card wil-tree-card" style={{ padding: "24px", borderRadius: "16px", border: "1px solid #e2e8f0", background: "#fff", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)", minHeight: "500px" }}>
             {(() => {
               const activeDaerahs = daerahList.filter(d => d.isActive !== 0);
               const visibleDaerahIds = new Set(daerahList.map(d => d.id));
@@ -615,9 +615,9 @@ export default function MandiriDesaTreePage() {
                     </div>
 
                     {/* Filter Daerah Bar */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", background: "#f8fafc", padding: "10px 14px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span style={{ fontSize: "13px", fontWeight: 600, color: "#475569" }}>Filter Daerah:</span>
+                    <div className="wil-filterbar" style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", background: "#f8fafc", padding: "10px 14px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+                      <div className="wil-filter-select" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ fontSize: "13px", fontWeight: 600, color: "#475569", whiteSpace: "nowrap" }}>Filter Daerah:</span>
                         <select
                           value={selectedFilterDaerah}
                           onChange={(e) => setSelectedFilterDaerah(e.target.value)}
@@ -645,7 +645,7 @@ export default function MandiriDesaTreePage() {
                         </select>
                       </div>
 
-                      <div style={{ flex: 1, minWidth: "200px" }}>
+                      <div className="wil-search" style={{ flex: 1, minWidth: "200px" }}>
                         <input
                           type="text"
                           placeholder="Cari nama daerah, desa, atau kelompok..."
@@ -718,6 +718,7 @@ export default function MandiriDesaTreePage() {
                           >
                             {/* Daerah Node */}
                             <div 
+                              className="wil-node"
                               style={{ 
                                 display: "flex", 
                                 justifyContent: "space-between", 
@@ -728,6 +729,7 @@ export default function MandiriDesaTreePage() {
                               }}
                             >
                         <div 
+                          className="wil-node-main"
                           onClick={() => toggleDaerahCollapse(daerah.id)}
                           style={{ 
                             display: "flex", 
@@ -745,7 +747,7 @@ export default function MandiriDesaTreePage() {
                           </span>
                         </div>
                         
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <div className="wil-node-actions" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                           {/* Toggle Active Button */}
                           <button
                             onClick={() => handleToggleDaerahActive(daerah.id, daerah.isActive !== 0)}
@@ -812,7 +814,7 @@ export default function MandiriDesaTreePage() {
 
                       {/* Desas List (Child of Daerah) */}
                       {!isDaerahCollapsed && (
-                        <div style={{ padding: "8px 16px 12px 28px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                        <div className="wil-desa-list" style={{ padding: "8px 16px 12px 28px", display: "flex", flexDirection: "column", gap: "10px" }}>
                           {daerah.desas.length === 0 ? (
                             <div style={{ fontSize: "13px", color: "#94a3b8", padding: "4px 8px" }}>Belum ada data desa di daerah ini.</div>
                           ) : (
@@ -830,6 +832,7 @@ export default function MandiriDesaTreePage() {
                                 >
                                   {/* Desa Node */}
                                   <div 
+                                    className="wil-node"
                                     style={{ 
                                       display: "flex", 
                                       justifyContent: "space-between", 
@@ -839,6 +842,7 @@ export default function MandiriDesaTreePage() {
                                     }}
                                   >
                                     <div 
+                                      className="wil-node-main"
                                       onClick={() => toggleDesaCollapse(desa.id)}
                                       style={{ 
                                         display: "flex", 
@@ -856,7 +860,7 @@ export default function MandiriDesaTreePage() {
                                       </span>
                                     </div>
 
-                                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                    <div className="wil-node-actions" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                                       {/* Add Kelompok Button */}
                                       <button
                                         onClick={() => handleAddKelompok(desa.id, desa.nama)}
@@ -900,7 +904,7 @@ export default function MandiriDesaTreePage() {
 
                                   {/* Kelompoks List (Child of Desa) */}
                                   {!isDesaCollapsed && (
-                                    <div style={{ padding: "8px 12px 10px 24px", display: "flex", flexDirection: "column", gap: "6px", background: "#fafafa", borderBottomLeftRadius: "10px", borderBottomRightRadius: "10px" }}>
+                                    <div className="wil-kel-list" style={{ padding: "8px 12px 10px 24px", display: "flex", flexDirection: "column", gap: "6px", background: "#fafafa", borderBottomLeftRadius: "10px", borderBottomRightRadius: "10px" }}>
                                       {desa.kelompoks.length === 0 ? (
                                         <div style={{ fontSize: "12.5px", color: "#94a3b8", padding: "2px 6px" }}>Belum ada data kelompok di desa ini.</div>
                                       ) : (
@@ -956,6 +960,35 @@ export default function MandiriDesaTreePage() {
 
         </div>
       </div>
+      <style>{`
+        .wil-page { box-sizing: border-box; max-width: 100%; }
+        .wil-card { box-sizing: border-box; min-width: 0; max-width: 100%; }
+        .wil-grid > * { min-width: 0; }
+        .wil-node { gap: 8px; }
+        .wil-node-main { min-width: 0; flex: 1 1 auto; flex-wrap: wrap; }
+        .wil-node-actions { flex-shrink: 0; }
+        @media (max-width: 1024px) {
+          .wil-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
+        }
+        @media (max-width: 768px) {
+          .wil-page { padding: 12px !important; }
+          .wil-page h2 { font-size: 20px !important; }
+          .wil-card { padding: 14px !important; border-radius: 12px !important; }
+          .wil-tree-card { min-height: 0 !important; }
+          .wil-header-actions { width: 100%; }
+          .wil-header-actions > * { width: 100%; box-sizing: border-box; }
+          .wil-header-actions > button { justify-content: center; }
+          .wil-wrapbox select { min-width: 0 !important; flex: 1 1 160px; max-width: 100%; }
+          .wil-filterbar { flex-direction: column; align-items: stretch !important; }
+          .wil-filter-select { width: 100%; }
+          .wil-filter-select select { flex: 1; min-width: 0; max-width: 100%; }
+          .wil-search { min-width: 0 !important; width: 100%; }
+          .wil-node { flex-direction: column; align-items: stretch !important; }
+          .wil-node-actions { flex-wrap: wrap; justify-content: flex-end; flex-shrink: 1; }
+          .wil-desa-list { padding: 8px 8px 10px 10px !important; }
+          .wil-kel-list { padding: 8px 8px 10px 10px !important; }
+        }
+      `}</style>
     </div>
   );
 }
