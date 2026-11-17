@@ -215,7 +215,7 @@ bash deploy.sh
 ```
 
 Script akan otomatis:
-1. `git pull --ff-only`
+1. `git pull --ff-only origin ubuntu-deploy` (otomatis beralih ke branch `ubuntu-deploy` jika belum aktif)
 2. Cek apakah image pre-built tersedia di GitHub Container Registry (GHCR via CI/CD):
    - Jika tersedia: image langsung diunduh via `docker pull` (**selesai dalam ~15 detik tanpa beban CPU server!**).
    - Jika belum ada / offline: script fallback otomatis mem-build image di server.
