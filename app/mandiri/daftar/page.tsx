@@ -79,6 +79,7 @@ export default function MandiriDaftarPage() {
   const [success, setSuccess] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [isClosed, setIsClosed] = useState(false);
+  const [closedAt, setClosedAt] = useState<Date | null>(null);
   const [regStatus, setRegStatus] = useState("1");
   const [regTitle, setRegTitle] = useState("");
   const [regDesc, setRegDesc] = useState("");
@@ -137,6 +138,17 @@ export default function MandiriDaftarPage() {
 
         if (val === "0" || specificClosed) {
           setIsClosed(true);
+          // Waktu penutupan = saat admin menutup pendaftaran (fallback: waktu terakhir status diubah)
+          const parseDate = (v: any) => {
+            if (!v) return null;
+            const raw = String(v);
+            const dt = new Date(raw.includes(" ") && !raw.includes("T") ? raw.replace(" ", "T") + "Z" : raw);
+            return isNaN(dt.getTime()) ? null : dt;
+          };
+          fetch("/api/public/mandiri/settings?key=mandiri_registration_closed_at")
+            .then((r) => r.json())
+            .then((c) => setClosedAt(parseDate(c?.value) || parseDate(d.updatedAt)))
+            .catch(() => setClosedAt(parseDate(d.updatedAt)));
         }
       });
 
@@ -938,9 +950,15 @@ export default function MandiriDaftarPage() {
           </p>
           <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "16px", display: "inline-block", textAlign: "center" }}>
             <p style={{ fontSize: "13.5px", color: "var(--text-muted)", margin: 0, lineHeight: "1.6" }}>
-              <strong>Pendaftaran Ta'aruf Kubro V9.0</strong><br />
-              Sudah ditutup pada hari <span style={{ color: "var(--text)", fontWeight: 600 }}>Kamis, 23 Juli 2026</span><br />
-              Pukul 00.00 WIB <span style={{ fontSize: "12px", opacity: 0.8 }}>(Waktu Indonesia Bagian Barat).</span>
+              <strong>{regTitle || "Pendaftaran Peserta"}</strong><br />
+              {closedAt ? (
+                <>
+                  Sudah ditutup pada hari <span style={{ color: "var(--text)", fontWeight: 600 }}>{closedAt.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Jakarta" })}</span><br />
+                  Pukul {closedAt.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jakarta" }).replace(":", ".")} WIB <span style={{ fontSize: "12px", opacity: 0.8 }}>(Waktu Indonesia Bagian Barat).</span>
+                </>
+              ) : (
+                <>Pendaftaran ditutup oleh admin.</>
+              )}
             </p>
           </div>
         </div>

@@ -57,6 +57,22 @@ export async function POST(request: NextRequest) {
     
     // Upsert Settings
     const existing = await db.select().from(settings).where(eq(settings.key, key));
+
+    // Catat waktu penutupan pendaftaran saat admin menutupnya (dipakai halaman pendaftaran)
+    if (key === "mandiri_registration_status") {
+      const isClosedVal = (v: any) => ["0", "tutup_utusan", "tutup_person"].includes(String(v ?? ""));
+      const wasClosed = isClosedVal(existing[0]?.value);
+      const nowClosed = isClosedVal(value);
+      const closedKey = "mandiri_registration_closed_at";
+      if (nowClosed && !wasClosed) {
+        const nowIso = new Date().toISOString();
+        const prev = await db.select().from(settings).where(eq(settings.key, closedKey));
+        if (prev.length > 0) await db.update(settings).set({ value: nowIso, updatedAt: nowIso }).where(eq(settings.key, closedKey));
+        else await db.insert(settings).values({ key: closedKey, value: nowIso });
+      } else if (!nowClosed && wasClosed) {
+        await db.update(settings).set({ value: "", updatedAt: new Date().toISOString() }).where(eq(settings.key, closedKey));
+      }
+    }
     if (existing.length > 0) {
       await db.update(settings).set({ value, updatedAt: new Date().toISOString() }).where(eq(settings.key, key));
     } else {
