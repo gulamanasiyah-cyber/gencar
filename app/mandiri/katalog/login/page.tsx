@@ -135,9 +135,21 @@ export default function KatalogLoginPage() {
 
   return (
     <div className="login-backdrop">
-      {checkingSavedSession ? (
-        <div className="restoring-session">Memeriksa sesi tersimpan...</div>
-      ) : (
+      {checkingSavedSession && (
+        /* Gaya inline + <style> biasa agar spinner tampil sejak render server (sebelum styled-jsx aktif) */
+        <div
+          role="status"
+          aria-live="polite"
+          style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, background: "#f1f5f9", fontFamily: "Inter, system-ui, sans-serif" }}
+        >
+          <style>{"@keyframes pm-spin{to{transform:rotate(360deg)}}"}</style>
+          <span
+            style={{ width: 44, height: 44, border: "4px solid #dbeafe", borderTopColor: "#3b82f6", borderRadius: "50%", animation: "pm-spin 0.8s linear infinite", display: "block" }}
+          />
+          <p style={{ margin: 0, color: "#475569", fontSize: 15, fontWeight: 700 }}>Mohon menunggu...</p>
+        </div>
+      )}
+      {!checkingSavedSession && (
       <div className="lm-box">
         <div className="lm-header">
           <div className="lm-icon-badge">
@@ -167,7 +179,7 @@ export default function KatalogLoginPage() {
               autoFocus
             />
           </div>
-          <span className="field-hint">Nomor Unik tertera pada ID card peserta Anda.</span>
+          <span className="field-hint">Nomor Unik tertera pada bukti pendaftaran Anda.</span>
           </div>
 
           <button
@@ -222,7 +234,6 @@ export default function KatalogLoginPage() {
           border: 1px solid rgba(255,255,255,0.5);
           animation: modalFadeIn 0.5s cubic-bezier(0.16,1,0.3,1);
         }
-        .restoring-session { color: #475569; font-size: 14px; font-weight: 700; }
         @keyframes modalFadeIn { from { opacity:0; transform:translateY(20px) scale(0.95); } to { opacity:1; transform:translateY(0) scale(1); } }
         .lm-header { text-align:center; margin-bottom:32px; display: block; }
         .lm-icon-badge { width:64px; height:64px; background:#eff6ff; color:#3b82f6; display:flex; align-items:center; justify-content:center; border-radius:20px; margin:0 auto 20px; box-shadow:inset 0 0 0 1px rgba(59,130,246,0.1); }
