@@ -2,7 +2,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriPemilihan, users, generus, mandiriAntrean, mandiri, formPanitiaDanPengurus, mandiriDesa, mandiriAbsensi, mandiriKegiatan, settings, mandiriDaerah } from "@/lib/schema";
+import { mandiriKunjungan, mandiriRooms, mandiriKuisioner, mandiriPemilihan, users, generus, mandiriAntrean, mandiri, formPanitiaDanPengurus, mandiriDesa, mandiriAbsensi, mandiriKegiatan, settings, mandiriDaerah } from "@/lib/schema";
 import { eq, and, or, count, desc, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { getSession } from "@/lib/auth";
@@ -345,12 +345,13 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: "Pilihan yang sudah diproses oleh admin tidak dapat dibatalkan" }, { status: 400 });
         }
 
-        await db.delete(mandiriPemilihan)
-            .where(and(
-                eq(mandiriPemilihan.pengirimId, pengirimId), 
-                eq(mandiriPemilihan.penerimaId, targetId),
-                eq(mandiriPemilihan.kegiatanId, kegiatanId)
-            ));
+        // Lepaskan data turunan lebih dulu agar tidak terhalang foreign key
+        // (kunjungan, room, kuisioner yang merujuk ke pilihan ini).
+        await db.delete(mandiriKunjungan).where(eq(mandiriKunjungan.pemilihanId, selection.id));
+        await db.update(mandiriRooms).set({ pemilihanId: null }).where(eq(mandiriRooms.pemilihanId, selection.id));
+        await db.update(mandiriKuisioner).set({ pemilihanId: null }).where(eq(mandiriKuisioner.pemilihanId, selection.id));
+
+        await db.delete(mandiriPemilihan).where(eq(mandiriPemilihan.id, selection.id));
 
         const updatedSelections = await db.select({
             id: mandiriPemilihan.id,
@@ -384,7 +385,10 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ success: true, selections: updatedSelections });
     } catch (error) {
         console.error("DELETE selection error:", error);
-        return NextResponse.json({ error: "Gagal membatalkan pilihan" }, { status: 500 });
+        return NextResponse.json({
+            error: "Gagal membatalkan pilihan",
+            detail: process.env.NODE_ENV !== "production" ? String((error as any)?.message || error) : undefined,
+        }, { status: 500 });
     }
 }
 

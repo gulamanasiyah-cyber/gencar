@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { mandiriRooms, mandiriPemilihan, mandiriKunjungan, mandiriAbsensi, generus, mandiri, timGambuh, mandiriDesa, formPanitiaDanPengurus } from "@/lib/schema";
+import { settings, mandiriRooms, mandiriPemilihan, mandiriKunjungan, mandiriAbsensi, generus, mandiri, timGambuh, mandiriDesa, formPanitiaDanPengurus } from "@/lib/schema";
 import { eq, sql, and, or, desc, isNull } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { pusherServer } from "@/lib/pusher";
@@ -67,7 +67,7 @@ export async function PATCH(
         }
 
         if (action === "update_details") {
-            const { nama, assignedCallerId, assignedCaller2Id, assignedGuardId } = body;
+            const { nama, assignedCallerId, assignedCaller2Id, assignedGuardId, durasiMenit } = body;
             
             const updateFields: any = {
                 updatedAt: sql`(datetime('now'))`
@@ -89,6 +89,17 @@ export async function PATCH(
             await db.update(mandiriRooms)
                 .set(updateFields)
                 .where(eq(mandiriRooms.id, roomId));
+
+            if (durasiMenit !== undefined) {
+                const menit = Math.round(Number(durasiMenit));
+                if (!Number.isFinite(menit) || menit < 1 || menit > 180) {
+                    return NextResponse.json({ error: "Durasi harus antara 1 sampai 180 menit" }, { status: 400 });
+                }
+                const key = `room_durasi_${roomId}`;
+                await db.insert(settings)
+                    .values({ key, value: String(menit) })
+                    .onConflictDoUpdate({ target: settings.key, set: { value: String(menit), updatedAt: sql`(datetime('now'))` } });
+            }
 
             // Trigger Pusher update
             const updatedRoom = await db.query.mandiriRooms.findFirst({

@@ -15,7 +15,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { getPusherClient } from "@/lib/pusher-client";
 
-function RoomTimer({ startTime }: { startTime: string }) {
+function RoomTimer({ startTime, durasiMenit = 15 }: { startTime: string; durasiMenit?: number }) {
     const [timeLeft, setTimeLeft] = useState<string>("");
     const [isOver, setIsOver] = useState(false);
 
@@ -37,7 +37,7 @@ function RoomTimer({ startTime }: { startTime: string }) {
 
             // Adjust for possible timezone difference if needed, but usually datetime('now') in SQLite matches system
             // 15 minutes in milliseconds
-            const limit = 15 * 60 * 1000;
+            const limit = (durasiMenit || 15) * 60 * 1000;
             const elapsed = now - start;
             const remaining = limit - elapsed;
 
@@ -55,7 +55,7 @@ function RoomTimer({ startTime }: { startTime: string }) {
         calculateTime();
         const timer = setInterval(calculateTime, 1000);
         return () => clearInterval(timer);
-    }, [startTime]);
+    }, [startTime, durasiMenit]);
 
     if (!startTime) {
         return (
@@ -533,6 +533,15 @@ export default function RomanticRoomPage() {
                     </div>
                     
                     <div style="margin-bottom: 12px;">
+                        <label style="display:block; font-weight:700; margin-bottom: 6px;">Durasi Sesi (menit):</label>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
+                            ${[10, 15, 20, 30].map(m => `<button type="button" class="durasi-chip" data-m="${m}" style="padding:6px 12px; border-radius:999px; border:1px solid #cbd5e1; background:#fff; font-weight:700; font-size:12px; cursor:pointer;">${m} mnt</button>`).join("")}
+                        </div>
+                        <input id="edit_room_durasi" type="number" min="1" max="180" step="1" value="${room.durasiMenit || 15}" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; outline:none; font-weight:600;" />
+                        <div style="font-size:11px; color:#64748b; margin-top:4px;">Isi durasi kustom 1 - 180 menit. Berlaku saat sesi dimulai.</div>
+                    </div>
+
+                    <div style="margin-bottom: 12px;">
                         <label style="display:block; font-weight:700; margin-bottom: 6px;">Petugas Pemanggil 1 (Caller 1):</label>
                         <select id="edit_room_caller" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; outline:none; font-weight:600;">
                             <option value="">-- Belum Ditugaskan --</option>
@@ -560,7 +569,19 @@ export default function RomanticRoomPage() {
             showCancelButton: true,
             confirmButtonText: 'Simpan Perubahan',
             cancelButtonText: 'Batal',
+            didOpen: () => {
+                document.querySelectorAll<HTMLButtonElement>(".durasi-chip").forEach(btn => {
+                    btn.addEventListener("click", () => {
+                        (document.getElementById("edit_room_durasi") as HTMLInputElement).value = btn.dataset.m || "15";
+                    });
+                });
+            },
             preConfirm: () => {
+                const durasiMenit = Number((document.getElementById("edit_room_durasi") as HTMLInputElement).value);
+                if (!Number.isInteger(durasiMenit) || durasiMenit < 1 || durasiMenit > 180) {
+                    Swal.showValidationMessage("Durasi harus bilangan bulat antara 1 sampai 180 menit");
+                    return false;
+                }
                 const nama = (document.getElementById("edit_room_nama") as HTMLInputElement).value.trim();
                 const callerId = (document.getElementById("edit_room_caller") as HTMLSelectElement).value;
                 const caller2Id = (document.getElementById("edit_room_caller2") as HTMLSelectElement).value;
@@ -573,6 +594,7 @@ export default function RomanticRoomPage() {
 
                 return {
                     nama,
+                    durasiMenit,
                     assignedCallerId: callerId || null,
                     assignedCaller2Id: caller2Id || null,
                     assignedGuardId: guardId || null
@@ -1319,7 +1341,7 @@ export default function RomanticRoomPage() {
 
         const result = await Swal.fire({
             title: 'Mulai Sesi Waktu?',
-            text: `Apakah Anda yakin ingin memulai sesi waktu 15 menit untuk ${room.pengirimNama} & ${room.penerimaNama}?`,
+            text: `Apakah Anda yakin ingin memulai sesi waktu ${room.durasiMenit || 15} menit untuk ${room.pengirimNama} & ${room.penerimaNama}?`,
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#22c55e',
@@ -1337,7 +1359,7 @@ export default function RomanticRoomPage() {
                 if (res.ok) {
                     Swal.fire({
                         title: "Sesi Dimulai",
-                        text: "Timer 15 menit telah diaktifkan.",
+                        text: `Timer ${room.durasiMenit || 15} menit telah diaktifkan.`,
                         icon: "success",
                         timer: 1500,
                         showConfirmButton: false
@@ -2234,12 +2256,9 @@ export default function RomanticRoomPage() {
                                         <div className="room-top">
                                             <span className="room-name">{room.nama}</span>
                                             {room.status === "Terisi" && room.startedAt && (
-                                                <RoomTimer startTime={room.startedAt} />
+                                                <RoomTimer startTime={room.startedAt} durasiMenit={room.durasiMenit} />
                                             )}
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                                                <button className="btn-edit-room" onClick={() => handleShowRoomDetails(room)} title="Edit Ruangan">
-                                                    <Pencil size={12} />
-                                                </button>
                                                 <button className="btn-delete-room" onClick={() => handleDeleteRoom(room.id)} title="Hapus Ruangan">
                                                     <Trash2 size={14} />
                                                 </button>
@@ -2251,12 +2270,12 @@ export default function RomanticRoomPage() {
                                                     <div className="occupied-pair">
                                                         <div className="pair-member">
                                                             <span className="room-p-number">{room.pengirimNomorUrut || room.pengirimNo || '-'}</span>
-                                                            <span className="room-p-name">{room.pengirimNama}</span>
+                                                            <span className="room-p-name" title={room.pengirimNama}>{room.pengirimNama}</span>
                                                         </div>
                                                         <span className="pair-separator">&</span>
                                                         <div className="pair-member">
                                                             <span className="room-p-number">{room.penerimaNomorUrut || room.penerimaNo || '-'}</span>
-                                                            <span className="room-p-name">{room.penerimaNama}</span>
+                                                            <span className="room-p-name" title={room.penerimaNama}>{room.penerimaNama}</span>
                                                         </div>
                                                     </div>
                                                     <div style={{ display: 'flex', gap: '4px', width: '100%', marginTop: '6px' }}>
@@ -2297,6 +2316,7 @@ export default function RomanticRoomPage() {
                                                             <button
                                                                 onClick={() => setExpandedStaffRooms(prev => { const s = new Set(prev); s.add(room.id); return s; })}
                                                                 title="Tambah Tim Petugas"
+                                                                className="btn-tim-petugas"
                                                                 style={{ fontSize: '9px', fontWeight: 700, color: isKosong ? '#db2777' : '#94a3b8', background: isKosong ? 'linear-gradient(90deg,#fce7f3,#fdf2f8)' : 'none', border: isKosong ? '1px dashed #f9a8d4' : '1px dashed #cbd5e1', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
                                                             >
                                                                 <span style={{ fontSize: '11px', lineHeight: 1 }}>+</span> Tim Petugas
@@ -2347,25 +2367,12 @@ export default function RomanticRoomPage() {
                                                     <span className={`status-dot ${room.status?.toLowerCase()}`}></span>
                                                     {room.status}
                                                 </div>
-                                                <button 
-                                                    className="btn-room-details" 
-                                                    onClick={() => handleShowRoomDetails(room)} 
-                                                    title="Detail & Ubah Ruangan"
-                                                    style={{ 
-                                                        background: 'none', 
-                                                        border: 'none', 
-                                                        padding: '2px', 
-                                                        cursor: 'pointer', 
-                                                        display: 'flex', 
-                                                        alignItems: 'center', 
-                                                        justifyContent: 'center',
-                                                        color: room.status === 'Kosong' ? '#f9a8d4' : '#94a3b8',
-                                                        transition: 'color 0.2s'
-                                                    }}
-                                                    onMouseEnter={(e) => e.currentTarget.style.color = '#3b82f6'}
-                                                    onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
+                                                <button
+                                                    className="btn-edit-room btn-edit-footer"
+                                                    onClick={() => handleShowRoomDetails(room)}
+                                                    title="Edit ruangan: nama, durasi, petugas"
                                                 >
-                                                    <Info size={11} />
+                                                    <Pencil size={11} /> Edit
                                                 </button>
                                             </div>
                                         </div>
@@ -3209,13 +3216,20 @@ export default function RomanticRoomPage() {
 
                     .grid-rooms {
                         display: grid;
-                        grid-template-columns: repeat(3, 1fr);
-                        gap: 10px;
+                        grid-template-columns: repeat(4, minmax(0, 1fr));
+                        gap: 12px;
                         padding: 10px 12px 8px;
                         align-items: start;
                     }
 
-                    .room-tile { min-width: 0; border-radius: 14px; border: 2px solid #e2e8f0; padding: 10px 10px 8px; display: flex; flex-direction: column; gap: 6px; transition: all 0.25s; background: white; position: relative; overflow: hidden; }
+                    .room-middle, .occupied-info, .occupied-pair { width: 100%; min-width: 0; }
+                    .room-p-name { display: block; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+                    .btn-tim-petugas { white-space: nowrap; }
+                    .room-top .btn-edit-room, .room-top .btn-delete-room { width: 24px; height: 24px; padding: 0; justify-content: center; flex-shrink: 0; }
+                    .room-top .btn-edit-room svg, .room-top .btn-delete-room svg { width: 11px; height: 11px; }
+                    .btn-start-timer, .btn-clear { flex: 1; min-width: 0; white-space: nowrap; }
+                    .btn-undo-room { flex-shrink: 0; }
+                    .room-tile { min-width: 0; border-radius: 14px; border: 2px solid #e2e8f0; padding: 8px 8px 6px; display: flex; flex-direction: column; gap: 4px; transition: all 0.25s; background: white; position: relative; overflow: hidden; }
                     .room-tile::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: #e2e8f0; }
                     .room-tile.terisi { background: linear-gradient(160deg, #ecfdf5 0%, #ffffff 80%); border-color: #34d399; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.18); }
                     .room-tile.terisi::before { background: linear-gradient(90deg, #059669, #34d399, #6ee7b7); }
@@ -3231,10 +3245,11 @@ export default function RomanticRoomPage() {
 
                     .room-tile:not(.kosong):hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,0.14); }
 
-                    .room-top { display: flex; justify-content: space-between; align-items: center; margin-top: 2px; }
-                    .room-name { font-weight: 900; font-size: 13px; color: #1e293b; letter-spacing: -0.2px; }
+                    .room-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: nowrap; gap: 4px; margin-top: 2px; min-width: 0; }
+                    .room-name { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 900; font-size: 13px; color: #1e293b; letter-spacing: -0.2px; }
                     .btn-edit-room { color: #3b82f6; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; cursor: pointer; padding: 3px 5px; transition: all 0.18s; display: flex; align-items: center; }
                     .btn-edit-room:hover { color: #1d4ed8; background: #dbeafe; border-color: #93c5fd; transform: scale(1.08); }
+                    .btn-edit-footer { gap: 4px; font-size: 11px; font-weight: 700; padding: 3px 8px; text-transform: none; }
                     .btn-delete-room { color: #ef4444; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; padding: 3px 5px; transition: all 0.18s; display: flex; align-items: center; }
                     .btn-delete-room:hover { color: #dc2626; background: #fee2e2; border-color: #fca5a5; transform: scale(1.08); }
 
@@ -3245,12 +3260,12 @@ export default function RomanticRoomPage() {
                     .room-tile.kosong .btn-delete-room:hover { color: #be123c; background: #ffe4e6; border-color: #fb7185; transform: scale(1.08); }
                     
                     .room-middle { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; }
-                    .empty-label { color: #9d174d; font-weight: 900; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; padding: 5px 14px; background: linear-gradient(90deg, #fda4af, #f9a8d4, #fbcfe8); border-radius: 20px; border: none; display: inline-block; box-shadow: 0 2px 10px rgba(219,39,119,0.28), inset 0 1px 0 rgba(255,255,255,0.5); }
+                    .empty-label { color: #9d174d; font-weight: 900; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; white-space: nowrap; max-width: 100%; box-sizing: border-box; padding: 5px 8px; background: linear-gradient(90deg, #fda4af, #f9a8d4, #fbcfe8); border-radius: 20px; border: none; display: inline-block; box-shadow: 0 2px 10px rgba(219,39,119,0.28), inset 0 1px 0 rgba(255,255,255,0.5); }
                     
-                    .occupied-pair { display: flex; flex-direction: column; gap: 5px; width: 100%; }
-                    .pair-member { display: flex; align-items: center; gap: 6px; justify-content: center; min-width: 0; }
+                    .occupied-pair { display: flex; flex-direction: column; gap: 3px; width: 100%; }
+                    .pair-member { display: flex; align-items: center; gap: 6px; justify-content: flex-start; min-width: 0; width: 100%; }
                     .room-p-number { background: #166534; color: white; padding: 1px 4px; border-radius: 4px; font-size: 9px; font-weight: 800; flex-shrink: 0; align-self: flex-start; margin-top: 2px; }
-                    .room-p-name { font-size: 11px; font-weight: 700; color: #166534; white-space: normal; word-break: break-word; line-height: 1.3; text-align: left; flex: 1; }
+                    .room-p-name { font-size: 11px; font-weight: 700; color: #166534; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3; text-align: left; flex: 1; min-width: 0; }
                     .pair-separator { font-size: 10px; color: #166534; opacity: 0.4; font-weight: 800; }
                     
                     .btn-clear { background: #166534; color: white; border: none; border-radius: 6px; padding: 4px 6px; font-size: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; transition: all 0.2s; }
@@ -3430,13 +3445,14 @@ export default function RomanticRoomPage() {
                     /* === Large tablet / small desktop ≤ 1200px === */
                     @media (max-width: 1200px) {
                         .admin-grid { grid-template-columns: 360px 1fr; }
-                        .grid-rooms { grid-template-columns: repeat(3, 1fr); }
+                        .grid-rooms { grid-template-columns: repeat(3, minmax(0, 1fr)); }
                     }
 
                     /* === Tablet ≤ 1024px === */
                     @media (max-width: 1024px) {
-                        .admin-layout { padding: 16px; }
+                        .admin-layout { padding: 64px 16px 16px; }
                         .admin-grid { grid-template-columns: 1fr; gap: 16px; }
+                        .grid-rooms { grid-template-columns: repeat(4, minmax(0, 1fr)); }
                         .history-box { grid-column: span 1; }
                         .room-header-modern { margin-bottom: 16px; }
                         .header-top { display: block; height: auto; min-height: 0; }
@@ -3446,13 +3462,16 @@ export default function RomanticRoomPage() {
                         .mini-stat { flex: 1; min-width: calc(50% - 4px); }
                         .queue-box { height: auto; min-height: 0; }
                         .queue-box .scrollable { max-height: 500px; }
-                        .grid-rooms { grid-template-columns: repeat(4, 1fr); }
                         .title-area h1 { font-size: 22px; }
+                    }
+
+                    @media (max-width: 900px) {
+                        .grid-rooms { grid-template-columns: repeat(3, minmax(0, 1fr)); }
                     }
 
                     /* === Mobile ≤ 768px === */
                     @media (max-width: 768px) {
-                        .admin-layout { padding: 12px; }
+                        .admin-layout { padding: 60px 12px 12px; }
                         .desktop-only { display: none; }
                         .mobile-only { display: flex; flex-direction: column; gap: 12px; }
                         .title-area h1 { font-size: 18px; }
@@ -3480,7 +3499,7 @@ export default function RomanticRoomPage() {
 
                     /* === Small mobile ≤ 480px === */
                     @media (max-width: 480px) {
-                        .admin-layout { padding: 8px; }
+                        .admin-layout { padding: 60px 8px 8px; }
                         .title-area h1 { font-size: 16px; gap: 6px; }
                         .mini-stat { min-width: 100%; }
                         .summary-grid-modern { grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -3609,7 +3628,7 @@ export default function RomanticRoomPage() {
                     <h1>Romantic <span>Room</span> <Sparkles size={24} color="#f43f5e" /></h1>
                     <p>Selamat! Anda telah masuk ke ruangan <b>{myRoom.nama}</b></p>
                     <div className="user-timer-wrapper">
-                        <RoomTimer startTime={myRoom.startedAt} />
+                        <RoomTimer startTime={myRoom.startedAt} durasiMenit={myRoom.durasiMenit} />
                         <span className="timer-label">
                             {myRoom.startedAt ? "Sisa Waktu Sesi" : "Menunggu Admin Memulai Sesi"}
                         </span>

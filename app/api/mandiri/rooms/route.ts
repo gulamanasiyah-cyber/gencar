@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { mandiriRooms, mandiriPemilihan, generus, mandiri, settings, timGambuh, users, formPanitiaDanPengurus, mandiriDesa, mandiriDaerah, mandiriKegiatan } from "@/lib/schema";
-import { eq, and, or, count, desc, sql } from "drizzle-orm";
+import { eq, and, or, count, desc, sql, like } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 import { alias } from "drizzle-orm/sqlite-core";
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
         const uCaller2 = alias(timGambuh, "uCaller2");
         const uGuard = alias(timGambuh, "uGuard");
 
-        const rooms = await db.select({
+        const roomsQuery = db.select({
             id: mandiriRooms.id,
             nama: mandiriRooms.nama,
             status: mandiriRooms.status,
@@ -114,6 +114,18 @@ export async function GET(request: NextRequest) {
         .leftJoin(uGuard, eq(mandiriRooms.assignedGuardId, uGuard.id))
         .where(eq(mandiriRooms.kegiatanId, kegiatanId))
         .orderBy(mandiriRooms.nama);
+
+        // Durasi sesi kustom per ruangan disimpan di tabel settings (key: room_durasi_<roomId>)
+        const [roomRows, durasiRows] = await Promise.all([
+            roomsQuery,
+            db.select({ key: settings.key, value: settings.value }).from(settings).where(like(settings.key, "room_durasi_%")),
+        ]);
+        const durasiMap = new Map<string, number>();
+        for (const d of durasiRows as any[]) {
+            const n = Number(d.value);
+            if (Number.isFinite(n) && n > 0) durasiMap.set(String(d.key).replace("room_durasi_", ""), n);
+        }
+        const rooms = roomRows.map((r: any) => ({ ...r, durasiMenit: durasiMap.get(r.id) || 15 }));
 
         return NextResponse.json(rooms);
     } catch (error) {

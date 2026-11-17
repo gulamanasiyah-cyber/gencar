@@ -19,7 +19,7 @@ function formatWaktuIndonesia(value: any): string {
     return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
 }
 
-function RoomTimer({ startTime }: { startTime: string }) {
+function RoomTimer({ startTime, durasiMenit = 15 }: { startTime: string; durasiMenit?: number }) {
     const [timeLeft, setTimeLeft] = useState<string>("");
     const [isOver, setIsOver] = useState(false);
 
@@ -37,7 +37,7 @@ function RoomTimer({ startTime }: { startTime: string }) {
             const start = new Date(isoString).getTime();
             const now = new Date().getTime();
 
-            const limit = 15 * 60 * 1000;
+            const limit = (durasiMenit || 15) * 60 * 1000;
             const elapsed = now - start;
             const remaining = limit - elapsed;
 
@@ -712,7 +712,7 @@ export default function TimGambuhOperatorPage() {
                                     <div className="room-top">
                                         <span className="room-name">{room.nama}</span>
                                         {room.status === "Terisi" && room.startedAt && (
-                                            <RoomTimer startTime={room.startedAt} />
+                                            <RoomTimer startTime={room.startedAt} durasiMenit={room.durasiMenit} />
                                         )}
                                     </div>
                                     <div className="room-middle">
@@ -969,7 +969,7 @@ export default function TimGambuhOperatorPage() {
                             </div>
                             {selectedRoom.status === "Terisi" && selectedRoom.startedAt && (
                                 <div style={{ marginLeft: "auto" }}>
-                                    <RoomTimer startTime={selectedRoom.startedAt} />
+                                    <RoomTimer startTime={selectedRoom.startedAt} durasiMenit={selectedRoom.durasiMenit} />
                                 </div>
                             )}
                         </div>

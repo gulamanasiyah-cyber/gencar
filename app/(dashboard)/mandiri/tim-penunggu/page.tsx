@@ -9,7 +9,7 @@ import {
 import { getPusherClient } from "@/lib/pusher-client";
 import Link from "next/link";
 
-function RoomTimer({ startTime }: { startTime: string }) {
+function RoomTimer({ startTime, durasiMenit = 15 }: { startTime: string; durasiMenit?: number }) {
     const [timeLeft, setTimeLeft] = useState<string>("");
     const [isOver, setIsOver] = useState(false);
 
@@ -27,7 +27,7 @@ function RoomTimer({ startTime }: { startTime: string }) {
             const start = new Date(isoString).getTime();
             const now = new Date().getTime();
 
-            const limit = 15 * 60 * 1000;
+            const limit = (durasiMenit || 15) * 60 * 1000;
             const elapsed = now - start;
             const remaining = limit - elapsed;
 
@@ -434,7 +434,7 @@ export default function TimPenungguOperatorPage() {
                                         <span className="room-name">{room.nama}</span>
 
                                         {room.status === "Terisi" && room.startedAt && (
-                                            <RoomTimer startTime={room.startedAt} />
+                                            <RoomTimer startTime={room.startedAt} durasiMenit={room.durasiMenit} />
                                         )}
                                     </div>
                                     <div className="room-middle">
@@ -536,7 +536,7 @@ export default function TimPenungguOperatorPage() {
                             </div>
                             {selectedRoom.status === "Terisi" && selectedRoom.startedAt && (
                                 <div style={{ marginLeft: "auto" }}>
-                                    <RoomTimer startTime={selectedRoom.startedAt} />
+                                    <RoomTimer startTime={selectedRoom.startedAt} durasiMenit={selectedRoom.durasiMenit} />
                                 </div>
                             )}
                         </div>

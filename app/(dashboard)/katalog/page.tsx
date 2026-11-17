@@ -12,7 +12,7 @@ import {
   Sparkles, Search, User, MapPin, Phone, GraduationCap,
   Briefcase, Heart, Globe, Calendar, Lock, Star,
   Music, Utensils, ClipboardList, Download, EyeOff,
-  ChevronDown, Settings2, Users, Instagram
+  ChevronDown, ChevronLeft, ChevronRight, Settings2, Users, Instagram
 } from "lucide-react";
 
 export default function GenerusKatalogPage() {
@@ -325,128 +325,109 @@ export default function GenerusKatalogPage() {
             <div key={item.id} className={`participant-card gender-${item.jenisKelamin?.toLowerCase()}`}>
               <div className="card-top">
                 <div className="avatar-side">
-                  {item.foto ? <img src={item.foto} alt={item.nama} /> : <div className="initials">{item.nama.charAt(0)}</div>}
-                  <div className="role-tag">
-                    {["admin", "tim_pnkb", "admin_romantic_room"].includes(item.role || "") ? "Panitia" : "PESERTA"}
-                  </div>
+                  {item.foto ? <img src={item.foto} alt={item.nama} loading="lazy" /> : <div className="initials">{item.nama.charAt(0)}</div>}
                 </div>
                 <div className="info-side">
                   <div className="name-header">
-                    <h3 className="name">{item.nama}</h3>
+                    <h3 className="name" title={item.nama}>{item.nama}</h3>
                     <span className="no-urut">#{item.nomorUrut || "-"}</span>
                   </div>
-                  <div className="id-text">ID: {item.nomorUnik}</div>
-                  <div className="region-info">
-                    <span className="label">Asal Daerah:</span> {item.mandiriDesaNama || item.desaNama}
+                  <div className="id-text">
+                    {["admin", "tim_pnkb", "admin_romantic_room"].includes(item.role || "") ? "PANITIA" : "PESERTA"} · ID: {item.nomorUnik}
                   </div>
-                  <div className="region-info">
-                    <span className="label">Nama Desa:</span> {item.mandiriKelompokNama || item.kelompokNama}
-                  </div>
-
                   <div className="floating-meta">
                     <div className="meta-item age">
                       <User size={12} />
-                      <span>Umur: <b>{calculateAge(item.tanggalLahir ?? undefined)} Thn</b></span>
+                      <span>{calculateAge(item.tanggalLahir ?? undefined)} Thn</span>
                     </div>
-                    <div className="meta-item contact">
-                      <Phone size={12} />
-                      <span>Kontak: {item.noTelp || "-"}</span>
-                    </div>
-                    <div className="meta-item ig">
-                      <Instagram size={12} />
-                      {item.instagram ? (
-                        <a 
-                          href={`https://instagram.com/${item.instagram.replace('@', '')}`} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          style={{ color: 'inherit', textDecoration: 'none' }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          @{item.instagram.replace('@', '')}
-                        </a>
-                      ) : (
-                        <span>-</span>
-                      )}
-                    </div>
+                    {item.noTelp && (
+                      <a className="meta-item contact" href={`tel:${item.noTelp}`} onClick={(e) => e.stopPropagation()}>
+                        <Phone size={12} />
+                        <span>{item.noTelp}</span>
+                      </a>
+                    )}
+                    {item.instagram && (
+                      <a
+                        className="meta-item ig"
+                        href={`https://instagram.com/${item.instagram.replace('@', '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Instagram size={12} />
+                        <span>@{item.instagram.replace('@', '')}</span>
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>
 
-              <div className="card-divider"></div>
-
               <div className="card-details">
                 <div className="detail-grid">
-                  <div className="detail-col">
-                    <div className="bit">
-                      <Calendar size={12} />
-                      <div className="bit-content">
-                        <span className="bit-label">TTL</span>
-                        <p>{item.tempatLahir || "-"}, {item.tanggalLahir || "-"}</p>
-                      </div>
-                    </div>
-                    <div className="bit">
-                      <Heart size={12} />
-                      <div className="bit-content">
-                        <span className="bit-label">STATUS</span>
-                        <p>{item.statusNikah || "Belum Menikah"}</p>
-                      </div>
-                    </div>
-                    <div className="bit">
-                      <Phone size={12} />
-                      <div className="bit-content">
-                        <span className="bit-label">KONTAK</span>
-                        <p>{item.noTelp || "-"}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="detail-col">
-                    <div className="bit">
-                      <User size={12} />
-                      <div className="bit-content">
-                        <span className="bit-label">UMUR</span>
-                        <p>{calculateAge(item.tanggalLahir ?? undefined)} Tahun</p>
-                      </div>
-                    </div>
-                    <div className="bit">
-                      <Globe size={12} />
-                      <div className="bit-content">
-                        <span className="bit-label">SUKU</span>
-                        <p>{item.suku || "-"}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="detail-full">
                   <div className="bit">
-                    <GraduationCap size={12} />
+                    <MapPin size={14} />
                     <div className="bit-content">
-                      <span className="bit-label">PENDIDIKAN</span>
+                      <span className="bit-label">Asal Daerah</span>
+                      <p>{item.mandiriDesaNama || item.desaNama || "-"}</p>
+                    </div>
+                  </div>
+                  <div className="bit">
+                    <Users size={14} />
+                    <div className="bit-content">
+                      <span className="bit-label">Nama Desa</span>
+                      <p>{item.mandiriKelompokNama || item.kelompokNama || "-"}</p>
+                    </div>
+                  </div>
+                  <div className="bit">
+                    <Calendar size={14} />
+                    <div className="bit-content">
+                      <span className="bit-label">TTL</span>
+                      <p>{item.tempatLahir || "-"}, {item.tanggalLahir || "-"}</p>
+                    </div>
+                  </div>
+                  <div className="bit">
+                    <Heart size={14} />
+                    <div className="bit-content">
+                      <span className="bit-label">Status</span>
+                      <p>{item.statusNikah || "Belum Menikah"}</p>
+                    </div>
+                  </div>
+                  <div className="bit">
+                    <GraduationCap size={14} />
+                    <div className="bit-content">
+                      <span className="bit-label">Pendidikan</span>
                       <p>{item.pendidikan || "-"}</p>
                     </div>
                   </div>
                   <div className="bit">
-                    <Briefcase size={12} />
+                    <Briefcase size={14} />
                     <div className="bit-content">
-                      <span className="bit-label">PEKERJAAN</span>
+                      <span className="bit-label">Pekerjaan</span>
                       <p>{item.pekerjaan || "-"}</p>
+                    </div>
+                  </div>
+                  <div className="bit">
+                    <Globe size={14} />
+                    <div className="bit-content">
+                      <span className="bit-label">Suku</span>
+                      <p>{item.suku || "-"}</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="card-passions">
                   <div className="passion-bit">
-                    <Music size={12} />
+                    <Music size={13} />
                     <span><b>Hobi:</b> {item.hobi || "-"}</span>
                   </div>
                   <div className="passion-bit">
-                    <Utensils size={12} />
-                    <span><b>Makan/Minuman:</b> {item.makananMinumanFavorit || "-"}</span>
+                    <Utensils size={13} />
+                    <span><b>Favorit:</b> {item.makananMinumanFavorit || "-"}</span>
                   </div>
                 </div>
 
                 <div className="address-box">
-                  <span className="bit-label">ALAMAT:</span>
+                  <span className="bit-label">Alamat</span>
                   <p>{item.alamat || "Alamat belum diisi"}</p>
                 </div>
               </div>
@@ -470,6 +451,25 @@ export default function GenerusKatalogPage() {
           ))
         )}
       </div>
+
+      {!loading && data.length === 0 && (
+        <div className="empty-state">
+          <Search size={28} />
+          <p>Tidak ada peserta yang cocok dengan pencarian/filter.</p>
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button disabled={page <= 1} onClick={() => { setPage(p => p - 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+            <ChevronLeft size={16} /> <span>Sebelumnya</span>
+          </button>
+          <span className="page-info">Hal. <b>{page}</b> / {totalPages}</span>
+          <button disabled={page >= totalPages} onClick={() => { setPage(p => p + 1); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+            <span>Berikutnya</span> <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
 
       <style jsx>{`
         .pdkt-admin-container {
@@ -672,13 +672,13 @@ export default function GenerusKatalogPage() {
 
         .grid-section {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-          gap: 24px;
+          grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+          gap: 20px;
         }
 
         .participant-card {
           background: white;
-          border-radius: 32px;
+          border-radius: 24px;
           border: 1px solid #f1f5f9;
           overflow: hidden;
           transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -687,32 +687,33 @@ export default function GenerusKatalogPage() {
           flex-direction: column;
         }
         .participant-card:hover {
-          transform: translateY(-8px);
+          transform: translateY(-4px);
           box-shadow: 0 20px 40px rgba(0,0,0,0.08);
           border-color: #3b82f633;
         }
 
         .card-top {
-          padding: 24px;
+          padding: 20px;
           display: flex;
-          gap: 20px;
+          gap: 16px;
+          align-items: center;
         }
         .avatar-side {
-          width: 100px;
+          width: 76px;
           flex-shrink: 0;
           position: relative;
         }
         .avatar-side img {
-          width: 100px;
-          height: 100px;
-          border-radius: 24px;
+          width: 76px;
+          height: 76px;
+          border-radius: 20px;
           object-fit: cover;
           box-shadow: 0 10px 20px rgba(0,0,0,0.05);
         }
         .initials {
-          width: 100px;
-          height: 100px;
-          border-radius: 24px;
+          width: 76px;
+          height: 76px;
+          border-radius: 20px;
           background: #eff6ff;
           color: #3b82f6;
           display: flex;
@@ -739,7 +740,7 @@ export default function GenerusKatalogPage() {
 
         .info-side { flex: 1; min-width: 0; }
         .name-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2px; }
-        .name { font-size: 20px; font-weight: 800; color: #1e293b; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .name { font-size: 17px; font-weight: 800; color: #1e293b; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .no-urut { color: #3b82f6; font-weight: 900; font-size: 16px; }
         .gender-p .no-urut { color: #ec4899; }
         .id-text { font-size: 11px; font-weight: 700; color: #94a3b8; font-family: monospace; list-style: none; margin-bottom: 10px; }
@@ -747,16 +748,18 @@ export default function GenerusKatalogPage() {
         .region-info .label { font-weight: 700; color: #1e293b; opacity: 0.6; }
 
         .floating-meta {
-           margin-top: 14px;
+           margin-top: 8px;
            display: flex;
            flex-wrap: wrap;
            gap: 6px;
         }
         .meta-item {
+           text-decoration: none;
+           max-width: 100%;
            display: flex;
            align-items: center;
            gap: 6px;
-           padding: 6px 12px;
+           padding: 4px 10px;
            border-radius: 10px;
            font-size: 11px;
            font-weight: 700;
@@ -765,16 +768,20 @@ export default function GenerusKatalogPage() {
         .meta-item.contact { background: #f0fdf4; color: #15803d; border: 1.5px solid #dcfce7; }
         .meta-item.ig { background: #fdf2f8; color: #be185d; border: 1.5px solid #fce7f3; }
 
-        .card-divider { height: 1px; background: #f1f5f9; margin: 0; }
+        .empty-state { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 60px 16px; color: #94a3b8; text-align: center; font-weight: 600; }
+        .pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 32px; }
+        .pagination button { display: flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 14px; border: 1px solid #e2e8f0; background: white; font-size: 13px; font-weight: 700; color: #334155; cursor: pointer; }
+        .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .page-info { font-size: 13px; color: #64748b; font-weight: 600; }
 
-        .card-details { padding: 24px; flex: 1; }
-        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .card-details { padding: 16px 20px 20px; flex: 1; border-top: 1px solid #f1f5f9; display: flex; flex-direction: column; }
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; margin-bottom: 16px; }
         .bit { display: flex; gap: 10px; align-items: flex-start; }
         .bit svg { color: #3b82f6; opacity: 0.7; margin-top: 2px; }
         .gender-p .bit svg { color: #ec4899; }
-        .bit-content { flex: 1; }
+        .bit-content { flex: 1; min-width: 0; }
         .bit-label { display: block; font-size: 9px; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 2px; letter-spacing: 0.5px; }
-        .bit-content p { font-size: 13px; font-weight: 600; color: #334155; margin: 0; line-height: 1.3; }
+        .bit-content p { overflow-wrap: anywhere; font-size: 13px; font-weight: 600; color: #334155; margin: 0; line-height: 1.3; }
 
         .detail-full { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
 
@@ -795,7 +802,7 @@ export default function GenerusKatalogPage() {
         .address-box p { font-size: 12px; color: #64748b; font-weight: 600; line-height: 1.4; margin-top: 4px; }
 
         .card-actions {
-          padding: 20px 24px;
+          padding: 14px 20px;
           border-top: 1px solid #f1f5f9;
           display: flex;
           gap: 12px;
@@ -839,18 +846,30 @@ export default function GenerusKatalogPage() {
         .btn-pilih.selected { background: #db2777; color: white; }
         .gender-p .btn-pilih.selected { background: #e11d48; }
 
-        .skeleton-card { height: 600px; background: white; border-radius: 32px; animation: pulse 1.5s infinite; }
+        .skeleton-card { height: 420px; background: white; border-radius: 24px; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
+        @media (max-width: 640px) {
+           .pdkt-admin-container { padding: 14px; }
+           .header-section { margin-bottom: 20px; }
+           .header-section h1 { font-size: 26px; }
+           .toolbar-section { padding: 12px; margin-bottom: 20px; }
+           .search-input-wrapper { padding: 10px 14px; }
+           .card-top { padding: 16px; }
+           .card-details { padding: 14px 16px 16px; }
+           .card-actions { padding: 12px 16px; }
+           .detail-grid { gap: 12px; }
+           .pagination button span { display: none; }
+        }
         @media (max-width: 1024px) {
            .pdkt-admin-container { padding: 20px; }
            .toolbar-section { border-radius: 16px; }
-           .grid-section { grid-template-columns: 1fr; }
+           .grid-section { grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); }
            .btn-export { width: 100%; justify-content: center; margin-top: 10px; }
            .btn-advanced-search span { display: none; }
            .btn-advanced-search { padding: 12px; }
            .filters-group { display: flex; flex-direction: column; gap: 10px; align-items: stretch; width: 100%; }
-           .filters-group .pill-group { display: flex; width: 100%; }
+           .filters-group .pill-group { display: flex; width: 100%; overflow-x: auto; }
            .filters-group .pill-group button { flex: 1; text-align: center; }
            .filters-group .select-box-wrapper { width: 100%; }
            .filters-group .dropdown-box { width: 100%; min-width: 0; }

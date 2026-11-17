@@ -141,15 +141,17 @@ export default function KatalogLoginPage() {
       <div className="lm-box">
         <div className="lm-header">
           <div className="lm-icon-badge">
-            <Lock size={28} className="text-blue-500" />
+            <Lock size={28} />
           </div>
           <h2>Login Katalog</h2>
-          <p>Masukkan Nomor Unik atau Nomor Peserta Anda</p>
+          <p>Masukkan Nomor Unik Peserta Anda untuk melihat katalog peserta.</p>
         </div>
 
         <div className="lm-body">
+          <div className="field-group">
+          <label htmlFor="nomor-unik" className="field-label">Nomor Unik Peserta</label>
           <div className="input-field">
-            <User size={18} className="input-icon" />
+            <span className="input-icon"><User size={18} /></span>
             <input
               type="text"
               inputMode="text"
@@ -157,12 +159,15 @@ export default function KatalogLoginPage() {
               autoCorrect="off"
               autoComplete="off"
               spellCheck={false}
-              placeholder="Contoh: MND123456 atau PNB123456"
+              id="nomor-unik"
+              placeholder="Contoh: PNB123456"
               value={unik}
-              onChange={(e) => setUnik(e.target.value)}
+              onChange={(e) => { setUnik(e.target.value); if (status === "error") setStatus("idle"); }}
               onKeyDown={(e) => e.key === "Enter" && verify()}
               autoFocus
             />
+          </div>
+          <span className="field-hint">Nomor Unik tertera pada ID card peserta Anda.</span>
           </div>
 
           <button
@@ -225,19 +230,31 @@ export default function KatalogLoginPage() {
         p { color:#64748b; font-size:15px; margin:0; line-height:1.5; }
         .lm-body { display:flex; flex-direction:column; gap:20px; }
         .input-field { position:relative; }
-        .input-icon { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:#94a3b8; }
+        .field-group { display:flex; flex-direction:column; gap:8px; }
+        .field-label { font-size:13px; font-weight:700; color:#334155; }
+        .field-hint { font-size:12px; color:#94a3b8; }
+        .input-icon { position:absolute; left:16px; top:0; bottom:0; display:flex; align-items:center; color:#94a3b8; pointer-events:none; }
+        .lm-icon-badge :global(svg) { color:#3b82f6; }
         input {
-          width:100%; background:#f8fafc; border:2px solid #e2e8f0; border-radius:16px;
+          width:100%; text-overflow:ellipsis; background:#f8fafc; border:2px solid #e2e8f0; border-radius:16px;
           font-size:16px; font-weight:600; transition:all 0.2s; color:#1e293b;
           padding: 16px 16px 16px 44px; box-sizing: border-box;
         }
+        input::placeholder { font-weight:500; color:#94a3b8; font-size:15px; }
         input:focus { background:white; border-color:#3b82f6; box-shadow:0 0 0 4px rgba(59,130,246,0.1); outline:none; }
         .login-btn { background:linear-gradient(135deg,#3b82f6,#2563eb); color:white; border:none; padding:16px; border-radius:16px; font-size:16px; font-weight:700; cursor:pointer; transition:all 0.3s; display:flex; align-items:center; justify-content:center; width:100%; }
         .login-btn:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 10px 20px -5px rgba(59,130,246,0.4); }
-        .login-btn:disabled { opacity:0.6; cursor:not-allowed; }
+        .login-btn:disabled { opacity:0.5; cursor:not-allowed; }
         .error-alert { padding:14px; background:#fef2f2; border-radius:12px; color:#b91c1c; font-size:14px; font-weight:600; display:flex; align-items:center; gap:10px; border:1px solid #fee2e2; }
         .warning-alert { padding:14px; background:#fffbeb; border-radius:12px; color:#92400e; font-size:14px; font-weight:600; display:flex; align-items:center; gap:10px; border:1px solid #fef3c7; }
         .spinner-small { width:18px; height:18px; border:2px solid rgba(255,255,255,0.3); border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite; }
+        @media (max-width: 480px) {
+          .login-backdrop { padding:16px; align-items:flex-start; padding-top:12vh; }
+          .lm-box { padding:28px 20px; border-radius:24px; }
+          .lm-header { margin-bottom:24px; }
+          h2 { font-size:22px; }
+          p { font-size:14px; }
+        }
         @keyframes spin { to { transform:rotate(360deg); } }
       `}</style>
     </div>
