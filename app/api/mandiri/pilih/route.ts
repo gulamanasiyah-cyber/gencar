@@ -110,7 +110,8 @@ export async function GET(request: NextRequest) {
         }
 
         const targetPengirimId = searchParams.get("pengirimId") || currentGenerusId;
-        if (!targetPengirimId) return NextResponse.json({ error: "Identitas tidak ditemukan" }, { status: 400 });
+        // Admin tanpa profil peserta (mis. membuka katalog) tidak punya pilihan: kembalikan daftar kosong
+        if (!targetPengirimId) return NextResponse.json(isAdmin ? [] : { error: "Identitas tidak ditemukan" }, { status: isAdmin ? 200 : 400 });
 
 
         const selections = await db.select({
