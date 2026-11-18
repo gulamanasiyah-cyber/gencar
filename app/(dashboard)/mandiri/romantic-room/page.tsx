@@ -385,7 +385,8 @@ export default function RomanticRoomPage() {
                 // to avoid making the initial dashboard wait through a request waterfall.
                 adminDataPromise = Promise.all([
                     fetch(`/api/mandiri/pilih?all=true${qParam}`),
-                    fetch(`/api/mandiri/kunjungan${qmParam}`, { headers: h }),
+                    // Laporan hasil RR selalu dari kegiatan aktif (API default ke mandiri_active_kegiatan_id)
+                    fetch(`/api/mandiri/kunjungan`, { headers: h }),
                     fetch(`/api/mandiri?limit=1000&onlyAttended=true${qParam}`, { headers: h }),
                     fetch(`/api/mandiri/stats/attendance${qmParam}`),
                     fetch("/api/mandiri/desa"),
