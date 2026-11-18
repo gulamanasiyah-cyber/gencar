@@ -10,9 +10,6 @@ import {
     CheckCircle, Star, Download, Sparkles, Send, Timer,
     Globe, Plus, Trash2, LogOut, Users, DoorOpen, Search, Undo2, Bell, Info, SlidersHorizontal, Pencil
 } from "lucide-react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
 import { getPusherClient } from "@/lib/pusher-client";
 
 function RoomTimer({ startTime, durasiMenit = 15 }: { startTime: string; durasiMenit?: number }) {
@@ -318,6 +315,13 @@ export default function RomanticRoomPage() {
             // Profil admin yang sudah dimuat dipakai ulang saat refresh (mis. dari Pusher)
             // supaya tidak menambah satu request berurutan sebelum data utama diambil.
             const knownAdminProfile = ADMIN_ROLES.includes(myProfile?.role || "") ? myProfile : null;
+            // Mulai request kegiatan + settings bersamaan dengan profil (tidak saling bergantung)
+            const kegiatanPromise = kegiatanList.length === 0 ? fetch("/api/mandiri/kegiatan") : null;
+            const settingsPromise: Promise<Response> = (!knownAdminProfile || kegiatanPromise)
+                ? fetch("/api/settings")
+                : Promise.resolve(new Response("{}"));
+            kegiatanPromise?.catch(() => {});
+            settingsPromise.catch(() => {});
             const sessionJson = knownAdminProfile ?? await (async () => {
                 const sessionRes = await fetch("/api/profile");
                 return sessionRes.ok ? await sessionRes.json() : {};
@@ -346,11 +350,8 @@ export default function RomanticRoomPage() {
             let targetKgId = selectedKegiatanId;
             if (isUserAdmin) {
                 // Fetch kegiatan list + active setting on first load
-                if (kegiatanList.length === 0) {
-                    const [kgRes, sRes] = await Promise.all([
-                        fetch("/api/mandiri/kegiatan"),
-                        fetch("/api/settings"),
-                    ]);
+                if (kegiatanPromise) {
+                    const [kgRes, sRes] = await Promise.all([kegiatanPromise, settingsPromise]);
                     if (kgRes.ok) {
                         const kList = await kgRes.json();
                         if (Array.isArray(kList)) {
@@ -368,7 +369,7 @@ export default function RomanticRoomPage() {
                 }
             } else {
                 // Non-admin participant: fetch the active kegiatan setting
-                const sRes = await fetch("/api/settings");
+                const sRes = await settingsPromise;
                 const s = sRes.ok ? await sRes.json() : {};
                 targetKgId = s.mandiri_active_kegiatan_id || "";
             }
@@ -398,6 +399,10 @@ export default function RomanticRoomPage() {
                 : [];
             // Apply localStorage backup for KOSONG rooms whose DB staff came back null
             setAllRooms(lsApplyToRooms(uniqueById(sortedRooms)));
+
+            // Admin: tampilkan halaman begitu data ruangan siap. Antrean, riwayat, peserta,
+            // statistik, dan staf (request besar, sudah berjalan paralel) mengisi menyusul.
+            if (isUserAdmin) setInitialLoaded(true);
 
             if (isUserAdmin) {
                 const [qRes, histRes, pRes, statsRes, desaRes, staffRes] = await adminDataPromise!;
@@ -643,26 +648,8 @@ export default function RomanticRoomPage() {
             title: 'Atur Tugas Staf',
             html: `
                 <div style="text-align: left; font-size: 13px; color: #1e293b;">
-                    <div style="margin-bottom: 12px;" id="role_type_container">
-                        <label style="display:block; font-weight:700; margin-bottom: 6px;">1. Pilih Peran Tugas:</label>
-                        <div style="display:flex; flex-wrap: wrap; gap: 15px;">
-                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
-                                <input type="radio" name="assign_role_type" value="caller" defaultChecked style="width:16px; height:16px;" />
-                                <span>Pemanggil 1 (Caller 1)</span>
-                            </label>
-                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
-                                <input type="radio" name="assign_role_type" value="caller2" style="width:16px; height:16px;" />
-                                <span>Pemanggil 2 (Caller 2)</span>
-                            </label>
-                            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
-                                <input type="radio" name="assign_role_type" value="guard" style="width:16px; height:16px;" />
-                                <span>Penunggu (Room Guard)</span>
-                            </label>
-                        </div>
-                    </div>
-
                     <div style="margin-bottom: 12px;">
-                        <label style="display:block; font-weight:700; margin-bottom: 6px;">2. Pilih Nama Staf:</label>
+                        <label style="display:block; font-weight:700; margin-bottom: 6px;">1. Pilih Penjaga Room (1 orang per room):</label>
                         <select id="assign_staff_id" style="width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1; outline:none; font-weight:600;">
                             <option value="">-- Pilih Staf --</option>
                             <option value="clear">-- Hapus Penugasan / Kosongkan --</option>
@@ -672,7 +659,7 @@ export default function RomanticRoomPage() {
 
                     
                     <div>
-                        <label style="display:block; font-weight:700; margin-bottom: 6px;">3. Pilih Ruangan (Bisa lebih dari satu):</label>
+                        <label style="display:block; font-weight:700; margin-bottom: 6px;">2. Pilih Ruangan (satu penjaga boleh menjaga lebih dari satu room):</label>
                         <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 8px; max-height: 180px; overflow-y: auto; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc;">
                             ${allRooms.map(r => `
                                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${r.nama}">
@@ -691,9 +678,7 @@ export default function RomanticRoomPage() {
                 const updateDropdown = (type: string) => {
                     const select = document.getElementById("assign_staff_id") as HTMLSelectElement;
                     if (!select) return;
-                    let options = allGuardStaff;
-                    if (type === 'caller') options = pnkbStaff;
-                    if (type === 'caller2') options = gambuhStaff;
+                    const options = allGuardStaff;
 
                     let html = '<option value="">-- Pilih Staf --</option><option value="clear">-- Hapus Penugasan / Kosongkan --</option>';
                     options.forEach(s => {
@@ -702,21 +687,14 @@ export default function RomanticRoomPage() {
                     select.innerHTML = html;
                 };
 
-                updateDropdown('caller');
-
-                document.querySelectorAll('input[name="assign_role_type"]').forEach(radio => {
-                    radio.addEventListener('change', (e: any) => {
-                        updateDropdown(e.target.value);
-                    });
-                });
+                updateDropdown('guard');
             },
             preConfirm: () => {
                 const staffId = (document.getElementById("assign_staff_id") as HTMLSelectElement).value;
                 const checkedBoxes = document.querySelectorAll('input[name="assign_rooms"]:checked');
                 const selectedRoomIds = Array.from(checkedBoxes).map((cb: any) => cb.value);
                 
-                const checkedRadio = document.querySelector('input[name="assign_role_type"]:checked') as HTMLInputElement;
-                const roleType = checkedRadio ? checkedRadio.value : "caller";
+                const roleType = "guard";
 
                 if (!staffId) {
                     Swal.showValidationMessage("Silakan pilih staf terlebih dahulu");
@@ -921,7 +899,7 @@ export default function RomanticRoomPage() {
             `;
         });
 
-        const { value: selectedId, isConfirmed } = await Swal.fire({
+        const { value: selectedId, isConfirmed, isDenied } = await Swal.fire({
             title: `Pilih ${title}`,
             html: `
                 <div style="text-align: left; display: flex; flex-direction: column; gap: 12px; max-height: 70vh;">
@@ -954,11 +932,14 @@ export default function RomanticRoomPage() {
                 </div>
             `,
             showCancelButton: true,
+            showDenyButton: true,
             confirmButtonText: "Simpan",
+            denyButtonText: "+ Buat Baru",
             cancelButtonText: "Batal",
             didOpen: () => {
                 document.getElementById('staff-search-input')?.focus();
             },
+            preDeny: () => (document.getElementById('staff-search-input') as HTMLInputElement | null)?.value || "",
             preConfirm: () => {
                 const selected = document.querySelector('input[name="staff_selection"]:checked') as HTMLInputElement;
                 if (selected) {
@@ -968,12 +949,67 @@ export default function RomanticRoomPage() {
             }
         });
 
+        if (isDenied) {
+            await handleCreateStaffAndAssign(roomId, field, allowedRoles, title, typeof selectedId === "string" ? selectedId : "");
+            return;
+        }
+
         if (isConfirmed && selectedId !== undefined) {
             handleQuickStaffChange(roomId, field, selectedId);
         }
     };
 
-    const handleQuickStaffChange = async (roomId: string, field: 'caller' | 'caller2' | 'guard', staffId: string) => {
+    // Buat petugas baru (disimpan ke tabel tim_gambuh / halaman admin/tim-gambuh) lalu langsung tugaskan ke ruangan
+    const handleCreateStaffAndAssign = async (roomId: string, field: 'caller' | 'caller2' | 'guard', allowedRoles: string[], title: string, presetName: string) => {
+        const roleOptions = allowedRoles.map(r => `<option value="${r}">${r}</option>`).join("");
+        const { value: formValues, isConfirmed } = await Swal.fire({
+            title: `Buat ${title} Baru`,
+            html: `
+                <div style="text-align:left; display:flex; flex-direction:column; gap:10px;">
+                    <label style="font-size:13px; font-weight:600;">Nama</label>
+                    <input id="new-staff-name" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" placeholder="Nama lengkap" value="${presetName.replace(/"/g, '&quot;')}" />
+                    ${allowedRoles.length > 1 ? `<label style="font-size:13px; font-weight:600;">Tipe</label>
+                    <select id="new-staff-tipe" class="swal2-select" style="margin:0; width:100%;">${roleOptions}</select>` : ""}
+                    <label style="font-size:13px; font-weight:600;">No. Telp (opsional)</label>
+                    <input id="new-staff-telp" class="swal2-input" style="margin:0; width:100%; box-sizing:border-box;" placeholder="08xxxxxxxxxx" />
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: "Simpan & Pilih",
+            cancelButtonText: "Batal",
+            focusConfirm: false,
+            didOpen: () => document.getElementById("new-staff-name")?.focus(),
+            preConfirm: () => {
+                const nama = (document.getElementById("new-staff-name") as HTMLInputElement)?.value.trim();
+                if (!nama) {
+                    Swal.showValidationMessage("Nama wajib diisi");
+                    return false;
+                }
+                const tipe = (document.getElementById("new-staff-tipe") as HTMLSelectElement | null)?.value || allowedRoles[0];
+                const noTelp = (document.getElementById("new-staff-telp") as HTMLInputElement)?.value.trim();
+                return { nama, tipe, noTelp };
+            },
+        });
+        if (!isConfirmed || !formValues) return;
+
+        try {
+            const res = await fetch("/api/admin/tim-gambuh", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...formValues, kegiatanId: selectedKegiatanId || undefined }),
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || !json.id) throw new Error(json.error || "Gagal menyimpan petugas baru");
+
+            // Segarkan daftar petugas & langsung tugaskan
+            setStaffList(prev => [...prev, { id: json.id, name: formValues.nama, role: formValues.tipe }]);
+            await handleQuickStaffChange(roomId, field, json.id, formValues.nama);
+        } catch (err: any) {
+            Swal.fire("Gagal", err.message, "error");
+        }
+    };
+
+    const handleQuickStaffChange = async (roomId: string, field: 'caller' | 'caller2' | 'guard', staffId: string, nameOverride?: string) => {
         const body: any = { action: "assign_staff" };
         const fieldMap = { caller: 'assignedCallerId', caller2: 'assignedCaller2Id', guard: 'assignedGuardId' };
         const nameMap = { caller: 'assignedCallerNama', caller2: 'assignedCaller2Nama', guard: 'assignedGuardNama' };
@@ -982,15 +1018,16 @@ export default function RomanticRoomPage() {
         body[apiField] = staffId || null;
 
         const staff = staffList.find(s => s.id === staffId);
+        const staffName = nameOverride ?? staff?.name ?? null;
 
         // Persist to localStorage immediately — survives refresh even if DB lags
-        lsSave(roomId, field, staffId, staff?.name || null);
+        lsSave(roomId, field, staffId, staffName);
 
         // Optimistic update so the UI responds instantly
         setAllRooms(prev => prev.map(r => r.id !== roomId ? r : {
             ...r,
             [apiField]: staffId || null,
-            [nameField]: staff?.name || null,
+            [nameField]: staffName,
         }));
 
         try {
@@ -1401,7 +1438,11 @@ export default function RomanticRoomPage() {
         }
     };
 
-    const handleExportPDF = () => {
+    const handleExportPDF = async () => {
+        const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+            import("jspdf"),
+            import("jspdf-autotable"),
+        ]);
         const doc = new jsPDF();
         doc.setFontSize(22);
         doc.setTextColor(244, 63, 94);
@@ -1615,7 +1656,8 @@ export default function RomanticRoomPage() {
         }
     };
 
-    const handleExportExcel = () => {
+    const handleExportExcel = async () => {
+        const XLSX = await import("xlsx");
         const data = filteredData.map(item => ({
             "Nomor Peserta Pemilih": item.pemilihNomorUrut || item.pemilihNo || "-",
             "Nama Pemilih": item.pemilihNama,
@@ -2300,9 +2342,8 @@ export default function RomanticRoomPage() {
                                         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', width: '100%', gap: '6px' }}>
                                             {/* Staff Assignment — inline dropdowns */}
                                             {(() => {
-                                                const hasStaff = room.assignedCallerId || room.assignedCaller2Id || room.assignedGuardId;
-                                                const isExpanded = expandedStaffRooms.has(room.id);
-                                                const showDropdowns = hasStaff || isExpanded;
+                                                // Satu penjaga per room: slot selalu tampil agar mudah diketik/dipilih
+                                                const showDropdowns = true;
                                                 const selectBase: React.CSSProperties = {
                                                     fontSize: '11px', fontWeight: 800, borderRadius: '4px',
                                                     border: '1px solid', cursor: 'pointer', outline: 'none',
@@ -2326,38 +2367,16 @@ export default function RomanticRoomPage() {
                                                 }
                                                 return (
                                                     <div style={{ paddingTop: '6px', borderTop: isKosong ? '1px dashed #f9a8d4' : '1px dashed #e2e8f0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                                        {/* Caller 1 - PNKB & Ibu Gambuh */}
-                                                        <button
-                                                            onClick={() => handleOpenStaffSelector(room.id, 'caller', room.assignedCallerId || "", ['PNKB', 'Ibu Gambuh'], 'Pemanggil 1 (PNKB / Ibu Gambuh)', '📢')}
-                                                            title="Pemanggil 1 (PNKB / Ibu Gambuh)"
-                                                            style={{ ...selectBase, textAlign: 'left', borderColor: '#bfdbfe', background: room.assignedCallerId ? '#eff6ff' : '#f8fafc', color: room.assignedCallerId ? '#2563eb' : '#94a3b8' }}
-                                                        >
-                                                            📢 {room.assignedCallerId ? (() => {
-                                                                const s = staffList.find(st => st.id === room.assignedCallerId);
-                                                                return s ? `${s.name} (${s.role})` : 'Pemanggil 1 (Belum)';
-                                                            })() : 'Pemanggil 1 (Belum)'}
-                                                        </button>
-                                                        {/* Caller 2 - PNKB & Ibu Gambuh */}
-                                                        <button
-                                                            onClick={() => handleOpenStaffSelector(room.id, 'caller2', room.assignedCaller2Id || "", ['PNKB', 'Ibu Gambuh'], 'Pemanggil 2 (PNKB / Ibu Gambuh)', '📢')}
-                                                            title="Pemanggil 2 (PNKB / Ibu Gambuh)"
-                                                            style={{ ...selectBase, textAlign: 'left', borderColor: '#e9d5ff', background: room.assignedCaller2Id ? '#fdf4ff' : '#f8fafc', color: room.assignedCaller2Id ? '#9333ea' : '#94a3b8' }}
-                                                        >
-                                                            📢 {room.assignedCaller2Id ? (() => {
-                                                                const s = staffList.find(st => st.id === room.assignedCaller2Id);
-                                                                return s ? `${s.name} (${s.role})` : 'Pemanggil 2 (Belum)';
-                                                            })() : 'Pemanggil 2 (Belum)'}
-                                                        </button>
                                                         {/* Guard - PNKB + Ibu Gambuh */}
                                                         <button
-                                                            onClick={() => handleOpenStaffSelector(room.id, 'guard', room.assignedGuardId || "", ['PNKB', 'Ibu Gambuh'], 'Penunggu', '🚪')}
-                                                            title="Penunggu (PNKB / Ibu Gambuh)"
+                                                            onClick={() => handleOpenStaffSelector(room.id, 'guard', room.assignedGuardId || "", ['PNKB', 'Ibu Gambuh', 'Tim Penunggu'], 'Penjaga Room', '🚪')}
+                                                            title="Penjaga Room (1 orang per room)"
                                                             style={{ ...selectBase, textAlign: 'left', borderColor: '#a7f3d0', background: room.assignedGuardId ? '#ecfdf5' : '#f8fafc', color: room.assignedGuardId ? '#059669' : '#94a3b8' }}
                                                         >
                                                             🚪 {room.assignedGuardId ? (() => {
                                                                 const s = staffList.find(st => st.id === room.assignedGuardId);
-                                                                return s ? `${s.name} (${s.role})` : 'Penunggu (Belum)';
-                                                            })() : 'Penunggu (Belum)'}
+                                                                return s ? `${s.name} (${s.role})` : (room.assignedGuardNama || 'Penjaga Room (Belum)');
+                                                            })() : 'Penjaga Room (Belum)'}
                                                         </button>
                                                     </div>
                                                 );

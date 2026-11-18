@@ -10,8 +10,6 @@ import withReactContent from "sweetalert2-react-content";
 import Link from "next/link";
 import PhotoUpload from "@/components/mandiri/PhotoUpload";
 import IDCardComponent from "@/components/IDCardComponent";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 import { Printer, Eye } from "lucide-react";
 
 const MySwal = withReactContent(Swal);
@@ -58,12 +56,13 @@ export default function MandiriPanitiaPage() {
   // Daftar baru dimuat setelah kegiatan aktif diketahui, agar tidak fetch dua kali.
   const [initReady, setInitReady] = useState(false);
   const fetchRequestIdRef = useRef(0);
+  const skipInitRefetchRef = useRef(false);
   const [page, setPage] = useState(1);
   const [userRole, setUserRole] = useState("");
   const [kegiatanList, setKegiatanList] = useState<KegiatanOption[]>([]);
   const [selectedKegiatanId, setSelectedKegiatanId] = useState("");
   const [panitiaRegOpen, setPanitiaRegOpen] = useState(true);
-  const limit = 200;
+  const limit = 10;
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Wilayah state
@@ -122,8 +121,11 @@ export default function MandiriPanitiaPage() {
         if (Array.isArray(kList)) {
           setKegiatanList(kList);
           const activeId = s.mandiri_active_kegiatan_id || "";
-          if (activeId) setSelectedKegiatanId(activeId);
-          else if (kList.length > 0) setSelectedKegiatanId(kList[0].id);
+          if (activeId) {
+            // Fetch pertama (tanpa kegiatanId) sudah memakai kegiatan aktif yang sama di server.
+            skipInitRefetchRef.current = true;
+            setSelectedKegiatanId(activeId);
+          } else if (kList.length > 0) setSelectedKegiatanId(kList[0].id);
         }
         const ds = await daerahRes.json();
         if (Array.isArray(ds)) setDaerahList(ds);
@@ -150,7 +152,12 @@ export default function MandiriPanitiaPage() {
   }, [debouncedSearch, selectedKegiatanId]);
 
   const fetchData = useCallback(async () => {
-    if (!initReady) return;
+    // Fetch pertama berjalan paralel dengan init (server memakai kegiatan aktif).
+    // Jika init menemukan kegiatan aktif yang sama, fetch ulang yang identik dilewati.
+    if (skipInitRefetchRef.current) {
+      skipInitRefetchRef.current = false;
+      return;
+    }
     const requestId = ++fetchRequestIdRef.current;
     setLoading(true);
     try {
@@ -167,7 +174,7 @@ export default function MandiriPanitiaPage() {
     } finally {
       if (requestId === fetchRequestIdRef.current) setLoading(false);
     }
-  }, [initReady, debouncedSearch, page, selectedKegiatanId]);
+  }, [debouncedSearch, page, selectedKegiatanId]);
 
   const handleTogglePanitiaReg = async () => {
     try {
@@ -346,6 +353,7 @@ export default function MandiriPanitiaPage() {
            didOpen: async (el) => {
               const box = el.querySelector("#capture-box") as HTMLElement;
               if (box) {
+                 const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([import("html2canvas"), import("jspdf")]);
                  const canvas = await html2canvas(box, {
                     useCORS: true,
                     scale: 3,
@@ -452,7 +460,7 @@ export default function MandiriPanitiaPage() {
 
             <div className="table-wrapper">
               {loading && data.length === 0 ? (
-                <div className="loading">
+                <div className="loading" style={{ minHeight: 480 }}>
                   <div className="spinner" />
                 </div>
               ) : data.length === 0 ? (
@@ -545,6 +553,36 @@ export default function MandiriPanitiaPage() {
                 </table>
               )}
             </div>
+
+            {total > limit && (
+              <div className="card-footer" style={{ display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "space-between", alignItems: "center", padding: "12px 20px", borderTop: "1px solid #e2e8f0" }}>
+                <span style={{ fontSize: "13px", color: "#64748b" }}>
+                  Halaman {page} dari {Math.ceil(total / limit)} · {total} data
+                </span>
+                <div style={{ display: "flex", gap: "5px", flexWrap: "wrap" }}>
+                  <button className="btn btn-sm btn-secondary" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                    Prev
+                  </button>
+                  {Array.from({ length: Math.ceil(total / limit) }, (_, i) => i + 1)
+                    .filter((p) => p === 1 || p === Math.ceil(total / limit) || Math.abs(p - page) <= 1)
+                    .map((p, i, arr) => (
+                      <div key={p} style={{ display: "flex", gap: "5px" }}>
+                        {i > 0 && p - arr[i - 1] > 1 && <span style={{ alignSelf: "flex-end", color: "#cbd5e1" }}>...</span>}
+                        <button className={`btn btn-sm ${page === p ? "btn-primary" : "btn-secondary"}`} onClick={() => setPage(p)}>
+                          {p}
+                        </button>
+                      </div>
+                    ))}
+                  <button
+                    className="btn btn-sm btn-secondary"
+                    disabled={page >= Math.ceil(total / limit)}
+                    onClick={() => setPage((p) => Math.min(Math.ceil(total / limit), p + 1))}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

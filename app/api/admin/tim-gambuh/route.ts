@@ -70,15 +70,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get active kegiatanId
-    const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
-    const kegiatanId = activeSetting[0]?.value || "";
+    const { nama, daerahId, desaId, tipe, umur, kelompokId, noTelp, foto, kegiatanId: bodyKegiatanId } = await request.json();
+
+    // Pakai kegiatan dari body jika ada, jika tidak pakai kegiatan aktif
+    let kegiatanId: string = bodyKegiatanId || "";
+    if (!kegiatanId) {
+      const activeSetting = await db.select().from(settings).where(eq(settings.key, "mandiri_active_kegiatan_id")).limit(1);
+      kegiatanId = activeSetting[0]?.value || "";
+    }
 
     if (!kegiatanId) {
       return NextResponse.json({ error: "Tidak ada kegiatan mandiri yang sedang aktif" }, { status: 400 });
     }
-
-    const { nama, daerahId, desaId, tipe, umur, kelompokId, noTelp, foto } = await request.json();
 
     if (!nama || !tipe) {
       return NextResponse.json({ error: "Nama dan Tipe wajib diisi" }, { status: 400 });

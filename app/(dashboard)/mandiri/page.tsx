@@ -8,8 +8,6 @@ import PhotoUpload from "@/components/mandiri/PhotoUpload";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Swal from "sweetalert2";
-import * as XLSX from "xlsx";
-import ExcelJS from "exceljs";
 
 interface MandiriItem {
    id: string;
@@ -72,6 +70,7 @@ export default function MandiriPage() {
    // Daftar baru dimuat setelah kegiatan aktif diketahui, agar tidak fetch dua kali.
    const [initReady, setInitReady] = useState(false);
    const fetchRequestIdRef = useRef(0);
+   const skipInitRefetchRef = useRef(false);
    const [sort, setSort] = useState(""); // "" (default), "asc", "desc"
    const [page, setPage] = useState(1);
    const [userRole, setUserRole] = useState("");
@@ -170,8 +169,11 @@ export default function MandiriPage() {
             if (Array.isArray(kList)) {
                setKegiatanList(kList);
                const activeId = s.mandiri_active_kegiatan_id || "";
-               if (activeId) setSelectedKegiatanId(activeId);
-               else if (kList.length > 0) setSelectedKegiatanId(kList[0].id);
+               if (activeId) {
+                  // Fetch pertama (tanpa kegiatanId) sudah memakai kegiatan aktif yang sama di server.
+                  skipInitRefetchRef.current = true;
+                  setSelectedKegiatanId(activeId);
+               } else if (kList.length > 0) setSelectedKegiatanId(kList[0].id);
             }
 
             const ds = await safeJson<any>(daerahRes, null);
@@ -360,7 +362,12 @@ export default function MandiriPage() {
    };
 
    const fetchData = useCallback(async () => {
-      if (!initReady) return;
+      // Fetch pertama berjalan paralel dengan init (server memakai kegiatan aktif).
+      // Jika init menemukan kegiatan aktif yang sama, fetch ulang yang identik dilewati.
+      if (skipInitRefetchRef.current) {
+         skipInitRefetchRef.current = false;
+         return;
+      }
       const requestId = ++fetchRequestIdRef.current;
       setLoading(true);
       try {
@@ -396,7 +403,7 @@ export default function MandiriPage() {
       } finally {
          if (requestId === fetchRequestIdRef.current) setLoading(false);
       }
-   }, [initReady, debouncedSearch, page, sort, selectedKegiatanId, filterStatusPeserta]);
+   }, [debouncedSearch, page, sort, selectedKegiatanId, filterStatusPeserta]);
 
 
    useEffect(() => {
@@ -631,6 +638,7 @@ export default function MandiriPage() {
          });
 
 
+         const ExcelJS = (await import("exceljs")).default;
          const workbook = new ExcelJS.Workbook();
          const worksheet = workbook.addWorksheet("Peserta Mandiri");
 
@@ -923,8 +931,9 @@ export default function MandiriPage() {
                      <h2>{regTitle || "Pengelolaan Peserta Mandiri"}</h2>
                      <p>Kelola data peserta yang memasuki usia mandiri / persiapan nikah</p>
                   </div>
-                  {!(userRole === "tim_pnkb" || userRole === "tim_pnkb_gambuh") && kegiatanList.length > 0 && (
-                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  {!(userRole === "tim_pnkb" || userRole === "tim_pnkb_gambuh") && (
+                     // Wrapper selalu ada dengan tinggi tetap agar halaman tidak bergeser saat daftar kegiatan datang
+                     <div style={{ display: "flex", alignItems: "center", gap: "10px", minHeight: 38, visibility: kegiatanList.length > 0 ? "visible" : "hidden" }}>
                         <label style={{ fontWeight: 600, fontSize: 13, color: "#475569", whiteSpace: "nowrap" }}>Kegiatan:</label>
                         <select
                            className="form-control"
@@ -940,7 +949,8 @@ export default function MandiriPage() {
                   )}
                </div>
 
-               <div className="toolbar-container">
+               {/* Tetap menempati ruang sebelum role diketahui (hidden) agar tidak ada layout shift */}
+               <div className="toolbar-container" style={{ visibility: userRole ? "visible" : "hidden" }}>
                    {!(userRole === "tim_pnkb" || userRole === "tim_pnkb_gambuh") && (
                    <div className="toolbar-row">
                       <button
@@ -999,7 +1009,7 @@ export default function MandiriPage() {
                          Perbaiki Nomor
                       </button>
                       )}
-                      {(userRole === "admin_romantic_room" || userRole === "admin" || userRole === "pengurus_daerah" || userRole === "kmm_daerah" || userRole === "tim_pnkb" || userRole === "tim_pnkb_gambuh") && (
+                      {(!userRole || userRole === "admin_romantic_room" || userRole === "admin" || userRole === "pengurus_daerah" || userRole === "kmm_daerah" || userRole === "tim_pnkb" || userRole === "tim_pnkb_gambuh") && (
                          <button
                             className="toolbar-btn toolbar-btn-emerald"
                             onClick={handleExportExcel}
@@ -1052,7 +1062,7 @@ export default function MandiriPage() {
                               Semua
                               <span style={{
                                  background: filterStatusPeserta === "all" ? "rgba(255,255,255,0.2)" : "#f1f5f9",
-                                 padding: "1px 6px",
+                                 padding: "1px 6px", minWidth: 30, textAlign: "center", boxSizing: "border-box",
                                  borderRadius: "10px",
                                  fontSize: "11px",
                                  color: filterStatusPeserta === "all" ? "#fff" : "#64748b"
@@ -1082,7 +1092,7 @@ export default function MandiriPage() {
                               Utusan Daerah
                               <span style={{
                                  background: filterStatusPeserta === "Utusan Daerah" ? "rgba(255,255,255,0.2)" : "#f1f5f9",
-                                 padding: "1px 6px",
+                                 padding: "1px 6px", minWidth: 30, textAlign: "center", boxSizing: "border-box",
                                  borderRadius: "10px",
                                  fontSize: "11px",
                                  color: filterStatusPeserta === "Utusan Daerah" ? "#fff" : "#64748b"
@@ -1112,7 +1122,7 @@ export default function MandiriPage() {
                               Person
                               <span style={{
                                  background: filterStatusPeserta === "Person" ? "rgba(255,255,255,0.2)" : "#f1f5f9",
-                                 padding: "1px 6px",
+                                 padding: "1px 6px", minWidth: 30, textAlign: "center", boxSizing: "border-box",
                                  borderRadius: "10px",
                                  fontSize: "11px",
                                  color: filterStatusPeserta === "Person" ? "#fff" : "#64748b"
@@ -1129,7 +1139,7 @@ export default function MandiriPage() {
                                background: filterStatusPeserta === "pesertaAll" ? "#0ea5e9" : "#f0f9ff",
                                color: filterStatusPeserta === "pesertaAll" ? "#fff" : "#0284c7", fontWeight: filterStatusPeserta === "pesertaAll" ? 600 : 500, cursor: "pointer", display: "flex", gap: "6px", alignItems: "center"
                            }}>
-                              Peserta <span style={{ background: filterStatusPeserta === "pesertaAll" ? "rgba(255,255,255,0.2)" : "#bae6fd", color: filterStatusPeserta === "pesertaAll" ? "#fff" : "#0369a1", padding: "1px 6px", borderRadius: "10px", fontSize: "11px" }}>{pesertaAllCount}</span>
+                              Peserta <span style={{ background: filterStatusPeserta === "pesertaAll" ? "rgba(255,255,255,0.2)" : "#bae6fd", color: filterStatusPeserta === "pesertaAll" ? "#fff" : "#0369a1", padding: "1px 6px", minWidth: 30, textAlign: "center", boxSizing: "border-box", borderRadius: "10px", fontSize: "11px" }}>{pesertaAllCount}</span>
                            </button>
 
                            <button onClick={() => setFilterStatusPeserta("pesertaL")} style={{
@@ -1137,7 +1147,7 @@ export default function MandiriPage() {
                                background: filterStatusPeserta === "pesertaL" ? "#0ea5e9" : "transparent",
                                color: filterStatusPeserta === "pesertaL" ? "#fff" : "#0284c7", fontWeight: filterStatusPeserta === "pesertaL" ? 600 : 500, cursor: "pointer", display: "flex", gap: "6px", alignItems: "center"
                            }}>
-                              Peserta (L) <span style={{ background: filterStatusPeserta === "pesertaL" ? "rgba(255,255,255,0.2)" : "#bae6fd", color: filterStatusPeserta === "pesertaL" ? "#fff" : "#0369a1", padding: "1px 6px", borderRadius: "10px", fontSize: "11px" }}>{pesertaLCount}</span>
+                              Peserta (L) <span style={{ background: filterStatusPeserta === "pesertaL" ? "rgba(255,255,255,0.2)" : "#bae6fd", color: filterStatusPeserta === "pesertaL" ? "#fff" : "#0369a1", padding: "1px 6px", minWidth: 30, textAlign: "center", boxSizing: "border-box", borderRadius: "10px", fontSize: "11px" }}>{pesertaLCount}</span>
                            </button>
 
                            <button onClick={() => setFilterStatusPeserta("pesertaP")} style={{
@@ -1145,7 +1155,7 @@ export default function MandiriPage() {
                                background: filterStatusPeserta === "pesertaP" ? "#0ea5e9" : "transparent",
                                color: filterStatusPeserta === "pesertaP" ? "#fff" : "#0284c7", fontWeight: filterStatusPeserta === "pesertaP" ? 600 : 500, cursor: "pointer", display: "flex", gap: "6px", alignItems: "center"
                            }}>
-                              Peserta (P) <span style={{ background: filterStatusPeserta === "pesertaP" ? "rgba(255,255,255,0.2)" : "#bae6fd", color: filterStatusPeserta === "pesertaP" ? "#fff" : "#0369a1", padding: "1px 6px", borderRadius: "10px", fontSize: "11px" }}>{pesertaPCount}</span>
+                              Peserta (P) <span style={{ background: filterStatusPeserta === "pesertaP" ? "rgba(255,255,255,0.2)" : "#bae6fd", color: filterStatusPeserta === "pesertaP" ? "#fff" : "#0369a1", padding: "1px 6px", minWidth: 30, textAlign: "center", boxSizing: "border-box", borderRadius: "10px", fontSize: "11px" }}>{pesertaPCount}</span>
                            </button>
 
                            {/* Pemisah */}
@@ -1156,7 +1166,7 @@ export default function MandiriPage() {
                                background: filterStatusPeserta === "panitiaAll" ? "#10b981" : "#f0fdf4",
                                color: filterStatusPeserta === "panitiaAll" ? "#fff" : "#15803d", fontWeight: filterStatusPeserta === "panitiaAll" ? 600 : 500, cursor: "pointer", display: "flex", gap: "6px", alignItems: "center"
                            }}>
-                              Panitia <span style={{ background: filterStatusPeserta === "panitiaAll" ? "rgba(255,255,255,0.2)" : "#bbf7d0", color: filterStatusPeserta === "panitiaAll" ? "#fff" : "#15803d", padding: "1px 6px", borderRadius: "10px", fontSize: "11px" }}>{panitiaAllCount}</span>
+                              Panitia <span style={{ background: filterStatusPeserta === "panitiaAll" ? "rgba(255,255,255,0.2)" : "#bbf7d0", color: filterStatusPeserta === "panitiaAll" ? "#fff" : "#15803d", padding: "1px 6px", minWidth: 30, textAlign: "center", boxSizing: "border-box", borderRadius: "10px", fontSize: "11px" }}>{panitiaAllCount}</span>
                            </button>
 
                            <button onClick={() => setFilterStatusPeserta("panitiaL")} style={{
@@ -1164,7 +1174,7 @@ export default function MandiriPage() {
                                background: filterStatusPeserta === "panitiaL" ? "#10b981" : "transparent",
                                color: filterStatusPeserta === "panitiaL" ? "#fff" : "#15803d", fontWeight: filterStatusPeserta === "panitiaL" ? 600 : 500, cursor: "pointer", display: "flex", gap: "6px", alignItems: "center"
                            }}>
-                              Panitia (L) <span style={{ background: filterStatusPeserta === "panitiaL" ? "rgba(255,255,255,0.2)" : "#bbf7d0", color: filterStatusPeserta === "panitiaL" ? "#fff" : "#15803d", padding: "1px 6px", borderRadius: "10px", fontSize: "11px" }}>{panitiaLCount}</span>
+                              Panitia (L) <span style={{ background: filterStatusPeserta === "panitiaL" ? "rgba(255,255,255,0.2)" : "#bbf7d0", color: filterStatusPeserta === "panitiaL" ? "#fff" : "#15803d", padding: "1px 6px", minWidth: 30, textAlign: "center", boxSizing: "border-box", borderRadius: "10px", fontSize: "11px" }}>{panitiaLCount}</span>
                            </button>
 
                            <button onClick={() => setFilterStatusPeserta("panitiaP")} style={{
@@ -1172,14 +1182,14 @@ export default function MandiriPage() {
                                background: filterStatusPeserta === "panitiaP" ? "#10b981" : "transparent",
                                color: filterStatusPeserta === "panitiaP" ? "#fff" : "#15803d", fontWeight: filterStatusPeserta === "panitiaP" ? 600 : 500, cursor: "pointer", display: "flex", gap: "6px", alignItems: "center"
                            }}>
-                              Panitia (P) <span style={{ background: filterStatusPeserta === "panitiaP" ? "rgba(255,255,255,0.2)" : "#bbf7d0", color: filterStatusPeserta === "panitiaP" ? "#fff" : "#15803d", padding: "1px 6px", borderRadius: "10px", fontSize: "11px" }}>{panitiaPCount}</span>
+                              Panitia (P) <span style={{ background: filterStatusPeserta === "panitiaP" ? "rgba(255,255,255,0.2)" : "#bbf7d0", color: filterStatusPeserta === "panitiaP" ? "#fff" : "#15803d", padding: "1px 6px", minWidth: 30, textAlign: "center", boxSizing: "border-box", borderRadius: "10px", fontSize: "11px" }}>{panitiaPCount}</span>
                            </button>
 
                         </div>
                      </div>
-                     <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                        <div className="flex gap-1">
-                           <button 
+                     <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", width: "100%", maxWidth: "100%", boxSizing: "border-box" }}>
+                        <div className="flex gap-1" style={{ flexShrink: 0 }}>
+                           <button
                               className={`btn btn-sm ${sort === 'asc' ? 'btn-primary' : 'btn-secondary'}`} 
                               onClick={() => setSort(sort === 'asc' ? '' : 'asc')}
                               title="Urutkan No. Terkecil ke Terbesar"
@@ -1200,15 +1210,15 @@ export default function MandiriPage() {
                               9-1
                            </button>
                         </div>
-                        <div className="search-bar" style={{ maxWidth: "250px" }}>
-                           <input type="text" className="form-control" placeholder="Cari di list ini..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                        <div className="search-bar" style={{ flex: "1 1 160px", minWidth: 0, maxWidth: "250px" }}>
+                           <input type="text" className="form-control" style={{ width: "100%", minWidth: 0, boxSizing: "border-box" }} placeholder="Cari di list ini..." value={search} onChange={(e) => setSearch(e.target.value)} />
                         </div>
                      </div>
                   </div>
 
                   <div className="table-wrapper">
                      {loading && data.length === 0 ? (
-                        <div className="loading"><div className="spinner" /></div>
+                        <div className="loading" style={{ minHeight: 480 }}><div className="spinner" /></div>
                      ) : data.length === 0 ? (
                         <div className="empty-state" style={{ padding: "40px" }}>
                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 48, opacity: 0.3 }}><path d="M12 2v20M2 12h20" /></svg>

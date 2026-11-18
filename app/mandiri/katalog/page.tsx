@@ -17,6 +17,7 @@ import { getPusherClient } from "@/lib/pusher-client";
 import JsBarcode from "jsbarcode";
 
 import { compressProfilePhoto } from "@/lib/profile-photo";
+import { thumbUrl } from "@/lib/image-url";
 
 function LocalBarcode({ value }: { value: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -2230,7 +2231,7 @@ export default function PublicKatalogPage() {
                 {[...Array(3)].map((_, i) => <div key={i} className="skeleton-card" />)}
               </>
             ) : (
-              data.filter(item => item.id !== currentUser?.id && item.nomorUrut !== currentUser?.nomorUrut).map((item) => {
+              data.filter(item => item.id !== currentUser?.id && item.nomorUrut !== currentUser?.nomorUrut).map((item, itemIndex) => {
                 const isPulang = item.keterangan?.toLowerCase() === "pulang";
                 const isTidakHadir = item.keterangan?.toLowerCase() === "alpha" || item.keterangan?.toLowerCase() === "izin";
                 const isPanitia = Boolean(item.panitiaStatus) || (Boolean(item.role) && item.role !== "generus" && item.role !== "Peserta");
@@ -2257,10 +2258,15 @@ export default function PublicKatalogPage() {
                         }}
                       >
                         <img
-                          src={item.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.nama)}&background=random`}
+                          src={item.foto ? thumbUrl(item.foto, 480) : `https://ui-avatars.com/api/?name=${encodeURIComponent(item.nama)}&background=random`}
                           alt={item.nama}
                           className="card-image"
-                          loading="lazy"
+                          width={240}
+                          height={300}
+                          decoding="async"
+                          // 4 kartu pertama (layar pertama) dimuat segera; sisanya lazy
+                          loading={itemIndex < 4 ? "eager" : "lazy"}
+                          {...(itemIndex < 2 ? { fetchPriority: "high" as const } : {})}
                         />
                         <div className="floating-badge id-badge">#{item.nomorUrut || "-"}</div>
                         {item.selectedCount >= 5 && (

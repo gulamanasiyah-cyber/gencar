@@ -14,10 +14,6 @@ import {
   Download, Eye, EyeOff, ChevronDown, ChevronUp, Settings2, Users, Share2, Music, Utensils, Printer, Home, Instagram, QrCode, FileSpreadsheet, FileText, X, ArrowUpDown, Copy, Fingerprint
 } from "lucide-react";
 import { getPusherClient } from "@/lib/pusher-client";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import html2canvas from "html2canvas";
-import { utils, writeFile } from "xlsx";
 
 export default function AdminKatalogPage() {
   const [data, setData] = useState<GenerusItem[]>([]);
@@ -348,6 +344,7 @@ export default function AdminKatalogPage() {
         return;
       }
 
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([import("jspdf"), import("html2canvas")]);
       const pdf = new jsPDF({
         orientation: "p",
         unit: "mm",
@@ -415,6 +412,7 @@ export default function AdminKatalogPage() {
     try {
       if (!singleCardRef.current) throw new Error("Card element not found");
 
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([import("jspdf"), import("html2canvas")]);
       const pdf = new jsPDF({
         orientation: "p",
         unit: "mm",
@@ -535,6 +533,7 @@ export default function AdminKatalogPage() {
 
       Swal.update({ text: "Menyusun tabel PDF..." });
 
+      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
       const doc = new jsPDF({
         orientation: "landscape",
         unit: "mm",
@@ -717,6 +716,7 @@ export default function AdminKatalogPage() {
         "Kelompok": item.mandiriKelompokNama || item.kelompokNama || "-"
       }));
 
+      const { utils, writeFile } = await import("xlsx");
       const wb = utils.book_new();
       const ws = utils.json_to_sheet(excelData);
 
@@ -747,10 +747,6 @@ export default function AdminKatalogPage() {
     navigator.clipboard.writeText(url);
     Swal.fire({ icon: "success", title: "Link Tersalin", timer: 1000, showConfirmButton: false });
   };
-
-  if (loading && !authorizedChecked) {
-    return <div className="flex h-screen items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-t-blue-500 border-slate-200"></div></div>;
-  }
 
   return (
     <div className="pdkt-admin-container">

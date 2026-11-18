@@ -59,6 +59,10 @@ function AbsensiContent() {
   const [cameraId, setCameraId] = useState<string>("");
   const [filterKota, setFilterKota] = useState("");
   const [filterDesa, setFilterDesa] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  // Kembali ke halaman 1 saat filter atau kegiatan berubah
+  useEffect(() => { setPage(1); }, [filterKota, filterDesa, selectedKegiatan]);
   const [absensiMode, setAbsensiMode] = useState<"scan_panitia" | "qr_self">("scan_panitia");
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -502,6 +506,11 @@ function AbsensiContent() {
     const matchDesa = !filterDesa || item.desaNama === filterDesa;
     return matchKota && matchDesa;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredAbsensi.length / pageSize));
+  const currentPage = Math.min(page, totalPages); // aman saat data berkurang (mis. setelah hapus)
+  const pageOffset = (currentPage - 1) * pageSize;
+  const pagedAbsensi = filteredAbsensi.slice(pageOffset, pageOffset + pageSize);
 
   const uniqueKota = Array.from(new Set(absensiList.map(i => i.desaKota).filter(Boolean))).sort();
   const uniqueDesa = Array.from(new Set(
@@ -1037,9 +1046,9 @@ function AbsensiContent() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredAbsensi.map((item, i) => (
+                    {pagedAbsensi.map((item, i) => (
                       <tr key={item.id}>
-                        <td className="text-muted table-hide-mobile" data-label="#">{i + 1}</td>
+                        <td className="text-muted table-hide-mobile" data-label="#">{pageOffset + i + 1}</td>
                         <td data-label="Peserta">
                           <div style={{ fontWeight: 600, color: "var(--text)", fontSize: "14px" }}>{item.generusNama}</div>
                           <div className="text-sm text-muted" style={{ fontWeight: 600, color: "var(--primary)" }}>
@@ -1070,6 +1079,32 @@ function AbsensiContent() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {!loading && filteredAbsensi.length > pageSize && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderTop: "1px solid var(--border)" }}>
+                <span style={{ fontSize: 13, color: "#64748b" }}>
+                  Halaman {currentPage} dari {totalPages} · {filteredAbsensi.length} data
+                </span>
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                  <button className="btn btn-sm btn-secondary" disabled={currentPage === 1} onClick={() => setPage(Math.max(1, currentPage - 1))}>
+                    Prev
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                    .map((p, i, arr) => (
+                      <div key={p} style={{ display: "flex", gap: 5 }}>
+                        {i > 0 && p - arr[i - 1] > 1 && <span style={{ alignSelf: "flex-end", color: "#cbd5e1" }}>...</span>}
+                        <button className={`btn btn-sm ${currentPage === p ? "btn-primary" : "btn-secondary"}`} onClick={() => setPage(p)}>
+                          {p}
+                        </button>
+                      </div>
+                    ))}
+                  <button className="btn btn-sm btn-secondary" disabled={currentPage >= totalPages} onClick={() => setPage(Math.min(totalPages, currentPage + 1))}>
+                    Next
+                  </button>
+                </div>
               </div>
             )}
           </div>
