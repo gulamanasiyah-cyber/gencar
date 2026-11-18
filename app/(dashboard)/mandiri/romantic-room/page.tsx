@@ -879,8 +879,9 @@ export default function RomanticRoomPage() {
         } catch {}
     };
 
-    const handleOpenStaffSelector = async (roomId: string, field: 'caller' | 'caller2' | 'guard', currentAssignedId: string, allowedRoles: string[], title: string, iconStr: string) => {
-        const filteredStaff = staffList.filter(s => allowedRoles.includes(s.role));
+    const handleOpenStaffSelector = async (roomId: string, field: 'caller' | 'caller2' | 'guard', currentAssignedId: string, allowedRoles: string[], title: string, iconStr: string, excludeIds: string[] = []) => {
+        const filteredStaff = staffList.filter(s => allowedRoles.includes(s.role) && !excludeIds.includes(s.id));
+        let pendingDeleteId = null as string | null;
         
         let optionsHtml = `
             <label class="staff-item" data-text="belum ditentukan" style="display: flex; align-items: center; padding: 12px; cursor: pointer; border-bottom: 1px solid #f8fafc; transition: background 0.2s; font-size: 14px;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
@@ -894,7 +895,8 @@ export default function RomanticRoomPage() {
             optionsHtml += `
             <label class="staff-item" data-text="${label.toLowerCase().replace(/"/g, '&quot;')}" style="display: flex; align-items: center; padding: 12px; cursor: pointer; border-bottom: 1px solid #f8fafc; transition: background 0.2s; font-size: 14px;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
                 <input type="radio" name="staff_selection" value="${s.id}" ${isChecked} style="margin-right: 12px; transform: scale(1.2);" />
-                <span>${iconStr} ${label}</span>
+                <span style="flex:1;">${iconStr} ${label}</span>
+                <button type="button" class="staff-delete-btn" data-staff-id="${s.id}" title="Hapus petugas" style="border:none; background:#fee2e2; color:#dc2626; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:13px;">🗑️</button>
             </label>
             `;
         });
@@ -938,6 +940,14 @@ export default function RomanticRoomPage() {
             cancelButtonText: "Batal",
             didOpen: () => {
                 document.getElementById('staff-search-input')?.focus();
+                document.querySelectorAll('.staff-delete-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        pendingDeleteId = (btn as HTMLElement).getAttribute('data-staff-id');
+                        Swal.clickCancel();
+                    });
+                });
             },
             preDeny: () => (document.getElementById('staff-search-input') as HTMLInputElement | null)?.value || "",
             preConfirm: () => {
@@ -949,6 +959,16 @@ export default function RomanticRoomPage() {
             }
         });
 
+        if (pendingDeleteId) {
+            const deleted = await handleDeleteStaff(pendingDeleteId);
+            await handleOpenStaffSelector(
+                roomId, field, deleted && pendingDeleteId === currentAssignedId ? "" : currentAssignedId,
+                allowedRoles, title, iconStr,
+                deleted ? [...excludeIds, pendingDeleteId] : excludeIds
+            );
+            return;
+        }
+
         if (isDenied) {
             await handleCreateStaffAndAssign(roomId, field, allowedRoles, title, typeof selectedId === "string" ? selectedId : "");
             return;
@@ -956,6 +976,49 @@ export default function RomanticRoomPage() {
 
         if (isConfirmed && selectedId !== undefined) {
             handleQuickStaffChange(roomId, field, selectedId);
+        }
+    };
+
+    const handleDeleteStaff = async (staffId: string): Promise<boolean> => {
+        const staff = staffList.find(s => s.id === staffId);
+        const result = await Swal.fire({
+            title: 'Hapus Petugas?',
+            text: `${staff?.name || 'Petugas'} akan dihapus permanen.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#f43f5e',
+            confirmButtonText: 'Ya, Hapus!',
+            cancelButtonText: 'Batal',
+        });
+        if (!result.isConfirmed) return false;
+        try {
+            const res = await fetch(`/api/admin/tim-gambuh/${staffId}`, { method: "DELETE" });
+            if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Gagal menghapus petugas");
+            setStaffList(prev => prev.filter(s => s.id !== staffId));
+            // Bersihkan cache localStorage yang masih menyimpan petugas ini
+            try {
+                const cache = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+                for (const rid of Object.keys(cache)) {
+                    for (const f of Object.keys(cache[rid])) {
+                        if (cache[rid][f]?.id === staffId) delete cache[rid][f];
+                    }
+                    if (Object.keys(cache[rid]).length === 0) delete cache[rid];
+                }
+                localStorage.setItem(LS_KEY, JSON.stringify(cache));
+            } catch {}
+            // Hapus langsung dari tampilan room
+            const clear = (r: any) => ({
+                ...r,
+                ...(r.assignedCallerId === staffId ? { assignedCallerId: null, assignedCallerNama: null } : {}),
+                ...(r.assignedCaller2Id === staffId ? { assignedCaller2Id: null, assignedCaller2Nama: null } : {}),
+                ...(r.assignedGuardId === staffId ? { assignedGuardId: null, assignedGuardNama: null } : {}),
+            });
+            setAllRooms(prev => prev.map(clear));
+            fetchData();
+            return true;
+        } catch (err: any) {
+            await Swal.fire("Gagal", err.message, "error");
+            return false;
         }
     };
 
@@ -2365,18 +2428,18 @@ export default function RomanticRoomPage() {
                                                         </div>
                                                     );
                                                 }
+                                                // Label penjaga: hanya tampil jika petugas masih ada (bukan ID usang)
+                                                const guardStaff = room.assignedGuardId ? staffList.find(st => st.id === room.assignedGuardId) : null;
+                                                const guardLabel = guardStaff ? `${guardStaff.name} (${guardStaff.role})` : (room.assignedGuardId && !staffList.length ? (room.assignedGuardNama || '') : '');
                                                 return (
                                                     <div style={{ paddingTop: '6px', borderTop: isKosong ? '1px dashed #f9a8d4' : '1px dashed #e2e8f0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                                         {/* Guard - PNKB + Ibu Gambuh */}
                                                         <button
                                                             onClick={() => handleOpenStaffSelector(room.id, 'guard', room.assignedGuardId || "", ['PNKB', 'Ibu Gambuh', 'Tim Penunggu'], 'Penjaga Room', '🚪')}
                                                             title="Penjaga Room (1 orang per room)"
-                                                            style={{ ...selectBase, textAlign: 'left', borderColor: '#a7f3d0', background: room.assignedGuardId ? '#ecfdf5' : '#f8fafc', color: room.assignedGuardId ? '#059669' : '#94a3b8' }}
+                                                            style={{ ...selectBase, textAlign: 'left', borderColor: '#a7f3d0', background: guardLabel ? '#ecfdf5' : '#f8fafc', color: guardLabel ? '#059669' : '#94a3b8' }}
                                                         >
-                                                            🚪 {room.assignedGuardId ? (() => {
-                                                                const s = staffList.find(st => st.id === room.assignedGuardId);
-                                                                return s ? `${s.name} (${s.role})` : (room.assignedGuardNama || 'Penjaga Room (Belum)');
-                                                            })() : 'Penjaga Room (Belum)'}
+                                                            🚪 {guardLabel || 'Penjaga Room (Belum)'}
                                                         </button>
                                                     </div>
                                                 );

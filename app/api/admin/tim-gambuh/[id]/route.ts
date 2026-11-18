@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { timGambuh } from "@/lib/schema";
+import { timGambuh, mandiriRooms, mandiriPemilihan } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 
@@ -55,6 +55,13 @@ export async function DELETE(
     }
 
     const { id } = params;
+
+    // Lepaskan petugas dari room & antrean secara eksplisit (jangan bergantung pada FK)
+    for (const tbl of [mandiriRooms, mandiriPemilihan] as const) {
+      await db.update(tbl).set({ assignedCallerId: null }).where(eq(tbl.assignedCallerId, id));
+      await db.update(tbl).set({ assignedCaller2Id: null }).where(eq(tbl.assignedCaller2Id, id));
+      await db.update(tbl).set({ assignedGuardId: null }).where(eq(tbl.assignedGuardId, id));
+    }
 
     await db.delete(timGambuh).where(eq(timGambuh.id, id));
 
