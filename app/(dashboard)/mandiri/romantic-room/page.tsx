@@ -389,7 +389,8 @@ export default function RomanticRoomPage() {
                     fetch(`/api/mandiri/kunjungan`, { headers: h }),
                     fetch(`/api/mandiri?limit=1000&onlyAttended=true${qParam}`, { headers: h }),
                     fetch(`/api/mandiri/stats/attendance${qmParam}`),
-                    fetch("/api/mandiri/desa"),
+                    // Hanya kota/desa yang aktif untuk kegiatan aktif (toggle di Kelola Daerah/Desa)
+                    fetch("/api/public/mandiri/desa"),
                     fetch(`/api/mandiri/staff${qmParam}`, { headers: h })
                 ]);
             }
@@ -2562,7 +2563,7 @@ export default function RomanticRoomPage() {
                                     }}
                                 >
                                     <option value="Semua Kota">Semua Kota</option>
-                                    {Array.from(new Set(visitHistory.flatMap((h: any) => [h.pemilihKota, h.terpilihKota]).filter(Boolean))).sort().map((city: any) => (
+                                    {allCities.map(city => (
                                         <option key={city} value={city}>{city}</option>
                                     ))}
                                 </select>
@@ -2573,12 +2574,12 @@ export default function RomanticRoomPage() {
                                     onChange={(e) => setVillageFilter(e.target.value)}
                                 >
                                     <option value="Semua Desa">Semua Desa</option>
-                                    {Array.from(new Set(visitHistory.flatMap((h: any) => [
-                                        { k: h.pemilihKota, d: h.pemilihDesa },
-                                        { k: h.terpilihKota, d: h.terpilihDesa }
-                                    ]).filter((x: any) => x.d && (cityFilter === "Semua Kota" || x.k === cityFilter)).map((x: any) => x.d))).sort().map((d: any) => (
-                                        <option key={d} value={d}>{d}</option>
-                                    ))}
+                                    {allVillages
+                                        .filter(v => cityFilter === "Semua Kota" || v.kota === cityFilter)
+                                        .map(v => (
+                                            <option key={v.id} value={v.nama}>{v.nama}</option>
+                                        ))
+                                    }
                                 </select>
 
                                 <select
