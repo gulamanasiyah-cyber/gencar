@@ -2562,7 +2562,7 @@ export default function RomanticRoomPage() {
                                     }}
                                 >
                                     <option value="Semua Kota">Semua Kota</option>
-                                    {allCities.map(city => (
+                                    {Array.from(new Set(visitHistory.flatMap((h: any) => [h.pemilihKota, h.terpilihKota]).filter(Boolean))).sort().map((city: any) => (
                                         <option key={city} value={city}>{city}</option>
                                     ))}
                                 </select>
@@ -2573,12 +2573,12 @@ export default function RomanticRoomPage() {
                                     onChange={(e) => setVillageFilter(e.target.value)}
                                 >
                                     <option value="Semua Desa">Semua Desa</option>
-                                    {allVillages
-                                        .filter(v => cityFilter === "Semua Kota" || v.kota === cityFilter)
-                                        .map(v => (
-                                            <option key={v.id} value={v.nama}>{v.nama}</option>
-                                        ))
-                                    }
+                                    {Array.from(new Set(visitHistory.flatMap((h: any) => [
+                                        { k: h.pemilihKota, d: h.pemilihDesa },
+                                        { k: h.terpilihKota, d: h.terpilihDesa }
+                                    ]).filter((x: any) => x.d && (cityFilter === "Semua Kota" || x.k === cityFilter)).map((x: any) => x.d))).sort().map((d: any) => (
+                                        <option key={d} value={d}>{d}</option>
+                                    ))}
                                 </select>
 
                                 <select
