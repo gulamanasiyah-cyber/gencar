@@ -3575,7 +3575,11 @@ export default function RomanticRoomPage() {
                         .manual-record-box { flex-direction: column; align-items: stretch; width: 100%; gap: 8px; }
                         .manual-record-box select, .manual-record-box button { width: 100%; margin-right: 0 !important; }
                         .history-box .manual-record-box > button { flex: 1 1 calc(50% - 4px); justify-content: center; }
-                        .history-box .manual-record-box .dropdown-peserta { flex: 1 1 100%; }
+                        .history-box .manual-record-box { flex-direction: row; flex-wrap: wrap; align-items: center; }
+                        .history-box .card-header > .manual-record-box > button,
+                        .history-box .card-header > div.manual-record-box button { flex: 1 1 calc(50% - 4px) !important; min-width: calc(50% - 4px) !important; min-height: 38px; height: auto; justify-content: center; white-space: normal !important; font-size: 12px; }
+                        .history-box .manual-record-box .dropdown-peserta { flex: 1 1 100%; width: 100%; min-height: 40px; height: auto; }
+                        .history-box .manual-record-box .search-bar-container { flex: 1 1 100% !important; }
                         .queue-box .scrollable { max-height: 450px; }
                         .p-name { font-size: 13px; }
                         .search-bar-container { padding: 10px 12px; }
