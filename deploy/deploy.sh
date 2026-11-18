@@ -7,7 +7,7 @@
 #       - Menyiapkan izin folder, cek Nginx & .env
 #       - Otomatis mengalihkan eksekusi container ke user 'deploy'
 #    2. deploy (tanpa sudo, grup docker):
-#       - Git pull (ff-only)
+#       - Git pull origin ubuntu-deploy (ff-only)
 #       - Membangun image Docker (commit tag)
 #       - Mengganti wadah container tanpa downtime
 #       - Health check otomatis + auto-rollback jika gagal
@@ -31,6 +31,7 @@ fi
 GC_DATA="${GC_DATA:-/srv/data/gencar}"
 GC_ENV="$GC_DATA/.env"
 GC_PORT="${GC_PORT:-3102}"
+GC_BRANCH="${GC_BRANCH:-ubuntu-deploy}"
 DEPLOY_USER="deploy"
 
 # ── Import fungsi bersama jika ada ────────────────────────────────
@@ -165,13 +166,32 @@ fi
 
 # ── Mode Pasang / Deploy ──────────────────────────────────────────
 if [ "$MODE" = "pasang" ] && [ -d ".git" ]; then
-  langkah "1. Mengambil kode terbaru dari Git (git pull)"
+  langkah "1. Mengambil kode terbaru dari Git (git pull origin $GC_BRANCH)"
   if ! git diff --quiet || ! git diff --cached --quiet; then
     git status --short
     kuning "Peringatan: Ada perubahan lokal di server. Menyimpan stash otomatis..."
     git stash
   fi
-  git pull --ff-only || kuning "git pull tidak fast-forward atau gagal. Melanjutkan build lokal saat ini."
+  CABANG_SEKARANG="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+  if [ "$CABANG_SEKARANG" != "$GC_BRANCH" ]; then
+    kuning "Branch aktif saat ini '$CABANG_SEKARANG', beralih ke '$GC_BRANCH'..."
+    if git show-ref --verify --quiet "refs/heads/$GC_BRANCH"; then
+      git checkout "$GC_BRANCH" || kuning "Gagal pindah ke branch $GC_BRANCH."
+    else
+      if git fetch origin "+refs/heads/$GC_BRANCH:refs/remotes/origin/$GC_BRANCH"; then
+        git checkout -b "$GC_BRANCH" "origin/$GC_BRANCH" \
+          || kuning "Gagal membuat branch $GC_BRANCH dari origin/$GC_BRANCH."
+      else
+        kuning "Gagal mengambil branch $GC_BRANCH dari origin."
+      fi
+    fi
+  fi
+  if [ "$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)" = "$GC_BRANCH" ]; then
+    git pull --ff-only origin "$GC_BRANCH" \
+      || kuning "git pull origin $GC_BRANCH tidak fast-forward atau gagal. Melanjutkan build lokal saat ini."
+  else
+    kuning "Tidak berada di branch $GC_BRANCH. Melewati git pull dan melanjutkan build lokal saat ini."
+  fi
 fi
 
 TAG="$(git rev-parse --short=12 HEAD 2>/dev/null || date +%Y%m%d%H%M)"
