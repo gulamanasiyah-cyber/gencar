@@ -395,6 +395,12 @@ export default function RomanticRoomPage() {
                 ]);
             }
             const roomsRes = await fetch(`/api/mandiri/rooms${roomParam}`, { headers: h });
+            if (!roomsRes.ok) {
+                // Kena rate limit / error server: pertahankan data yang sudah tampil, jangan di-parse sebagai JSON
+                adminDataPromise?.catch(() => {});
+                if (isUserAdmin) setInitialLoaded(true);
+                return;
+            }
             const roomsJson = await roomsRes.json();
             const sortedRooms = Array.isArray(roomsJson)
                 ? [...roomsJson].sort((a, b) => a.nama.localeCompare(b.nama, undefined, { numeric: true, sensitivity: 'base' }))
@@ -410,30 +416,39 @@ export default function RomanticRoomPage() {
                 const [qRes, histRes, pRes, statsRes, desaRes, staffRes] = await adminDataPromise!;
 
                 // 1. Process Queue
-                const qJson = await qRes.json();
-                const waiting = Array.isArray(qJson) ? qJson.filter((q: any) => q.status === "Menunggu") : [];
-                // Sort ascending by createdAt (earliest first / paling awal di atas)
-                waiting.sort((a: any, b: any) => {
-                    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                    return dateA - dateB;
-                });
-                setAllQueue(uniqueById(waiting));
+                // Respons non-2xx (mis. 429 berisi HTML) dilewati agar data lama tidak terhapus
+                if (qRes.ok) {
+                    const qJson = await qRes.json();
+                    const waiting = Array.isArray(qJson) ? qJson.filter((q: any) => q.status === "Menunggu") : [];
+                    // Sort ascending by createdAt (earliest first / paling awal di atas)
+                    waiting.sort((a: any, b: any) => {
+                        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                        return dateA - dateB;
+                    });
+                    setAllQueue(uniqueById(waiting));
+                }
 
                 // 2. Process Visit History
-                const histJson = await histRes.json();
-                setVisitHistory(Array.isArray(histJson) ? histJson : []);
+                if (histRes.ok) {
+                    const histJson = await histRes.json();
+                    setVisitHistory(Array.isArray(histJson) ? histJson : []);
+                }
 
                 // 3. Process Participants
-                const pJson = await pRes.json();
-                setAllParticipants(Array.isArray(pJson.data) ? pJson.data : []);
+                if (pRes.ok) {
+                    const pJson = await pRes.json();
+                    setAllParticipants(Array.isArray(pJson.data) ? pJson.data : []);
+                }
 
                 // 4. Process Attendance Stats
-                const statsJson = await statsRes.json();
-                setAttendanceCount(statsJson.count || 0);
+                if (statsRes.ok) {
+                    const statsJson = await statsRes.json();
+                    setAttendanceCount(statsJson.count || 0);
+                }
 
                 // 5. Process Cities & Villages
-                const desaJson = await desaRes.json();
+                const desaJson = desaRes.ok ? await desaRes.json() : null;
                 if (Array.isArray(desaJson)) {
                     setAllVillages(desaJson);
                     const cities = Array.from(new Set(desaJson.map((d: any) => d.kota))).sort() as string[];
