@@ -3362,7 +3362,7 @@ export default function PublicKatalogPage() {
                   )}
                 </div>
                 <h2>#{myFullProfile.nomorUrut || "-"} {myFullProfile.nama}</h2>
-                <div className="profile-role-badge">{myFullProfile.panitiaStatus || "PESERTA"}</div>
+                <div className="profile-role-badge">{(Boolean(myFullProfile.isPanitia) || Boolean(myFullProfile.panitiaStatus) || (Boolean(myFullProfile.role) && myFullProfile.role !== "generus" && myFullProfile.role !== "Peserta")) ? "PANITIA" : "PESERTA"}</div>
               </div>
 
               <div className="profile-info-grid">

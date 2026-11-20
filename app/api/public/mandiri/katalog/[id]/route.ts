@@ -2,8 +2,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, settings, mandiriKegiatan, mandiriAbsensi, mandiriDaerah } from "@/lib/schema";
-import { eq, sql, and, desc } from "drizzle-orm";
+import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, settings, mandiriKegiatan, mandiriAbsensi, mandiriDaerah, formPanitiaDanPengurus } from "@/lib/schema";
+import { eq, sql, and, desc, or, isNull } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import { getSettingRows } from "@/lib/cached-queries";
 
@@ -66,6 +66,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         hobi: generus.hobi,
         makananMinumanFavorit: generus.makananMinumanFavorit,
         role: users.role,
+        panitiaStatus: formPanitiaDanPengurus.dapukan,
+        isPanitia: sql<number>`CASE WHEN ${formPanitiaDanPengurus.id} IS NOT NULL THEN 1 ELSE 0 END`.mapWith(Number),
         nomorUrut: mandiri.nomorUrut,
         noTelp: hasValidParticipantSession ? generus.noTelp : sql<string>`NULL`,
         alamat: generus.alamat,
@@ -84,6 +86,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       .leftJoin(mandiriKelompok, eq(generus.mandiriKelompokId, mandiriKelompok.id))
       .leftJoin(mandiriDaerah, eq(mandiriDesa.mandiriDaerahId, mandiriDaerah.id))
       .leftJoin(users, eq(generus.id, users.generusId))
+      .leftJoin(formPanitiaDanPengurus, and(
+        eq(generus.id, formPanitiaDanPengurus.generusId),
+        or(eq(formPanitiaDanPengurus.kegiatanId, kegiatanId), isNull(formPanitiaDanPengurus.kegiatanId))
+      ))
       .where(eq(generus.id, id))
       .limit(1);
 
