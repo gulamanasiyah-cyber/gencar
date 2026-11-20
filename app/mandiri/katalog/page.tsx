@@ -587,12 +587,15 @@ export default function PublicKatalogPage() {
     }
   }, []);
 
+  const catalogRetryRef = useRef(0);
+  const fetchDataRef = useRef<(() => Promise<void>) | null>(null);
   const fetchData = useCallback(async () => {
     catalogRequestRef.current?.abort();
     const controller = new AbortController();
     catalogRequestRef.current = controller;
     setLoading(true);
     setCatalogLoadError(false);
+    let willRetry = false;
     try {
       const storedUnik = localStorage.getItem("attended_nomor_unik");
       const storedToken = localStorage.getItem("attended_session_token");
@@ -658,19 +661,31 @@ export default function PublicKatalogPage() {
         return latestParticipant ? { ...prev, ...latestParticipant } : prev;
       });
       setTotal(json.total || 0);
+      catalogRetryRef.current = 0;
     } catch (e: any) {
       if (e?.name === "AbortError") return;
       console.error("fetchData error:", e);
-      setData([]);
-      setTotal(0);
-      setCatalogLoadError(true);
+      // Coba ulang otomatis di belakang layar (skeleton tetap tampil) sebelum menampilkan error
+      if (catalogRetryRef.current < 3) {
+        catalogRetryRef.current += 1;
+        willRetry = true;
+        setTimeout(() => {
+          if (catalogRequestRef.current === controller) void fetchDataRef.current?.();
+        }, 1200 * catalogRetryRef.current);
+      } else {
+        catalogRetryRef.current = 0;
+        setData([]);
+        setTotal(0);
+        setCatalogLoadError(true);
+      }
     } finally {
-      if (catalogRequestRef.current === controller) {
+      if (!willRetry && catalogRequestRef.current === controller) {
         catalogRequestRef.current = null;
         setLoading(false);
       }
     }
   }, [search, page, gender, category, pendidikan, selectedKota, desaFilter, kelompokFilter, pekerjaanFilter, umurFilter, umurMinFilter, umurMaxFilter, sukuFilter, anakKeFilter, jumlahSaudaraFilter, tinggiMinFilter, tinggiMaxFilter, kriteriaFilter, hobiFilter, makananFilter]);
+  fetchDataRef.current = fetchData;
 
   useEffect(() => {
     async function init() {
@@ -2224,11 +2239,21 @@ export default function PublicKatalogPage() {
               </div>
             ) : loading && data.length === 0 ? (
               <>
-                <div className="catalog-loading-box" style={{ gridColumn: "1 / -1" }}>
-                  <div className="catalog-spinner" />
-                  <p>Memuat data peserta dan panitia...</p>
-                </div>
-                {[...Array(3)].map((_, i) => <div key={i} className="skeleton-card" />)}
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="skeleton-card" aria-hidden="true">
+                    <div className="sk-img sk-shimmer" />
+                    <div className="sk-body">
+                      <div className="sk-line sk-title sk-shimmer" />
+                      <div className="sk-line sk-sub sk-shimmer" />
+                      <div className="sk-gap" />
+                      <div className="sk-line sk-shimmer" />
+                      <div className="sk-line sk-shimmer" />
+                      <div className="sk-line sk-shimmer" style={{ width: "70%" }} />
+                      <div className="sk-gap" />
+                      <div className="sk-line sk-btn sk-shimmer" />
+                    </div>
+                  </div>
+                ))}
               </>
             ) : (
               data.filter(item => item.id !== currentUser?.id && item.nomorUrut !== currentUser?.nomorUrut).map((item, itemIndex) => {
@@ -3457,11 +3482,19 @@ export default function PublicKatalogPage() {
 
       {/* EDIT PROFILE MODAL */}
       {isEditingProfile && (
-        <div className="modal-overlay" onClick={() => setIsEditingProfile(false)} style={{ zIndex: 9999 }}>
-          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '90%', padding: '24px', borderRadius: '24px', background: 'white' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '20px', fontWeight: 800, color: '#1e293b' }}>Edit Biodata</h3>
+        <div className="modal-overlay edit-profile-overlay" onClick={() => setIsEditingProfile(false)}>
+          <style>{`
+            .edit-profile-overlay { z-index: 100000 !important; align-items: center !important; justify-content: center !important; padding: 12px !important; box-sizing: border-box; }
+            @media (max-width: 1024px) { .edit-profile-overlay { padding-bottom: calc(64px + 12px + env(safe-area-inset-bottom)) !important; } }
+            .edit-profile-box { display: flex; flex-direction: column; box-sizing: border-box; width: 100%; max-width: 500px; max-height: 100%; padding: 20px; border-radius: 24px; background: white; }
+            .edit-profile-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 16px; padding-right: 4px; }
+            .edit-profile-body input, .edit-profile-body select, .edit-profile-body textarea { box-sizing: border-box; font-size: 16px; }
+            .edit-profile-footer { flex: 0 0 auto; display: flex; gap: 12px; margin-top: 16px; padding-bottom: env(safe-area-inset-bottom); }
+          `}</style>
+          <div className="modal-box edit-profile-box" onClick={e => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '20px', fontWeight: 800, color: '#1e293b', flex: '0 0 auto' }}>Edit Biodata</h3>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '60vh', overflowY: 'auto', paddingRight: '4px' }}>
+            <div className="edit-profile-body">
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '16px' }}>
                 <div
                   style={{ width: "100px", height: "100px", borderRadius: "50%", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", marginBottom: "12px", border: "2px solid #e2e8f0", cursor: editProfileForm.foto ? "zoom-in" : "default" }}
@@ -3631,7 +3664,7 @@ export default function PublicKatalogPage() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+            <div className="edit-profile-footer">
               <button onClick={() => setIsEditingProfile(false)} disabled={savingProfile} style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', background: 'white', color: '#64748b', fontWeight: 700, cursor: 'pointer' }}>Batal</button>
               <button onClick={async () => {
                 if (uploadingFoto) return;
@@ -4157,7 +4190,17 @@ export default function PublicKatalogPage() {
         .catalog-loading-box p { margin:0; }
         .catalog-spinner { width:40px; height:40px; border:4px solid #e2e8f0; border-top-color:#3b82f6; border-radius:50%; animation:catalog-spin 0.9s linear infinite; }
         @keyframes catalog-spin { to { transform:rotate(360deg); } }
-        .skeleton-card { height:600px; background:#f1f5f9; border-radius:32px; animation:pulse 1.5s infinite; }
+        .skeleton-card { background:white; border-radius:24px; overflow:hidden; box-shadow:0 8px 24px rgba(15,23,42,0.08); display:flex; flex-direction:column; }
+        .skeleton-card .sk-img { height:220px; background:#f1f5f9; }
+        .skeleton-card .sk-body { padding:16px; display:flex; flex-direction:column; gap:10px; }
+        .skeleton-card .sk-line { height:12px; border-radius:8px; background:#f1f5f9; }
+        .skeleton-card .sk-title { width:45%; height:16px; }
+        .skeleton-card .sk-sub { width:25%; height:8px; }
+        .skeleton-card .sk-btn { width:35%; height:22px; border-radius:12px; }
+        .skeleton-card .sk-gap { height:8px; }
+        .sk-shimmer { position:relative; overflow:hidden; }
+        .sk-shimmer::after { content:""; position:absolute; inset:0; transform:translateX(-100%); background:linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent); animation:skShimmer 1.4s infinite; }
+        @keyframes skShimmer { 100% { transform:translateX(100%); } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
 
         /* ── Mobile responsive ─────────────────────────────────────────── */
