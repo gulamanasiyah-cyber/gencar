@@ -953,6 +953,27 @@ export default function PublicKatalogPage() {
     void fetchMyProfile();
   }, [fetchMyProfile]);
 
+  // Isi form edit dengan data tersimpan yang baru tiba / belum terisi saat form dibuka
+  useEffect(() => {
+    if (!isEditingProfile || !myFullProfile) return;
+    setEditProfileForm((prev: any) => {
+      const next = { ...prev };
+      let changed = false;
+      const fill = (key: string, value: any) => {
+        const empty = next[key] === undefined || next[key] === null || next[key] === "";
+        if (empty && value !== undefined && value !== null && value !== "") { next[key] = value; changed = true; }
+      };
+      // Hanya mengisi kolom yang masih kosong, tidak menimpa ketikan user
+      ["nama","tempatLahir","tanggalLahir","tinggiBadan","anakKe","jumlahSaudara","alamat","noTelp","suku","pendidikan","pekerjaan","hobi","makananMinumanFavorit","instagram","kriteriaPasangan","foto"]
+        .forEach(k => fill(k, myFullProfile[k]));
+      fill("mandiriDesaId", myFullProfile.mandiriDesaId?.toString());
+      fill("mandiriKelompokId", myFullProfile.mandiriKelompokId?.toString());
+      const matchW = wilayahList.find(w => String(w.id) === String(next.mandiriDesaId));
+      fill("kota", matchW?.kota || matchW?.daerahNama || myFullProfile.mandiriDesaKota);
+      return changed ? next : prev;
+    });
+  }, [isEditingProfile, myFullProfile, wilayahList]);
+
 
 
   useEffect(() => {
@@ -3423,8 +3444,10 @@ export default function PublicKatalogPage() {
                   let initKota = "";
                   if (myFullProfile.mandiriDesaId) {
                     const matchW = wilayahList.find(w => String(w.id) === String(myFullProfile.mandiriDesaId));
-                    if (matchW) initKota = matchW.kota;
+                    if (matchW) initKota = matchW.kota || matchW.daerahNama || "";
                   }
+                  if (!initKota) initKota = myFullProfile.mandiriDesaKota || "";
+                  void fetchMyProfile(); // segarkan data tersimpan terbaru
 
                   setEditProfileForm({
                     nama: myFullProfile.nama || "",
@@ -3488,7 +3511,8 @@ export default function PublicKatalogPage() {
             @media (max-width: 1024px) { .edit-profile-overlay { padding-bottom: calc(64px + 12px + env(safe-area-inset-bottom)) !important; } }
             .edit-profile-box { display: flex; flex-direction: column; box-sizing: border-box; width: 100%; max-width: 500px; max-height: 100%; padding: 20px; border-radius: 24px; background: white; }
             .edit-profile-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 16px; padding-right: 4px; }
-            .edit-profile-body input, .edit-profile-body select, .edit-profile-body textarea { box-sizing: border-box; font-size: 16px; }
+            .edit-profile-body > div > div { min-width: 0; }
+            .edit-profile-body input,.edit-profile-body select, .edit-profile-body textarea { box-sizing: border-box; font-size: 16px; }
             .edit-profile-footer { flex: 0 0 auto; display: flex; gap: 12px; margin-top: 16px; padding-bottom: env(safe-area-inset-bottom); }
           `}</style>
           <div className="modal-box edit-profile-box" onClick={e => e.stopPropagation()}>
@@ -3588,20 +3612,11 @@ export default function PublicKatalogPage() {
                   <IndonesianDateInput value={editProfileForm.tanggalLahir} onChange={(val: string) => setEditProfileForm({ ...editProfileForm, tanggalLahir: val })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none', fontFamily: 'inherit' }} />
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '16px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Tinggi Badan (cm)</label>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Tinggi (cm)</label>
                   <input type="number" value={editProfileForm.tinggiBadan || ""} onChange={e => setEditProfileForm({ ...editProfileForm, tinggiBadan: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Status Nikah</label>
-                  <select value={editProfileForm.statusNikah || ""} onChange={e => setEditProfileForm({ ...editProfileForm, statusNikah: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }}>
-                    <option value="Belum Menikah">Belum Menikah</option>
-                    <option value="Menikah">Menikah</option>
-                  </select>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Anak Ke</label>
                   <input type="number" value={editProfileForm.anakKe || ""} onChange={e => setEditProfileForm({ ...editProfileForm, anakKe: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
