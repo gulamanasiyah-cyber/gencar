@@ -85,6 +85,8 @@ export async function GET(request: NextRequest) {
                 penerimaWa: sql<string>`COALESCE(${g2.noTelp}, ${pan2.noTelp})`,
                 pengirimJenisKelamin: g1.jenisKelamin,
                 penerimaJenisKelamin: g2.jenisKelamin,
+                pengirimStatusHaid: g1.statusHaid,
+                penerimaStatusHaid: g2.statusHaid,
                 pengirimTanggalLahir: g1.tanggalLahir,
                 penerimaTanggalLahir: g2.tanggalLahir,
                 pengirimKeterangan: abs1.keterangan,

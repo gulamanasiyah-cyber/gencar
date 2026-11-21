@@ -2246,6 +2246,13 @@ export default function RomanticRoomPage() {
                                                                     padding: '1px 4px', fontSize: '7.5px', borderRadius: '3px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px' 
                                                                 }}>{item.pengirimStatus}</div>
                                                             )}
+                                                            {item.pengirimJenisKelamin === 'P' && (
+                                                                <div style={{
+                                                                    background: item.pengirimStatusHaid === 'Ya' ? '#ffe4e6' : '#e0f2fe',
+                                                                    color: item.pengirimStatusHaid === 'Ya' ? '#be123c' : '#0369a1',
+                                                                    padding: '1px 4px', fontSize: '7.5px', borderRadius: '3px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px'
+                                                                }}>{item.pengirimStatusHaid === 'Ya' ? '🌸 Haid' : 'Tidak Haid'}</div>
+                                                            )}
                                                         </div>
                                                         <div className="p-main-box" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                                                             <span className="p-number-badge" style={{ padding: '1px 4px', fontSize: '9px', minWidth: '20px', borderRadius: '3px' }}>{item.pengirimNomorUrut || item.pengirimNo || '-'}</span>
@@ -2278,6 +2285,13 @@ export default function RomanticRoomPage() {
                                                                     color: item.penerimaStatus.toLowerCase().includes('panitia') ? '#a16207' : '#047857', 
                                                                     padding: '1px 4px', fontSize: '7.5px', borderRadius: '3px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px' 
                                                                 }}>{item.penerimaStatus}</div>
+                                                            )}
+                                                            {item.penerimaJenisKelamin === 'P' && (
+                                                                <div style={{
+                                                                    background: item.penerimaStatusHaid === 'Ya' ? '#ffe4e6' : '#e0f2fe',
+                                                                    color: item.penerimaStatusHaid === 'Ya' ? '#be123c' : '#0369a1',
+                                                                    padding: '1px 4px', fontSize: '7.5px', borderRadius: '3px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px'
+                                                                }}>{item.penerimaStatusHaid === 'Ya' ? '🌸 Haid' : 'Tidak Haid'}</div>
                                                             )}
                                                             <div className="p-role-tag called" style={{ margin: 0, padding: '1px 4px', fontSize: '7.5px', borderRadius: '3px' }}>Dipanggil</div>
                                                         </div>
