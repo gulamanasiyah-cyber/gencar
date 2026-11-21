@@ -138,8 +138,13 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       statusHaid,
     } = body;
 
-    if (!nomorUnik || !token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Pemilik profil yang login lewat akun (panitia/pengurus) boleh mengedit profilnya sendiri
+    // tanpa token sesi kehadiran peserta.
+    const accountSession = await getSession();
+    const isOwnAccount = !!accountSession && !!accountSession.generusId && accountSession.generusId === id;
+
+    if (!isOwnAccount && (!nomorUnik || !token)) {
+      return NextResponse.json({ error: "Sesi tidak ditemukan. Silakan login ulang melalui Katalog." }, { status: 401 });
     }
     if (typeof nama !== "string" || !nama.trim()) {
       return NextResponse.json({ error: "Nama lengkap wajib diisi." }, { status: 400 });
@@ -185,18 +190,20 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     // Verify user ownership
-    const user = await db.select({ id: generus.id })
-      .from(generus)
-      .innerJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, kegiatanId)))
-      .where(and(
-        eq(generus.id, id),
-        eq(generus.nomorUnik, nomorUnik),
-        eq(mandiri.lastSessionToken, token)
-      ))
-      .limit(1);
+    if (!isOwnAccount) {
+      const user = await db.select({ id: generus.id })
+        .from(generus)
+        .innerJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, kegiatanId)))
+        .where(and(
+          eq(generus.id, id),
+          eq(generus.nomorUnik, nomorUnik),
+          eq(mandiri.lastSessionToken, token)
+        ))
+        .limit(1);
 
-    if (user.length === 0) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      if (user.length === 0) {
+        return NextResponse.json({ error: "Sesi sudah berakhir (mungkin login di perangkat lain). Silakan login ulang melalui Katalog." }, { status: 401 });
+      }
     }
 
     await db.update(generus).set({
