@@ -16,6 +16,11 @@ export default function ResetPasswordPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
+  const [token, setToken] = useState("");
+
+  useEffect(() => {
+    setToken(new URLSearchParams(window.location.search).get("token") || "");
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -32,7 +37,7 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     setLoading(true);
 
-    if (newPassword !== confirmPassword) {
+    if (token && newPassword !== confirmPassword) {
       Swal.fire({
         icon: 'error',
         title: 'Gagal',
@@ -46,7 +51,7 @@ export default function ResetPasswordPage() {
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, newPassword }),
+        body: JSON.stringify(token ? { token, newPassword } : { email }),
       });
 
       const data = await res.json();
@@ -63,7 +68,9 @@ export default function ResetPasswordPage() {
       Swal.fire({
         icon: 'success',
         title: 'Berhasil!',
-        text: 'Password Anda telah berhasil diubah. Silakan login dengan password baru.',
+        text: token
+          ? 'Password Anda telah berhasil diubah. Silakan login dengan password baru.'
+          : 'Jika email terdaftar, tautan reset password telah dikirim. Periksa kotak masuk Anda.',
       }).then(() => {
         window.location.href = "/login";
       });
@@ -94,9 +101,14 @@ export default function ResetPasswordPage() {
         </div>
 
         <h2 className="auth-title">Lupa Password</h2>
-        <p className="auth-subtitle">Masukkan email terdaftar Anda beserta password baru yang ingin digunakan.</p>
+        <p className="auth-subtitle">
+          {token
+            ? "Masukkan password baru Anda."
+            : "Masukkan email terdaftar Anda. Kami akan mengirim tautan untuk mengatur password baru."}
+        </p>
 
         <form onSubmit={handleSubmit}>
+          {!token && (
           <div className="form-group">
             <label className="form-label" htmlFor="email">
               Email Terdaftar <span className="required">*</span>
@@ -112,7 +124,9 @@ export default function ResetPasswordPage() {
               autoComplete="email"
             />
           </div>
+          )}
 
+          {token && (<>
           <div className="form-group" style={{ marginTop: "16px" }}>
             <label className="form-label" htmlFor="newPassword">
               Password Baru <span className="required">*</span>
@@ -155,6 +169,7 @@ export default function ResetPasswordPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
+                minLength={8}
                 style={{ paddingRight: '40px' }}
               />
               <button
@@ -170,6 +185,7 @@ export default function ResetPasswordPage() {
               </button>
             </div>
           </div>
+          </>)}
 
           <button
             type="submit"
@@ -177,7 +193,7 @@ export default function ResetPasswordPage() {
             disabled={loading}
             style={{ marginTop: "24px" }}
           >
-            {loading ? "Memproses..." : "Simpan Password Baru"}
+            {loading ? "Memproses..." : token ? "Simpan Password Baru" : "Kirim Tautan Reset"}
           </button>
           
           <div className="auth-footer" style={{ marginTop: "24px", paddingTop: "16px", borderTop: "1px solid var(--border)" }}>

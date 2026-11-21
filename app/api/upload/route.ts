@@ -1,5 +1,17 @@
 
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/cache";
+import { getClientIp } from "@/lib/request-ip";
+
+// Cek isi file (magic bytes) agar ekstensi/MIME palsu tidak lolos
+function looksLikeImage(b: Uint8Array): boolean {
+  const eq = (o: number, sig: number[]) => sig.every((v, i) => b[o + i] === v);
+  if (eq(0, [0xff, 0xd8, 0xff])) return true; // JPEG
+  if (eq(0, [0x89, 0x50, 0x4e, 0x47])) return true; // PNG
+  if (eq(0, [0x52, 0x49, 0x46, 0x46]) && eq(8, [0x57, 0x45, 0x42, 0x50])) return true; // WEBP
+  if (eq(4, [0x66, 0x74, 0x79, 0x70])) return true; // ISO-BMFF (HEIC/HEIF)
+  return false;
+}
 
 // Max file size: 10 MB (in bytes)
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -18,6 +30,9 @@ const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"];
 
 export async function POST(request: NextRequest) {
   try {
+    if (!checkRateLimit(`upload:${getClientIp(request.headers)}`, 20, 60_000).success) {
+      return NextResponse.json({ error: "Terlalu banyak unggahan. Coba lagi sebentar lagi." }, { status: 429 });
+    }
     const contentLength = Number(request.headers.get("content-length"));
     if (Number.isFinite(contentLength) && contentLength > MAX_FILE_SIZE + MAX_MULTIPART_OVERHEAD) {
       return NextResponse.json({ error: "Ukuran file terlalu besar. Maksimal 10 MB." }, { status: 413 });
@@ -36,7 +51,7 @@ export async function POST(request: NextRequest) {
     const isAllowedMime = ALLOWED_MIME_TYPES.includes(fileType);
     const isAllowedExt = ALLOWED_EXTENSIONS.some(ext => fileName.endsWith(ext));
 
-    if (!isAllowedMime && !isAllowedExt) {
+    if (!isAllowedExt && !isAllowedMime) {
       return NextResponse.json(
         { error: `Tipe file tidak didukung: ${file.type || "unknown"}. Gunakan JPG, PNG, atau WEBP.` },
         { status: 400 }
@@ -48,6 +63,11 @@ export async function POST(request: NextRequest) {
         { error: `Ukuran file terlalu besar (${(file.size / 1024 / 1024).toFixed(1)} MB). Maksimal 10 MB.` },
         { status: 400 }
       );
+    }
+
+    const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+    if (!looksLikeImage(head)) {
+      return NextResponse.json({ error: "Isi file bukan gambar yang valid" }, { status: 400 });
     }
 
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;

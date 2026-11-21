@@ -8,6 +8,7 @@ import { users, generus } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
+import { randomInt } from "crypto";
 import { registerSchema } from "@/lib/validation";
 import { encryptPasswordSymmetric } from "@/lib/crypto";
 
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
     // Auto-create Generus profile
     const generusId = uuidv4();
     const prefix = assignedRole === "generus" ? "G" : "P";
-    const nomorUnik = `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
+    const nomorUnik = `${prefix}-${randomInt(100000, 1000000)}`;
 
     await db.insert(generus).values({
       id: generusId,

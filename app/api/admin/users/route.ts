@@ -9,6 +9,22 @@ import { getSession } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 import { encryptPasswordSymmetric } from "@/lib/crypto";
 
+const ASSIGNABLE_ROLES = ["admin", "pengurus_daerah", "kmm_daerah", "desa", "kelompok", "generus", "peserta", "creator", "pending", "tim_pnkb", "admin_romantic_room", "admin_keuangan", "admin_kegiatan", "admin_pdkt", "usia_mandiri", "tim_pnkb_gambuh"];
+const PRIVILEGED_ROLES = ["admin", "pengurus_daerah", "kmm_daerah"];
+
+// Hanya admin yang boleh memberi/mengubah/menghapus peran istimewa
+function canGrant(sessionRole: string, targetRole: string | undefined | null) {
+  if (!targetRole) return true;
+  if (!ASSIGNABLE_ROLES.includes(targetRole)) return false;
+  return PRIVILEGED_ROLES.includes(targetRole) ? sessionRole === "admin" : true;
+}
+
+// Netralkan formula spreadsheet (=,+,-,@) pada ekspor CSV
+function csvCell(v: string) {
+  const safe = /^[=+@\t\r-]/.test(v) ? "'" + v : v;
+  return `"${safe.replace(/"/g, "\"\"")}"`;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
@@ -18,8 +34,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const search = (searchParams.get("search") || "").trim();
-    const page = Number(searchParams.get("page") || "1");
-    const limit = Number(searchParams.get("limit") || "50");
+    const page = Math.max(1, Math.floor(Number(searchParams.get("page")) || 1));
+    const limit = Math.min(200, Math.max(1, Math.floor(Number(searchParams.get("limit")) || 50)));
     const offset = (page - 1) * limit;
 
     const roleParam = searchParams.get("role");
@@ -74,9 +90,9 @@ export async function GET(request: NextRequest) {
         .orderBy(users.name);
 
       if (searchParams.get("format") === "csv") {
-        const csvHeader = "Nama Lengkap,Desa,Kelompok,Email,Password Default\n";
-        const csvRows = data.map(u => 
-          `"${u.name.replace(/"/g, '""')}","${(u.desaNama || "-").replace(/"/g, '""')}","${(u.kelompokNama || "-").replace(/"/g, '""')}","${u.email.replace(/"/g, '""')}","generusjb2"`
+        const csvHeader = "Nama Lengkap,Desa,Kelompok,Email\n";
+        const csvRows = data.map((u: any) =>
+          [csvCell(u.name), csvCell(u.desaNama || "-"), csvCell(u.kelompokNama || "-"), csvCell(u.email)].join(",")
         ).join("\n");
 
         const filename = `Data_User_Admin_${Date.now()}.csv`;
@@ -146,6 +162,12 @@ export async function PUT(request: NextRequest) {
 
     const user = await db.query.users.findFirst({ where: eq(users.id, id) });
     if (!user) return NextResponse.json({ error: "User tidak ditemukan" }, { status: 404 });
+    if (!canGrant(session.role, role) || !canGrant(session.role, user.role)) {
+      return NextResponse.json({ error: "Tidak diizinkan mengubah/menetapkan peran ini" }, { status: 403 });
+    }
+    if (password !== undefined && password !== "" && (typeof password !== "string" || password.length < 8 || password.length > 128)) {
+      return NextResponse.json({ error: "Password harus 8-128 karakter" }, { status: 400 });
+    }
 
     let generusId = user.generusId;
 
@@ -230,9 +252,17 @@ export async function DELETE(request: NextRequest) {
     const role = searchParams.get("role");
     
     if (id) {
+      if (id === session.userId) return NextResponse.json({ error: "Tidak dapat menghapus akun sendiri" }, { status: 400 });
+      const target = await db.query.users.findFirst({ where: eq(users.id, id) });
+      if (target && !canGrant(session.role, target.role)) {
+        return NextResponse.json({ error: "Tidak diizinkan menghapus akun ini" }, { status: 403 });
+      }
       await db.delete(users).where(eq(users.id, id));
       return NextResponse.json({ success: true });
     } else if (role) {
+      if (session.role !== "admin" || PRIVILEGED_ROLES.includes(role) || !ASSIGNABLE_ROLES.includes(role)) {
+        return NextResponse.json({ error: "Tidak diizinkan menghapus massal untuk peran ini" }, { status: 403 });
+      }
       await db.delete(users).where(eq(users.role, role as any));
       return NextResponse.json({ success: true });
     } else {
@@ -255,6 +285,12 @@ export async function POST(request: NextRequest) {
 
     if (!name || !email || !password || !role) {
       return NextResponse.json({ error: "Nama, email, password, dan role wajib diisi" }, { status: 400 });
+    }
+    if (!canGrant(session.role, role)) {
+      return NextResponse.json({ error: "Tidak diizinkan menetapkan peran ini" }, { status: 403 });
+    }
+    if (typeof password !== "string" || password.length < 8 || password.length > 128) {
+      return NextResponse.json({ error: "Password harus 8-128 karakter" }, { status: 400 });
     }
 
     const existingUser = await db.query.users.findFirst({

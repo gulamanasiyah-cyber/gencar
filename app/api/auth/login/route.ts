@@ -10,35 +10,14 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { setSession } from "@/lib/auth";
 import { loginSchema } from "@/lib/validation";
+import { resetRateLimit, checkRateLimit } from "@/lib/cache";
+import { getClientIp } from "@/lib/request-ip";
 import { sanitizeString, detectPromptInjection } from "@/lib/sanitize";
 
-// Rate limiter in-memory sederhana untuk mencegah serangan Brute Force.
-// (Disarankan menggunakan Redis/Upstash untuk Next.js serverless di production)
-const rateLimit = new Map<string, { count: number, resetTime: number }>();
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const windowMillis = 15 * 60 * 1000; // 15 menit
-  
-  if (!rateLimit.has(ip)) {
-    rateLimit.set(ip, { count: 1, resetTime: now + windowMillis });
-    return true;
-  }
-  
-  const record = rateLimit.get(ip)!;
-  if (now > record.resetTime) {
-    // Reset limit
-    rateLimit.set(ip, { count: 1, resetTime: now + windowMillis });
-    return true;
-  }
-  
-  if (record.count >= 5) { // Maksimal 5 percobaan gagal/berhasil per 15 menit
-    return false;
-  }
-  
-  record.count += 1;
-  return true;
-}
+// Hash dummy untuk menyamakan waktu respons saat email tidak ditemukan (anti user-enumeration via timing)
+const DUMMY_HASH = "$2a$12$C6UzMDM.H6dfI/f/IKcEeO5RtEGnYwpwk5b5Q4cZ7oJz1m5rXK1Wa";
+const MAX_FAILED = 8;
+const WINDOW_MS = 15 * 60_000;
 
 export async function POST(request: NextRequest) {
   try {
@@ -54,8 +33,9 @@ export async function POST(request: NextRequest) {
     const { email, password } = parsed.data;
 
     // 1.5 Rate Limiting (Pencegahan Brute-Force)
-    const ip = request.headers.get("x-forwarded-for") ?? "127.0.0.1";
-    if (!checkRateLimit(ip)) {
+    const ip = getClientIp(request.headers);
+    const rlKeyAcc = `login-acc:${email}`;
+    if (!checkRateLimit(`login-ip:${ip}`, 30, WINDOW_MS).success || !checkRateLimit(rlKeyAcc, MAX_FAILED, WINDOW_MS).success) {
       return NextResponse.json({ error: "Terlalu banyak percobaan. Silakan coba lagi dalam 15 menit." }, { status: 429 });
     }
 
@@ -73,14 +53,16 @@ export async function POST(request: NextRequest) {
 
     // Generic error message to prevent user enumeration
     if (!user) {
+      await bcrypt.compare(password, DUMMY_HASH);
       return NextResponse.json({ error: "Email atau password salah" }, { status: 401 });
     }
 
-    const validPassword = bcrypt.compareSync(password, user.passwordHash);
+    const validPassword = await bcrypt.compare(password, user.passwordHash);
     if (!validPassword) {
       return NextResponse.json({ error: "Email atau password salah" }, { status: 401 });
     }
 
+    resetRateLimit(rlKeyAcc);
     await setSession({
       userId: user.id,
       email: user.email,

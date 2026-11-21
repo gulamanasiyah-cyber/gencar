@@ -11,7 +11,6 @@ import { batchQueries } from "@/lib/db-batch";
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
-    console.log("Profile API - Session:", session);
     let currentGenerusId = session?.generusId;
 
     if (!session) {
@@ -197,7 +196,7 @@ export async function GET(request: NextRequest) {
         alamat: "-",
         noTelp: "-",
         pendidikan: "-",
-        pekerjaan: u.role.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
+        pekerjaan: u.role.split("_").map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
         statusNikah: "Menikah",
         desaId: u.desaId,
         kelompokId: u.kelompokId,

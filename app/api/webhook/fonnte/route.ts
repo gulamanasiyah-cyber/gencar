@@ -3,8 +3,21 @@ import { db } from "@/lib/db";
 import { generus, settings, mandiriKegiatan } from "@/lib/schema";
 import { eq, or, like } from "drizzle-orm";
 import { sendWhatsApp } from "@/lib/whatsapp";
+import { timingSafeEqual } from "crypto";
+
+function secretOk(provided: string | null): boolean {
+  const expected = process.env.WEBHOOK_SECRET;
+  if (!expected || !provided) return false; // fail closed bila secret belum dikonfigurasi
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
 export async function POST(request: NextRequest) {
+  const provided = request.headers.get("x-webhook-secret") || new URL(request.url).searchParams.get("secret");
+  if (!secretOk(provided)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   try {
     const contentType = request.headers.get("content-type") || "";
     let data: any = {};
@@ -15,8 +28,6 @@ export async function POST(request: NextRequest) {
       const formData = await request.formData();
       data = Object.fromEntries(formData.entries());
     }
-
-    console.log("Webhook received raw data:", JSON.stringify(data));
 
     let sender = data.sender || "";
     let message = data.message || "";
@@ -48,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     // Clean and normalize sender phone number
     const cleanSender = sender.replace(/\D/g, "");
-    const phoneSuffix = cleanSender.length >= 9 ? cleanSender.slice(-9) : cleanSender;
+    const phoneSuffix = cleanSender.length >= 10 ? cleanSender.slice(-10) : "";
 
     // Extract name from message template: "Saya [Nama], siap hadir dalam acara taaruf kubro"
     const nameMatch = message.match(/Saya\s+(.*?)\s*,\s*siap\s+hadir/i);
@@ -110,6 +121,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, verified: !!foundGenerus });
   } catch (error: any) {
     console.error("Fonnte Webhook error:", error);
-    return NextResponse.json({ error: "Internal Server Error", details: error.message }, { status: 500 });
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

@@ -508,8 +508,8 @@ export default function PublicKatalogPage() {
     try {
       // FIX: Use encodeURIComponent for userId to prevent URL parse errors on mobile
       const [resRec, resSent] = await Promise.all([
-        fetch(`/api/mandiri/komentar?penerimaId=${encodeURIComponent(userId)}`),
-        fetch(`/api/mandiri/komentar?pengirimId=${encodeURIComponent(userId)}`)
+        fetch(`/api/mandiri/komentar?penerimaId=${encodeURIComponent(userId)}`, { headers: (() => { try { const u = localStorage.getItem("attended_nomor_unik"); const k = localStorage.getItem("attended_session_token"); return { ...(u ? { "x-nomor-unik": u } : {}), ...(k ? { "x-session-token": k } : {}) }; } catch { return {}; } })() }),
+        fetch(`/api/mandiri/komentar?pengirimId=${encodeURIComponent(userId)}`, { headers: (() => { try { const u = localStorage.getItem("attended_nomor_unik"); const k = localStorage.getItem("attended_session_token"); return { ...(u ? { "x-nomor-unik": u } : {}), ...(k ? { "x-session-token": k } : {}) }; } catch { return {}; } })() })
       ]);
       if (resRec.ok) {
         const data = await resRec.json();
@@ -1182,7 +1182,7 @@ export default function PublicKatalogPage() {
     try {
       const res = await fetch("/api/mandiri/komentar", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...((() => { try { const u = localStorage.getItem("attended_nomor_unik"); const k = localStorage.getItem("attended_session_token"); return { ...(u ? { "x-nomor-unik": u } : {}), ...(k ? { "x-session-token": k } : {}) }; } catch { return {}; } })()) },
         body: JSON.stringify({
           penerimaId,
           pengirimId: currentUser?.id,
@@ -1413,7 +1413,7 @@ export default function PublicKatalogPage() {
         await fetch("/api/public/mandiri/katalog/logout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ nomorUnik: storedUnik })
+          body: JSON.stringify({ nomorUnik: storedUnik, sessionToken: localStorage.getItem("attended_session_token") })
         });
       } catch (e) {
         console.error("Failed to perform logout API request:", e);

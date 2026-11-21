@@ -77,14 +77,17 @@ export function checkRateLimit(
     return { success: true, current: 1 };
   }
 
+  // Jendela tetap: hitung tanpa memperpanjang masa berlaku (record adalah referensi objek yang sama)
   record.count++;
-  // Update state without refreshing expiration (keep original window)
-  rateLimitCache.set(ip, record, windowMs); // In real LRU we preserve expiresAt, here it resets (sliding window) - acceptable for security
 
   return { 
     success: record.count <= limit, 
     current: record.count 
   };
+}
+
+export function resetRateLimit(key: string): void {
+  rateLimitCache.delete(key);
 }
 
 // ── Revoked Tokens Cache ───────────────────────────────────────────

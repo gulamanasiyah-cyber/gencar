@@ -60,6 +60,19 @@ function hitungUmur(tanggalLahir?: string | null): string {
    return `${umur} th`;
 }
 
+function isDibuatHariIni(v?: string | null) {
+   if (!v) return false;
+   const d = new Date(v);
+   return !isNaN(d.getTime()) && d.toDateString() === new Date().toDateString();
+}
+
+function fmtAkunDibuat(v?: string | null) {
+   if (!v) return "-";
+   const d = new Date(v);
+   if (isNaN(d.getTime())) return "-";
+   return d.toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
 export default function MandiriPage() {
    const [data, setData] = useState<MandiriItem[]>([]);
    const [total, setTotal] = useState(0);
@@ -662,6 +675,7 @@ export default function MandiriPage() {
             { header: "Desa", key: "desa", width: 15 },
             { header: "Kelompok", key: "kelompok", width: 15 },
             { header: "Kehadiran", key: "kehadiran", width: 15 },
+            { header: "Akun Dibuat", key: "akunDibuat", width: 20 },
             { header: "Status Akun", key: "statusAkun", width: 15 },
             { header: "Status Peserta", key: "statusPeserta", width: 20 },
             { header: "Dibayarkan", key: "dibayarkan", width: 15 },
@@ -693,6 +707,7 @@ export default function MandiriPage() {
                desa: item.desaNama && item.desaNama !== "N/A" ? item.desaNama : "-",
                kelompok: item.kelompokNama && item.kelompokNama !== "N/A" ? item.kelompokNama : "-",
                kehadiran: item.keterangan === "pulang" ? "Pulang" : item.isHadir === 1 ? "Hadir" : "Belum Hadir",
+               akunDibuat: fmtAkunDibuat(item.createdAt),
                statusAkun: item.statusMandiri,
                statusPeserta: item.statusPeserta || "Utusan Daerah",
                dibayarkan: item.statusPeserta === "Person" ? (item.dibayarkanSenilai ? `Rp ${Number(item.dibayarkanSenilai).toLocaleString("id-ID")}` : "-") : "Gratis",
@@ -1245,7 +1260,7 @@ export default function MandiriPage() {
                                        <th>Dibayarkan Senilai</th>
                                        <th>Foto Bukti Bayar</th>
                                        <th>Catatan</th>
-                                       <th>Target Menikah</th>
+                                       <th>Akun Dibuat</th>
                                        {userRole !== "tim_pnkb_gambuh" && <th>Aksi</th>}
                                     </tr>
                                  </thead>
@@ -1294,7 +1309,12 @@ export default function MandiriPage() {
                                                 {item.foto ? <img src={item.foto} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : item.nama.charAt(0)}
                                              </div>
                                           </td>
-                                          <td data-label="Nama" style={{ fontWeight: 500 }}>{item.nama}</td>
+                                          <td data-label="Nama" style={{ fontWeight: 500 }}>
+                                             {isDibuatHariIni(item.createdAt) && (
+                                                <span className="badge badge-green" style={{ marginRight: 6, fontWeight: 700, verticalAlign: "middle" }}>NEW</span>
+                                             )}
+                                             {item.nama}
+                                          </td>
                                           <td data-label="JK">{item.jenisKelamin}</td>
                                           <td data-label="Umur">{hitungUmur(item.tanggalLahir)}</td>
                                           <td data-label="Pekerjaan">{item.pekerjaan || "-"}</td>
@@ -1359,7 +1379,9 @@ export default function MandiriPage() {
                                           <td data-label="Catatan" style={{ fontSize: 12, maxWidth: "150px", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
                                              {item.catatan || "gratis"}
                                           </td>
-                                          <td data-label="Target Menikah">{item.targetMenikah || "-"}</td>
+                                          <td data-label="Akun Dibuat" style={{ whiteSpace: "nowrap" }}>
+                                             {fmtAkunDibuat(item.createdAt)}
+                                          </td>
                                           {userRole !== "tim_pnkb_gambuh" && (
                                           <td data-label="Aksi">
                                              <div className="flex gap-2">
@@ -1422,7 +1444,12 @@ export default function MandiriPage() {
                                           )}
                                        </div>
                                        <div className="profile-info">
-                                          <h3 className="profile-name">{item.nama}</h3>
+                                          <h3 className="profile-name">
+                                             {isDibuatHariIni(item.createdAt) && (
+                                                <span className="badge badge-green" style={{ marginRight: 6, fontWeight: 700, verticalAlign: "middle" }}>NEW</span>
+                                             )}
+                                             {item.nama}
+                                          </h3>
                                           <div className="profile-badges">
                                              <span className={`gender-badge ${item.jenisKelamin === 'L' ? 'male' : 'female'}`}>
                                                 {item.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan'}
@@ -1444,6 +1471,11 @@ export default function MandiriPage() {
                                     </div>
 
                                     <div className="status-row">
+                                       <div className="status-item">
+                                          <span className="status-label">Akun Dibuat</span>
+                                          <span style={{ fontSize: 12 }}>{fmtAkunDibuat(item.createdAt)}</span>
+                                       </div>
+
                                        <div className="status-item">
                                           <span className="status-label">Pekerjaan</span>
                                           <span style={{ fontSize: 12 }}>{item.pekerjaan || "-"}</span>

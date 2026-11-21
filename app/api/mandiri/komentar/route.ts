@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { mandiriKomentar, generus, mandiri } from "@/lib/schema";
 import { v4 as uuidv4 } from "uuid";
+import { resolveParticipant } from "@/lib/participant-auth";
 
 import { eq, desc, and } from "drizzle-orm";
 
@@ -12,6 +13,15 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const penerimaId = searchParams.get("penerimaId");
         const pengirimId = searchParams.get("pengirimId");
+
+        const who = await resolveParticipant(request);
+        if (!who.generusId && !who.isAdmin) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        // Hanya pemilik data (atau admin) yang boleh membaca komentar diterima / terkirim
+        if (!who.isAdmin && (pengirimId ? pengirimId !== who.generusId : penerimaId !== who.generusId)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
 
         if (pengirimId) {
             // Fetch comments sent by this user with recipient details
@@ -54,7 +64,11 @@ export async function GET(request: NextRequest) {
         .orderBy(desc(mandiriKomentar.createdAt))
         .limit(50);
 
-        return NextResponse.json(data);
+        // Identitas pengirim anonim hanya terlihat oleh admin
+        const out = who.isAdmin ? data : data.map((c: any) => (c.isAnonim
+            ? { ...c, pengirimId: null, realPengirimNama: null, realPengirimNoUrut: null }
+            : c));
+        return NextResponse.json(out);
     } catch (error) {
         console.error("GET komentar error:", error);
         return NextResponse.json({ error: "Gagal mengambil komentar" }, { status: 500 });
@@ -63,10 +77,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
+        const who = await resolveParticipant(request);
+        if (!who.generusId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
         const body = await request.json();
-        const { penerimaId, pengirimId, pengirimNama, isAnonim, komentar } = body;
+        const { penerimaId, pengirimNama, isAnonim } = body;
+        const komentar = typeof body.komentar === "string" ? body.komentar.trim().slice(0, 1000) : "";
+        const pengirimId = who.generusId; // jangan percaya pengirimId dari klien
 
-        if (!penerimaId || !komentar) {
+        if (!penerimaId || typeof penerimaId !== "string" || !komentar || penerimaId === pengirimId) {
             return NextResponse.json({ error: "Data tidak lengkap" }, { status: 400 });
         }
 
@@ -89,7 +109,7 @@ export async function POST(request: NextRequest) {
             id,
             penerimaId,
             pengirimId: pengirimId || null,
-            pengirimNama: isAnonim ? "Anonim" : pengirimNama,
+            pengirimNama: isAnonim ? "Anonim" : String(pengirimNama || "").slice(0, 100),
             isAnonim: isAnonim ? 1 : 0,
             komentar,
             createdAt: new Date().toISOString()

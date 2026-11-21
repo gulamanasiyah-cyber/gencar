@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyToken } from "@/lib/auth";
 
 import { checkRateLimit, isTokenRevoked } from "@/lib/cache";
+import { getClientIp } from "@/lib/request-ip";
 
 // ── Suspicious User-Agent Blocklist ──────────────────────────────────
 const BLOCKED_UA_PATTERNS = /sqlmap|nikto|nmap|masscan|dirbuster|gobuster|wfuzz|hydra|acunetix|nessus|openvas|nuclei/i;
@@ -16,9 +17,10 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── Reject oversized API payloads (>5MB) ──
-  if (pathname.startsWith("/api/") && request.method === "POST") {
+  if (pathname.startsWith("/api/") && ["POST", "PUT", "PATCH"].includes(request.method)) {
     const contentLength = request.headers.get("content-length");
-    if (contentLength && parseInt(contentLength) > 1 * 1024 * 1024) {
+    const maxBytes = pathname === "/api/upload" ? 11 * 1024 * 1024 : 1 * 1024 * 1024;
+    if (contentLength && parseInt(contentLength) > maxBytes) {
       return NextResponse.json(
         { error: "Payload terlalu besar (maks 1MB)" },
         { status: 413 }
@@ -26,14 +28,21 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const PUBLIC_PATHS = ["/login", "/register", "/api/health", "/api/batch","/api/auth/login", "/api/auth/register", "/api/auth/desa", "/api/auth/kelompok", "/api/auth/reset-password", "/api/settings", "/api/public", "/api/sholat", "/mandiri/katalog", "/mandiri/daftar", "/api/mandiri/pilih", "/api/mandiri/komentar", "/api/mandiri/box-love", "/api/mandiri/rooms", "/api/mandiri/hasil-rr", "/api/webhook/fonnte", "/api/fcm/register", "/img/", "/api/upload", "/api/download"];
+  const PUBLIC_PATHS = ["/login", "/register", "/api/health", "/api/batch","/api/auth/login", "/api/auth/register", "/api/auth/desa", "/api/auth/kelompok", "/api/auth/reset-password", "/api/settings", "/api/public", "/api/sholat", "/mandiri/katalog", "/mandiri/daftar", "/api/mandiri/pilih", "/api/mandiri/komentar", "/api/mandiri/box-love", "/api/mandiri/rooms", "/api/mandiri/hasil-rr", "/api/webhook/fonnte", "/api/fcm/register", "/img/", "/api/upload"];
+
+  // Cocokkan per segmen path (bukan sekadar awalan string), agar "/loginx" atau "/api/uploadx" tidak ikut publik.
+  // "/mandiri/daftar" sengaja prefix karena mencakup /mandiri/daftar-panitia, -tim-gambuh, dst.
+  const isPublicPath = (p: string) =>
+    p.startsWith("/mandiri/daftar") ||
+    PUBLIC_PATHS.some((base) => {
+      const b = base.endsWith("/") ? base.slice(0, -1) : base;
+      return p === b || p.startsWith(b + "/");
+    });
 
   // ── Rate limit sensitive auth endpoints ──
   if (pathname === "/api/auth/login" || pathname === "/api/auth/register") {
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-      || request.headers.get("x-real-ip")
-      || "unknown";
-    if (!checkRateLimit(ip).success) {
+    const ip = getClientIp(request.headers);
+    if (!checkRateLimit(`mw:${pathname}:${ip}`, 20).success) {
       return NextResponse.json(
         { error: "Terlalu banyak percobaan. Silakan coba lagi setelah 1 menit." },
         { status: 429 }
@@ -42,12 +51,12 @@ export async function middleware(request: NextRequest) {
   }
 
   // Allow public paths
-  if (PUBLIC_PATHS.some((path) => pathname.startsWith(path))) {
+  if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
 
   // Allow public artikel, berita, and organisasi page
-  if (pathname === "/" || pathname.startsWith("/artikel") || pathname.startsWith("/berita") || pathname.startsWith("/organisasi") || pathname.endsWith("/rate")) {
+  if (pathname === "/" || pathname.startsWith("/artikel") || pathname.startsWith("/berita") || pathname.startsWith("/organisasi") || /^\/api\/artikel\/[^/]+\/rate$/.test(pathname)) {
     return NextResponse.next();
   }
 
@@ -165,7 +174,7 @@ export async function middleware(request: NextRequest) {
       !pathname.startsWith("/api/rundown") &&
       !pathname.startsWith("/scan") &&
       !pathname.startsWith("/hadir") &&
-      !PUBLIC_PATHS.some(p => pathname.startsWith(p)) &&
+      !isPublicPath(pathname) &&
       pathname !== "/" && !pathname.startsWith("/artikel") && !pathname.startsWith("/berita") && !pathname.startsWith("/api/berita") && !pathname.startsWith("/api/artikel") && !pathname.startsWith("/api/upload")) {
     return NextResponse.redirect(new URL("/profile", request.url));
   }
@@ -174,7 +183,7 @@ export async function middleware(request: NextRequest) {
   if (payload.role === "pending" &&
       !pathname.startsWith("/pending") &&
       !pathname.startsWith("/api/auth/logout") &&
-      !PUBLIC_PATHS.some(p => pathname.startsWith(p)) &&
+      !isPublicPath(pathname) &&
       pathname !== "/" && !pathname.startsWith("/artikel") && !pathname.startsWith("/berita")) {
     return NextResponse.redirect(new URL("/pending", request.url));
   }
@@ -206,7 +215,7 @@ export async function middleware(request: NextRequest) {
       !pathname.startsWith("/api/scanner") &&
       !pathname.startsWith("/api/upload") &&
       !pathname.startsWith("/api/auth/logout") &&
-      !PUBLIC_PATHS.some(p => pathname.startsWith(p))) {
+      !isPublicPath(pathname)) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

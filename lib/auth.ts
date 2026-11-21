@@ -38,20 +38,50 @@ export async function createToken(payload: JWTPayload): Promise<string> {
   return await new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("7d")
+    .setExpirationTime("1d")
     .sign(SECRET_KEY);
 }
 
 export async function verifyToken(token: string): Promise<JWTPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, SECRET_KEY);
+    const { payload } = await jwtVerify(token, SECRET_KEY, { algorithms: ["HS256"] });
+    // Token tujuan khusus (mis. reset password) tidak boleh dipakai sebagai sesi login
+    if ((payload as any).purpose) return null;
     return payload as unknown as JWTPayload;
   } catch {
     return null;
   }
 }
 
-export const getSession = async (): Promise<JWTPayload | null> => {
+async function fingerprint(passwordHash: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(passwordHash));
+  return Array.from(new Uint8Array(buf)).slice(0, 12).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Token reset password: berlaku 30 menit, sekali pakai (terikat ke hash password saat ini). */
+export async function createResetToken(userId: string, passwordHash: string): Promise<string> {
+  return await new SignJWT({ purpose: "pwd-reset", uid: userId, pv: await fingerprint(passwordHash) })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("30m")
+    .sign(SECRET_KEY);
+}
+
+export async function verifyResetToken(token: string): Promise<{ userId: string; pv: string } | null> {
+  try {
+    const { payload } = await jwtVerify(token, SECRET_KEY, { algorithms: ["HS256"] });
+    if (payload.purpose !== "pwd-reset" || typeof payload.uid !== "string" || typeof payload.pv !== "string") return null;
+    return { userId: payload.uid, pv: payload.pv };
+  } catch {
+    return null;
+  }
+}
+
+export async function resetTokenMatches(pv: string, passwordHash: string): Promise<boolean> {
+  return pv === (await fingerprint(passwordHash));
+}
+
+export const getSession =async (): Promise<JWTPayload | null> => {
   const cookieStore = cookies();
   const token = cookieStore.get("auth-token")?.value;
   if (!token) return null;
@@ -65,7 +95,7 @@ export async function setSession(payload: JWTPayload): Promise<void> {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 7, // 7 days
+    maxAge: 60 * 60 * 24, // 1 hari (selaras dengan masa berlaku JWT)
     path: "/",
   });
 }

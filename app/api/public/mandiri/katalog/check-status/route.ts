@@ -6,9 +6,14 @@ import { mandiriAbsensi, mandiriKegiatan, generus, mandiri, mandiriDesa, formPan
 import { eq, desc, and } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { getSettingRows } from "@/lib/cached-queries";
+import { checkRateLimit } from "@/lib/cache";
+import { getClientIp } from "@/lib/request-ip";
 
 export async function GET(request: NextRequest) {
   try {
+    if (!checkRateLimit(`checkstatus:${getClientIp(request.headers)}`, 40, 60_000).success) {
+      return NextResponse.json({ error: "Terlalu banyak percobaan" }, { status: 429 });
+    }
     const { searchParams } = new URL(request.url);
     const nomorUnik = searchParams.get("nomorUnik");
     const nomorPeserta = searchParams.get("nomorPeserta");
@@ -91,6 +96,12 @@ export async function GET(request: NextRequest) {
     const isAdminRole = user[0]?.role === "Admin Romantic Room" || user[0]?.role === "admin_romantic_room";
     
     if (!isAdminRole && sessionToken && user[0]?.lastSessionToken && sessionToken !== user[0].lastSessionToken) {
+        return NextResponse.json({ status: "multi_login" });
+    }
+
+    // Sesi aktif milik perangkat lain tidak boleh diambil alih hanya dengan mengetahui nomor/ID:
+    // login baru tanpa token hanya diizinkan jika belum ada sesi, atau berasal dari perangkat yang sama.
+    if (!isAdminRole && !sessionToken && user[0]?.lastSessionToken && !(deviceId && user[0]?.deviceId && deviceId === user[0].deviceId)) {
         return NextResponse.json({ status: "multi_login" });
     }
 

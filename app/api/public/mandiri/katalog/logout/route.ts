@@ -6,9 +6,9 @@ import { eq, and } from "drizzle-orm";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { nomorUnik } = body;
+    const { nomorUnik, sessionToken } = body;
 
-    if (!nomorUnik) {
+    if (!nomorUnik || !sessionToken) {
       return NextResponse.json({ error: "Nomor unik diperlukan" }, { status: 400 });
     }
 
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     // 3. Clear session token in mandiri table
     await db.update(mandiri)
       .set({ lastSessionToken: null })
-      .where(eq(mandiri.generusId, generusId));
+      .where(and(eq(mandiri.generusId, generusId), eq(mandiri.lastSessionToken, String(sessionToken))));
 
     return NextResponse.json({ success: true });
   } catch (error) {

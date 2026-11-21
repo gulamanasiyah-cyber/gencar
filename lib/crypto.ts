@@ -4,6 +4,10 @@ import crypto from "crypto";
 // Secara fallback menggunakan key default agar sistem tidak crash jika Lupa Set ENV, 
 // NAMUN disarankan Anda menyetel APP_ENCRYPTION_KEY (sepanjang 32 karakter) di .env server!
 const ALGORITHM = "aes-256-gcm";
+// Kunci lama dipertahankan HANYA agar data terenkripsi yang sudah ada tetap terbaca. Set APP_ENCRYPTION_KEY di production.
+if (!process.env.APP_ENCRYPTION_KEY && process.env.NODE_ENV === "production") {
+  console.error("[SECURITY] APP_ENCRYPTION_KEY belum diset - memakai kunci default yang tidak aman!");
+}
 const rawKey = process.env.APP_ENCRYPTION_KEY || "default-secret-key-must-be-32-chars-long!".padEnd(32, "a");
 
 // Memastikan kunci selalu 32 bytes (256 bit) untuk AES-256

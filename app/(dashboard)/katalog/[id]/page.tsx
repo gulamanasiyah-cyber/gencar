@@ -24,7 +24,7 @@ export default function KatalogDetailPage({ params }: { params: { id: string } }
   const idCardCanvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    if (data && idCardCanvasRef.current) {
+    if (data?.nomorUnik && idCardCanvasRef.current) {
       QRCode.toCanvas(idCardCanvasRef.current, data.nomorUnik, {
         width: 100,
         margin: 1,
@@ -117,7 +117,7 @@ export default function KatalogDetailPage({ params }: { params: { id: string } }
                 </div>
                 <h1 className="profile-name-hero">{data.nama}</h1>
                 <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                    <div className="profile-id-hero">ID: <b>{data.nomorUnik}</b></div>
+                    {data.nomorUnik && <div className="profile-id-hero">ID: <b>{data.nomorUnik}</b></div>}
                     {data.nomorUrut && (
                         <div className="profile-id-hero" style={{ background: "rgba(255,255,255,0.2)", padding: "2px 8px", borderRadius: "8px" }}>
                             No. Urut: <b>{data.nomorUrut}</b>
