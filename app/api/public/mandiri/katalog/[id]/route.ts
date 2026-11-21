@@ -76,6 +76,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         tinggiBadan: generus.tinggiBadan,
         anakKe: generus.anakKe,
         jumlahSaudara: generus.jumlahSaudara,
+        statusHaid: generus.statusHaid,
       })
       .from(generus)
       .innerJoin(mandiri, and(eq(generus.id, mandiri.generusId), eq(mandiri.kegiatanId, kegiatanId)))
@@ -97,7 +98,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Data tidak ditemukan" }, { status: 404 });
     }
 
-    return NextResponse.json(data[0]);
+    // Status haid bersifat sensitif: hanya untuk pemilik profil dan panitia.
+    const result: Record<string, unknown> = { ...data[0] };
+    if (!isStaff && !hasValidParticipantSession) delete result.statusHaid;
+    return NextResponse.json(result);
   } catch (error: any) {
     console.error("Public Detail error:", error);
     return NextResponse.json({ error: "Gagal mengambil data detail" }, { status: 500 });
@@ -131,6 +135,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       tinggiBadan,
       anakKe,
       jumlahSaudara,
+      statusHaid,
     } = body;
 
     if (!nomorUnik || !token) {
@@ -144,6 +149,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
     if (statusNikah && !["Belum Menikah", "Menikah"].includes(statusNikah)) {
       return NextResponse.json({ error: "Status pernikahan tidak valid." }, { status: 400 });
+    }
+    if (statusHaid !== undefined && statusHaid !== "" && statusHaid !== null && !["Ya", "Tidak"].includes(statusHaid)) {
+      return NextResponse.json({ error: "Status haid tidak valid." }, { status: 400 });
     }
     if (foto !== undefined && (typeof foto !== "string" || foto.length > 2048)) {
       return NextResponse.json({ error: "Foto profil tidak valid." }, { status: 400 });
@@ -212,6 +220,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       tinggiBadan: parsedTinggiBadan,
       anakKe: parsedAnakKe,
       jumlahSaudara: parsedJumlahSaudara,
+      // Hanya relevan untuk perempuan; bila tidak diisi, nilai lama dipertahankan.
+      ...(jenisKelamin === "P" && (statusHaid === "Ya" || statusHaid === "Tidak") ? { statusHaid } : {}),
       updatedAt: new Date().toISOString()
     }).where(eq(generus.id, id));
 

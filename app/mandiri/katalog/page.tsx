@@ -964,7 +964,7 @@ export default function PublicKatalogPage() {
         if (empty && value !== undefined && value !== null && value !== "") { next[key] = value; changed = true; }
       };
       // Hanya mengisi kolom yang masih kosong, tidak menimpa ketikan user
-      ["nama","tempatLahir","tanggalLahir","tinggiBadan","anakKe","jumlahSaudara","alamat","noTelp","suku","pendidikan","pekerjaan","hobi","makananMinumanFavorit","instagram","kriteriaPasangan","foto"]
+      ["nama","tempatLahir","tanggalLahir","tinggiBadan","anakKe","jumlahSaudara","alamat","noTelp","suku","pendidikan","pekerjaan","hobi","makananMinumanFavorit","instagram","kriteriaPasangan","statusHaid","foto"]
         .forEach(k => fill(k, myFullProfile[k]));
       fill("mandiriDesaId", myFullProfile.mandiriDesaId?.toString());
       fill("mandiriKelompokId", myFullProfile.mandiriKelompokId?.toString());
@@ -3394,6 +3394,14 @@ export default function PublicKatalogPage() {
                     <span className="label">Pekerjaan</span>
                     <span className="value">{myFullProfile.pekerjaan || "-"}</span>
                   </div>
+                  {myFullProfile.jenisKelamin === "P" && (
+                    <div className="profile-info-row">
+                      <span className="label">Sedang Haid</span>
+                      <span className="value" style={myFullProfile.statusHaid === "Ya" ? { color: "#be123c" } : undefined}>
+                        {myFullProfile.statusHaid === "Ya" ? "Ya" : myFullProfile.statusHaid === "Tidak" ? "Tidak" : "-"}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="profile-info-section">
@@ -3467,6 +3475,7 @@ export default function PublicKatalogPage() {
                     makananMinumanFavorit: myFullProfile.makananMinumanFavorit || "",
                     instagram: myFullProfile.instagram || "",
                     kriteriaPasangan: myFullProfile.kriteriaPasangan || "",
+                    statusHaid: myFullProfile.statusHaid || "",
                     foto: myFullProfile.foto || "",
                     kota: initKota,
                     mandiriDesaId: myFullProfile.mandiriDesaId?.toString() || "",
@@ -3626,6 +3635,17 @@ export default function PublicKatalogPage() {
                   <input type="number" value={editProfileForm.jumlahSaudara || ""} onChange={e => setEditProfileForm({ ...editProfileForm, jumlahSaudara: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }} />
                 </div>
               </div>
+              {editProfileForm.jenisKelamin === "P" && (
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Apakah sedang haid?</label>
+                  <select value={editProfileForm.statusHaid || ""} onChange={e => setEditProfileForm({ ...editProfileForm, statusHaid: e.target.value })} style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1px solid #e2e8f0', outline: 'none' }}>
+                    <option value="">Pilih</option>
+                    <option value="Ya">Ya, sedang haid</option>
+                    <option value="Tidak">Tidak</option>
+                  </select>
+                  <p style={{ margin: '6px 0 0', fontSize: '11px', color: '#94a3b8' }}>Hanya dilihat panitia untuk keperluan acara.</p>
+                </div>
+              )}
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Daerah/Kota</label>
