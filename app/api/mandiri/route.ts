@@ -85,7 +85,9 @@ export async function GET(request: NextRequest) {
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
     // Determine order
-    let orderClause: any = desc(mandiri.createdAt);
+    // Default: yang terbaru dulu (peserta maupun panitia). datetime() menyamakan format tanggal
+    // ('YYYY-MM-DD HH:MM:SS' vs ISO 'T'), nomor urut menjadi pemisah bila waktunya sama.
+    let orderClause: any = sql`datetime(${mandiri.createdAt}) DESC, ${mandiri.nomorUrut} DESC`;
     if (sort === "asc") {
       orderClause = sql`${mandiri.nomorUrut} ASC`;
     } else if (sort === "desc") {
