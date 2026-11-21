@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Swal from "sweetalert2";
+import { fetchRetry } from "@/lib/fetch-retry";
 import {
     Heart, MessageSquare, User, Phone, MapPin, ClipboardList,
     CheckCircle, Star, Download, Sparkles, Send, Timer,
@@ -281,7 +282,7 @@ export default function RomanticRoomPage() {
             const ADMIN_ROLES = ["admin", "kmm_daerah", "admin_romantic_room", "pengurus_daerah", "tim_pnkb"];
             const isSessionAdmin = ADMIN_ROLES.includes(myProfile?.role || "");
             const roomParam = selectedKegiatanId ? `?kegiatanId=${encodeURIComponent(selectedKegiatanId)}` : "";
-            const res = await fetch(`/api/mandiri/rooms${roomParam}`, {
+            const res = await fetchRetry(`/api/mandiri/rooms${roomParam}`, {
                 headers: isSessionAdmin ? {} : getAuthHeaders()
             });
             if (!res.ok) return;
@@ -316,21 +317,21 @@ export default function RomanticRoomPage() {
             // supaya tidak menambah satu request berurutan sebelum data utama diambil.
             const knownAdminProfile = ADMIN_ROLES.includes(myProfile?.role || "") ? myProfile : null;
             // Mulai request kegiatan + settings bersamaan dengan profil (tidak saling bergantung)
-            const kegiatanPromise = kegiatanList.length === 0 ? fetch("/api/mandiri/kegiatan") : null;
+            const kegiatanPromise = kegiatanList.length === 0 ? fetchRetry("/api/mandiri/kegiatan") : null;
             const settingsPromise: Promise<Response> = (!knownAdminProfile || kegiatanPromise)
-                ? fetch("/api/settings")
+                ? fetchRetry("/api/settings")
                 : Promise.resolve(new Response("{}"));
             kegiatanPromise?.catch(() => {});
             settingsPromise.catch(() => {});
             const sessionJson = knownAdminProfile ?? await (async () => {
-                const sessionRes = await fetch("/api/profile");
+                const sessionRes = await fetchRetry("/api/profile");
                 return sessionRes.ok ? await sessionRes.json() : {};
             })();
             const isSessionAdmin = ADMIN_ROLES.includes(sessionJson.role || "");
 
             const h = isSessionAdmin ? {} : getAuthHeaders();
             const profJson = isSessionAdmin ? sessionJson : await (async () => {
-                const r = await fetch("/api/profile", { headers: getAuthHeaders() });
+                const r = await fetchRetry("/api/profile", { headers: getAuthHeaders() });
                 if (r.status === 401) {
                     Swal.fire("Akses Ditolak", "Silakan login atau masukkan Nomor Peserta di Katalog terlebih dahulu.", "error").then(() => {
                         window.location.href = "/mandiri/katalog";
@@ -384,17 +385,17 @@ export default function RomanticRoomPage() {
                 // These requests do not depend on the room list. Start them together
                 // to avoid making the initial dashboard wait through a request waterfall.
                 adminDataPromise = Promise.all([
-                    fetch(`/api/mandiri/pilih?all=true${qParam}`),
+                    fetchRetry(`/api/mandiri/pilih?all=true${qParam}`),
                     // Laporan hasil RR selalu dari kegiatan aktif (API default ke mandiri_active_kegiatan_id)
-                    fetch(`/api/mandiri/kunjungan`, { headers: h }),
-                    fetch(`/api/mandiri?limit=1000&onlyAttended=true${qParam}`, { headers: h }),
-                    fetch(`/api/mandiri/stats/attendance${qmParam}`),
+                    fetchRetry(`/api/mandiri/kunjungan`, { headers: h }),
+                    fetchRetry(`/api/mandiri?limit=1000&onlyAttended=true${qParam}`, { headers: h }),
+                    fetchRetry(`/api/mandiri/stats/attendance${qmParam}`),
                     // Hanya kota/desa yang aktif untuk kegiatan aktif (toggle di Kelola Daerah/Desa)
-                    fetch("/api/public/mandiri/desa"),
-                    fetch(`/api/mandiri/staff${qmParam}`, { headers: h })
+                    fetchRetry("/api/public/mandiri/desa"),
+                    fetchRetry(`/api/mandiri/staff${qmParam}`, { headers: h })
                 ]);
             }
-            const roomsRes = await fetch(`/api/mandiri/rooms${roomParam}`, { headers: h });
+            const roomsRes = await fetchRetry(`/api/mandiri/rooms${roomParam}`, { headers: h });
             if (!roomsRes.ok) {
                 // Kena rate limit / error server: pertahankan data yang sudah tampil, jangan di-parse sebagai JSON
                 adminDataPromise?.catch(() => {});
@@ -475,7 +476,7 @@ export default function RomanticRoomPage() {
                 } else {
                     const u = localStorage.getItem("attended_nomor_unik");
                     const t = localStorage.getItem("attended_session_token");
-                    const selRes = await fetch(`/api/mandiri/pilih?nomorUnik=${u || ""}&token=${t || ""}`);
+                    const selRes = await fetchRetry(`/api/mandiri/pilih?nomorUnik=${u || ""}&token=${t || ""}`);
                     const selJson = await selRes.json();
                     if (Array.isArray(selJson)) {
                         const inQueue = selJson.find((s: any) => s.status === "Menunggu");

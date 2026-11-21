@@ -13,6 +13,24 @@ declare global {
 let _tursoDb: any = null;
 let _d1Db: any = null;
 
+const WRITE_SQL = /"sql"\s*:\s*"\s*(insert|update|delete|replace|create|drop|alter)\b/i;
+
+// Koneksi ke Turso kadang putus (ECONNRESET / "socket hang up") saat burst request atau
+// socket keep-alive basi. Ulangi otomatis, tapi HANYA untuk request baca agar tulis tidak ganda.
+async function retryingFetch(input: any, init?: any): Promise<Response> {
+  const body = typeof init?.body === "string" ? init.body : "";
+  const canRetry = !WRITE_SQL.test(body);
+  const maxRetries = canRetry ? 2 : 0;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fetch(input, init);
+    } catch (err) {
+      if (attempt >= maxRetries) throw err;
+      await new Promise((r) => setTimeout(r, 150 * (attempt + 1) + Math.random() * 100));
+    }
+  }
+}
+
 function getTursoDb(): any {
   if (globalThis.__tursoDb) {
     return globalThis.__tursoDb;
@@ -61,7 +79,9 @@ function getTursoDb(): any {
     drizzleLibsql = require("drizzle-orm/libsql/web").drizzle;
   }
 
-  const client = createClient({ url, authToken });
+  const clientOpts: any = { url, authToken };
+  if (!isLocalFile) clientOpts.fetch = retryingFetch;
+  const client = createClient(clientOpts);
   _tursoDb = drizzleLibsql(client, { schema });
   globalThis.__tursoDb = _tursoDb;
   return _tursoDb;
