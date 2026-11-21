@@ -95,24 +95,14 @@ export async function GET(request: NextRequest) {
     // This is what prevents multiple simultaneous sessions
     const isAdminRole = user[0]?.role === "Admin Romantic Room" || user[0]?.role === "admin_romantic_room";
     
-    if (!isAdminRole && sessionToken && user[0]?.lastSessionToken && sessionToken !== user[0].lastSessionToken) {
-        return NextResponse.json({ status: "multi_login" });
-    }
-
-    // Sesi aktif milik perangkat lain tidak boleh diambil alih hanya dengan mengetahui nomor/ID:
-    // login baru tanpa token hanya diizinkan jika belum ada sesi, atau berasal dari perangkat yang sama.
-    if (!isAdminRole && !sessionToken && user[0]?.lastSessionToken && !(deviceId && user[0]?.deviceId && deviceId === user[0].deviceId)) {
-        return NextResponse.json({ status: "multi_login" });
-    }
-
-    // Generate new token if logging in from scratch
-    let finalSessionToken = sessionToken || user[0]?.lastSessionToken;
-    if (nomorPeserta || !sessionToken) {
-      finalSessionToken = isAdminRole && user[0]?.lastSessionToken ? user[0].lastSessionToken : uuidv4();
+    // Multi login: satu peserta boleh masuk dari beberapa perangkat sekaligus.
+    // Semua perangkat memakai token sesi yang sama; token baru dibuat hanya bila belum ada.
+    const finalSessionToken: string = user[0]?.lastSessionToken || sessionToken || uuidv4();
+    if (!user[0]?.lastSessionToken || (deviceId && !user[0]?.deviceId)) {
       await db.update(mandiri)
-          .set({ 
-            deviceId: deviceId || user[0]?.deviceId, 
-            lastSessionToken: finalSessionToken 
+          .set({
+            deviceId: user[0]?.deviceId || deviceId || null,
+            lastSessionToken: finalSessionToken
           })
           .where(and(eq(mandiri.generusId, generusId), eq(mandiri.kegiatanId, kegiatanId)));
     }

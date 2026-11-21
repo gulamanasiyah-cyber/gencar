@@ -8,6 +8,35 @@ import QRCode from "qrcode";
 import Swal from "sweetalert2";
 import Link from "next/link";
 import { GenerusItem } from "@/lib/types";
+import IdCardTemplate, { ID_CARD_TEMPLATES } from "@/components/IdCardTemplate";
+
+// Jenis kartu: pengurus & panitia memakai template panitia, selain itu template peserta.
+const PANITIA_ROLES = ["pengurus_daerah", "desa", "kelompok", "admin", "kmm_daerah", "tim_pnkb", "admin_romantic_room"];
+function cardKind(p: GenerusItem): "peserta" | "panitia" {
+  return PANITIA_ROLES.includes(p.role || "") || p.panitiaStatus ? "panitia" : "peserta";
+}
+
+// Aturan nomor: laki-laki 1-199, perempuan 200 dst.
+const LAKI_MAX_NOMOR = 199;
+const PEREMPUAN_MIN_NOMOR = 200;
+function nomorSesuaiGender(p: GenerusItem): boolean {
+  const n = Number(p.nomorUrut);
+  if (!Number.isInteger(n) || n <= 0) return false;
+  return p.jenisKelamin === "L" ? n <= LAKI_MAX_NOMOR : p.jenisKelamin === "P" ? n >= PEREMPUAN_MIN_NOMOR : false;
+}
+/** Urutan cetak: laki-laki (1-199) dulu, lalu perempuan (200+), masing-masing menurut nomor urut. */
+function sortForCardPrint(list: GenerusItem[]): GenerusItem[] {
+  const grp = (p: GenerusItem) => (p.jenisKelamin === "L" ? 0 : p.jenisKelamin === "P" ? 1 : 2);
+  return [...list].sort((a, b) => grp(a) - grp(b) || (Number(a.nomorUrut) || 1e9) - (Number(b.nomorUrut) || 1e9));
+}
+
+async function waitForImages(el: HTMLElement, timeoutMs = 4000) {
+  const imgs = Array.from(el.querySelectorAll("img"));
+  await Promise.race([
+    Promise.all(imgs.map((im) => (im.complete ? Promise.resolve() : new Promise<void>((r) => { im.onload = () => r(); im.onerror = () => r(); })))),
+    new Promise((r) => setTimeout(r, timeoutMs)),
+  ]);
+}
 import {
   Sparkles, Search, User, MapPin, Phone, GraduationCap,
   Briefcase, Heart, Globe, Calendar, Lock, ClipboardList,
@@ -47,6 +76,16 @@ export default function AdminKatalogPage() {
   const singleCardRef = useRef<HTMLDivElement>(null);
   const exportCardRef = useRef<HTMLDivElement>(null);
   const exportQRCanvasRef = useRef<HTMLCanvasElement>(null);
+  // Template panitia opsional: dipakai hanya jika file gambarnya ada di public/img.
+  const [panitiaTemplateOk, setPanitiaTemplateOk] = useState(false);
+  useEffect(() => {
+    const im = new Image();
+    im.onload = () => setPanitiaTemplateOk(true);
+    im.onerror = () => setPanitiaTemplateOk(false);
+    im.src = ID_CARD_TEMPLATES.panitia;
+  }, []);
+  const templateFor = (p: GenerusItem): string | null =>
+    cardKind(p) === "peserta" ? ID_CARD_TEMPLATES.peserta : panitiaTemplateOk ? ID_CARD_TEMPLATES.panitia : null;
   const [isExporting, setIsExporting] = useState(false);
   const [exportParticipant, setExportParticipant] = useState<GenerusItem | null>(null);
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
@@ -336,7 +375,8 @@ export default function AdminKatalogPage() {
       });
       const res = await fetch(`/api/generus?${params}`, { cache: "no-store" });
       const json = await res.json();
-      const allParticipants: GenerusItem[] = json.data || [];
+      const allParticipants: GenerusItem[] = sortForCardPrint(json.data || []);
+      const tidakSesuai = allParticipants.filter((p) => !nomorSesuaiGender(p));
 
       if (allParticipants.length === 0) {
         Swal.fire("Info", "Tidak ada data peserta untuk diekspor", "info");
@@ -359,6 +399,7 @@ export default function AdminKatalogPage() {
         setExportParticipant(item);
 
         await new Promise(resolve => setTimeout(resolve, 300));
+        if (exportCardRef.current) await waitForImages(exportCardRef.current);
 
         const cardElement = exportCardRef.current;
         if (!cardElement) continue;
@@ -374,7 +415,7 @@ export default function AdminKatalogPage() {
 
         if (i > 0) pdf.addPage();
 
-        pdf.addImage(imgData, "JPEG", 52.5, 63.5, 105, 170);
+        { const h = 105 * (canvas.height / canvas.width); pdf.addImage(imgData, "JPEG", 52.5, (297 - h) / 2, 105, h); }
 
         Swal.update({
           text: `Merender kartu: ${i + 1} dari ${allParticipants.length}`
@@ -382,7 +423,7 @@ export default function AdminKatalogPage() {
       }
 
       pdf.save(`ID_CARDS_${new Date().getTime()}.pdf`);
-      Swal.fire("Berhasil", `${allParticipants.length} ID Card telah diekspor.`, "success");
+      Swal.fire(tidakSesuai.length ? "Selesai dengan catatan" : "Berhasil", `${allParticipants.length} ID Card telah diekspor.` + (tidakSesuai.length ? ` ${tidakSesuai.length} kartu nomornya tidak sesuai aturan (laki-laki 1-199, perempuan 200+): ${tidakSesuai.slice(0, 8).map((p) => p.nama + " (#" + (p.nomorUrut ?? "-") + ")").join(", ")}${tidakSesuai.length > 8 ? ", ..." : ""}` : ""), tidakSesuai.length ? "warning" : "success");
     } catch (e: any) {
       console.error(e);
       Swal.fire("Gagal", "Terjadi kesalahan saat mengekspor PDF", "error");
@@ -426,7 +467,8 @@ export default function AdminKatalogPage() {
       });
 
       const imgData = canvas.toDataURL("image/jpeg", 0.95);
-      pdf.addImage(imgData, "JPEG", 52.5, 63.5, 105, 170);
+      const h = 105 * (canvas.height / canvas.width);
+      pdf.addImage(imgData, "JPEG", 52.5, (297 - h) / 2, 105, h);
       pdf.save(`ID_CARD_${item.nama.replace(/\s+/g, '_')}_${item.nomorUnik}.pdf`);
       Swal.close();
     } catch (e) {
@@ -1289,6 +1331,9 @@ export default function AdminKatalogPage() {
         <div className="modal-overlay" onClick={() => setSelectedParticipant(null)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <button className="close-modal" onClick={() => setSelectedParticipant(null)}>&times;</button>
+            {templateFor(selectedParticipant) ? (
+              <IdCardTemplate ref={singleCardRef} template={templateFor(selectedParticipant)!} data={selectedParticipant} />
+            ) : (
             <div ref={singleCardRef} className={`id-card-comprehensive role-${["pengurus_daerah", "desa", "kelompok"].includes(selectedParticipant.role || "") ? "pengurus" :
               ["admin", "kmm_daerah", "tim_pnkb", "admin_romantic_room"].includes(selectedParticipant.role || "") || selectedParticipant.panitiaStatus ? "panitia" :
                 "peserta"
@@ -1379,6 +1424,7 @@ export default function AdminKatalogPage() {
               </div>
               <div className="id-card-seal" />
             </div>
+            )}
 
             <div className="modal-actions-print" style={{ gap: '12px' }}>
               <button className="btn-print-card" onClick={() => window.print()} style={{ background: '#64748b' }}>
@@ -1394,7 +1440,9 @@ export default function AdminKatalogPage() {
 
       {/* Hidden Export Card Renderer */}
       <div style={{ position: "absolute", left: "-9999px", top: 0, zIndex: -100 }}>
-        {exportParticipant && (
+        {exportParticipant && (templateFor(exportParticipant) ? (
+          <IdCardTemplate ref={exportCardRef} flat template={templateFor(exportParticipant)!} data={exportParticipant} />
+        ) : (
           <div ref={exportCardRef} className={`id-card-comprehensive role-${["pengurus_daerah", "desa", "kelompok"].includes(exportParticipant.role || "") ? "pengurus" :
             ["admin", "kmm_daerah", "tim_pnkb", "admin_romantic_room"].includes(exportParticipant.role || "") || exportParticipant.panitiaStatus ? "panitia" :
               "peserta"
@@ -1468,7 +1516,7 @@ export default function AdminKatalogPage() {
               <div className="id-footer-right">GENCAR &copy; 2026</div>
             </div>
           </div>
-        )}
+        ))}
       </div>
 
       <style jsx>{`
@@ -2327,6 +2375,8 @@ export default function AdminKatalogPage() {
           .modal-content { padding: 0; overflow: visible; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
           .close-modal, .modal-actions-print { display: none !important; }
           .id-card-comprehensive { box-shadow: none; margin: 0; border: none; break-inside: avoid; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          /* Kartu berbasis template (komponen terpisah) */
+          .modal-content :global(*) { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
         .url-display {
           transition: all 0.3s ease;

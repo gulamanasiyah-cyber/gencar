@@ -60,17 +60,27 @@ function hitungUmur(tanggalLahir?: string | null): string {
    return `${umur} th`;
 }
 
+// Database menyimpan waktu dalam UTC tanpa penanda zona ("YYYY-MM-DD HH:MM:SS"),
+// jadi harus dibaca sebagai UTC lalu ditampilkan dalam WIB (Asia/Jakarta).
+function parseDbUtc(v?: string | null): Date | null {
+   if (!v) return null;
+   const hasZone = /(Z|[+-]\d{2}:?\d{2})$/.test(v);
+   const d = new Date(hasZone ? v : v.replace(" ", "T") + "Z");
+   return isNaN(d.getTime()) ? null : d;
+}
+
+const WIB_TZ = "Asia/Jakarta";
+const wibDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: WIB_TZ });
+
 function isDibuatHariIni(v?: string | null) {
-   if (!v) return false;
-   const d = new Date(v);
-   return !isNaN(d.getTime()) && d.toDateString() === new Date().toDateString();
+   const d = parseDbUtc(v);
+   return !!d && wibDay(d) === wibDay(new Date());
 }
 
 function fmtAkunDibuat(v?: string | null) {
-   if (!v) return "-";
-   const d = new Date(v);
-   if (isNaN(d.getTime())) return "-";
-   return d.toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+   const d = parseDbUtc(v);
+   if (!d) return "-";
+   return d.toLocaleString("id-ID", { timeZone: WIB_TZ, day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) + " WIB";
 }
 
 export default function MandiriPage() {
