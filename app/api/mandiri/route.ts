@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { mandiri, generus, desa, kelompok, mandiriDesa, mandiriKelompok, users, mandiriKegiatan, mandiriAbsensi, absensi, settings, mandiriDaerah, formPanitiaDanPengurus } from "@/lib/schema";
 import { eq, and, or, like, sql, desc } from "drizzle-orm";
+import { firstAbsensiOnly } from "@/lib/mandiri-absensi";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 import { getSettingRows } from "@/lib/cached-queries";
@@ -151,12 +152,14 @@ export async function GET(request: NextRequest) {
     if (onlyAttended) {
       dataQuery = (dataQuery as any).innerJoin(mandiriAbsensi, and(
         eq(generus.id, mandiriAbsensi.generusId),
-        eq(mandiriAbsensi.kegiatanId, kegiatanId)
+        eq(mandiriAbsensi.kegiatanId, kegiatanId),
+        firstAbsensiOnly
       ));
     } else {
       dataQuery = (dataQuery as any).leftJoin(mandiriAbsensi, and(
         eq(generus.id, mandiriAbsensi.generusId),
-        eq(mandiriAbsensi.kegiatanId, kegiatanId)
+        eq(mandiriAbsensi.kegiatanId, kegiatanId),
+        firstAbsensiOnly
       ));
     }
 
@@ -189,7 +192,8 @@ export async function GET(request: NextRequest) {
     if (onlyAttended) {
       countQuery.innerJoin(mandiriAbsensi, and(
         eq(generus.id, mandiriAbsensi.generusId),
-        eq(mandiriAbsensi.kegiatanId, kegiatanId)
+        eq(mandiriAbsensi.kegiatanId, kegiatanId),
+        firstAbsensiOnly
       ));
     }
 

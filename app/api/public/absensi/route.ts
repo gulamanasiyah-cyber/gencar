@@ -1,4 +1,5 @@
 
+import { insertMandiriAbsensiOnce } from "@/lib/mandiri-absensi";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { absensi, generus, kegiatan, mandiriKegiatan, mandiriAbsensi } from "@/lib/schema";
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
       // Catat kehadiran di mandiri_absensi
       const id = uuidv4();
       const timestamp = new Date().toISOString();
-      await db.insert(mandiriAbsensi).values({
+      await insertMandiriAbsensiOnce(db, {
         id,
         kegiatanId,
         generusId: resolvedGenerusId,

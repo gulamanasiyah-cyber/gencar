@@ -8,6 +8,7 @@ import QRCode from "qrcode";
 import Swal from "sweetalert2";
 import Link from "next/link";
 import { GenerusItem } from "@/lib/types";
+import { thumbUrl } from "@/lib/image-url";
 import IdCardTemplate, { ID_CARD_TEMPLATES } from "@/components/IdCardTemplate";
 
 // Jenis kartu: pengurus & panitia memakai template panitia, selain itu template peserta.
@@ -31,6 +32,7 @@ function sortForCardPrint(list: GenerusItem[]): GenerusItem[] {
 }
 
 async function waitForImages(el: HTMLElement, timeoutMs = 4000) {
+  try { await (document as any).fonts?.ready; } catch {}
   const imgs = Array.from(el.querySelectorAll("img"));
   await Promise.race([
     Promise.all(imgs.map((im) => (im.complete ? Promise.resolve() : new Promise<void>((r) => { im.onload = () => r(); im.onerror = () => r(); })))),
@@ -121,8 +123,11 @@ export default function AdminKatalogPage() {
       const json = await res.json();
       // Abaikan respons lama bila sudah ada request yang lebih baru.
       if (requestId !== fetchRequestIdRef.current) return;
-      setData(json.data || []);
-      setTotal(json.total || 0);
+      // Pengaman: id ganda dari server tidak boleh membuat key React bentrok / kartu tampil dua kali.
+      const rows: GenerusItem[] = json.data || [];
+      const uniq = Array.from(new Map(rows.map((r) => [r.id, r])).values());
+      setData(uniq);
+      setTotal(Math.max(0, (json.total || 0) - (rows.length - uniq.length)));
     } catch (e: any) {
       console.error(e);
     } finally {
@@ -398,7 +403,8 @@ export default function AdminKatalogPage() {
 
         setExportParticipant(item);
 
-        await new Promise(resolve => setTimeout(resolve, 300));
+        // Cukup menunggu React merender kartu; gambar & font ditunggu eksplisit di bawah.
+        await new Promise(resolve => setTimeout(resolve, 60));
         if (exportCardRef.current) await waitForImages(exportCardRef.current);
 
         const cardElement = exportCardRef.current;
@@ -406,12 +412,12 @@ export default function AdminKatalogPage() {
 
         const canvas = await html2canvas(cardElement, {
           useCORS: true,
-          scale: 2,
+          scale: 3.5,
           logging: false,
           backgroundColor: null,
         });
 
-        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+        const imgData = canvas.toDataURL("image/jpeg", 0.97);
 
         if (i > 0) pdf.addPage();
 
@@ -460,13 +466,14 @@ export default function AdminKatalogPage() {
         format: "a4"
       });
 
+      await waitForImages(singleCardRef.current);
       const canvas = await html2canvas(singleCardRef.current, {
         useCORS: true,
-        scale: 2,
+        scale: 5,
         backgroundColor: null,
       });
 
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      const imgData = canvas.toDataURL("image/jpeg", 0.98);
       const h = 105 * (canvas.height / canvas.width);
       pdf.addImage(imgData, "JPEG", 52.5, (297 - h) / 2, 105, h);
       pdf.save(`ID_CARD_${item.nama.replace(/\s+/g, '_')}_${item.nomorUnik}.pdf`);
@@ -1023,7 +1030,7 @@ export default function AdminKatalogPage() {
         </div>
       </div>
 
-      <div className="grid-section" style={loading && data.length > 0 ? { opacity: 0.5, pointerEvents: "none", transition: "opacity 0.2s" } : undefined}>
+      <div className="grid-section" style={loading && data.length === 0 ? { minHeight: "70vh", alignContent: "start" } : loading && data.length > 0 ? { opacity: 0.5, pointerEvents: "none", transition: "opacity 0.2s" } : undefined}>
         {loading && data.length === 0 && (
           <div style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "48px 16px", color: "#475569", fontWeight: 700, fontSize: 14 }}>
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-t-blue-500 border-slate-200"></div>
@@ -1038,7 +1045,7 @@ export default function AdminKatalogPage() {
               <div className="card-main">
                 <div className="card-photo-col">
                   <div className="photo-wrapper photo-clickable" onClick={() => setZoomPhoto(item)} title="Lihat foto">
-                    {item.foto ? <img src={item.foto} alt={item.nama} /> : <div className="photo-placeholder">{item.nama.charAt(0)}</div>}
+                    {item.foto ? <img src={thumbUrl(item.foto, 200)} alt={item.nama} width={90} height={90} loading="lazy" decoding="async" /> : <div className="photo-placeholder">{item.nama.charAt(0)}</div>}
                     <div className={`status-badge ${item.panitiaStatus || item.role === 'admin' ? 'panitia' : 'peserta'}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
                       {siteLogo && <img src={siteLogo} alt="" style={{ width: '10px', height: '10px', objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />}
                       <span>{item.panitiaStatus || item.role === 'admin' ? "Panitia" : "Peserta"}</span>
@@ -1878,6 +1885,8 @@ export default function AdminKatalogPage() {
           gap: 24px; 
         }
         .participant-card { 
+          content-visibility: auto;
+          contain-intrinsic-size: auto 280px;
           background: white; 
           border-radius: 32px; 
           border: 1px solid #f1f5f9; 

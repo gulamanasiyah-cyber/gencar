@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, formPanitiaDanPengurus, settings, mandiriKegiatan, mandiriAbsensi, mandiriDaerah } from "@/lib/schema";
 import { eq, and, or, like, sql, not, isNull, isNotNull, ne, inArray, notInArray, desc } from "drizzle-orm";
+import { firstAbsensiOnly } from "@/lib/mandiri-absensi";
 import { getSession } from "@/lib/auth";
 import { encryptPasswordSymmetric, decryptPasswordSymmetric } from "@/lib/crypto";
 import { v4 as uuidv4 } from "uuid";
@@ -277,7 +278,7 @@ export async function GET(request: NextRequest) {
           eq(generus.id, formPanitiaDanPengurus.generusId),
           eq(formPanitiaDanPengurus.kegiatanId, kegiatanId)
         ))
-        .leftJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId)));
+        .leftJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId), firstAbsensiOnly));
 
       if (mandiriOnly) {
         query = (query as any)
@@ -315,7 +316,7 @@ export async function GET(request: NextRequest) {
         eq(generus.id, formPanitiaDanPengurus.generusId),
         eq(formPanitiaDanPengurus.kegiatanId, kegiatanId)
       ))
-      .leftJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId)));
+      .leftJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId), firstAbsensiOnly));
 
     if (mandiriOnly) {
       dataQuery = (dataQuery as any)

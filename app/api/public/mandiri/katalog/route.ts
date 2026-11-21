@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { generus, desa, kelompok, users, mandiri, mandiriDesa, mandiriKelompok, settings, formPanitiaDanPengurus, mandiriKegiatan, mandiriAbsensi, mandiriPemilihan, mandiriDaerah } from "@/lib/schema";
 import { eq, and, or, like, sql, isNull, isNotNull, desc, exists } from "drizzle-orm";
+import { firstAbsensiOnly } from "@/lib/mandiri-absensi";
 import { getSettingRows } from "@/lib/cached-queries";
 
 export async function GET(request: NextRequest) {
@@ -324,7 +325,7 @@ export async function GET(request: NextRequest) {
       })
       .from(generus)
       .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-      .leftJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId)))
+      .leftJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId), firstAbsensiOnly))
       .leftJoin(desa, eq(generus.desaId, desa.id))
       .leftJoin(kelompok, eq(generus.kelompokId, kelompok.id))
       .leftJoin(mandiriDesa, eq(generus.mandiriDesaId, mandiriDesa.id))
@@ -344,7 +345,7 @@ export async function GET(request: NextRequest) {
       .select({ count: sql<number>`count(DISTINCT ${generus.id})` })
       .from(generus)
       .innerJoin(mandiri, eq(generus.id, mandiri.generusId))
-      .leftJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId)));
+      .leftJoin(mandiriAbsensi, and(eq(generus.id, mandiriAbsensi.generusId), eq(mandiriAbsensi.kegiatanId, kegiatanId), firstAbsensiOnly));
 
     // Dynamic joins for count query if filters are present
     if (search || status !== "all") {

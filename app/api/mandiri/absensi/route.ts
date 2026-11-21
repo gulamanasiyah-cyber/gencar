@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { mandiriAbsensi, generus, mandiriKegiatan, mandiriDesa, mandiri, idCardBuilderData, formPanitiaDanPengurus, mandiriDaerah, timGambuh } from "@/lib/schema";
 import { eq, and, or, sql } from "drizzle-orm";
+import { insertMandiriAbsensiOnce } from "@/lib/mandiri-absensi";
 import { getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 import { pusherServer } from "@/lib/pusher";
@@ -199,7 +200,7 @@ export async function POST(request: NextRequest) {
     }
 
     const id = uuidv4();
-    await db.insert(mandiriAbsensi).values({
+    await insertMandiriAbsensiOnce(db, {
       id,
       kegiatanId,
       generusId: resolvedGenerusId,

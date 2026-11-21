@@ -1,16 +1,16 @@
 "use client";
 
-import { forwardRef, useEffect, useRef } from "react";
-import QRCode from "qrcode";
+import { forwardRef, useLayoutEffect, useRef } from "react";
 
 /**
- * Kartu ID berbasis gambar template (DERMAGA).
- * Posisi elemen dinyatakan sebagai pecahan dari ukuran template (0..1) agar mudah disesuaikan
- * bila gambar template diganti dengan versi resolusi tinggi yang rasionya sama.
+ * Kartu ID berbasis gambar template (DERMAGA, peserta & panitia).
+ * Isi kartu: NOMOR URUT besar di tengah kemudi dan NAMA di pita bawah.
+ * Nomor urut mengikuti aturan: laki-laki 1-199, perempuan 200 dst (ditentukan saat pendaftaran).
+ * Posisi elemen dinyatakan sebagai pecahan dari ukuran template (0..1) agar mudah disesuaikan.
  */
 export const ID_CARD_TEMPLATES = {
   peserta: "/img/idcard-dermaga-peserta.png",
-  panitia: "/img/idcard-dermaga-panitia.png", 
+  panitia: "/img/idcard-dermaga-panitia.png",
 } as const;
 
 // Template sudah di-crop bersih: 680 x 960 px (rasio A6)
@@ -18,16 +18,16 @@ export const ID_CARD_WIDTH_CM = 10.5;
 export const ID_CARD_HEIGHT_CM = +(ID_CARD_WIDTH_CM * (960 / 680)).toFixed(2);
 
 const LAYOUT = {
-  photo: { cx: 0.508, cy: 0.49, size: 0.3 }, // lingkaran di tengah kemudi
+  wheel: { cx: 0.508, cy: 0.49, size: 0.3 }, // lingkaran putih di tengah kemudi
   nameBox: { left: 0.174, top: 0.812, width: 0.668, height: 0.122 }, // kotak pita di bawah
-  qr: { right: 0.04, top: 0.025, sizeCm: 1.6 },
 };
 
+const FONT = "'Chewy', 'Baloo 2', 'Arial Rounded MT Bold', 'Impact', 'Arial Narrow', sans-serif";
+
+// Hanya nomor urut & nama yang dipakai; properti lain pada objek peserta diabaikan.
 export interface IdCardTemplateData {
   nama: string;
-  nomorUnik: string;
   nomorUrut?: number | string | null;
-  foto?: string | null;
 }
 
 interface Props {
@@ -37,20 +37,34 @@ interface Props {
   flat?: boolean;
 }
 
-const IdCardTemplate = forwardRef<HTMLDivElement, Props>(function IdCardTemplate({ data, template, flat }, ref) {
-  const qrRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    if (qrRef.current && data.nomorUnik) {
-      QRCode.toCanvas(qrRef.current, data.nomorUnik, { width: 120, margin: 1, color: { dark: "#000000", light: "#ffffff" } });
+/** Perkecil teks sampai muat di kotaknya (satu baris). */
+function useFitText(deps: unknown[], maxCm: number, minCm: number) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let size = maxCm;
+    el.style.fontSize = `${size}cm`;
+    let guard = 0;
+    while (el.scrollWidth > el.clientWidth + 1 && size > minCm && guard++ < 40) {
+      size -= 0.03;
+      el.style.fontSize = `${size}cm`;
     }
-  }, [data.nomorUnik]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  return ref;
+}
 
-  const { photo, nameBox, qr } = LAYOUT;
+const IdCardTemplate = forwardRef<HTMLDivElement, Props>(function IdCardTemplate({ data, template, flat }, ref) {
+  const { wheel, nameBox } = LAYOUT;
   const W = ID_CARD_WIDTH_CM;
   const H = ID_CARD_HEIGHT_CM;
-  const photoCm = W * photo.size;
-  const long = (data.nama || "").length > 22;
+  const wheelCm = W * wheel.size;
+  const nomor = data.nomorUrut ? String(data.nomorUrut) : "-";
+  const nama = (data.nama || "").trim();
+
+  const nomorRef = useFitText([nomor], 2.3, 1.2);
+  const namaRef = useFitText([nama], 0.85, 0.4);
 
   return (
     <div
@@ -63,7 +77,7 @@ const IdCardTemplate = forwardRef<HTMLDivElement, Props>(function IdCardTemplate
         background: "#fff7e6",
         borderRadius: "4mm",
         boxShadow: flat ? "none" : "0 20px 50px rgba(0,0,0,0.3)",
-        fontFamily: "'Inter', system-ui, sans-serif",
+        fontFamily: FONT,
       }}
     >
       <img
@@ -73,31 +87,37 @@ const IdCardTemplate = forwardRef<HTMLDivElement, Props>(function IdCardTemplate
         style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "fill" }}
       />
 
-      {/* Foto di dalam kemudi */}
+      {/* Nomor urut di tengah kemudi */}
       <div
         style={{
           position: "absolute",
-          left: `${photo.cx * W - photoCm / 2}cm`,
-          top: `${photo.cy * H - photoCm / 2}cm`,
-          width: `${photoCm}cm`,
-          height: `${photoCm}cm`,
-          borderRadius: "50%",
-          overflow: "hidden",
-          background: "#fdf3df",
-          border: "0.08cm solid #fff7e6",
+          left: `${wheel.cx * W - wheelCm / 2}cm`,
+          top: `${wheel.cy * H - wheelCm / 2}cm`,
+          width: `${wheelCm}cm`,
+          height: `${wheelCm}cm`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        {data.foto ? (
-          <img src={data.foto} alt={data.nama} crossOrigin="anonymous" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-        ) : (
-          <span style={{ fontSize: "1.2cm", fontWeight: 800, color: "#2f4b7c" }}>{(data.nama || "?").charAt(0).toUpperCase()}</span>
-        )}
+        <div
+          ref={nomorRef}
+          style={{
+            width: "88%",
+            textAlign: "center",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            fontWeight: 900,
+            lineHeight: 1,
+            color: "#3b2a14",
+            letterSpacing: "-0.02em",
+          }}
+        >
+          {nomor}
+        </div>
       </div>
 
-      {/* Nama & nomor di dalam pita */}
+      {/* Nama di dalam pita */}
       <div
         style={{
           position: "absolute",
@@ -106,49 +126,26 @@ const IdCardTemplate = forwardRef<HTMLDivElement, Props>(function IdCardTemplate
           width: `${nameBox.width * W}cm`,
           height: `${nameBox.height * H}cm`,
           display: "flex",
-          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          textAlign: "center",
-          padding: "0 0.15cm",
-          color: "#1f2f4d",
-          lineHeight: 1.1,
-        }}
-      >
-        <div
-          style={{
-            fontWeight: 800,
-            fontSize: long ? "0.42cm" : "0.55cm",
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-            textTransform: "uppercase",
-          }}
-        >
-          {data.nama}
-        </div>
-        <div style={{ marginTop: "0.08cm", fontSize: "0.3cm", fontWeight: 700, color: "#44546f" }}>
-          {data.nomorUrut ? `NO. ${data.nomorUrut} • ` : ""}
-          {data.nomorUnik}
-        </div>
-      </div>
-
-      {/* QR verifikasi */}
-      <div
-        style={{
-          position: "absolute",
-          right: `${qr.right * W}cm`,
-          top: `${qr.top * H}cm`,
-          width: `${qr.sizeCm}cm`,
-          height: `${qr.sizeCm}cm`,
-          background: "#fff",
-          borderRadius: "0.15cm",
-          padding: "0.08cm",
+          padding: "0 0.3cm",
           boxSizing: "border-box",
         }}
       >
-        <canvas ref={qrRef} style={{ width: "100%", height: "100%", display: "block" }} />
+        <div
+          ref={namaRef}
+          style={{
+            width: "100%",
+            textAlign: "center",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            fontWeight: 700,
+            lineHeight: 1.15,
+            color: "#7a5a36",
+          }}
+        >
+          {nama}
+        </div>
       </div>
     </div>
   );

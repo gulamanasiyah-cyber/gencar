@@ -1,4 +1,5 @@
 
+import { insertMandiriAbsensiOnce } from "@/lib/mandiri-absensi";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { generus, mandiri, mandiriAbsensi, mandiriDesa, idCardBuilderData, mandiriDaerah } from "@/lib/schema";
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (!existingAbsensi) {
-        await db.insert(mandiriAbsensi).values({
+        await insertMandiriAbsensiOnce(db, {
           id: uuidv4(),
           kegiatanId,
           generusId: targetGenerusId,
