@@ -2237,7 +2237,7 @@ export default function RomanticRoomPage() {
                                                 <div className="pair-names-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                                                     {/* Caller */}
                                                     <div className="participant-row caller" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', alignSelf: 'flex-start' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', rowGap: '2px', gap: '4px', alignSelf: 'flex-start', maxWidth: '100%' }}>
                                                             <div className="p-role-tag caller" style={{ margin: 0, padding: '1px 4px', fontSize: '7.5px', borderRadius: '3px' }}>Pemanggil</div>
                                                             {item.pengirimStatus && (
                                                                 <div style={{ 
@@ -2278,7 +2278,7 @@ export default function RomanticRoomPage() {
  
                                                     {/* Called */}
                                                     <div className="participant-row called" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1px', alignItems: 'flex-end', textAlign: 'right' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', alignSelf: 'flex-end' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', rowGap: '2px', gap: '4px', alignSelf: 'flex-end', maxWidth: '100%' }}>
                                                             {item.penerimaStatus && (
                                                                 <div style={{ 
                                                                     background: item.penerimaStatus.toLowerCase().includes('panitia') ? '#fef08a' : '#d1fae5', 
@@ -2408,11 +2408,21 @@ export default function RomanticRoomPage() {
                                                         <div className="pair-member">
                                                             <span className="room-p-number">{room.pengirimNomorUrut || room.pengirimNo || '-'}</span>
                                                             <span className="room-p-name" title={room.pengirimNama}>{room.pengirimNama}</span>
+                                                            {room.pengirimJenisKelamin === 'P' && room.pengirimStatusHaid !== undefined && (
+                                                                <span title={'Status haid'} style={{ fontSize: '8px', fontWeight: 800, flexShrink: 0, whiteSpace: 'nowrap', padding: '1px 4px', borderRadius: '3px', textTransform: 'uppercase', background: room.pengirimStatusHaid === 'Ya' ? '#ffe4e6' : '#e0f2fe', color: room.pengirimStatusHaid === 'Ya' ? '#be123c' : '#0369a1' }}>
+                                                                    {room.pengirimStatusHaid === 'Ya' ? '🌸 Haid' : 'Suci'}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                         <span className="pair-separator">&</span>
                                                         <div className="pair-member">
                                                             <span className="room-p-number">{room.penerimaNomorUrut || room.penerimaNo || '-'}</span>
                                                             <span className="room-p-name" title={room.penerimaNama}>{room.penerimaNama}</span>
+                                                            {room.penerimaJenisKelamin === 'P' && room.penerimaStatusHaid !== undefined && (
+                                                                <span title={'Status haid'} style={{ fontSize: '8px', fontWeight: 800, flexShrink: 0, whiteSpace: 'nowrap', padding: '1px 4px', borderRadius: '3px', textTransform: 'uppercase', background: room.penerimaStatusHaid === 'Ya' ? '#ffe4e6' : '#e0f2fe', color: room.penerimaStatusHaid === 'Ya' ? '#be123c' : '#0369a1' }}>
+                                                                    {room.penerimaStatusHaid === 'Ya' ? '🌸 Haid' : 'Suci'}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                     <div style={{ display: 'flex', gap: '4px', width: '100%', marginTop: '6px' }}>

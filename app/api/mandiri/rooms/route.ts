@@ -74,6 +74,10 @@ export async function GET(request: NextRequest) {
             pengirimKota: mda1.nama,
             pengirimDesa: md1.nama,
             pengirimWa: sql<string>`COALESCE(${g1.noTelp}, ${pan1.noTelp})`,
+            pengirimJenisKelamin: g1.jenisKelamin,
+            pengirimStatusHaid: g1.statusHaid,
+            penerimaJenisKelamin: g2.jenisKelamin,
+            penerimaStatusHaid: g2.statusHaid,
             penerimaNama: g2.nama,
             penerimaNo: g2.nomorUnik,
             penerimaNomorUrut: m2.nomorUrut,
@@ -125,7 +129,15 @@ export async function GET(request: NextRequest) {
             const n = Number(d.value);
             if (Number.isFinite(n) && n > 0) durasiMap.set(String(d.key).replace("room_durasi_", ""), n);
         }
-        const rooms = roomRows.map((r: any) => ({ ...r, durasiMenit: durasiMap.get(r.id) || 15 }));
+        // Status haid hanya untuk staf yang login (data sensitif, tidak untuk sesi peserta)
+        const rooms = roomRows.map((r: any) => {
+            const row = { ...r, durasiMenit: durasiMap.get(r.id) || 15 };
+            if (!session) {
+                delete row.pengirimStatusHaid;
+                delete row.penerimaStatusHaid;
+            }
+            return row;
+        });
 
         return NextResponse.json(rooms);
     } catch (error) {
