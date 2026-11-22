@@ -1206,7 +1206,7 @@ export default function PublicKatalogPage() {
     }
   };
 
-  const submitHasilRR = async (id: string, hasil: string) => {
+  const submitHasilRR = async (id: string, hasil: string, untuk?: "pengirim" | "penerima") => {
     setSubmittingHasilId(id);
     try {
       const nomorUnik = localStorage.getItem("attended_nomor_unik");
@@ -1218,7 +1218,7 @@ export default function PublicKatalogPage() {
           ...(nomorUnik ? { "x-nomor-unik": nomorUnik } : {}),
           ...(sessionToken ? { "x-session-token": sessionToken } : {})
         },
-        body: JSON.stringify({ id, hasil })
+        body: JSON.stringify({ id, hasil, untuk })
       });
       const data = await res.json();
       if (data.success) {
@@ -1269,6 +1269,21 @@ export default function PublicKatalogPage() {
     if (result.isConfirmed) {
       await submitHasilRR(id, hasil);
     }
+  };
+
+  // Panitia mengisikan jawaban "Belum Dijawab" atas nama peserta
+  const handlePanitiaIsiHasil = async (id: string, untuk: "pengirim" | "penerima", nama: string, hasil: string) => {
+    const result = await Swal.fire({
+      title: "Isi Hasil RR?",
+      text: `Simpan jawaban "${hasil}" atas nama ${nama}?`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Simpan",
+      cancelButtonText: "Batal",
+      confirmButtonColor: "#10b981",
+      reverseButtons: true,
+    });
+    if (result.isConfirmed) await submitHasilRR(id, hasil, untuk);
   };
 
   const handleSubmitSaran = async (e: React.FormEvent) => {
@@ -2820,6 +2835,14 @@ export default function PublicKatalogPage() {
                                       {getResultBadge(h.hasilPengirim).label}
                                     </span>
                                   ) : "-"}
+                                  {h.hasilPengirim === "Belum Dijawab" && (
+                                    <div style={{ display: 'flex', gap: '4px', marginTop: '8px' }}>
+                                      {["Lanjut", "Ragu-Ragu", "Tidak Lanjut"].map(opt => (
+                                        <button key={opt} onClick={() => handlePanitiaIsiHasil(h.id, "pengirim", h.pengirimNama, opt)} disabled={submittingHasilId === h.id}
+                                          style={{ flex: 1, padding: '6px 2px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color: '#475569', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>{opt}</button>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                                 <div style={{ flex: 1, padding: '12px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', textAlign: 'center' }}>
                                   <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '8px' }}>{h.penerimaNama}:</div>
@@ -2828,6 +2851,14 @@ export default function PublicKatalogPage() {
                                       {getResultBadge(h.hasilPenerima).label}
                                     </span>
                                   ) : "-"}
+                                  {h.hasilPenerima === "Belum Dijawab" && (
+                                    <div style={{ display: 'flex', gap: '4px', marginTop: '8px' }}>
+                                      {["Lanjut", "Ragu-Ragu", "Tidak Lanjut"].map(opt => (
+                                        <button key={opt} onClick={() => handlePanitiaIsiHasil(h.id, "penerima", h.penerimaNama, opt)} disabled={submittingHasilId === h.id}
+                                          style={{ flex: 1, padding: '6px 2px', borderRadius: '8px', border: '1px solid #cbd5e1', background: 'white', color: '#475569', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>{opt}</button>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             )}

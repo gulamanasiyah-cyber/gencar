@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
-        const { id, hasil } = await request.json();
+        const { id, hasil, untuk } = await request.json();
         if (!id || !hasil) {
             return NextResponse.json({ error: "Missing fields" }, { status: 400 });
         }
@@ -146,17 +146,30 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Sesi ini tidak lagi menerima hasil" }, { status: 409 });
         }
 
-        let resultColumn: typeof mandiriPemilihan.hasilPengirim | typeof mandiriPemilihan.hasilPenerima;
+        // Sisi mana yang diisi: peserta mengisi miliknya sendiri; panitia yang bertugas
+        // di sesi ini boleh mengisikan jawaban "Belum Dijawab" atas nama peserta.
+        let side: "pengirim" | "penerima";
         if (record.pengirimId === generusId) {
-            resultColumn = mandiriPemilihan.hasilPengirim;
+            side = "pengirim";
         } else if (record.penerimaId === generusId) {
-            resultColumn = mandiriPemilihan.hasilPenerima;
+            side = "penerima";
         } else {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+            const room = await db.query.mandiriRooms.findFirst({ where: eq(mandiriRooms.pemilihanId, id) });
+            const assigned = [record.assignedGuardId, record.assignedCallerId, record.assignedCaller2Id,
+                room?.assignedGuardId, room?.assignedCallerId, room?.assignedCaller2Id];
+            if ((untuk !== "pengirim" && untuk !== "penerima") || !assigned.includes(generusId)) {
+                return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+            }
+            const current = untuk === "pengirim" ? record.hasilPengirim : record.hasilPenerima;
+            if (current !== HASIL_BELUM_DIJAWAB) {
+                return NextResponse.json({ error: "Panitia hanya dapat mengisi jawaban yang berstatus Belum Dijawab" }, { status: 409 });
+            }
+            side = untuk;
         }
+        const resultColumn = side === "pengirim" ? mandiriPemilihan.hasilPengirim : mandiriPemilihan.hasilPenerima;
 
         const updatedByParticipant = await db.update(mandiriPemilihan)
-            .set(record.pengirimId === generusId ? { hasilPengirim: hasil } : { hasilPenerima: hasil })
+            .set(side === "pengirim" ? { hasilPengirim: hasil } : { hasilPenerima: hasil })
             .where(and(
                 eq(mandiriPemilihan.id, id),
                 or(
