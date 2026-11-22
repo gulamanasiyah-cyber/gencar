@@ -2772,6 +2772,7 @@ export default function PublicKatalogPage() {
                       const getResultBadge = (val: string) => {
                         if (val === "Lanjut") return { bg: '#dcfce7', color: '#166534', border: '#bbf7d0', label: '✓ Lanjut' };
                         if (isRagu(val)) return { bg: '#fef9c3', color: '#854d0e', border: '#fde68a', label: '~ Ragu-Ragu' };
+                        if (val === "Belum Dijawab") return { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0', label: '… Belum Dijawab' };
                         return { bg: '#fee2e2', color: '#991b1b', border: '#fecaca', label: '✗ Tidak Lanjut' };
                       };
 

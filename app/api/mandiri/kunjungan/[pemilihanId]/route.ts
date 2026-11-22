@@ -43,7 +43,7 @@ export async function PATCH(
 
     const { hasilPengirim, hasilPenerima, roomId, assignedCallerId, assignedCaller2Id, assignedGuardId, statusWaPengirim, statusWaPenerima } = body;
 
-    const valid = ["Lanjut", "Ragu-ragu", "Tidak Lanjut", "Menunggu"];
+    const valid = ["Lanjut", "Ragu-ragu", "Tidak Lanjut", "Menunggu", "Belum Dijawab"];
     if (hasilPengirim && !valid.includes(hasilPengirim)) {
       return NextResponse.json({ error: "Nilai hasil pemilih tidak valid" }, { status: 400 });
     }

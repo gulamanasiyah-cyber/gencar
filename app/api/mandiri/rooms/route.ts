@@ -10,6 +10,7 @@ import { alias } from "drizzle-orm/sqlite-core";
 import { pusherServer } from "@/lib/pusher";
 import { ensureMandiriRoomSchema } from "@/lib/mandiri-schema";
 import { getSettingRows } from "@/lib/cached-queries";
+import { autoFinalizeExpiredRooms } from "@/lib/autoFinalizeRooms";
 
 export async function GET(request: NextRequest) {
     try {
@@ -120,7 +121,7 @@ export async function GET(request: NextRequest) {
         .orderBy(mandiriRooms.nama);
 
         // Durasi sesi kustom per ruangan disimpan di tabel settings (key: room_durasi_<roomId>)
-        const [roomRows, durasiRows] = await Promise.all([
+        let [roomRows, durasiRows] = await Promise.all([
             roomsQuery,
             db.select({ key: settings.key, value: settings.value }).from(settings).where(like(settings.key, "room_durasi_%")),
         ]);
@@ -128,6 +129,21 @@ export async function GET(request: NextRequest) {
         for (const d of durasiRows as any[]) {
             const n = Number(d.value);
             if (Number.isFinite(n) && n > 0) durasiMap.set(String(d.key).replace("room_durasi_", ""), n);
+        }
+
+        // Sesi yang melewati batas waktu diselesaikan otomatis; peserta/panitia
+        // yang belum menjawab dicatat "Belum Dijawab" di riwayat hasil RR.
+        const finalizedCount = await autoFinalizeExpiredRooms(
+            (roomRows as any[]).map((r) => ({
+                id: r.id,
+                status: r.status,
+                pemilihanId: r.pemilihanId,
+                startedAt: r.startedAt,
+                durasiMenit: durasiMap.get(r.id) || 15,
+            }))
+        );
+        if (finalizedCount > 0) {
+            roomRows = await roomsQuery;
         }
         // Status haid hanya untuk staf yang login (data sensitif, tidak untuk sesi peserta)
         const rooms = roomRows.map((r: any) => {

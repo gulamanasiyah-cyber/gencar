@@ -433,7 +433,11 @@ export default function RomanticRoomPage() {
                 // 2. Process Visit History
                 if (histRes.ok) {
                     const histJson = await histRes.json();
-                    setVisitHistory(Array.isArray(histJson) ? histJson : []);
+                    // Hasil kosong diberi status: sesi sudah selesai → "Belum Dijawab", masih berjalan → "Menunggu"
+                    setVisitHistory(Array.isArray(histJson) ? histJson.map((h: any) => {
+                        const kosong = h.pemilihanStatus === "Selesai" ? "Belum Dijawab" : "Menunggu";
+                        return { ...h, pemilihHasil: h.pemilihHasil || kosong, terpilihHasil: h.terpilihHasil || kosong };
+                    }) : []);
                 }
 
                 // 3. Process Participants
@@ -1552,7 +1556,7 @@ export default function RomanticRoomPage() {
     };
 
     const handleEditRecord = async (item: any) => {
-        const hasilOptions = (current: string) => ['Menunggu', 'Lanjut', 'Ragu-ragu', 'Tidak Lanjut']
+        const hasilOptions = (current: string) => ['Menunggu', 'Belum Dijawab', 'Lanjut', 'Ragu-ragu', 'Tidak Lanjut']
             .map(v => `<option value="${v}" ${(current || 'Menunggu') === v ? 'selected' : ''}>${v}</option>`).join('');
 
         const pnkbOptions = (current: string | null) =>
@@ -1899,6 +1903,8 @@ export default function RomanticRoomPage() {
                     matchResult = (res1 === "Lanjut" && res2 === "Ragu-ragu") || (res1 === "Ragu-ragu" && res2 === "Lanjut");
                 } else if (resultFilter === "Tidak Lanjut - Ragu-ragu") {
                     matchResult = (res1 === "Tidak Lanjut" && res2 === "Ragu-ragu") || (res1 === "Ragu-ragu" && res2 === "Tidak Lanjut");
+                } else if (resultFilter === "Belum Dijawab") {
+                    matchResult = res1 === "Belum Dijawab" || res2 === "Belum Dijawab";
                 }
             }
         }
@@ -2635,6 +2641,7 @@ export default function RomanticRoomPage() {
                                     <option value="Ragu-ragu - Ragu-ragu">Ragu-ragu - Ragu-ragu</option>
                                     <option value="Lanjut - Ragu-ragu">Lanjut - Ragu-ragu</option>
                                     <option value="Tidak Lanjut - Ragu-ragu">Tidak Lanjut - Ragu-ragu</option>
+                                    <option value="Belum Dijawab">Belum Dijawab (diselesaikan sistem)</option>
                                 </select>
                                 <div className="search-bar-container" style={{ padding: '0', flex: 1, minWidth: '200px', margin: '0' }}>
                                     <Search size={16} />
@@ -2691,7 +2698,7 @@ export default function RomanticRoomPage() {
                                                             {item.pemilihHasil && (
                                                                 <span className={`result-badge ${item.pemilihHasil === 'Lanjut' ? 'badge-success' :
                                                                     item.pemilihHasil === 'Ragu-ragu' ? 'badge-warning' :
-                                                                        item.pemilihHasil === 'Menunggu' ? 'badge-info' :
+                                                                        (item.pemilihHasil === 'Menunggu' || item.pemilihHasil === 'Belum Dijawab') ? 'badge-info' :
                                                                             'badge-danger'
                                                                     }`}>
                                                                     {item.pemilihHasil}
@@ -2707,7 +2714,7 @@ export default function RomanticRoomPage() {
                                                             {item.terpilihHasil && (
                                                                 <span className={`result-badge ${item.terpilihHasil === 'Lanjut' ? 'badge-success' :
                                                                     item.terpilihHasil === 'Ragu-ragu' ? 'badge-warning' :
-                                                                        item.terpilihHasil === 'Menunggu' ? 'badge-info' :
+                                                                        (item.terpilihHasil === 'Menunggu' || item.terpilihHasil === 'Belum Dijawab') ? 'badge-info' :
                                                                             'badge-danger'
                                                                     }`}>
                                                                     {item.terpilihHasil}
@@ -2805,7 +2812,7 @@ export default function RomanticRoomPage() {
                                                             {item.pemilihHasil && (
                                                                 <span className={`result-badge ${item.pemilihHasil === 'Lanjut' ? 'badge-success' :
                                                                     item.pemilihHasil === 'Ragu-ragu' ? 'badge-warning' :
-                                                                        item.pemilihHasil === 'Menunggu' ? 'badge-info' :
+                                                                        (item.pemilihHasil === 'Menunggu' || item.pemilihHasil === 'Belum Dijawab') ? 'badge-info' :
                                                                             'badge-danger'
                                                                     }`}>
                                                                     Hasil: {item.pemilihHasil}
@@ -2835,7 +2842,7 @@ export default function RomanticRoomPage() {
                                                             {item.terpilihHasil && (
                                                                 <span className={`result-badge ${item.terpilihHasil === 'Lanjut' ? 'badge-success' :
                                                                     item.terpilihHasil === 'Ragu-ragu' ? 'badge-warning' :
-                                                                        item.terpilihHasil === 'Menunggu' ? 'badge-info' :
+                                                                        (item.terpilihHasil === 'Menunggu' || item.terpilihHasil === 'Belum Dijawab') ? 'badge-info' :
                                                                             'badge-danger'
                                                                     }`}>
                                                                     Hasil: {item.terpilihHasil}

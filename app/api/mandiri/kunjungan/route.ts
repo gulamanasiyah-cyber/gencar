@@ -65,6 +65,7 @@ export async function GET(request: NextRequest) {
             statusWaPengirim: mandiriPemilihan.statusWaPengirim,
             statusWaPenerima: mandiriPemilihan.statusWaPenerima,
             pemilihanId: mandiriKunjungan.pemilihanId,
+            pemilihanStatus: mandiriPemilihan.status,
             pemilihJenisKelamin: g1.jenisKelamin,
             terpilihJenisKelamin: g2.jenisKelamin,
             assignedCallerId: mandiriPemilihan.assignedCallerId,
