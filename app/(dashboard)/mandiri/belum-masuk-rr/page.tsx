@@ -233,7 +233,7 @@ export default function BelumMasukRRPage() {
       )}
 
       <style jsx>{`
-        .bm-page { padding: 24px; max-width: 1200px; margin: 0 auto; font-family: 'Inter', sans-serif; color: #334155; }
+        .bm-page { padding: 24px; width: 100%; max-width: 1200px; min-width: 0; box-sizing: border-box; overflow-x: hidden; margin: 0 auto; font-family: 'Inter', sans-serif; color: #334155; }
         .bm-header { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
         .bm-header h1 { margin: 0; font-size: 22px; font-weight: 800; color: #1e293b; }
         .bm-header p { margin: 2px 0 0; font-size: 13px; color: #64748b; }
@@ -242,8 +242,8 @@ export default function BelumMasukRRPage() {
         .bm-refresh:disabled { opacity: .6; cursor: not-allowed; }
         .bm-spin { animation: bm-rot 1s linear infinite; }
         @keyframes bm-rot { to { transform: rotate(360deg); } }
-        .bm-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 16px; }
-        .bm-stat { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; font-size: 12px; color: #64748b; font-weight: 600; }
+        .bm-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 10px; margin-bottom: 16px; }
+        .bm-stat { min-width: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; font-size: 12px; color: #64748b; font-weight: 600; }
         .bm-stat span { display: block; font-size: 24px; font-weight: 800; color: #1e293b; }
         .bm-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
         .bm-toolbar select { height: 36px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 12px; padding: 0 8px; background: #fff; max-width: 100%; }
@@ -253,8 +253,8 @@ export default function BelumMasukRRPage() {
         .bm-check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; }
         .bm-count { font-size: 12px; color: #64748b; margin-bottom: 10px; }
         .bm-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 48px 16px; color: #94a3b8; font-size: 14px; text-align: center; background: #fff; border: 1px dashed #cbd5e1; border-radius: 12px; }
-        .bm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
-        .bm-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+        .bm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 10px; }
+        .bm-card { min-width: 0; box-sizing: border-box; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
         .bm-card-top { display: flex; align-items: center; gap: 8px; }
         .bm-card-top strong { flex: 1; min-width: 0; font-size: 14px; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .bm-no { background: #1e293b; color: #fff; font-size: 11px; font-weight: 800; border-radius: 6px; padding: 1px 7px; }
@@ -265,7 +265,15 @@ export default function BelumMasukRRPage() {
         .tag-gender { background: #f1f5f9; color: #475569; }
         .tag-queue { background: #dbeafe; color: #1d4ed8; }
         .bm-meta { font-size: 12px; color: #64748b; }
-        @media (max-width: 640px) { .bm-page { padding: 14px; } }
+        @media (max-width: 640px) {
+          .bm-page { padding: 14px 12px; }
+          .bm-header h1 { font-size: 18px; }
+          .bm-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .bm-toolbar { flex-direction: column; align-items: stretch; }
+          .bm-toolbar select, .bm-search { width: 100%; flex: 1 1 auto; }
+          .bm-refresh { width: 100%; justify-content: center; }
+          .bm-grid { grid-template-columns: minmax(0, 1fr); }
+        }
       `}</style>
     </div>
   );
