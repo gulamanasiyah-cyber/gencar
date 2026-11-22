@@ -60,13 +60,48 @@ export default function RomanticRoomTV() {
         };
     }, []);
     
+    // Ukuran viewport untuk auto-fit tile agar semua nomor muat tanpa scroll
+    const [vp, setVp] = useState({ w: 1920, h: 1080 });
+    useEffect(() => {
+        const update = () => setVp({ w: window.innerWidth, h: window.innerHeight });
+        update();
+        window.addEventListener("resize", update);
+        return () => window.removeEventListener("resize", update);
+    }, []);
+
+    const numsFor = (g: string) =>
+        rooms
+            .map(room => room.pemilihGender === g ? room.pemilihNomorUrut : room.terpilihGender === g ? room.terpilihNomorUrut : null)
+            .filter(Boolean)
+            .sort((a: any, b: any) => Number(a) - Number(b));
+
+    const lNums = numsFor("L");
+    const pNums = numsFor("P");
+
+    // Cari font terbesar yang masih muat untuk panel dengan nomor terbanyak
+    const fitFont = (() => {
+        const count = Math.max(lNums.length, pNums.length, 1);
+        const digits = Math.max(1, ...[...lNums, ...pNums].map((n: any) => String(n).length));
+        const availW = (vp.w - 100 - 40) / 2 - 40;
+        const availH = vp.h - 110 - 66 - 48 - 70 - 40 - 24;
+        for (let f = 60; f >= 14; f -= 2) {
+            const tileW = f * 0.65 * digits + f * 1.1 + 4;
+            const tileH = f * 1.45 + f * 0.5 + 6;
+            const gap = f * 0.35;
+            const perRow = Math.max(1, Math.floor((availW + gap) / (tileW + gap)));
+            const rows = Math.ceil(count / perRow);
+            if (rows * (tileH + gap) - gap <= availH) return f;
+        }
+        return 14;
+    })();
+
     const formatTime = (d: Date) => {
         return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     };
 
     return (
         <div style={{
-            minHeight: "100vh",
+            height: "100vh",
             backgroundColor: "#f8fafc",
             backgroundImage: "radial-gradient(circle at top right, #ffffff, #f1f5f9)",
             color: "#0f172a",
@@ -77,7 +112,7 @@ export default function RomanticRoomTV() {
         }}>
             {/* Header */}
             <div style={{
-                padding: "30px 50px",
+                padding: "16px 50px",
                 borderBottom: "1px solid rgba(0,0,0,0.05)",
                 display: "flex",
                 justifyContent: "space-between",
@@ -114,7 +149,7 @@ export default function RomanticRoomTV() {
             </div>
 
             {/* Content Display */}
-            <div style={{ flex: 1, padding: "40px 50px", overflowY: "auto" }}>
+            <div style={{ flex: 1, minHeight: 0, padding: "24px 50px", overflow: "hidden" }}>
                 {loading ? (
                     <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
                         <div style={{ fontSize: "24px", color: "#475569" }}>Memuat Layar...</div>
@@ -143,7 +178,7 @@ export default function RomanticRoomTV() {
                         }}>
                             <div style={{
                                 backgroundColor: "#e0f2fe",
-                                padding: "20px 30px",
+                                padding: "12px 30px",
                                 borderBottom: "3px solid #0284c7",
                                 display: "flex",
                                 justifyContent: "center"
@@ -152,17 +187,14 @@ export default function RomanticRoomTV() {
                                     LAKI - LAKI
                                 </h2>
                             </div>
-                            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "25px", padding: "40px" }}>
-                                {rooms
-                                    .map(room => room.pemilihGender === 'L' ? room.pemilihNomorUrut : room.terpilihGender === 'L' ? room.terpilihNomorUrut : null)
-                                    .filter(Boolean)
-                                    .sort((a,b) => Number(a) - Number(b)) 
-                                    .map((no, idx) => (
+                            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: `${fitFont * 0.35}px`, padding: "20px" }}>
+                                {lNums
+                                    .map((no: any, idx: number) => (
                                         <div key={`L-${no}`} style={{
-                                            fontSize: "60px", fontWeight: 900, color: "#0284c7", 
+                                            fontSize: `${fitFont}px`, fontWeight: 900, color: "#0284c7",
                                             textShadow: "0 0 10px rgba(2, 132, 199, 0.1)",
                                             backgroundColor: "#f0f9ff",
-                                            padding: "15px 35px",
+                                            padding: `${fitFont * 0.25}px ${fitFont * 0.55}px`,
                                             borderRadius: "24px",
                                             border: "2px solid #bae6fd"
                                         }}>
@@ -191,7 +223,7 @@ export default function RomanticRoomTV() {
                         }}>
                             <div style={{
                                 backgroundColor: "#fce7f3",
-                                padding: "20px 30px",
+                                padding: "12px 30px",
                                 borderBottom: "3px solid #db2777",
                                 display: "flex",
                                 justifyContent: "center"
@@ -200,17 +232,14 @@ export default function RomanticRoomTV() {
                                     PEREMPUAN
                                 </h2>
                             </div>
-                            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "25px", padding: "40px" }}>
-                                {rooms
-                                    .map(room => room.pemilihGender === 'P' ? room.pemilihNomorUrut : room.terpilihGender === 'P' ? room.terpilihNomorUrut : null)
-                                    .filter(Boolean)
-                                    .sort((a,b) => Number(a) - Number(b)) 
-                                    .map((no, idx) => (
+                            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: `${fitFont * 0.35}px`, padding: "20px" }}>
+                                {pNums
+                                    .map((no: any, idx: number) => (
                                         <div key={`P-${no}`} style={{
-                                            fontSize: "60px", fontWeight: 900, color: "#ec4899", 
+                                            fontSize: `${fitFont}px`, fontWeight: 900, color: "#ec4899",
                                             textShadow: "0 0 10px rgba(236, 72, 153, 0.1)",
                                             backgroundColor: "#fdf2f8",
-                                            padding: "15px 35px",
+                                            padding: `${fitFont * 0.25}px ${fitFont * 0.55}px`,
                                             borderRadius: "24px",
                                             border: "2px solid #fbcfe8"
                                         }}>
