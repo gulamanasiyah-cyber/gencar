@@ -5,6 +5,7 @@ import { eq, and, or, desc, sql, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { pusherServer } from "@/lib/pusher";
 import { getSession } from "@/lib/auth";
+import { HASIL_BELUM_DIJAWAB } from "@/lib/autoFinalizeRooms";
 
 export const dynamic = "force-dynamic";
 
@@ -140,7 +141,8 @@ export async function POST(request: NextRequest) {
 
         if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-        if (record.status !== "Diterima") {
+        // Sesi "Selesai" hanya menerima jawaban susulan dari yang dicatat "Belum Dijawab" oleh sistem
+        if (record.status !== "Diterima" && record.status !== "Selesai") {
             return NextResponse.json({ error: "Sesi ini tidak lagi menerima hasil" }, { status: 409 });
         }
 
@@ -157,8 +159,10 @@ export async function POST(request: NextRequest) {
             .set(record.pengirimId === generusId ? { hasilPengirim: hasil } : { hasilPenerima: hasil })
             .where(and(
                 eq(mandiriPemilihan.id, id),
-                eq(mandiriPemilihan.status, "Diterima"),
-                or(isNull(resultColumn), eq(resultColumn, ""))
+                or(
+                    and(eq(mandiriPemilihan.status, "Diterima"), or(isNull(resultColumn), eq(resultColumn, ""), eq(resultColumn, HASIL_BELUM_DIJAWAB))),
+                    and(eq(mandiriPemilihan.status, "Selesai"), eq(resultColumn, HASIL_BELUM_DIJAWAB))
+                )
             ))
             .returning({ id: mandiriPemilihan.id });
 
@@ -177,7 +181,16 @@ export async function POST(request: NextRequest) {
             updatedRecord.hasilPenerima && 
             updatedRecord.hasilPenerima !== "Menunggu";
 
-        if (hasFinished) {
+        const wasLate = record.status === "Selesai";
+        if (wasLate) {
+            // Jawaban susulan: sesi sudah selesai & ruangan sudah kosong; cukup jalankan cleanup bila jadi match
+            try {
+                const { handleMatchCleanup } = await import("@/lib/matchCleanup");
+                await handleMatchCleanup(id);
+            } catch (cleanupErr) {
+                console.error("Failed to run match cleanup:", cleanupErr);
+            }
+        } else if (hasFinished) {
             // 1. Mark the pemilihan as "Selesai"
             const finalized = await db.update(mandiriPemilihan)
                 .set({ status: "Selesai" })

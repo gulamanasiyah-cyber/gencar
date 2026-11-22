@@ -287,7 +287,7 @@ export default function PublicKatalogPage() {
     if (!currentUser?.id) return false;
     const isPengirim = item.pengirimId === currentUser.id;
     const myHasil = isPengirim ? item.hasilPengirim : item.hasilPenerima;
-    return !myHasil;
+    return !myHasil || myHasil === "Belum Dijawab";
   }).length;
 
 
@@ -2755,7 +2755,8 @@ export default function PublicKatalogPage() {
                       const partnerNoUrut = isPengirim ? h.penerimaNoUrut : h.pengirimNoUrut;
                       const myHasil = isPengirim ? h.hasilPengirim : h.hasilPenerima;
                       const partnerHasil = isPengirim ? h.hasilPenerima : h.hasilPengirim;
-                      const selectedHasil = myHasil || hasilRRDrafts[h.id] || "";
+                      const myLocked = !!myHasil && myHasil !== "Belum Dijawab";
+                      const selectedHasil = (myLocked ? myHasil : hasilRRDrafts[h.id]) || "";
                       const isSubmittingThis = submittingHasilId === h.id;
                       const isDalamRuangan = h.status === "Diterima";
                       // Tombol hasil baru aktif setelah admin Romantic Room menekan "Mulai"
@@ -2767,12 +2768,12 @@ export default function PublicKatalogPage() {
 
                       const isRagu = (val: string) => val === "Ragu-Ragu" || val === "Ragu-ragu";
 
-                      const bothAnswered = !!myHasil && !!partnerHasil;
+                      const bothAnswered = myLocked && !!partnerHasil;
 
                       const getResultBadge = (val: string) => {
                         if (val === "Lanjut") return { bg: '#dcfce7', color: '#166534', border: '#bbf7d0', label: '✓ Lanjut' };
                         if (isRagu(val)) return { bg: '#fef9c3', color: '#854d0e', border: '#fde68a', label: '~ Ragu-Ragu' };
-                        if (val === "Belum Dijawab") return { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0', label: '… Belum Dijawab' };
+                        if (val === "Belum Dijawab") return { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0', label: 'Belum Dijawab' };
                         return { bg: '#fee2e2', color: '#991b1b', border: '#fecaca', label: '✗ Tidak Lanjut' };
                       };
 
@@ -2856,9 +2857,14 @@ export default function PublicKatalogPage() {
                             </div>
                           )}
                           <div style={{ marginBottom: '10px', fontSize: '13px', color: '#475569', fontWeight: 600 }}>Jawaban Anda:</div>
+                          {myHasil === "Belum Dijawab" && (
+                            <div style={{ marginBottom: '10px', padding: '10px 12px', borderRadius: '10px', background: '#f1f5f9', border: '1px solid #e2e8f0', fontSize: '12px', color: '#475569', lineHeight: 1.5 }}>
+                              Batas waktu habis dan sesi diselesaikan otomatis oleh sistem. Anda masih bisa mengisi jawaban sekarang.
+                            </div>
+                          )}
                           <div style={{ display: 'flex', gap: '8px' }}>
                             <button
-                              disabled={!!myHasil || notStarted}
+                              disabled={myLocked || notStarted}
                               onClick={() => setHasilRRDrafts(prev => ({ ...prev, [h.id]: "Lanjut" }))}
                               style={{
                                 flex: 1,
@@ -2867,15 +2873,15 @@ export default function PublicKatalogPage() {
                                 fontSize: '13px',
                                 fontWeight: 700,
                                 border: selectedHasil === "Lanjut" ? '2px solid #22c55e' : '1px solid #e2e8f0',
-                                background: selectedHasil === "Lanjut" ? '#f0fdf4' : (!!myHasil ? '#f8fafc' : 'white'),
-                                color: selectedHasil === "Lanjut" ? '#166534' : (!!myHasil ? '#94a3b8' : '#64748b'),
-                                cursor: (!!myHasil || notStarted) ? 'not-allowed' : 'pointer',
+                                background: selectedHasil === "Lanjut" ? '#f0fdf4' : (myLocked ? '#f8fafc' : 'white'),
+                                color: selectedHasil === "Lanjut" ? '#166534' : (myLocked ? '#94a3b8' : '#64748b'),
+                                cursor: (myLocked || notStarted) ? 'not-allowed' : 'pointer',
                                 transition: '0.2s',
-                                opacity: !!myHasil && selectedHasil !== "Lanjut" ? 0.6 : 1
+                                opacity: myLocked && selectedHasil !== "Lanjut" ? 0.6 : 1
                               }}
                             >Lanjut</button>
                             <button
-                              disabled={!!myHasil || notStarted}
+                              disabled={myLocked || notStarted}
                               onClick={() => setHasilRRDrafts(prev => ({ ...prev, [h.id]: "Ragu-Ragu" }))}
                               style={{
                                 flex: 1,
@@ -2884,15 +2890,15 @@ export default function PublicKatalogPage() {
                                 fontSize: '13px',
                                 fontWeight: 700,
                                 border: isRagu(selectedHasil) ? '2px solid #eab308' : '1px solid #e2e8f0',
-                                background: isRagu(selectedHasil) ? '#fefce8' : (!!myHasil ? '#f8fafc' : 'white'),
-                                color: isRagu(selectedHasil) ? '#854d0e' : (!!myHasil ? '#94a3b8' : '#64748b'),
-                                cursor: (!!myHasil || notStarted) ? 'not-allowed' : 'pointer',
+                                background: isRagu(selectedHasil) ? '#fefce8' : (myLocked ? '#f8fafc' : 'white'),
+                                color: isRagu(selectedHasil) ? '#854d0e' : (myLocked ? '#94a3b8' : '#64748b'),
+                                cursor: (myLocked || notStarted) ? 'not-allowed' : 'pointer',
                                 transition: '0.2s',
-                                opacity: !!myHasil && !isRagu(selectedHasil) ? 0.6 : 1
+                                opacity: myLocked && !isRagu(selectedHasil) ? 0.6 : 1
                               }}
                             >Ragu-Ragu</button>
                             <button
-                              disabled={!!myHasil || notStarted}
+                              disabled={myLocked || notStarted}
                               onClick={() => setHasilRRDrafts(prev => ({ ...prev, [h.id]: "Tidak Lanjut" }))}
                               style={{
                                 flex: 1,
@@ -2901,15 +2907,15 @@ export default function PublicKatalogPage() {
                                 fontSize: '13px',
                                 fontWeight: 700,
                                 border: selectedHasil === "Tidak Lanjut" ? '2px solid #ef4444' : '1px solid #e2e8f0',
-                                background: selectedHasil === "Tidak Lanjut" ? '#fef2f2' : (!!myHasil ? '#f8fafc' : 'white'),
-                                color: selectedHasil === "Tidak Lanjut" ? '#991b1b' : (!!myHasil ? '#94a3b8' : '#64748b'),
-                                cursor: (!!myHasil || notStarted) ? 'not-allowed' : 'pointer',
+                                background: selectedHasil === "Tidak Lanjut" ? '#fef2f2' : (myLocked ? '#f8fafc' : 'white'),
+                                color: selectedHasil === "Tidak Lanjut" ? '#991b1b' : (myLocked ? '#94a3b8' : '#64748b'),
+                                cursor: (myLocked || notStarted) ? 'not-allowed' : 'pointer',
                                 transition: '0.2s',
-                                opacity: !!myHasil && selectedHasil !== "Tidak Lanjut" ? 0.6 : 1
+                                opacity: myLocked && selectedHasil !== "Tidak Lanjut" ? 0.6 : 1
                               }}
                             >Tidak Lanjut</button>
                           </div>
-                          {!myHasil && (
+                          {!myLocked && (
                             <button
                               disabled={!hasilRRDrafts[h.id] || isSubmittingThis || notStarted}
                               onClick={() => handleSubmitHasilRR(h.id, partnerName)}
@@ -2957,7 +2963,7 @@ export default function PublicKatalogPage() {
                               })()}
                             </div>
                           )}
-                          {myHasil && !partnerHasil && (
+                          {myLocked && !partnerHasil && (
                             <div style={{ marginTop: '14px', padding: '10px', borderRadius: '12px', background: '#fffbeb', border: '1px solid #fde68a', fontSize: '12px', color: '#92400e', textAlign: 'center' }}>
                               <Timer size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }} />
                               Menunggu jawaban dari {partnerName}...
