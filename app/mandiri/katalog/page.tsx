@@ -1247,10 +1247,7 @@ export default function PublicKatalogPage() {
     }
     const target = hasilRRList.find((x: any) => x.id === id);
     if (target && target.status === "Diterima") {
-      const room = activeRooms.find((r: any) =>
-        r.pemilihanId === id ||
-        (String(r.pengirimNo || "") === String(target.pengirimNo || "") && String(r.penerimaNo || "") === String(target.penerimaNo || ""))
-      );
+      const room = activeRooms.find((r: any) => r.pemilihanId === id);
       if (!room || !room.startedAt) {
         Swal.fire("Belum Dimulai", "Sesi belum dimulai oleh admin Romantic Room.", "info");
         return;
@@ -2762,10 +2759,7 @@ export default function PublicKatalogPage() {
                       const isSubmittingThis = submittingHasilId === h.id;
                       const isDalamRuangan = h.status === "Diterima";
                       // Tombol hasil baru aktif setelah admin Romantic Room menekan "Mulai"
-                      const roomForH = activeRooms.find((r: any) =>
-                        r.pemilihanId === h.id ||
-                        (String(r.pengirimNo || "") === String(h.pengirimNo || "") && String(r.penerimaNo || "") === String(h.penerimaNo || ""))
-                      );
+                      const roomForH = activeRooms.find((r: any) => r.pemilihanId === h.id);
                       const notStarted = isDalamRuangan && !(roomForH && roomForH.startedAt);
 
                       const isPenerima = h.penerimaId === currentUser?.id;
