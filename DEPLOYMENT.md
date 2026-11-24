@@ -882,3 +882,13 @@ sudo journalctl -u gencar -f           # Service logs
 sudo ufw status                        # Firewall status
 sudo certbot renew                     # Renew SSL
 ```
+
+## Variabel lingkungan keamanan (wajib diset di production)
+
+| Variabel | Fungsi |
+|---|---|
+| `JWT_SECRET` | Minimal 32 karakter acak (`openssl rand -base64 48`) |
+| `APP_ENCRYPTION_KEY` | Kunci enkripsi kolom `password_plain` (jika diganti, data lama tidak terbaca) |
+| `WEBHOOK_SECRET` | Secret webhook WhatsApp; kirim lewat header `x-webhook-secret` atau `?secret=`. Tanpa ini webhook menolak semua request |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Pengiriman email tautan reset password |
+| `NEXT_PUBLIC_APP_URL` | Basis URL pada tautan reset password |
